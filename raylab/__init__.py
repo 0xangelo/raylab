@@ -1,23 +1,19 @@
-from ray.tune import register_env, register_trainable
+"""RAYLAB: Extensions and custom algorithms in RLlib."""
 
 
-def _register_all_algorithms():
-    from ray.rllib.contrib.registry import CONTRIBUTED_ALGORITHMS
-    from raylab.algorithms.registry import LOCAL_ALGORITHMS
+def register_all_agents():
+    """Register all trainer names in Tune."""
+    from ray.tune import register_trainable
+    from raylab.algorithms.registry import ALGORITHMS
 
-    CONTRIBUTED_ALGORITHMS.update(LOCAL_ALGORITHMS)
-    for key in LOCAL_ALGORITHMS:
-        from ray.rllib.agents.registry import get_agent_class
-
-        register_trainable(key, get_agent_class(key))
+    for name, trainer_import in ALGORITHMS.items():
+        register_trainable(name, trainer_import())
 
 
-def _register_all_envs():
-    from raylab.envs.registry import LOCAL_ENVS
+def register_all_environments():
+    """Register all custom environments in Tune."""
+    from ray.tune import register_env
+    from raylab.envs.registry import ENVS
 
-    for name, maker in LOCAL_ENVS.items():
-        register_env(name, maker)
-
-
-_register_all_algorithms()
-_register_all_envs()
+    for name, env_import in ENVS.items():
+        register_env(name, env_import)

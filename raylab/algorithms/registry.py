@@ -13,4 +13,4 @@ def _import_td3():
     return TD3Trainer
 
 
-LOCAL_ALGORITHMS = {"contrib/PPO": _import_ppo, "contrib/TD3": _import_td3}
+ALGORITHMS = {"contrib/PPO": _import_ppo, "contrib/TD3": _import_td3}
