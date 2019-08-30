@@ -59,11 +59,6 @@ repos:
 
     - repo: local
       hooks:
-      - id: check-commit-message
-        name: Check commit message
-        language: script
-        entry: scripts/check_commit_message
-        stages: [commit-msg]
       - id: pylint
         name: pylint
         entry: pylint
