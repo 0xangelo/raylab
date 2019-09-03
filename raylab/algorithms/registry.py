@@ -13,4 +13,14 @@ def _import_td3():
     return TD3Trainer
 
 
-ALGORITHMS = {"contrib/PPO": _import_ppo, "contrib/TD3": _import_td3}
+def _import_naf():
+    from raylab.algorithms.naf.naf import NAFTrainer
+
+    return NAFTrainer
+
+
+ALGORITHMS = {
+    "contrib/PPO": _import_ppo,
+    "contrib/TD3": _import_td3,
+    "NAF": _import_naf,
+}
