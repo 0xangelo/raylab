@@ -3,8 +3,10 @@ import os
 import inspect
 
 import torch
+import torch.nn as nn
 from ray.rllib.utils import merge_dicts
-from ray.rllib.policy.policy import Policy, LEARNER_STATS_KEY
+from ray.rllib.policy import Policy, TorchPolicy
+from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.utils.annotations import override
 
 from raylab.utils.pytorch import convert_to_tensor, get_optimizer_class
@@ -42,9 +44,10 @@ class NAFTorchPolicy(Policy):
         **kwargs
     ):
         obs = convert_to_tensor(obs_batch, self.device)
+        module = self.module["main"]
         with torch.no_grad():
-            logits = self.module.logits_module(obs)
-            action = self.module.action_module(logits)
+            logits = module.logits_module(obs)
+            action = module.action_module(logits)
         return action.cpu().numpy(), state_batches, {}
 
     @override(Policy)
@@ -55,7 +58,12 @@ class NAFTorchPolicy(Policy):
 
     @override(Policy)
     def learn_on_batch(self, samples):
-        info = {}
+        # pylint: disable=protected-access
+        batch_tensors = TorchPolicy._lazy_tensor_dict(self, samples)
+        loss, info = self.compute_loss(batch_tensors, self.module, self.config)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
         return {LEARNER_STATS_KEY: info}
 
     @override(Policy)
@@ -65,6 +73,20 @@ class NAFTorchPolicy(Policy):
     @override(Policy)
     def set_weights(self, weights):
         self.module.load_state_dict(weights)
+
+    def compute_loss(self, batch_tensors, module, config):
+        """Compute the forward pass of NAF's loss function.
+
+        Arguments:
+            batch_tensors (UsageTrackingDict): Dictionary of experience batches that are
+                lazily converted to tensors.
+            module (nn.Module): The main module of the policy
+            config (dict): The policy's configuration
+
+        Returns:
+            A scalar tensor sumarizing the losses for this experience batch.
+        """
+        return torch.zeros([])
 
     @staticmethod
     def get_default_config():
@@ -77,7 +99,10 @@ class NAFTorchPolicy(Policy):
         obs_dim = obs_space.shape[0]
         action_low = torch.from_numpy(action_space.low).float()
         action_high = torch.from_numpy(action_space.high).float()
-        module = NAFModule(obs_dim, action_low, action_high, config["model"])
+        module = nn.ModuleDict()
+        module["main"] = NAFModule(obs_dim, action_low, action_high, config["model"])
+        module["target"] = NAFModule(obs_dim, action_low, action_high, config["model"])
+        module["target"].load_state_dict(module["main"].state_dict())
         return module
 
     @staticmethod
