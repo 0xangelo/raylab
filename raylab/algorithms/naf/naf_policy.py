@@ -115,8 +115,8 @@ class NAFTorchPolicy(Policy):
         action_low = torch.from_numpy(action_space.low).float()
         action_high = torch.from_numpy(action_space.high).float()
         module = nn.ModuleDict()
-        module["main"] = NAFModule(obs_dim, action_low, action_high, config["model"])
-        module["target"] = NAFModule(obs_dim, action_low, action_high, config["model"])
+        module["main"] = NAFModule(obs_dim, action_low, action_high, config["module"])
+        module["target"] = NAFModule(obs_dim, action_low, action_high, config["module"])
         module["target"].load_state_dict(module["main"].state_dict())
         return module
 

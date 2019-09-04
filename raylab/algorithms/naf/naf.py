@@ -11,10 +11,21 @@ from raylab.algorithms.naf.naf_policy import NAFTorchPolicy
 
 DEFAULT_CONFIG = with_common_config(
     {
-        "replay_buffer_size": int(1e5),
-        "model": {"layers": [400, 300], "activation": "elu"},
+        # === Replay buffer ===
+        # Size of the replay buffer. Note that if async_updates is set, then
+        # each worker will have a replay buffer of this size.
+        "buffer_size": 500000,
+        # === Network ===
+        # Size and activation of the fully connected network computing the logits
+        # for the normalized advantage function. No layers means the Q function is
+        # linear in states and actions.
+        "module": {"layers": [400, 300], "activation": "elu"},
+        # === Optimization ===
+        # Name of Pytorch optimizer class
         "torch_optimizer": "Adam",
+        # Keyword arguments to be passed to the PyTorch optimizer
         "torch_optimizer_options": {},
+        # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
     }
 )
@@ -35,7 +46,7 @@ class NAFTrainer(Trainer):
         self.workers = self._make_workers(
             env_creator, policy_cls, config, num_workers=0
         )
-        self.replay = ReplayBuffer(config["replay_buffer_size"])
+        self.replay = ReplayBuffer(config["buffer_size"])
 
     @override(Trainer)
     def _train(self):
