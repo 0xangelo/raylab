@@ -33,3 +33,16 @@ def get_optimizer_class(name):
         if issubclass(obj, torch.optim.Optimizer) and obj is not torch.optim.Optimizer:
             return obj
     raise ValueError("Unsupported optimizer name '{}'".format(name))
+
+
+def update_polyak(from_module, to_module, polyak):
+    """Update parameters between modules by polyak averaging.
+
+    Arguments:
+        from_module (nn.Module): Module whose parameters are targets.
+        to_module (nn.Module): Module whose parameters are updated towards the targets.
+        polyak (float): Averaging factor. The higher it is, the slower the parameters
+            are updated.
+    """
+    for source, target in zip(from_module.parameters(), to_module.parameters()):
+        target.data.mul_(polyak).add_(1 - polyak, source.data)
