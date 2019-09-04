@@ -121,7 +121,6 @@ data/
 trash*
 
 # temporary or local
-tests/
 local/
 
 # vectorized images
