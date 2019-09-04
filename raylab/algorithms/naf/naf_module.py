@@ -82,7 +82,7 @@ class AdvantageModule(nn.Module):
             action_diff.transpose(-1, -2), torch.matmul(pdef_matrix, action_diff)
         )
         advantage = -1 / 2 * quadratic_term
-        return advantage.squeeze()
+        return advantage.squeeze(-1)
 
 
 class TrilMatrixModule(nn.Module):

@@ -15,6 +15,7 @@ DEFAULT_CONFIG = with_common_config(
         "model": {"layers": [400, 300], "activation": "elu"},
         "torch_optimizer": "Adam",
         "torch_optimizer_options": {},
+        "polyak": 0.995,
     }
 )
 

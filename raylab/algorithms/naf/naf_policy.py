@@ -7,9 +7,10 @@ import torch.nn as nn
 from ray.rllib.utils import merge_dicts
 from ray.rllib.policy import Policy, TorchPolicy
 from ray.rllib.policy.policy import LEARNER_STATS_KEY
+from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.utils.pytorch import convert_to_tensor, get_optimizer_class
+from raylab.utils.pytorch import convert_to_tensor, get_optimizer_class, update_polyak
 from raylab.algorithms.naf.naf_module import NAFModule
 
 
@@ -64,6 +65,7 @@ class NAFTorchPolicy(Policy):
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+        update_polyak(self.module["main"], self.module["target"], self.config["polyak"])
         return {LEARNER_STATS_KEY: info}
 
     @override(Policy)
@@ -74,19 +76,32 @@ class NAFTorchPolicy(Policy):
     def set_weights(self, weights):
         self.module.load_state_dict(weights)
 
-    def compute_loss(self, batch_tensors, module, config):
+    @staticmethod
+    def compute_loss(batch_tensors, module, config):
         """Compute the forward pass of NAF's loss function.
 
         Arguments:
             batch_tensors (UsageTrackingDict): Dictionary of experience batches that are
                 lazily converted to tensors.
-            module (nn.Module): The main module of the policy
+            module (nn.Module): The module of the policy
             config (dict): The policy's configuration
 
         Returns:
             A scalar tensor sumarizing the losses for this experience batch.
         """
-        return torch.zeros([])
+        gamma = config["gamma"]
+        obs = batch_tensors[SampleBatch.CUR_OBS]
+        actions = batch_tensors[SampleBatch.ACTIONS]
+        rewards = batch_tensors[SampleBatch.REWARDS]
+        dones = batch_tensors[SampleBatch.DONES]
+        next_obs = batch_tensors[SampleBatch.NEXT_OBS]
+
+        _, _, best_value = module["target"](next_obs)
+        best_value.squeeze_(-1)
+        target_value = torch.where(dones, rewards, rewards + gamma * best_value)
+        action_value, _, _ = module["main"](obs, actions)
+        action_value.squeeze_(-1)
+        return torch.nn.MSELoss()(action_value, target_value)
 
     @staticmethod
     def get_default_config():
