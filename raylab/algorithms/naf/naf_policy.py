@@ -42,8 +42,9 @@ class NAFTorchPolicy(Policy):
         **kwargs
     ):
         obs = convert_to_tensor(obs_batch, self.device)
-        logits = self.module.logits_module(obs)
-        action = self.module.action_module(logits)
+        with torch.no_grad():
+            logits = self.module.logits_module(obs)
+            action = self.module.action_module(logits)
         return action.cpu().numpy(), state_batches, {}
 
     @override(Policy)
