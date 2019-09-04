@@ -5,14 +5,17 @@ from ray.rllib.agents.ddpg import ddpg_policy
 
 
 def postprocess_fn(policy, sample_batch, other_agent_batches=None, episode=None):
-    if episode is not None and policy.config["timeout_bootstrap"]:
-        done = sample_batch[SampleBatch.DONES][-1]
-        sample_batch[SampleBatch.DONES][-1] = (
-            False if episode.length >= policy.config["horizon"] else done
-        )
+    horizon = policy.config["horizon"]
+    if (
+        episode
+        and horizon
+        and policy.config["timeout_bootstrap"]
+        and episode.length >= horizon
+    ):
+        sample_batch[SampleBatch.DONES][-1] = False
 
     return ddpg_policy.postprocess_trajectory(
-        sample_batch, other_agent_batches, episode
+        policy, sample_batch, other_agent_batches, episode
     )
 
 
