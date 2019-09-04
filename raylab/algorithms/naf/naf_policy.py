@@ -101,7 +101,7 @@ class NAFTorchPolicy(Policy):
         target_value = torch.where(dones, rewards, rewards + gamma * best_value)
         action_value, _, _ = module["main"](obs, actions)
         action_value.squeeze_(-1)
-        return torch.nn.MSELoss()(action_value, target_value)
+        return torch.nn.MSELoss()(action_value, target_value), {}
 
     @staticmethod
     def get_default_config():
