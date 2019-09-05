@@ -96,9 +96,10 @@ class NAFTorchPolicy(Policy):
         dones = batch_tensors[SampleBatch.DONES]
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
 
-        _, _, best_value = module["target"](next_obs)
-        best_value.squeeze_(-1)
-        target_value = torch.where(dones, rewards, rewards + gamma * best_value)
+        next_logits = module["target"].logits_module(next_obs)
+        best_next_value = module["target"].value_module(next_logits)
+        best_next_value.squeeze_(-1)
+        target_value = torch.where(dones, rewards, rewards + gamma * best_next_value)
         action_value, _, _ = module["main"](obs, actions)
         action_value.squeeze_(-1)
         return torch.nn.MSELoss()(action_value, target_value), {}
