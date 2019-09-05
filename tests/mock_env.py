@@ -21,4 +21,4 @@ class MockEnv(gym.Env):  # pylint: disable=abstract-method
 
     def step(self, action):
         self.time += 1
-        return self.observation_space.sample(), 1, self.time >= self.horizon, {}
+        return self.observation_space.sample(), 1.0, self.time >= self.horizon, {}
