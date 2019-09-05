@@ -24,7 +24,7 @@ DEFAULT_CONFIG = with_common_config(
         # Name of Pytorch optimizer class
         "torch_optimizer": "Adam",
         # Keyword arguments to be passed to the PyTorch optimizer
-        "torch_optimizer_options": {},
+        "torch_optimizer_options": {"lr": 1e-3},
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
     }
