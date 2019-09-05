@@ -3,9 +3,9 @@ import time
 
 from ray.rllib.utils.annotations import override
 from ray.rllib.agents.trainer import Trainer, with_common_config
-from ray.rllib.optimizers.replay_buffer import ReplayBuffer
 from ray.rllib.policy.sample_batch import SampleBatch
 
+from raylab.utils.replay_buffer import ReplayBuffer
 from raylab.algorithms.naf.naf_policy import NAFTorchPolicy
 
 
