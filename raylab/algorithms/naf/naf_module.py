@@ -22,7 +22,7 @@ class NAFModule(nn.Module):
 
     @override(nn.Module)
     def forward(self, obs, actions):  # pylint: disable=arguments-differ
-        logits = self.logits_module(obs, actions)
+        logits = self.logits_module(obs)
         best_value = self.value_module(logits)
         best_action = self.action_module(logits)
         advantage = self.advantage_module(logits, best_action, actions)
@@ -92,22 +92,29 @@ class TrilMatrixModule(nn.Module):
         super().__init__()
         self.logit_dim = logit_dim
         self.matrix_dim = matrix_dim
+        self.row_sizes = list(range(1, self.matrix_dim + 1))
         tril_dim = int(self.matrix_dim * (self.matrix_dim + 1) / 2)
         self.linear_module = nn.Linear(self.logit_dim, tril_dim)
 
     @override(nn.Module)
     def forward(self, logits):  # pylint: disable=arguments-differ
-        flat_triangular = self.linear_module(logits)
-        flat_triangular.unsqueeze_(-2)
-        matrix_shape = logits.shape[:-1] + (self.matrix_dim, self.matrix_dim)
-        tril_indices = torch.tril_indices(self.matrix_dim, self.matrix_dim).split(1)
-        tril_indices = (...,) + tril_indices
-        tril_matrix = torch.zeros(*matrix_shape)
-        tril_matrix[tril_indices] = flat_triangular
-        diag_indices = (torch.arange(self.matrix_dim),) * 2
-        diag_indices = (...,) + diag_indices
-        tril_matrix[diag_indices] = tril_matrix[diag_indices].exp()
-        return tril_matrix
+        flat_tril = self.linear_module(logits)
+        # Split flat lower triangular into rows
+        split_tril = torch.split(flat_tril, self.row_sizes, dim=-1)
+        # Compute exponentiated diagonals, row by row
+        exp_tril = []
+        for row in split_tril:
+            exp_tril.append(torch.cat([row[..., :-1], row[..., -1:].exp()], dim=-1))
+        # Fill upper triangular with zeros, row by row
+        pad_tril = []
+        for row in exp_tril:
+            zeros = torch.zeros(row.shape[:-1] + (self.matrix_dim - row.shape[-1],))
+            pad_tril.append(torch.cat([row, zeros], dim=-1))
+        # Stack rows into a single (batched) matrix. dim=-2 ensures that we stack then
+        # as rows, not columns (which would effectively transpose the matrix into an
+        # upper triangular one)
+        tril = torch.stack(pad_tril, dim=-2)
+        return tril
 
 
 class StateActionEncodingModule(nn.Module):
