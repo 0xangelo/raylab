@@ -2,8 +2,9 @@
 import time
 
 from ray.rllib.utils.annotations import override
-from ray.rllib.agents.trainer import Trainer, with_common_config
 from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.evaluation.metrics import collect_episodes, summarize_episodes
+from ray.rllib.agents.trainer import Trainer, with_common_config
 
 from raylab.utils.replay_buffer import ReplayBuffer
 from raylab.algorithms.naf.naf_policy import NAFTorchPolicy
@@ -15,6 +16,10 @@ DEFAULT_CONFIG = with_common_config(
         # Size of the replay buffer. Note that if async_updates is set, then
         # each worker will have a replay buffer of this size.
         "buffer_size": 500000,
+        # === Time Limits ===
+        # Whether to ignore horizon termination and bootstrap from final observation.
+        # This is used to set targets for the action value function.
+        "timeout_bootstrap": True,
         # === Network ===
         # Size and activation of the fully connected network computing the logits
         # for the normalized advantage function. No layers means the Q function is
@@ -69,8 +74,10 @@ class NAFTrainer(Trainer):
             env_creator, policy_cls, config, num_workers=0
         )
         self.replay = ReplayBuffer(config["buffer_size"])
+        self.learner_stats = {}
         self.num_steps_sampled = 0
         self.num_steps_trained = 0
+        self.episode_history = []
 
     @override(Trainer)
     def _train(self):
@@ -96,7 +103,7 @@ class NAFTrainer(Trainer):
 
             for _ in range(samples.count):
                 batch = self.replay.sample(self.config["train_batch_size"])
-                fetches = policy.learn_on_batch(batch)
+                self.learner_stats = policy.learn_on_batch(batch)
                 self.num_steps_trained += batch.count
 
             if (
@@ -107,7 +114,32 @@ class NAFTrainer(Trainer):
 
         self.num_steps_sampled += steps_sampled
 
-        return fetches
+        return self.collect_metrics()
+
+    @override(Trainer)
+    def collect_metrics(self):  # pylint: disable=arguments-differ
+        episodes, _ = collect_episodes(
+            local_worker=self.workers.local_worker(),
+            timeout_seconds=self.config["collect_metrics_timeout"],
+        )
+        orig_episodes = list(episodes)
+
+        min_history = self.config["metrics_smoothing_episodes"]
+        missing = min_history - len(episodes)
+        if missing > 0:
+            episodes.extend(self.episode_history[-missing:])
+            assert len(episodes) <= min_history
+        self.episode_history.extend(orig_episodes)
+        self.episode_history = self.episode_history[-min_history:]
+        res = summarize_episodes(episodes, orig_episodes)
+        res.update(
+            info={
+                "num_steps_trained": self.num_steps_trained,
+                "num_steps_sampled": self.num_steps_sampled,
+                "learner": self.learner_stats,
+            }
+        )
+        return res
 
     # === New Methods ===
 

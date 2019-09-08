@@ -65,6 +65,15 @@ class NAFTorchPolicy(Policy):
     def postprocess_trajectory(
         self, sample_batch, other_agent_batches=None, episode=None
     ):
+        horizon = self.config["horizon"]
+        if (
+            episode
+            and horizon
+            and self.config["timeout_bootstrap"]
+            and episode.length >= horizon
+        ):
+            sample_batch[SampleBatch.DONES][-1] = False
+
         return sample_batch
 
     @override(Policy)
@@ -112,7 +121,7 @@ class NAFTorchPolicy(Policy):
         module = self.module["main"]
         logits = module.logits_module(obs_batch)
         loc = module.action_module(logits)
-        scale_tril = module.tril_matrix_module(logits)
+        scale_tril = module.advantage_module.tril_matrix_module(logits)
         scale_coeff = self.config["scale_tril_coeff"]
         dist = torch.distributions.MultivariateNormal(
             loc=loc, scale_tril=scale_tril * scale_coeff
