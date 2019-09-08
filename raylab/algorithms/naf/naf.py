@@ -36,12 +36,16 @@ DEFAULT_CONFIG = with_common_config(
         # Which type of exploration to use. Possible types include
         # None: use the greedy policy to act
         # parameter_noise: use parameter space noise
+        # diag_gaussian: use i.i.d gaussian action space noise independently for each
+        #     action dimension
         # full_gaussian: use gaussian action space noise where the precision matrix is
         #     given by the advantage function P matrix
         "exploration": None,
         # Scaling term of the lower triangular matrix for the multivariate gaussian
         # action distribution
         "scale_tril_coeff": 1.0,
+        # Gaussian stddev for diagonal gaussian action space noise
+        "diag_gaussian_stddev": 0.1,
         # Until this many timesteps have elapsed, the agent's policy will be
         # ignored & it will instead take uniform random actions. Can be used in
         # conjunction with learning_starts (which controls when the first

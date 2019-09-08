@@ -56,6 +56,8 @@ class NAFTorchPolicy(Policy):
             actions = self._uniform_random_actions(obs_batch)
         elif self.config["exploration"] == "full_gaussian":
             actions = self._multivariate_gaussian_actions(obs_batch)
+        elif self.config["exploration"] == "diag_gaussian":
+            actions = self._diagonal_gaussian_actions(obs_batch)
         else:
             actions = self._greedy_actions(obs_batch, self.module["main"])
 
@@ -125,6 +127,20 @@ class NAFTorchPolicy(Policy):
         scale_coeff = self.config["scale_tril_coeff"]
         dist = torch.distributions.MultivariateNormal(
             loc=loc, scale_tril=scale_tril * scale_coeff
+        )
+        actions = dist.sample()
+        return actions
+
+    def _diagonal_gaussian_actions(self, obs_batch):
+        module = self.module["main"]
+        logits = module.logits_module(obs_batch)
+        loc = module.action_module(logits)
+        dist = torch.distributions.MultivariateNormal(
+            loc=loc,
+            scale_tril=torch.diag(
+                torch.ones(self.action_space.shape)
+                * self.config["diag_gaussian_stddev"]
+            ),
         )
         actions = dist.sample()
         return actions
