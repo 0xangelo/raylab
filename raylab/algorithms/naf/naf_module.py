@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
+from raylab.utils.pytorch import initialize_orthogonal
+
 
 class NAFModule(nn.Module):
     """Neural network module that implements the forward pass of NAF."""
@@ -19,6 +21,8 @@ class NAFModule(nn.Module):
         self.value_module = ValueModule(logit_dim)
         self.action_module = ActionModule(logit_dim, action_low, action_high)
         self.advantage_module = AdvantageModule(logit_dim, self.action_dim)
+
+        self.apply(initialize_orthogonal(1.0))
 
     @override(nn.Module)
     def forward(self, obs, actions):  # pylint: disable=arguments-differ

@@ -1,6 +1,7 @@
 """PyTorch related utilities."""
 import numpy as np
 import torch
+import torch.nn as nn
 
 
 def convert_to_tensor(arr, device):
@@ -46,3 +47,22 @@ def update_polyak(from_module, to_module, polyak):
     """
     for source, target in zip(from_module.parameters(), to_module.parameters()):
         target.data.mul_(polyak).add_(1 - polyak, source.data)
+
+
+def initialize_orthogonal(gain=1.0):
+    """Initialize the parameters of a module as orthogonal matrices.
+
+    Arguments:
+        gain (float): scaling factor for the orthogonal initializer
+
+    Returns:
+        A callable to be used with `nn.Module.apply`.
+    """
+
+    def initialize(module):
+        if isinstance(module, nn.Linear):
+            nn.init.orthogonal_(module.weight, gain=gain)
+            if module.bias is not None:
+                nn.init.constant_(module.bias, 0)
+
+    return initialize
