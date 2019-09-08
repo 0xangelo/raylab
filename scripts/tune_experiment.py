@@ -24,8 +24,8 @@ import raylab
     type=int,
     default=1,
     show_default=True,
-    help="Number of times to sample from the hyperparameter space."
-    "Defaults to 1. If `grid_search` isprovided as an argument,"
+    help="Number of times to sample from the hyperparameter space. "
+    "Defaults to 1. If `grid_search` is provided as an argument, "
     "the grid will be repeated `num_samples` of times.",
 )
 @click.option(
@@ -33,8 +33,8 @@ import raylab
     "-s",
     type=(str, int),
     multiple=True,
-    help="The stopping criteria."
-    "The keys may be any field in the return result of 'train()',"
+    help="The stopping criteria. "
+    "The keys may be any field in the return result of 'train()', "
     "whichever is reached first. Defaults to empty dict.",
 )
 @click.option(
@@ -42,17 +42,17 @@ import raylab
     "-c",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=False),
     default=None,
-    help="Algorithm-specific configuration for Tune variant generation"
-    "(e.g. env, hyperparams). Defaults to empty dict."
-    "Custom search algorithms may ignore this."
-    "Value is a relative path to the python script containing a `get_config` function.",
+    help="Algorithm-specific configuration for Tune variant generation "
+    "(e.g. env, hyperparams). Defaults to empty dict. "
+    "Custom search algorithms may ignore this. "
+    "Expects a path to a python script containing a `get_config` function. ",
 )
 @click.option(
     "--checkpoint-freq",
     type=int,
     default=0,
     show_default=True,
-    help="How many training iterations between checkpoints."
+    help="How many training iterations between checkpoints. "
     "A value of 0 disables checkpointing.",
 )
 @click.option(
@@ -60,7 +60,7 @@ import raylab
     type=bool,
     default=False,
     show_default=True,
-    help="Whether to checkpoint at the end of the experiment regardless of"
+    help="Whether to checkpoint at the end of the experiment regardless of "
     "the checkpoint_freq.",
 )
 def main(**args):
