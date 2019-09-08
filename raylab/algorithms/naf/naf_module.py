@@ -11,17 +11,16 @@ class NAFModule(nn.Module):
 
     def __init__(self, obs_dim, action_low, action_high, config):
         super().__init__()
-        layers = config["layers"]
         self.logits_module = FullyConnectedModule(
-            obs_dim, units=layers, activation=config["activation"]
+            obs_dim, units=config["layers"], activation=config["activation"]
         )
 
-        logit_dim = layers[-1] if layers else obs_dim
-        action_dim = action_low.numel()
-
+        logit_dim = self.logits_module.out_features
         self.value_module = ValueModule(logit_dim)
         self.action_module = ActionModule(logit_dim, action_low, action_high)
-        self.advantage_module = AdvantageModule(logit_dim, action_dim)
+        self.advantage_module = AdvantageModule(
+            logit_dim, self.action_module.out_features
+        )
 
         self.logits_module.apply(initialize_orthogonal(config["ortho_init_gain"]))
         self.value_module.apply(initialize_orthogonal(0.01))
@@ -41,9 +40,9 @@ class NAFModule(nn.Module):
 class ValueModule(nn.Module):
     """Neural network module implementing the value function term of NAF."""
 
-    def __init__(self, logit_dim):
+    def __init__(self, in_features):
         super().__init__()
-        self.linear_module = nn.Linear(logit_dim, 1)
+        self.linear_module = nn.Linear(in_features, 1)
 
     @override(nn.Module)
     def forward(self, logits):  # pylint: disable=arguments-differ
@@ -53,12 +52,15 @@ class ValueModule(nn.Module):
 class ActionModule(nn.Module):
     """Neural network module implementing the greedy action term of NAF."""
 
-    def __init__(self, logit_dim, action_low, action_high):
+    __constants__ = {"in_features", "out_features"}
+
+    def __init__(self, in_features, action_low, action_high):
         super().__init__()
+        self.in_features = in_features
         self.action_low = action_low
         self.action_range = action_high - action_low
-        action_dim = self.action_low.numel()
-        self.linear_module = nn.Linear(logit_dim, action_dim)
+        self.out_features = self.action_low.numel()
+        self.linear_module = nn.Linear(self.in_features, self.out_features)
 
     @override(nn.Module)
     def forward(self, logits):  # pylint: disable=arguments-differ
@@ -71,9 +73,9 @@ class ActionModule(nn.Module):
 class AdvantageModule(nn.Module):
     """Neural network module implementing the advantage function term of NAF."""
 
-    def __init__(self, logit_dim, action_dim):
+    def __init__(self, in_features, action_dim):
         super().__init__()
-        self.tril_matrix_module = TrilMatrixModule(logit_dim, action_dim)
+        self.tril_matrix_module = TrilMatrixModule(in_features, action_dim)
 
     @override(nn.Module)
     def forward(self, logits, best_action, actions):  # pylint: disable=arguments-differ
@@ -87,12 +89,14 @@ class AdvantageModule(nn.Module):
 class TrilMatrixModule(nn.Module):
     """Neural network module which outputs a lower-triangular matrix."""
 
-    def __init__(self, logit_dim, matrix_dim):
+    __constants__ = {"matrix_dim", "row_sizes"}
+
+    def __init__(self, in_features, matrix_dim):
         super().__init__()
         self.matrix_dim = matrix_dim
         self.row_sizes = list(range(1, self.matrix_dim + 1))
         tril_dim = int(self.matrix_dim * (self.matrix_dim + 1) / 2)
-        self.linear_module = nn.Linear(logit_dim, tril_dim)
+        self.linear_module = nn.Linear(in_features, tril_dim)
 
     @override(nn.Module)
     def forward(self, logits):  # pylint: disable=arguments-differ
@@ -118,8 +122,11 @@ class TrilMatrixModule(nn.Module):
 class StateActionEncodingModule(nn.Module):
     """Neural network module which concatenates action after the first layer."""
 
+    __constants__ = {"in_features", "out_features"}
+
     def __init__(self, obs_dim, action_dim, units=(), activation="relu"):
         super().__init__()
+        self.in_features = obs_dim
         if units:
             self.obs_module = nn.Sequential(nn.Linear(obs_dim, units[0]), activation())
             input_dim = units[0] + action_dim
@@ -127,9 +134,11 @@ class StateActionEncodingModule(nn.Module):
             self.sequential_module = FullyConnectedModule(
                 input_dim, units=units, activation=activation
             )
+            self.out_features = self.sequential_module.out_features
         else:
             self.obs_module = nn.Identity()
             self.sequential_module = nn.Identity()
+            self.out_features = obs_dim + action_dim
 
     @override(nn.Module)
     def forward(self, obs, actions):  # pylint: disable=arguments-differ
@@ -142,15 +151,19 @@ class StateActionEncodingModule(nn.Module):
 class FullyConnectedModule(nn.Module):
     """Neural network module that applies several fully connected modules to inputs."""
 
-    def __init__(self, input_dim, units=(), activation="relu"):
+    __constants__ = {"in_features", "out_features"}
+
+    def __init__(self, in_features, units=(), activation="relu"):
         super().__init__()
+        self.in_features = in_features
         activation = get_activation(activation)
-        units = [input_dim] + units
+        units = [self.in_features] + units
         modules = []
         for in_dim, out_dim in zip(units[:-1], units[1:]):
             modules.append(nn.Linear(in_dim, out_dim))
             modules.append(activation())
         self.sequential_module = nn.Sequential(*modules)
+        self.out_features = units[-1]
 
     @override(nn.Module)
     def forward(self, inputs):  # pylint: disable=arguments-differ
