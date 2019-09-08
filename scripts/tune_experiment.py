@@ -66,6 +66,14 @@ import raylab
     help="Whether to checkpoint at the end of the experiment regardless of "
     "the checkpoint_freq.",
 )
+@click.option(
+    "--object-store-memory",
+    type=int,
+    default=int(2e9),
+    show_default=True,
+    help="The amount of memory (in bytes) to start the object store with. "
+    "By default, this is capped at 20GB but can be set higher.",
+)
 def main(**args):
     if args["config"] is None:
         config = {}
@@ -77,7 +85,8 @@ def main(**args):
 
     raylab.register_all_agents()
     raylab.register_all_environments()
-    ray.init()
+
+    ray.init(object_store_memory=args["object_store_memory"])
     tune.run(
         args["run"],
         name=args["name"],
