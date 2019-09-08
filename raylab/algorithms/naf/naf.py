@@ -61,13 +61,14 @@ DEFAULT_CONFIG = with_common_config(
 class NAFTrainer(Trainer):
     """Single agent trainer for NAF."""
 
+    # pylint: disable=attribute-defined-outside-init
+
     _name = "NAF"
     _default_config = DEFAULT_CONFIG
     _policy = NAFTorchPolicy
 
     @override(Trainer)
     def _init(self, config, env_creator):
-        # pylint: disable=attribute-defined-outside-init
         self._validate_config(config)
         policy_cls = self._policy
         self.workers = self._make_workers(
@@ -114,7 +115,7 @@ class NAFTrainer(Trainer):
 
         self.num_steps_sampled += steps_sampled
 
-        return self.collect_metrics()
+        return {**self.collect_metrics(), "timesteps_this_iter": steps_sampled}
 
     @override(Trainer)
     def collect_metrics(self):  # pylint: disable=arguments-differ
