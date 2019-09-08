@@ -144,21 +144,30 @@ class NAFTorchPolicy(Policy):
         Returns:
             A scalar tensor sumarizing the losses for this experience batch.
         """
-        gamma = config["gamma"]
-        obs = batch_tensors[SampleBatch.CUR_OBS]
-        actions = batch_tensors[SampleBatch.ACTIONS]
-        rewards = batch_tensors[SampleBatch.REWARDS]
-        dones = batch_tensors[SampleBatch.DONES]
-        next_obs = batch_tensors[SampleBatch.NEXT_OBS]
-
         with torch.no_grad():
-            next_logits = module["target"].logits_module(next_obs)
-            best_next_value = module["target"].value_module(next_logits)
-            target_value = torch.where(
-                dones, rewards, rewards + gamma * best_next_value.squeeze(-1)
+            next_logits = module["target"].logits_module(
+                batch_tensors[SampleBatch.NEXT_OBS]
             )
-        action_value, _, _ = module["main"](obs, actions)
-        return torch.nn.MSELoss()(action_value.squeeze(-1), target_value), {}
+            best_next_value = module["target"].value_module(next_logits)
+            gamma = config["gamma"]
+            target_value = torch.where(
+                batch_tensors[SampleBatch.DONES],
+                batch_tensors[SampleBatch.REWARDS],
+                batch_tensors[SampleBatch.REWARDS]
+                + gamma * best_next_value.squeeze(-1),
+            )
+        action_value, _, _ = module["main"](
+            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
+        )
+        td_error = torch.nn.MSELoss()(action_value.squeeze(-1), target_value)
+
+        stats = {
+            "q_mean": action_value.mean().item(),
+            "q_max": action_value.max().item(),
+            "q_min": action_value.min().item(),
+            "td_error": td_error.item(),
+        }
+        return td_error, stats
 
     @staticmethod
     def get_default_config():
