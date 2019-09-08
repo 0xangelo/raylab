@@ -14,15 +14,19 @@ class NAFModule(nn.Module):
         self.obs_dim = obs_dim
         self.action_dim = action_low.numel()
 
+        layers = config["layers"]
         self.logits_module = FullyConnectedModule(
-            self.obs_dim, units=config["layers"], activation=config["activation"]
+            self.obs_dim, units=layers, activation=config["activation"]
         )
-        logit_dim = self.logits_module.output_dim
+        logit_dim = layers[-1] if layers else self.obs_dim
         self.value_module = ValueModule(logit_dim)
         self.action_module = ActionModule(logit_dim, action_low, action_high)
         self.advantage_module = AdvantageModule(logit_dim, self.action_dim)
 
-        self.apply(initialize_orthogonal(config["ortho_init_gain"]))
+        self.logits_module.apply(initialize_orthogonal(config["ortho_init_gain"]))
+        self.value_module.apply(initialize_orthogonal(0.01))
+        self.action_module.apply(initialize_orthogonal(0.01))
+        self.advantage_module.apply(initialize_orthogonal(0.01))
 
     @override(nn.Module)
     def forward(self, obs, actions):  # pylint: disable=arguments-differ
@@ -79,13 +83,9 @@ class AdvantageModule(nn.Module):
     @override(nn.Module)
     def forward(self, logits, best_action, actions):  # pylint: disable=arguments-differ
         tril_matrix = self.tril_matrix_module(logits)
-        pdef_matrix = torch.matmul(tril_matrix, tril_matrix.transpose(-1, -2))
-        action_diff = actions - best_action
-        action_diff.unsqueeze_(-1)  # column vector
-        quadratic_term = torch.matmul(
-            action_diff.transpose(-1, -2), torch.matmul(pdef_matrix, action_diff)
-        )
-        advantage = -1 / 2 * quadratic_term
+        action_diff = (actions - best_action).unsqueeze(-1)  # column vector
+        vec = tril_matrix.matmul(action_diff)
+        advantage = -1 / 2 * vec.transpose(-1, -2).matmul(vec)
         return advantage.squeeze(-1)
 
 
