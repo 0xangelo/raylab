@@ -85,6 +85,12 @@ class NAFTorchPolicy(Policy):
         loss, info = self.compute_loss(batch_tensors, self.module, self.config)
         self.optimizer.zero_grad()
         loss.backward()
+        total_norm = 0
+        for param in self.module["main"].parameters():
+            param_norm = param.grad.data.norm(2)
+            total_norm += param_norm.item() ** 2
+        total_norm = total_norm ** (1.0 / 2)
+        info["grad_norm"] = total_norm
         self.optimizer.step()
         update_polyak(self.module["main"], self.module["target"], self.config["polyak"])
         return {LEARNER_STATS_KEY: info}
