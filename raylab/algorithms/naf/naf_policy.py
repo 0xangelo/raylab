@@ -2,6 +2,7 @@
 import os
 import inspect
 
+import numpy as np
 import torch
 import torch.nn as nn
 from ray.rllib.utils import merge_dicts
@@ -28,13 +29,18 @@ class NAFTorchPolicy(Policy):
             if bool(os.environ.get("CUDA_VISIBLE_DEVICES", None))
             else torch.device("cpu")
         )
+
         self.module = self._make_module(
             self.observation_space, self.action_space, self.config
         )
         self.optimizer = self._make_optimizer(self.module, self.config)
 
+        # Flag for uniform random actions
+        self._pure_exploration = False
+
     @override(Policy)
-    def compute_actions(  # pylint: disable=too-many-arguments,unused-argument
+    @torch.no_grad()
+    def compute_actions(
         self,
         obs_batch,
         state_batches,
@@ -44,12 +50,29 @@ class NAFTorchPolicy(Policy):
         episodes=None,
         **kwargs
     ):
+        # pylint: disable=too-many-arguments,unused-argument,too-many-locals
+        if self._pure_exploration:
+            actions = np.random.uniform(
+                self.action_space.low,
+                self.action_space.high,
+                (len(obs_batch),) + self.action_space.shape,
+            )
+            return actions, state_batches, {}
+
         obs = convert_to_tensor(obs_batch, self.device)
         module = self.module["main"]
-        with torch.no_grad():
-            logits = module.logits_module(obs)
-            action = module.action_module(logits)
-        return action.cpu().numpy(), state_batches, {}
+        logits = module.logits_module(obs)
+        actions = module.action_module(logits)
+
+        if self.config["exploration"] == "full_gaussian":
+            scale_tril = module.tril_matrix_module(logits)
+            scale_coeff = self.config["scale_tril_coeff"]
+            full_gauss = torch.distributions.MultivariateNormal(
+                loc=actions, scale_tril=scale_tril * scale_coeff
+            )
+            actions = full_gauss.sample()
+
+        return actions.cpu().numpy(), state_batches, {}
 
     @override(Policy)
     def postprocess_trajectory(
@@ -75,6 +98,14 @@ class NAFTorchPolicy(Policy):
     @override(Policy)
     def set_weights(self, weights):
         self.module.load_state_dict(weights)
+
+    # === New Methods ===
+
+    def set_pure_exploration_phase(self, phase):
+        """Set a boolean flag that tells the policy to act randomly."""
+        self._pure_exploration = phase
+
+    # === Static Methods ===
 
     @staticmethod
     def compute_loss(batch_tensors, module, config):

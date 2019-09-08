@@ -27,6 +27,28 @@ DEFAULT_CONFIG = with_common_config(
         "torch_optimizer_options": {"lr": 1e-3},
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
+        # === Exploration ===
+        # Which type of exploration to use. Possible types include
+        # None: use the greedy policy to act
+        # parameter_noise: use parameter space noise
+        # full_gaussian: use gaussian action space noise where the precision matrix is
+        #     given by the advantage function P matrix
+        "exploration": None,
+        # Scaling term of the lower triangular matrix for the multivariate gaussian
+        # action distribution
+        "scale_tril_coeff": 1.0,
+        # Until this many timesteps have elapsed, the agent's policy will be
+        # ignored & it will instead take uniform random actions. Can be used in
+        # conjunction with learning_starts (which controls when the first
+        # optimization step happens) to decrease dependence of exploration &
+        # optimization on initial policy parameters. Note that this will be
+        # disabled when the action noise scale is set to 0 (e.g during evaluation).
+        "pure_exploration_steps": 1000,
+        # === Evaluation ===
+        # Extra arguments to pass to evaluation workers.
+        # Typical usage is to pass extra args to evaluation env creator
+        # and to disable exploration by computing deterministic actions
+        "evaluation_config": {"exploration": None},
     }
 )
 
@@ -47,6 +69,8 @@ class NAFTrainer(Trainer):
             env_creator, policy_cls, config, num_workers=0
         )
         self.replay = ReplayBuffer(config["buffer_size"])
+        self.num_steps_sampled = 0
+        self.num_steps_trained = 0
 
     @override(Trainer)
     def _train(self):
@@ -54,10 +78,12 @@ class NAFTrainer(Trainer):
         policy = worker.get_policy()
 
         start = time.time()
-        num_steps_sampled = 0
+        steps_sampled = 0
         while True:
+            self.update_exploration_phase()
+
             samples = worker.sample()
-            num_steps_sampled += samples.count
+            steps_sampled += samples.count
             for row in samples.rows():
                 self.replay.add(
                     row[SampleBatch.CUR_OBS],
@@ -71,14 +97,28 @@ class NAFTrainer(Trainer):
             for _ in range(samples.count):
                 batch = self.replay.sample(self.config["train_batch_size"])
                 fetches = policy.learn_on_batch(batch)
+                self.num_steps_trained += batch.count
 
             if (
                 time.time() - start >= self.config["min_iter_time_s"]
-                and num_steps_sampled >= self.config["timesteps_per_iteration"]
+                and steps_sampled >= self.config["timesteps_per_iteration"]
             ):
                 break
 
+        self.num_steps_sampled += steps_sampled
+
         return fetches
+
+    # === New Methods ===
+
+    def update_exploration_phase(self):
+        global_timestep = self.num_steps_sampled
+        pure_expl_steps = self.config["pure_exploration_steps"]
+        if pure_expl_steps:
+            only_explore = global_timestep < pure_expl_steps
+            self.workers.local_worker().foreach_trainable_policy(
+                lambda p, _: p.set_pure_exploration_phase(only_explore)
+            )
 
     @staticmethod
     def _validate_config(config):
