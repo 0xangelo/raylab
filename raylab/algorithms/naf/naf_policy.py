@@ -2,7 +2,6 @@
 import os
 import inspect
 
-import numpy as np
 import torch
 import torch.nn as nn
 from ray.rllib.utils import merge_dicts
@@ -50,27 +49,15 @@ class NAFTorchPolicy(Policy):
         episodes=None,
         **kwargs
     ):
-        # pylint: disable=too-many-arguments,unused-argument,too-many-locals
+        # pylint: disable=too-many-arguments,unused-argument
+        obs_batch = convert_to_tensor(obs_batch, self.device)
+
         if self._pure_exploration:
-            actions = np.random.uniform(
-                self.action_space.low,
-                self.action_space.high,
-                (len(obs_batch),) + self.action_space.shape,
-            )
-            return actions, state_batches, {}
-
-        obs = convert_to_tensor(obs_batch, self.device)
-        module = self.module["main"]
-        logits = module.logits_module(obs)
-        actions = module.action_module(logits)
-
-        if self.config["exploration"] == "full_gaussian":
-            scale_tril = module.tril_matrix_module(logits)
-            scale_coeff = self.config["scale_tril_coeff"]
-            full_gauss = torch.distributions.MultivariateNormal(
-                loc=actions, scale_tril=scale_tril * scale_coeff
-            )
-            actions = full_gauss.sample()
+            actions = self._uniform_random_actions(obs_batch)
+        elif self.config["exploration"] == "full_gaussian":
+            actions = self._multivariate_gaussian_actions(obs_batch)
+        else:
+            actions = self._greedy_actions(obs_batch, self.module["main"])
 
         return actions.cpu().numpy(), state_batches, {}
 
@@ -101,9 +88,37 @@ class NAFTorchPolicy(Policy):
 
     # === New Methods ===
 
+    # === Exploration ===
     def set_pure_exploration_phase(self, phase):
         """Set a boolean flag that tells the policy to act randomly."""
         self._pure_exploration = phase
+
+    # === Action Sampling ===
+    def _uniform_random_actions(self, obs_batch):
+        dist = torch.distributions.Uniform(
+            convert_to_tensor(self.action_space.low, self.device),
+            convert_to_tensor(self.action_space.high, self.device),
+        )
+        actions = dist.sample(sample_shape=obs_batch.shape[:-1])
+        return actions
+
+    @staticmethod
+    def _greedy_actions(obs_batch, module):
+        logits = module.logits_module(obs_batch)
+        actions = module.action_module(logits)
+        return actions
+
+    def _multivariate_gaussian_actions(self, obs_batch):
+        module = self.module["main"]
+        logits = module.logits_module(obs_batch)
+        loc = module.action_module(logits)
+        scale_tril = module.tril_matrix_module(logits)
+        scale_coeff = self.config["scale_tril_coeff"]
+        dist = torch.distributions.MultivariateNormal(
+            loc=loc, scale_tril=scale_tril * scale_coeff
+        )
+        actions = dist.sample()
+        return actions
 
     # === Static Methods ===
 
