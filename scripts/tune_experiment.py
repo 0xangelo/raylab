@@ -1,3 +1,6 @@
+import sys
+import os.path as osp
+import pathlib
 from importlib import import_module
 
 import ray
@@ -67,7 +70,9 @@ def main(**args):
     if args["config"] is None:
         config = {}
     else:
-        module = import_module(args["config"])
+        path = args["config"]
+        sys.path.append(osp.dirname(path))
+        module = import_module(pathlib.Path(path).stem)
         config = module.get_config()
 
     raylab.register_all_agents()
