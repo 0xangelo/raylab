@@ -11,17 +11,17 @@ class NAFModule(nn.Module):
 
     def __init__(self, obs_dim, action_low, action_high, config):
         super().__init__()
-        self.obs_dim = obs_dim
-        self.action_dim = action_low.numel()
-
         layers = config["layers"]
         self.logits_module = FullyConnectedModule(
-            self.obs_dim, units=layers, activation=config["activation"]
+            obs_dim, units=layers, activation=config["activation"]
         )
-        logit_dim = layers[-1] if layers else self.obs_dim
+
+        logit_dim = layers[-1] if layers else obs_dim
+        action_dim = action_low.numel()
+
         self.value_module = ValueModule(logit_dim)
         self.action_module = ActionModule(logit_dim, action_low, action_high)
-        self.advantage_module = AdvantageModule(logit_dim, self.action_dim)
+        self.advantage_module = AdvantageModule(logit_dim, action_dim)
 
         self.logits_module.apply(initialize_orthogonal(config["ortho_init_gain"]))
         self.value_module.apply(initialize_orthogonal(0.01))
@@ -43,9 +43,7 @@ class ValueModule(nn.Module):
 
     def __init__(self, logit_dim):
         super().__init__()
-        self.logit_dim = logit_dim
-        self.linear_module = nn.Linear(self.logit_dim, 1)
-        self.output_dim = 1
+        self.linear_module = nn.Linear(logit_dim, 1)
 
     @override(nn.Module)
     def forward(self, logits):  # pylint: disable=arguments-differ
@@ -57,11 +55,10 @@ class ActionModule(nn.Module):
 
     def __init__(self, logit_dim, action_low, action_high):
         super().__init__()
-        self.logit_dim = logit_dim
         self.action_low = action_low
         self.action_range = action_high - action_low
         action_dim = self.action_low.numel()
-        self.linear_module = nn.Linear(self.logit_dim, action_dim)
+        self.linear_module = nn.Linear(logit_dim, action_dim)
 
     @override(nn.Module)
     def forward(self, logits):  # pylint: disable=arguments-differ
@@ -76,9 +73,7 @@ class AdvantageModule(nn.Module):
 
     def __init__(self, logit_dim, action_dim):
         super().__init__()
-        self.logit_dim = logit_dim
-        self.action_dim = action_dim
-        self.tril_matrix_module = TrilMatrixModule(self.logit_dim, self.action_dim)
+        self.tril_matrix_module = TrilMatrixModule(logit_dim, action_dim)
 
     @override(nn.Module)
     def forward(self, logits, best_action, actions):  # pylint: disable=arguments-differ
@@ -94,11 +89,10 @@ class TrilMatrixModule(nn.Module):
 
     def __init__(self, logit_dim, matrix_dim):
         super().__init__()
-        self.logit_dim = logit_dim
         self.matrix_dim = matrix_dim
         self.row_sizes = list(range(1, self.matrix_dim + 1))
         tril_dim = int(self.matrix_dim * (self.matrix_dim + 1) / 2)
-        self.linear_module = nn.Linear(self.logit_dim, tril_dim)
+        self.linear_module = nn.Linear(logit_dim, tril_dim)
 
     @override(nn.Module)
     def forward(self, logits):  # pylint: disable=arguments-differ
@@ -126,23 +120,16 @@ class StateActionEncodingModule(nn.Module):
 
     def __init__(self, obs_dim, action_dim, units=(), activation="relu"):
         super().__init__()
-        self.obs_dim = obs_dim
-        self.action_dim = action_dim
-
         if units:
-            self.obs_module = nn.Sequential(
-                nn.Linear(self.obs_dim, units[0]), activation()
-            )
-            input_dim = units[0] + self.action_dim
+            self.obs_module = nn.Sequential(nn.Linear(obs_dim, units[0]), activation())
+            input_dim = units[0] + action_dim
             units = units[1:]
             self.sequential_module = FullyConnectedModule(
                 input_dim, units=units, activation=activation
             )
-            self.output_dim = self.sequential_module.output_dim
         else:
             self.obs_module = nn.Identity()
             self.sequential_module = nn.Identity()
-            self.output_dim = self.obs_dim + self.action_dim
 
     @override(nn.Module)
     def forward(self, obs, actions):  # pylint: disable=arguments-differ
@@ -157,16 +144,13 @@ class FullyConnectedModule(nn.Module):
 
     def __init__(self, input_dim, units=(), activation="relu"):
         super().__init__()
-        self.input_dim = input_dim
-
         activation = get_activation(activation)
-        units = [self.input_dim] + units
+        units = [input_dim] + units
         modules = []
         for in_dim, out_dim in zip(units[:-1], units[1:]):
             modules.append(nn.Linear(in_dim, out_dim))
             modules.append(activation())
         self.sequential_module = nn.Sequential(*modules)
-        self.output_dim = units[-1]
 
     @override(nn.Module)
     def forward(self, inputs):  # pylint: disable=arguments-differ
