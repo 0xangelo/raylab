@@ -82,8 +82,8 @@ class AdvantageModule(nn.Module):
         tril_matrix = self.tril_matrix_module(logits)  # square matrix [..., N, N]
         action_diff = (actions - best_action).unsqueeze(-1)  # column vector [..., N, 1]
         vec = tril_matrix.matmul(action_diff)  # column vector [..., N, 1]
-        advantage = -(0.5) * torch.norm(vec, p=2, dim=-2).pow(2)
-        return advantage.squeeze(-1)
+        advantage = -0.5 * torch.norm(vec, p=2, dim=-2).pow(2)
+        return advantage
 
 
 class TrilMatrixModule(nn.Module):
