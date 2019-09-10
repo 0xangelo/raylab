@@ -159,4 +159,4 @@ class NAFTrainer(Trainer):
 
     @staticmethod
     def _validate_config(config):
-        assert config["num_workers"] >= 0, "No point in using additional workers."
+        assert config["num_workers"] == 0, "No point in using additional workers."
