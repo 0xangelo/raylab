@@ -100,22 +100,18 @@ class TrilMatrixModule(nn.Module):
 
     @override(nn.Module)
     def forward(self, logits):  # pylint: disable=arguments-differ
-        flat_tril = self.linear_module(logits)
-        # Split flat lower triangular into rows
-        split_tril = torch.split(flat_tril, self.row_sizes, dim=-1)
-        # Compute exponentiated diagonals, row by row
-        exp_tril = []
-        for row in split_tril:
-            exp_tril.append(torch.cat([row[..., :-1], row[..., -1:].exp()], dim=-1))
-        # Fill upper triangular with zeros, row by row
-        pad_tril = []
-        for row in exp_tril:
-            zeros = torch.zeros(row.shape[:-1] + (self.matrix_dim - row.shape[-1],))
-            pad_tril.append(torch.cat([row, zeros], dim=-1))
-        # Stack rows into a single (batched) matrix. dim=-2 ensures that we stack then
-        # as rows, not columns (which would effectively transpose the matrix into an
-        # upper triangular one)
-        tril = torch.stack(pad_tril, dim=-2)
+        # Batch of flattened lower triangular matrices: [..., N * (N + 1) / 2]
+        flat_trils = self.linear_module(logits)
+        # Batch of zero-valued matrices: [..., N, N]
+        mats = torch.zeros(logits.shape[:1] + (self.matrix_dim, self.matrix_dim))
+        # Mask of lower triangular indices: [N, N]
+        mask = torch.tril(torch.ones(self.matrix_dim, self.matrix_dim))
+        # Put flattened trils into appropriate indices of zeros
+        mats[:, mask.to(torch.bool)] = flat_trils
+        # Mask of diagonal indices: [N, N]
+        diag = torch.diag(torch.ones(self.matrix_dim))
+        # Triangular matrix with exponentiated diagonal
+        tril = mats * mats * diag + (1 - diag) * mats
         return tril
 
 
