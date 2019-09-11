@@ -11,6 +11,7 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as torch_util
+import raylab.utils.param_noise as param_noise
 import raylab.algorithms.naf.naf_module as modules
 
 
@@ -36,6 +37,10 @@ class NAFTorchPolicy(Policy):
 
         # Flag for uniform random actions
         self._pure_exploration = False
+        if self.config["exploration"] == "parameter_noise":
+            self._param_noise_spec = param_noise.AdaptiveParamNoiseSpec(
+                **config["param_noise_spec"]
+            )
 
     @override(Policy)
     @torch.no_grad()
@@ -67,6 +72,7 @@ class NAFTorchPolicy(Policy):
     def postprocess_trajectory(
         self, sample_batch, other_agent_batches=None, episode=None
     ):
+        # TODO: encapsulate time limit treatment in raylab.utils
         horizon = self.config["horizon"]
         if (
             episode
@@ -76,6 +82,8 @@ class NAFTorchPolicy(Policy):
         ):
             sample_batch[SampleBatch.DONES][-1] = False
 
+        if self.config["exploration"] == "parameter_noise":
+            self.update_parameter_noise(sample_batch)
         return sample_batch
 
     @override(Policy)
@@ -112,6 +120,26 @@ class NAFTorchPolicy(Policy):
         """Set a boolean flag that tells the policy to act randomly."""
         self._pure_exploration = phase
 
+    def perturb_policy_parameters(self):
+        """Update the perturbed policy's parameters for exploration."""
+        pol, t_pol = self.module["policy"], self.module["target_policy"]
+        layer_norms = (m for m in pol.modules() if isinstance(m, nn.LayerNorm))
+        layer_norm_params = set(p for m in layer_norms for p in m.parameters())
+
+        stddev = self._param_noise_spec.stddev
+        for par, t_par in zip(pol.parameters(), t_pol.parameters()):
+            if par not in layer_norm_params:
+                par.data.copy_(t_par.data + torch.randn_like(t_par) * stddev)
+
+    def update_parameter_noise(self, sample_batch):
+        """Update parameter noise stddev given a batch from the perturbed policy"""
+        noisy_actions = sample_batch[SampleBatch.ACTIONS]
+        target_actions = self.module["target_policy"](
+            torch_util.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS], self.device)
+        ).numpy()
+        distance = param_noise.ddpg_distance_metric(noisy_actions, target_actions)
+        self._param_noise_spec.adapt(distance)
+
     # === Action Sampling ===
     def _uniform_random_actions(self, obs_batch):
         dist = torch.distributions.Uniform(
@@ -123,6 +151,7 @@ class NAFTorchPolicy(Policy):
 
     def _multivariate_gaussian_actions(self, obs_batch):
         loc, scale_tril = self.module["policy"](obs_batch)
+        # TODO: scale tril by desired average action stddev
         scale_coeff = self.config["scale_tril_coeff"]
         dist = torch.distributions.MultivariateNormal(
             loc=loc, scale_tril=scale_tril * scale_coeff
@@ -188,6 +217,7 @@ class NAFTorchPolicy(Policy):
             in_features=obs_space.shape[0],
             units=config["module"]["layers"],
             activation=config["module"]["activation"],
+            layer_norm=(config["exploration"] == "parameter_noise"),
         )
         logits_module = modules.FullyConnectedModule(**logits_module_kwargs)
         value_module = modules.ValueModule(logits_module.out_features)
@@ -216,6 +246,18 @@ class NAFTorchPolicy(Policy):
         if config["exploration"] == "full_gaussian":
             module["policy"] = modules.MultivariateGaussianPolicy(
                 logits_module, action_module, tril_module
+            )
+        elif config["exploration"] == "parameter_noise":
+            module["policy"] = modules.DeterministicPolicy(
+                logits_module=modules.FullyConnectedModule(**logits_module_kwargs),
+                action_module=modules.ActionModule(
+                    logits_module.out_features,
+                    action_low=torch.from_numpy(action_space.low).float(),
+                    action_high=torch.from_numpy(action_space.high).float(),
+                ),
+            )
+            module["target_policy"] = modules.DeterministicPolicy(
+                logits_module, action_module
             )
         else:
             module["policy"] = modules.DeterministicPolicy(logits_module, action_module)
