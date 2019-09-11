@@ -22,10 +22,7 @@ class NAFModule(nn.Module):
             logit_dim, self.action_module.out_features
         )
 
-        self.logits_module.apply(initialize_orthogonal(config["ortho_init_gain"]))
-        self.value_module.apply(initialize_orthogonal(0.01))
-        self.action_module.apply(initialize_orthogonal(0.01))
-        self.advantage_module.apply(initialize_orthogonal(0.01))
+        self.apply(initialize_orthogonal(config["ortho_init_gain"]))
 
     @override(nn.Module)
     def forward(self, obs, actions):  # pylint: disable=arguments-differ
