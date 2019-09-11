@@ -99,11 +99,11 @@ class NAFTorchPolicy(Policy):
 
     @override(Policy)
     def get_weights(self):
-        return {k: v.cpu() for k, v in self.module.state_dict().items()}
+        return {k: v.cpu() for k, v in self.module["naf"].state_dict().items()}
 
     @override(Policy)
     def set_weights(self, weights):
-        self.module.load_state_dict(weights)
+        self.module["naf"].load_state_dict(weights)
 
     # === NEW METHODS ===
 
