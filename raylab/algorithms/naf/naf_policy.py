@@ -10,8 +10,8 @@ from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.utils.pytorch import convert_to_tensor, get_optimizer_class, update_polyak
-from raylab.algorithms.naf.naf_module import NAFModule
+import raylab.utils.pytorch as torch_util
+import raylab.algorithms.naf.naf_module as modules
 
 
 class NAFTorchPolicy(Policy):
@@ -50,7 +50,7 @@ class NAFTorchPolicy(Policy):
         **kwargs
     ):
         # pylint: disable=too-many-arguments,unused-argument
-        obs_batch = convert_to_tensor(obs_batch, self.device)
+        obs_batch = torch_util.convert_to_tensor(obs_batch, self.device)
 
         if self._pure_exploration:
             actions = self._uniform_random_actions(obs_batch)
@@ -59,7 +59,7 @@ class NAFTorchPolicy(Policy):
         elif self.config["exploration"] == "diag_gaussian":
             actions = self._diagonal_gaussian_actions(obs_batch)
         else:
-            actions = self._greedy_actions(obs_batch, self.module["main"])
+            actions = self.module["policy"](obs_batch)
 
         return actions.cpu().numpy(), state_batches, {}
 
@@ -86,13 +86,15 @@ class NAFTorchPolicy(Policy):
         self.optimizer.zero_grad()
         loss.backward()
         total_norm = 0
-        for param in self.module["main"].parameters():
+        for param in self.module["naf"].parameters():
             param_norm = param.grad.data.norm(2)
             total_norm += param_norm.item() ** 2
         total_norm = total_norm ** (1.0 / 2)
         info["grad_norm"] = total_norm
         self.optimizer.step()
-        update_polyak(self.module["main"], self.module["target"], self.config["polyak"])
+        torch_util.update_polyak(
+            self.module["value"], self.module["target_value"], self.config["polyak"]
+        )
         return {LEARNER_STATS_KEY: info}
 
     @override(Policy)
@@ -103,7 +105,7 @@ class NAFTorchPolicy(Policy):
     def set_weights(self, weights):
         self.module.load_state_dict(weights)
 
-    # === New Methods ===
+    # === NEW METHODS ===
 
     # === Exploration ===
     def set_pure_exploration_phase(self, phase):
@@ -113,23 +115,14 @@ class NAFTorchPolicy(Policy):
     # === Action Sampling ===
     def _uniform_random_actions(self, obs_batch):
         dist = torch.distributions.Uniform(
-            convert_to_tensor(self.action_space.low, self.device),
-            convert_to_tensor(self.action_space.high, self.device),
+            torch_util.convert_to_tensor(self.action_space.low, self.device),
+            torch_util.convert_to_tensor(self.action_space.high, self.device),
         )
         actions = dist.sample(sample_shape=obs_batch.shape[:-1])
         return actions
 
-    @staticmethod
-    def _greedy_actions(obs_batch, module):
-        logits = module.logits_module(obs_batch)
-        actions = module.action_module(logits)
-        return actions
-
     def _multivariate_gaussian_actions(self, obs_batch):
-        module = self.module["main"]
-        logits = module.logits_module(obs_batch)
-        loc = module.action_module(logits)
-        scale_tril = module.advantage_module.tril_module(logits)
+        loc, scale_tril = self.module["policy"](obs_batch)
         scale_coeff = self.config["scale_tril_coeff"]
         dist = torch.distributions.MultivariateNormal(
             loc=loc, scale_tril=scale_tril * scale_coeff
@@ -138,15 +131,10 @@ class NAFTorchPolicy(Policy):
         return actions
 
     def _diagonal_gaussian_actions(self, obs_batch):
-        module = self.module["main"]
-        logits = module.logits_module(obs_batch)
-        loc = module.action_module(logits)
+        loc = self.module["policy"](obs_batch)
+        stddev = self.config["diag_gaussian_stddev"]
         dist = torch.distributions.MultivariateNormal(
-            loc=loc,
-            scale_tril=torch.diag(
-                torch.ones(self.action_space.shape)
-                * self.config["diag_gaussian_stddev"]
-            ),
+            loc=loc, scale_tril=torch.diag(torch.ones(self.action_space.shape)) * stddev
         )
         actions = dist.sample()
         return actions
@@ -167,18 +155,14 @@ class NAFTorchPolicy(Policy):
             A scalar tensor sumarizing the losses for this experience batch.
         """
         with torch.no_grad():
-            next_logits = module["target"].logits_module(
-                batch_tensors[SampleBatch.NEXT_OBS]
-            )
-            best_next_value = module["target"].value_module(next_logits)
+            next_value = module["target_value"](batch_tensors[SampleBatch.NEXT_OBS])
             gamma = config["gamma"]
             target_value = torch.where(
                 batch_tensors[SampleBatch.DONES],
                 batch_tensors[SampleBatch.REWARDS],
-                batch_tensors[SampleBatch.REWARDS]
-                + gamma * best_next_value.squeeze(-1),
+                batch_tensors[SampleBatch.REWARDS] + gamma * next_value.squeeze(-1),
             )
-        action_value, _, _ = module["main"](
+        action_value = module["naf"](
             batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
         )
         td_error = torch.nn.MSELoss()(action_value.squeeze(-1), target_value)
@@ -199,32 +183,59 @@ class NAFTorchPolicy(Policy):
 
     @staticmethod
     def _make_module(obs_space, action_space, config):
-        obs_dim = obs_space.shape[0]
-        action_low = torch.from_numpy(action_space.low).float()
-        action_high = torch.from_numpy(action_space.high).float()
-        script = config["torch_script"]
+        # Create base modules
+        logits_module_kwargs = dict(
+            in_features=obs_space.shape[0],
+            units=config["module"]["layers"],
+            activation=config["module"]["activation"],
+        )
+        logits_module = modules.FullyConnectedModule(**logits_module_kwargs)
+        value_module = modules.ValueModule(logits_module.out_features)
+        action_module = modules.ActionModule(
+            logits_module.out_features,
+            action_low=torch.from_numpy(action_space.low).float(),
+            action_high=torch.from_numpy(action_space.high).float(),
+        )
+        tril_module = modules.TrilMatrixModule(
+            logits_module.out_features, action_space.shape[0]
+        )
+        advantage_module = modules.AdvantageModule(tril_module, action_module)
 
+        # Create target modules
+        target_logits_module = modules.FullyConnectedModule(**logits_module_kwargs)
+        target_value_module = modules.ValueModule(target_logits_module.out_features)
+
+        # Build components
         module = nn.ModuleDict()
-        module["main"] = NAFModule(obs_dim, action_low, action_high, config["module"])
-        module["target"] = NAFModule(obs_dim, action_low, action_high, config["module"])
-        module["target"].load_state_dict(module["main"].state_dict())
+        module["naf"] = modules.NAF(logits_module, value_module, advantage_module)
+        module["value"] = nn.Sequential(logits_module, value_module)
+        module["target_value"] = nn.Sequential(
+            target_logits_module, target_value_module
+        )
+        module["target_value"].load_state_dict(module["value"].state_dict())
+        if config["exploration"] == "full_gaussian":
+            module["policy"] = modules.MultivariateGaussianPolicy(
+                logits_module, action_module, tril_module
+            )
+        else:
+            module["policy"] = modules.DeterministicPolicy(logits_module, action_module)
 
-        if script == "trace":
-            obs = torch.randn(1, *obs_space.shape)
-            actions = torch.randn(1, *action_space.shape)
-            module["main"] = torch.jit.trace(module["main"], (obs, actions))
-            module["target"] = torch.jit.trace(module["target"], (obs, actions))
-        elif script == "script":
-            module["main"] = torch.jit.script(module["main"])
-            module["target"] = torch.jit.script(module["target"])
+        # Initialize modules
+        module.apply(
+            torch_util.initialize_orthogonal(config["module"]["ortho_init_gain"])
+        )
 
+        if config["torch_script"] == "trace":
+            trace_components(module, obs_space, action_space)
+        elif config["torch_script"] == "script":
+            script_components(module)
         return module
 
     @staticmethod
     def _make_optimizer(module, config):
         optimizer = config["torch_optimizer"]
         if isinstance(optimizer, str):
-            optimizer_cls = get_optimizer_class(optimizer)
+            optimizer_cls = torch_util.get_optimizer_class(optimizer)
         elif inspect.isclass(optimizer):
             optimizer_cls = optimizer
         else:
@@ -235,5 +246,21 @@ class NAFTorchPolicy(Policy):
             )
 
         optimizer_options = config["torch_optimizer_options"]
-        optimizer = optimizer_cls(module["main"].parameters(), **optimizer_options)
+        optimizer = optimizer_cls(module["naf"].parameters(), **optimizer_options)
         return optimizer
+
+
+def trace_components(module, obs_space, action_space):
+    obs = torch.randn(1, *obs_space.shape)
+    actions = torch.randn(1, *action_space.shape)
+    module["naf"] = torch.jit.trace(module["naf"], (obs, actions))
+    module["value"] = torch.jit.trace(module["value"], obs)
+    module["target_value"] = torch.jit.trace(module["target_value"], obs)
+    module["policy"] = torch.jit.trace(module["policy"], obs)
+
+
+def script_components(module):
+    module["naf"] = torch.jit.script(module["naf"])
+    module["value"] = torch.jit.script(module["value"])
+    module["target_value"] = torch.jit.script(module["target_value"])
+    module["policy"] = torch.jit.script(module["policy"])

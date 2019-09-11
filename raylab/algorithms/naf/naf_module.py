@@ -3,34 +3,57 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
-from raylab.utils.pytorch import initialize_orthogonal
 
+class NAF(nn.Module):
+    """Neural network module implementing the Normalized Advantage Function (NAF)."""
 
-class NAFModule(nn.Module):
-    """Neural network module that implements the forward pass of NAF."""
-
-    def __init__(self, obs_dim, action_low, action_high, config):
+    def __init__(self, logits_module, value_module, advantage_module):
         super().__init__()
-        self.logits_module = FullyConnectedModule(
-            obs_dim, units=config["layers"], activation=config["activation"]
-        )
-        logit_dim = self.logits_module.out_features
-        self.value_module = ValueModule(logit_dim)
-        self.action_module = ActionModule(logit_dim, action_low, action_high)
-        self.advantage_module = AdvantageModule(
-            logit_dim, self.action_module.out_features
-        )
-
-        self.apply(initialize_orthogonal(config["ortho_init_gain"]))
+        self.logits_module = logits_module
+        self.value_module = value_module
+        self.advantage_module = advantage_module
 
     @override(nn.Module)
     def forward(self, obs, actions):  # pylint: disable=arguments-differ
         logits = self.logits_module(obs)
         best_value = self.value_module(logits)
-        best_action = self.action_module(logits)
-        advantage = self.advantage_module(logits, best_action, actions)
-        action_value = best_value + advantage
-        return action_value, best_action, best_value
+        advantage = self.advantage_module(logits, actions)
+        return advantage + best_value
+
+
+class DeterministicPolicy(nn.Module):
+    """Neural network module implementing a deterministic continuous policy."""
+
+    def __init__(self, logits_module, action_module):
+        super().__init__()
+        self.logits_module = logits_module
+        self.action_module = action_module
+
+    @override(nn.Module)
+    def forward(self, obs):  # pylint: disable=arguments-differ
+        logits = self.logits_module(obs)
+        actions = self.action_module(logits)
+        return actions
+
+
+class MultivariateGaussianPolicy(nn.Module):
+    """Neural network module implementing a multivariate gaussian policy."""
+
+    def __init__(self, logits_module, action_module, tril_module):
+        super().__init__()
+        self.logits_module = logits_module
+        self.action_module = action_module
+        self.tril_module = tril_module
+
+    @override(nn.Module)
+    def forward(self, obs):  # pylint: disable=arguments-differ
+        logits = self.logits_module(obs)
+        loc = self.action_module(logits)
+        scale_tril = self.tril_module(logits)
+        return loc, scale_tril
+
+
+# === Lower level components ===
 
 
 class ValueModule(nn.Module):
@@ -73,20 +96,18 @@ class ActionModule(nn.Module):
 class AdvantageModule(nn.Module):
     """Neural network module implementing the advantage function term of NAF."""
 
-    __constants__ = {"in_features", "out_features"}
-
-    def __init__(self, in_features, action_dim):
+    def __init__(self, tril_module, action_module):
         super().__init__()
-        self.in_features = in_features
-        self.out_features = 1
-        self.tril_module = TrilMatrixModule(self.in_features, action_dim)
+        self.tril_module = tril_module
+        self.action_module = action_module
 
     @override(nn.Module)
-    def forward(self, logits, best_action, actions):  # pylint: disable=arguments-differ
+    def forward(self, logits, actions):  # pylint: disable=arguments-differ
         tril_matrix = self.tril_module(logits)  # square matrix [..., N, N]
+        best_action = self.action_module(logits)  # batch of actions [..., N]
         action_diff = (actions - best_action).unsqueeze(-1)  # column vector [..., N, 1]
         vec = tril_matrix.matmul(action_diff)  # column vector [..., N, 1]
-        advantage = -0.5 * torch.norm(vec, p=2, dim=-2).pow(2)
+        advantage = -0.5 * vec.transpose(-1, -2).matmul(vec).squeeze(-1)
         return advantage
 
 
