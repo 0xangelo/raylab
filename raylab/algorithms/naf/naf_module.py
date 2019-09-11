@@ -9,18 +9,35 @@ from raylab.utils.pytorch import initialize_orthogonal
 class NAFModule(nn.Module):
     """Neural network module that implements the forward pass of NAF."""
 
-    def __init__(self, obs_dim, action_low, action_high, config):
+    def __init__(self, obs_dim, action_low, action_high, config, script=None):
         super().__init__()
         self.logits_module = FullyConnectedModule(
             obs_dim, units=config["layers"], activation=config["activation"]
         )
-
         logit_dim = self.logits_module.out_features
-        self.value_module = ValueModule(logit_dim)
-        self.action_module = ActionModule(logit_dim, action_low, action_high)
-        self.advantage_module = AdvantageModule(
-            logit_dim, self.action_module.out_features
+        self.value_module = ValueModule(logit_dim, script=script)
+        self.action_module = ActionModule(
+            logit_dim, action_low, action_high, script=script
         )
+        self.advantage_module = AdvantageModule(
+            logit_dim, self.action_module.out_features, script=script
+        )
+
+        if script == "trace":
+            fake_obs = torch.randn(1, obs_dim)
+            fake_logits = torch.randn(1, logit_dim)
+            fake_actions = torch.randn(1, self.action_module.out_features)
+            self.logits_module = torch.jit.trace(self.logits_module, fake_obs)
+            self.value_module = torch.jit.trace(self.value_module, fake_logits)
+            self.action_module = torch.jit.trace(self.action_module, fake_logits)
+            self.advantage_module = torch.jit.trace(
+                self.advantage_module, (fake_logits, fake_actions, fake_actions)
+            )
+        elif script == "script":
+            self.logits_module = torch.jit.script(self.logits_module)
+            self.value_module = torch.jit.script(self.value_module)
+            self.action_module = torch.jit.script(self.action_module)
+            self.advantage_module = torch.jit.script(self.advantage_module)
 
         self.apply(initialize_orthogonal(config["ortho_init_gain"]))
 
@@ -37,9 +54,20 @@ class NAFModule(nn.Module):
 class ValueModule(nn.Module):
     """Neural network module implementing the value function term of NAF."""
 
-    def __init__(self, in_features):
+    __constants__ = {"in_features", "out_features"}
+
+    def __init__(self, in_features, script=None):
         super().__init__()
-        self.linear_module = nn.Linear(in_features, 1)
+        self.in_features = in_features
+        self.out_features = 1
+        self.linear_module = nn.Linear(self.in_features, self.out_features)
+
+        if script == "trace":
+            self.linear_module = torch.jit.trace(
+                self.linear_module, torch.randn(1, self.in_features)
+            )
+        elif script == "script":
+            self.linear_module = torch.jit.script(self.linear_module)
 
     @override(nn.Module)
     def forward(self, logits):  # pylint: disable=arguments-differ
@@ -51,13 +79,20 @@ class ActionModule(nn.Module):
 
     __constants__ = {"in_features", "out_features"}
 
-    def __init__(self, in_features, action_low, action_high):
+    def __init__(self, in_features, action_low, action_high, script=None):
         super().__init__()
         self.in_features = in_features
-        self.action_low = action_low
-        self.action_range = action_high - action_low
+        self.register_buffer("action_low", action_low)
+        self.register_buffer("action_range", action_high - action_low)
         self.out_features = self.action_low.numel()
         self.linear_module = nn.Linear(self.in_features, self.out_features)
+
+        if script == "trace":
+            self.linear_module = torch.jit.trace(
+                self.linear_module, torch.randn(1, self.in_features)
+            )
+        elif script == "script":
+            self.linear_module = torch.jit.script(self.linear_module)
 
     @override(nn.Module)
     def forward(self, logits):  # pylint: disable=arguments-differ
@@ -70,13 +105,24 @@ class ActionModule(nn.Module):
 class AdvantageModule(nn.Module):
     """Neural network module implementing the advantage function term of NAF."""
 
-    def __init__(self, in_features, action_dim):
+    __constants__ = {"in_features", "out_features"}
+
+    def __init__(self, in_features, action_dim, script=None):
         super().__init__()
-        self.tril_matrix_module = TrilMatrixModule(in_features, action_dim)
+        self.in_features = in_features
+        self.out_features = 1
+        self.tril_module = TrilMatrixModule(self.in_features, action_dim, script=script)
+
+        if script == "trace":
+            self.tril_module = torch.jit.trace(
+                self.tril_module, torch.randn(1, self.in_features)
+            )
+        elif script == "script":
+            self.tril_module = torch.jit.script(self.tril_module)
 
     @override(nn.Module)
     def forward(self, logits, best_action, actions):  # pylint: disable=arguments-differ
-        tril_matrix = self.tril_matrix_module(logits)  # square matrix [..., N, N]
+        tril_matrix = self.tril_module(logits)  # square matrix [..., N, N]
         action_diff = (actions - best_action).unsqueeze(-1)  # column vector [..., N, 1]
         vec = tril_matrix.matmul(action_diff)  # column vector [..., N, 1]
         advantage = -0.5 * torch.norm(vec, p=2, dim=-2).pow(2)
@@ -86,14 +132,21 @@ class AdvantageModule(nn.Module):
 class TrilMatrixModule(nn.Module):
     """Neural network module which outputs a lower-triangular matrix."""
 
-    __constants__ = {"matrix_dim", "row_sizes"}
+    __constants__ = {"in_features", "matrix_dim"}
 
-    def __init__(self, in_features, matrix_dim):
+    def __init__(self, in_features, matrix_dim, script=None):
         super().__init__()
+        self.in_features = in_features
         self.matrix_dim = matrix_dim
-        self.row_sizes = list(range(1, self.matrix_dim + 1))
         tril_dim = int(self.matrix_dim * (self.matrix_dim + 1) / 2)
-        self.linear_module = nn.Linear(in_features, tril_dim)
+        self.linear_module = nn.Linear(self.in_features, tril_dim)
+
+        if script == "trace":
+            self.linear_module = torch.jit.trace(
+                self.linear_module, torch.randn(1, self.in_features)
+            )
+        elif script == "script":
+            self.linear_module = torch.jit.script(self.linear_module)
 
     @override(nn.Module)
     def forward(self, logits):  # pylint: disable=arguments-differ

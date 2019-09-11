@@ -129,7 +129,7 @@ class NAFTorchPolicy(Policy):
         module = self.module["main"]
         logits = module.logits_module(obs_batch)
         loc = module.action_module(logits)
-        scale_tril = module.advantage_module.tril_matrix_module(logits)
+        scale_tril = module.advantage_module.tril_module(logits)
         scale_coeff = self.config["scale_tril_coeff"]
         dist = torch.distributions.MultivariateNormal(
             loc=loc, scale_tril=scale_tril * scale_coeff
@@ -202,10 +202,26 @@ class NAFTorchPolicy(Policy):
         obs_dim = obs_space.shape[0]
         action_low = torch.from_numpy(action_space.low).float()
         action_high = torch.from_numpy(action_space.high).float()
+        script = config["torch_script"]
+
         module = nn.ModuleDict()
-        module["main"] = NAFModule(obs_dim, action_low, action_high, config["module"])
-        module["target"] = NAFModule(obs_dim, action_low, action_high, config["module"])
+        module["main"] = NAFModule(
+            obs_dim, action_low, action_high, config["module"], script=script
+        )
+        module["target"] = NAFModule(
+            obs_dim, action_low, action_high, config["module"], script=script
+        )
         module["target"].load_state_dict(module["main"].state_dict())
+
+        if script == "trace":
+            obs = torch.randn(1, *obs_space.shape)
+            actions = torch.randn(1, *action_space.shape)
+            module["main"] = torch.jit.trace(module["main"], (obs, actions))
+            module["target"] = torch.jit.trace(module["target"], (obs, actions))
+        elif script == "script":
+            module["main"] = torch.jit.script(module["main"])
+            module["target"] = torch.jit.script(module["target"])
+
         return module
 
     @staticmethod

@@ -25,6 +25,11 @@ DEFAULT_CONFIG = with_common_config(
         # for the normalized advantage function. No layers means the Q function is
         # linear in states and actions.
         "module": {"layers": [400, 300], "activation": "elu", "ortho_init_gain": 0.2},
+        # Which type of TorchScript to use with the module. Possible types include
+        # None: module is not converted to TorchScript
+        # trace: module is converted using torch.jit.trace
+        # script: module is converted using torch.jit.script
+        "torch_script": None,
         # === Optimization ===
         # Name of Pytorch optimizer class
         "torch_optimizer": "Adam",
@@ -32,6 +37,8 @@ DEFAULT_CONFIG = with_common_config(
         "torch_optimizer_options": {"lr": 1e-3},
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
+        # === Rollout Worker ===
+        "num_workers": 0,
         # === Exploration ===
         # Which type of exploration to use. Possible types include
         # None: use the greedy policy to act
