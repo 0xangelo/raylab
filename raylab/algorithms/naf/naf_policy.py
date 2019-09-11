@@ -205,12 +205,8 @@ class NAFTorchPolicy(Policy):
         script = config["torch_script"]
 
         module = nn.ModuleDict()
-        module["main"] = NAFModule(
-            obs_dim, action_low, action_high, config["module"], script=script
-        )
-        module["target"] = NAFModule(
-            obs_dim, action_low, action_high, config["module"], script=script
-        )
+        module["main"] = NAFModule(obs_dim, action_low, action_high, config["module"])
+        module["target"] = NAFModule(obs_dim, action_low, action_high, config["module"])
         module["target"].load_state_dict(module["main"].state_dict())
 
         if script == "trace":
