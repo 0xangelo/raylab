@@ -1,15 +1,11 @@
 """CLI for launching Tune experiments."""
-import sys
-import os.path as osp
-import pathlib
-from importlib import import_module
-
 import ray
 from ray import tune
 import click
 
 import raylab
 from raylab.logger import DEFAULT_LOGGERS
+from raylab.utils.dynamic_import import import_module_from_path
 
 
 @click.command()
@@ -83,9 +79,7 @@ def main(**args):  # pylint: disable=missing-docstring
     if args["config"] is None:
         config = {}
     else:
-        path = args["config"]
-        sys.path.append(osp.dirname(path))
-        module = import_module(pathlib.Path(path).stem)
+        module = import_module_from_path(args["config"])
         config = module.get_config()
 
     raylab.register_all_agents()
