@@ -22,9 +22,12 @@ DEFAULT_CONFIG = with_common_config(
         # each worker will have a replay buffer of this size.
         "buffer_size": 500000,
         # === Time Limits ===
-        # Whether to ignore horizon termination and bootstrap from final observation.
+        # How to treat timeout terminations. Possible types include
+        # None: do nothing
+        # PEB: Partial Episode Bootstrapping, or bootstrap from final observation
+        # TA: Time Awareness, or append relative timestep to observations
         # This is used to set targets for the action value function.
-        "timeout_bootstrap": True,
+        "time_limits": "PEB",
         # === Network ===
         # Size and activation of the fully connected network computing the logits
         # for the normalized advantage function. No layers means the Q function is

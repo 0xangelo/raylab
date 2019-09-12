@@ -11,9 +11,13 @@ from raylab.algorithms.ppo import ppo_policy
 DEFAULT_CONFIG = with_base_config(
     ppo.DEFAULT_CONFIG,
     {
-        # Whether to ignore horizon termination and bootstrap from final observation.
-        # This is used in GAE to set targets for the value function.
-        "timeout_bootstrap": True
+        # === Time Limits ===
+        # How to treat timeout terminations. Possible types include
+        # None: do nothing
+        # PEB: Partial Episode Bootstrapping, or bootstrap from final observation
+        # TA: Time Awareness, or append relative timestep to observations
+        # This is used to set targets for the action value function.
+        "time_limits": "PEB"
     },
 )
 
