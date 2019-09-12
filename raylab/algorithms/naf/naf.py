@@ -53,6 +53,8 @@ DEFAULT_CONFIG = with_common_config(
         # full_gaussian: use gaussian action space noise where the precision matrix is
         #     given by the advantage function P matrix
         "exploration": None,
+        # Whether to act greedly or exploratory, mostly for evaluation purposes
+        "greedy": False,
         # Scaling term of the lower triangular matrix for the multivariate gaussian
         # action distribution
         "scale_tril_coeff": 1.0,
@@ -75,7 +77,7 @@ DEFAULT_CONFIG = with_common_config(
         # Extra arguments to pass to evaluation workers.
         # Typical usage is to pass extra args to evaluation env creator
         # and to disable exploration by computing deterministic actions
-        "evaluation_config": {"exploration": None},
+        "evaluation_config": {"greedy": True, "pure_exploration_steps": 0},
     }
 )
 

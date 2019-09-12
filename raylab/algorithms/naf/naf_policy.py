@@ -57,7 +57,9 @@ class NAFTorchPolicy(Policy):
         # pylint: disable=too-many-arguments,unused-argument
         obs_batch = torch_util.convert_to_tensor(obs_batch, self.device)
 
-        if self._pure_exploration:
+        if self.config["greedy"]:
+            actions = self._greedy_actions(obs_batch)
+        elif self._pure_exploration:
             actions = self._uniform_random_actions(obs_batch)
         elif self.config["exploration"] == "full_gaussian":
             actions = self._multivariate_gaussian_actions(obs_batch)
@@ -69,6 +71,7 @@ class NAFTorchPolicy(Policy):
         return actions.cpu().numpy(), state_batches, {}
 
     @override(Policy)
+    @torch.no_grad()
     def postprocess_trajectory(
         self, sample_batch, other_agent_batches=None, episode=None
     ):
@@ -107,11 +110,11 @@ class NAFTorchPolicy(Policy):
 
     @override(Policy)
     def get_weights(self):
-        return {k: v.cpu() for k, v in self.module["naf"].state_dict().items()}
+        return {k: v.cpu() for k, v in self.module.state_dict().items()}
 
     @override(Policy)
     def set_weights(self, weights):
-        self.module["naf"].load_state_dict(weights)
+        self.module.load_state_dict(weights)
 
     # === NEW METHODS ===
 
@@ -141,6 +144,16 @@ class NAFTorchPolicy(Policy):
         self._param_noise_spec.adapt(distance)
 
     # === Action Sampling ===
+    def _greedy_actions(self, obs_batch):
+        policy = self.module["policy"]
+        if "target_policy" in self.module:
+            policy = self.module["target_policy"]
+
+        out = policy(obs_batch)
+        if isinstance(out, tuple):
+            out, _ = out
+        return out
+
     def _uniform_random_actions(self, obs_batch):
         dist = torch.distributions.Uniform(
             torch_util.convert_to_tensor(self.action_space.low, self.device),
