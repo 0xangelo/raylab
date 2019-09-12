@@ -12,7 +12,6 @@ from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as torch_util
 import raylab.utils.param_noise as param_noise
-from raylab.utils.time_limits import postprocess_time_limits
 import raylab.algorithms.naf.naf_module as modules
 
 
@@ -76,10 +75,6 @@ class NAFTorchPolicy(Policy):
     def postprocess_trajectory(
         self, sample_batch, other_agent_batches=None, episode=None
     ):
-        postprocess_time_limits(
-            sample_batch, episode, self.config["horizon"], self.config["time_limits"]
-        )
-
         if self.config["exploration"] == "parameter_noise":
             self.update_parameter_noise(sample_batch)
         return sample_batch
