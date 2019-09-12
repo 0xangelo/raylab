@@ -219,6 +219,8 @@ class NAFTorchPolicy(Policy):
 
     @staticmethod
     def get_default_config():
+        """Return the default config for NAF."""
+        # pylint: disable=cyclic-import
         from raylab.algorithms.naf.naf import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG

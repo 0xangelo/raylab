@@ -21,6 +21,7 @@ def postprocess_fn(policy, sample_batch, other_agent_batches=None, episode=None)
 
 def get_default_config():
     """Return the default config for DDPG."""
+    # pylint: disable=cyclic-import
     from raylab.algorithms.ddpg.td3 import DEFAULT_CONFIG
 
     return DEFAULT_CONFIG
