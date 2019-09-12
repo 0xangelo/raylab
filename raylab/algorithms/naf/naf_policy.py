@@ -1,11 +1,8 @@
 """NAF policy class using PyTorch."""
-import os
 import inspect
 
 import torch
 import torch.nn as nn
-from ray.rllib.utils import merge_dicts
-from ray.rllib.policy import Policy, TorchPolicy
 from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
@@ -13,22 +10,16 @@ from ray.rllib.utils.annotations import override
 import raylab.utils.pytorch as torch_util
 import raylab.utils.param_noise as param_noise
 import raylab.algorithms.naf.naf_module as modules
+from raylab.policy import TorchPolicy
 
 
-class NAFTorchPolicy(Policy):
+class NAFTorchPolicy(TorchPolicy):
     """Normalized Advantage Function policy in Pytorch to use with RLlib."""
 
     # pylint: disable=abstract-method
 
-    @override(Policy)
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self.config = merge_dicts(self.get_default_config(), config)
-        self.device = (
-            torch.device("cuda")
-            if bool(os.environ.get("CUDA_VISIBLE_DEVICES", None))
-            else torch.device("cpu")
-        )
 
         self.module = self._make_module(
             self.observation_space, self.action_space, self.config
@@ -42,8 +33,17 @@ class NAFTorchPolicy(Policy):
                 **config["param_noise_spec"]
             )
 
-    @override(Policy)
+    @staticmethod
+    @override(TorchPolicy)
+    def get_default_config():
+        """Return the default config for NAF."""
+        # pylint: disable=cyclic-import
+        from raylab.algorithms.naf.naf import DEFAULT_CONFIG
+
+        return DEFAULT_CONFIG
+
     @torch.no_grad()
+    @override(TorchPolicy)
     def compute_actions(
         self,
         obs_batch,
@@ -55,7 +55,7 @@ class NAFTorchPolicy(Policy):
         **kwargs
     ):
         # pylint: disable=too-many-arguments,unused-argument
-        obs_batch = torch_util.convert_to_tensor(obs_batch, self.device)
+        obs_batch = self.convert_to_tensor(obs_batch)
 
         if self.config["greedy"]:
             actions = self._greedy_actions(obs_batch)
@@ -70,8 +70,8 @@ class NAFTorchPolicy(Policy):
 
         return actions.cpu().numpy(), state_batches, {}
 
-    @override(Policy)
     @torch.no_grad()
+    @override(TorchPolicy)
     def postprocess_trajectory(
         self, sample_batch, other_agent_batches=None, episode=None
     ):
@@ -79,32 +79,27 @@ class NAFTorchPolicy(Policy):
             self.update_parameter_noise(sample_batch)
         return sample_batch
 
-    @override(Policy)
+    @override(TorchPolicy)
     def learn_on_batch(self, samples):
-        # pylint: disable=protected-access
-        batch_tensors = TorchPolicy._lazy_tensor_dict(self, samples)
+        batch_tensors = self._lazy_tensor_dict(samples)
+
         loss, info = self.compute_loss(batch_tensors, self.module, self.config)
         self.optimizer.zero_grad()
         loss.backward()
+
         total_norm = 0
         for param in self.module["naf"].parameters():
             param_norm = param.grad.data.norm(2)
             total_norm += param_norm.item() ** 2
         total_norm = total_norm ** (1.0 / 2)
         info["grad_norm"] = total_norm
+
         self.optimizer.step()
+
         torch_util.update_polyak(
             self.module["value"], self.module["target_value"], self.config["polyak"]
         )
         return {LEARNER_STATS_KEY: info}
-
-    @override(Policy)
-    def get_weights(self):
-        return {k: v.cpu() for k, v in self.module.state_dict().items()}
-
-    @override(Policy)
-    def set_weights(self, weights):
-        self.module.load_state_dict(weights)
 
     # === NEW METHODS ===
 
@@ -154,7 +149,6 @@ class NAFTorchPolicy(Policy):
 
     def _multivariate_gaussian_actions(self, obs_batch):
         loc, scale_tril = self.module["policy"](obs_batch)
-        # TODO: scale tril by desired average action stddev
         scale_coeff = self.config["scale_tril_coeff"]
         dist = torch.distributions.MultivariateNormal(
             loc=loc, scale_tril=scale_tril * scale_coeff
@@ -206,14 +200,6 @@ class NAFTorchPolicy(Policy):
             "td_error": td_error.item(),
         }
         return td_error, stats
-
-    @staticmethod
-    def get_default_config():
-        """Return the default config for NAF."""
-        # pylint: disable=cyclic-import
-        from raylab.algorithms.naf.naf import DEFAULT_CONFIG
-
-        return DEFAULT_CONFIG
 
     @staticmethod
     def _make_module(obs_space, action_space, config):
