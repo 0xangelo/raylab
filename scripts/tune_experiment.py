@@ -1,3 +1,4 @@
+"""CLI for launching Tune experiments."""
 import sys
 import os.path as osp
 import pathlib
@@ -8,6 +9,7 @@ from ray import tune
 import click
 
 import raylab
+from raylab.logger import DEFAULT_LOGGERS
 
 
 @click.command()
@@ -74,7 +76,10 @@ import raylab
     help="The amount of memory (in bytes) to start the object store with. "
     "By default, this is capped at 20GB but can be set higher.",
 )
-def main(**args):
+@click.option(
+    "--custom_loggers", is_flag=True, help="Use custom loggers from raylab.logger."
+)
+def main(**args):  # pylint: disable=missing-docstring
     if args["config"] is None:
         config = {}
     else:
@@ -96,6 +101,7 @@ def main(**args):
         config=config,
         checkpoint_freq=args["checkpoint_freq"],
         checkpoint_at_end=args["checkpoint_at_end"],
+        loggers=DEFAULT_LOGGERS if args["custom_loggers"] else None,
     )
 
 
