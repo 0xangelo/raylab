@@ -1,4 +1,6 @@
 """CLI for launching Tune experiments."""
+import logging
+
 import ray
 from ray import tune
 import click
@@ -75,6 +77,14 @@ from raylab.utils.dynamic_import import import_module_from_path
 @click.option(
     "--custom_loggers", is_flag=True, help="Use custom loggers from raylab.logger."
 )
+@click.option(
+    "--tune-log-level",
+    type=str,
+    default="INFO",
+    show_default=True,
+    help="Logging level for the trial executor process. This is independent from each "
+    "trainer's logging level.",
+)
 def main(**args):  # pylint: disable=missing-docstring
     if args["config"] is None:
         config = {}
@@ -86,6 +96,7 @@ def main(**args):  # pylint: disable=missing-docstring
     raylab.register_all_environments()
 
     ray.init(object_store_memory=args["object_store_memory"])
+    logging.getLogger("ray.tune").setLevel(args["tune_log_level"])
     tune.run(
         args["run"],
         name=args["name"],
