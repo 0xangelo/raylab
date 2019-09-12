@@ -4,11 +4,8 @@ import time
 from ray import tune
 from ray.rllib.utils.annotations import override
 from ray.rllib.policy.sample_batch import SampleBatch
-from ray.rllib.evaluation.metrics import (
-    collect_episodes,
-    summarize_episodes,
-    get_learner_stats,
-)
+from ray.rllib.evaluation.metrics import get_learner_stats
+from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.agents.trainer import Trainer, with_common_config
 
 from raylab.utils.replay_buffer import ReplayBuffer
@@ -90,15 +87,12 @@ class NAFTrainer(Trainer):
     @override(Trainer)
     def _init(self, config, env_creator):
         self._validate_config(config)
-        policy_cls = self._policy
         self.workers = self._make_workers(
-            env_creator, policy_cls, config, num_workers=0
+            env_creator, self._policy, config, num_workers=0
         )
+        # Dummy optimizer to log stats
+        self.optimizer = PolicyOptimizer(self.workers)
         self.replay = ReplayBuffer(config["buffer_size"])
-        self.learner_stats = {}
-        self.num_steps_sampled = 0
-        self.num_steps_trained = 0
-        self.episode_history = []
 
     @override(Trainer)
     def _train(self):
@@ -124,8 +118,8 @@ class NAFTrainer(Trainer):
 
             for _ in range(samples.count):
                 batch = self.replay.sample(self.config["train_batch_size"])
-                self.learner_stats = get_learner_stats(policy.learn_on_batch(batch))
-                self.num_steps_trained += batch.count
+                stats = get_learner_stats(policy.learn_on_batch(batch))
+                self.optimizer.num_steps_trained += batch.count
 
             if (
                 time.time() - start >= self.config["min_iter_time_s"]
@@ -133,39 +127,19 @@ class NAFTrainer(Trainer):
             ):
                 break
 
-        self.num_steps_sampled += steps_sampled
+        self.optimizer.num_steps_sampled += steps_sampled
 
-        return {**self.collect_metrics(), "timesteps_this_iter": steps_sampled}
-
-    @override(Trainer)
-    def collect_metrics(self):  # pylint: disable=arguments-differ
-        episodes, _ = collect_episodes(
-            local_worker=self.workers.local_worker(),
-            timeout_seconds=self.config["collect_metrics_timeout"],
-        )
-        orig_episodes = list(episodes)
-
-        min_history = self.config["metrics_smoothing_episodes"]
-        missing = min_history - len(episodes)
-        if missing > 0:
-            episodes.extend(self.episode_history[-missing:])
-            assert len(episodes) <= min_history
-        self.episode_history.extend(orig_episodes)
-        self.episode_history = self.episode_history[-min_history:]
-        res = summarize_episodes(episodes, orig_episodes)
+        res = self.collect_metrics()
         res.update(
-            info={
-                "num_steps_trained": self.num_steps_trained,
-                "num_steps_sampled": self.num_steps_sampled,
-                "learner": self.learner_stats,
-            }
+            timesteps_this_iter=steps_sampled,
+            info=dict(learner=stats, **res.get("info", {})),
         )
         return res
 
     # === New Methods ===
 
     def update_exploration_phase(self):
-        global_timestep = self.num_steps_sampled
+        global_timestep = self.optimizer.num_steps_sampled
         pure_expl_steps = self.config["pure_exploration_steps"]
         if pure_expl_steps:
             only_explore = global_timestep < pure_expl_steps
