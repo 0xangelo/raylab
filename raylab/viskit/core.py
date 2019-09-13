@@ -264,4 +264,6 @@ def insert_params_dataframe(exps_data, *param_keys):
     for exp_data in exps_data:
         params, dataframe = exp_data.flat_params, exp_data.progress
         for key in filter(None, param_keys):
+            if key in dataframe:
+                continue
             dataframe.insert(len(dataframe.columns), str(key), params.get(key))
