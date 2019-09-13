@@ -234,7 +234,7 @@ def cli(ctx, **args):
         size=args["size"],
         style=args["style"],
         units=args["units"],
-        estimator=args["estimator"],
+        estimator=args["estimator"] if args["units"] is None else None,
         err_style=args["err_style"],
         legend=args["legend"],
     )
