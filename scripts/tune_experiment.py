@@ -75,7 +75,7 @@ from raylab.utils.dynamic_import import import_module_from_path
     "By default, this is capped at 20GB but can be set higher.",
 )
 @click.option(
-    "--custom_loggers", is_flag=True, help="Use custom loggers from raylab.logger."
+    "--custom-loggers", is_flag=True, help="Use custom loggers from raylab.logger."
 )
 @click.option(
     "--tune-log-level",
