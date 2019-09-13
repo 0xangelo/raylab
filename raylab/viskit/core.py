@@ -14,7 +14,7 @@ Folder = namedtuple("Folder", ["path", "files"])
 
 def load_progress(progress_path, verbose=True):
     if verbose:
-        print("Reading %s" % progress_path)
+        print("Reading {}".format(progress_path))
 
     if progress_path.endswith(".csv"):
         return pd.read_csv(progress_path, index_col=None, comment="#")
@@ -32,7 +32,7 @@ def flatten_dict(dic):
         if isinstance(val, dict):
             val = flatten_dict(val)
             for subk, subv in flatten_dict(val).items():
-                flat_params[key + "." + subk] = subv
+                flat_params[key + "/" + subk] = subv
         else:
             flat_params[key] = val
     return flat_params
@@ -120,24 +120,8 @@ def load_exps_data(
     return exps_data
 
 
-def smart_repr(obj):
-    if isinstance(obj, tuple):
-        if not obj:
-            return "tuple()"
-        if len(obj) == 1:
-            return "(%s,)" % smart_repr(obj[0])
-        return "(" + ",".join(map(smart_repr, obj)) + ")"
-    if callable(obj):
-        return "__import__('pydoc').locate('%s')" % (
-            obj.__module__ + "." + obj.__name__
-        )
-    return repr(obj)
-
-
 def extract_distinct_params(exps_data, excluded_params=("seed", "log_dir")):
-    repr_config_pairs = [
-        smart_repr(kv) for d in exps_data for kv in d.flat_params.items()
-    ]
+    repr_config_pairs = [repr(kv) for d in exps_data for kv in d.flat_params.items()]
     uniq_pairs = list(set(repr_config_pairs))
     evald_pairs = map(literal_eval, uniq_pairs)
     stringified_pairs = sorted(
@@ -183,9 +167,7 @@ class Selector:
         return list(filter(self._check_exp, self._exps_data))
 
 
-def lineplot_instructions(
-    exps_data, split=None, include=(), exclude=(), **lineplot_kwargs
-):
+def filter_and_split_experiments(exps_data, split=None, include=(), exclude=()):
     selector = Selector(exps_data)
     for key, val in include:
         selector = selector.where(key, val)
@@ -193,25 +175,29 @@ def lineplot_instructions(
         selector = selector.where_not(key, val)
 
     if split is not None:
-        split_titles = dict(sorted(extract_distinct_params(exps_data))).get(split, [])
-        split_selectors = [selector.where(split, t) for t in split_titles]
+        titles = dict(sorted(extract_distinct_params(exps_data))).get(split, [])
+        selectors = [selector.where(split, t) for t in titles]
     else:
-        split_selectors = [selector]
-        split_titles = ["Experiment"]
+        selectors = [selector]
+        titles = ["Experiment"]
 
+    return selectors, titles
+
+
+def lineplot_instructions(selectors, titles, **lineplot_kwargs):
     plots = []
-    for split_selector, split_title in zip(split_selectors, split_titles):
-        split_exps_data = split_selector.extract()
-        if not split_exps_data:
+    for selector, title in zip(selectors, titles):
+        exps_data = selector.extract()
+        if not exps_data:
             continue
 
-        distinct_params = dict(sorted(extract_distinct_params(split_exps_data)))
+        distinct_params = dict(sorted(extract_distinct_params(exps_data)))
         plots.append(
             dict(
-                title=str(split_title),
+                title=str(title),
                 lineplot_kwargs=dict(
                     data=pd.concat(
-                        [exp.progress for exp in split_exps_data],
+                        [exp.progress for exp in exps_data],
                         ignore_index=True,
                         sort=False,
                     ),

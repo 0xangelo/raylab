@@ -214,19 +214,20 @@ def plot_figures(plot_instructions):
 )
 @click.pass_context
 def cli(ctx, **args):
-    "CLI to draw Seaborn's lineplot from experiment data."
-    ctx.obj = args
+    """CLI to draw Seaborn's lineplot from experiment data."""
     exps_data = core.load_exps_data(
         args["logdir"], progress_prefix=args["progress"], config_prefix=args["params"]
     )
     core.rename_params(exps_data, args["subskey"], args["subsval"])
     core.insert_params_dataframe(exps_data, args["hue"], args["size"], args["style"])
 
-    ctx.obj["plot_instructions"] = core.lineplot_instructions(
-        exps_data,
-        split=args["split"],
-        include=args["include"],
-        exclude=args["exclude"],
+    selectors, titles = core.filter_and_split_experiments(
+        exps_data, split=args["split"], include=args["include"], exclude=args["exclude"]
+    )
+
+    ctx.obj = core.lineplot_instructions(
+        selectors,
+        titles,
         x=args["x"],
         y=args["y"],
         hue=args["hue"],
@@ -261,8 +262,7 @@ def cli(ctx, **args):
 )
 @click.pass_context
 def show(ctx, **args):
-    args.update(ctx.obj)
-    plot_instructions = args["plot_instructions"]
+    plot_instructions = ctx.obj
 
     plotting_context = sns.plotting_context(args["context"])
     axes_style = sns.axes_style(args["axstyle"])
@@ -293,8 +293,7 @@ def show(ctx, **args):
 @click.option("--out", "-o", required=True, help="file to save the output image to.")
 @click.pass_context
 def save(ctx, **args):
-    args.update(ctx.obj)
-    plot_instructions = args["plot_instructions"]
+    plot_instructions = ctx.obj
     if args["latex"]:
         matplotlib.rcParams.update(
             {
