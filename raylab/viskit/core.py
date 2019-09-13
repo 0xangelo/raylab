@@ -117,9 +117,6 @@ def load_exps_data(
         print("finished walking exp folders")
 
     exps_data = read_exp_folder_data(exp_folders, isprogress, isconfig, verbose=verbose)
-    for num, exp_data in enumerate(exps_data):
-        exp_data.progress.insert(len(exp_data.progress.columns), "unit", num)
-
     return exps_data
 
 
@@ -196,9 +193,7 @@ def lineplot_instructions(
         selector = selector.where_not(key, val)
 
     if split is not None:
-        print("split:", split)
         split_titles = dict(sorted(extract_distinct_params(exps_data))).get(split, [])
-        print("split_titles:", split_titles)
         split_selectors = [selector.where(split, t) for t in split_titles]
     else:
         split_selectors = [selector]

@@ -75,34 +75,146 @@ def plot_figures(plot_instructions):
 
 
 @click.group()
-@click.option("--logdir", "-p", multiple=True)
-@click.option("--xaxis", "-x", "x", default="timesteps_total", show_default=True)
-@click.option("--yaxis", "-y", "y", default="episode_reward_mean", show_default=True)
-@click.option("--hue", default=None)
-@click.option("--size", default=None)
-@click.option("--style", default=None)
-@click.option("--estimator", default="mean", show_default=True)
-@click.option("--units", is_flag=True)
-@click.option("--split", default=None)
-@click.option("--include", "-i", type=(str, str), multiple=True)
-@click.option("--exclude", "-e", type=(str, str), multiple=True)
-@click.option("--subskey", "-k", type=(str, str), multiple=True)
-@click.option("--subsval", "-v", type=(str, str), multiple=True)
+@click.option(
+    "--logdir",
+    "-p",
+    multiple=True,
+    help="directories to look for progress and parameter data.",
+)
+@click.option(
+    "--split",
+    default=None,
+    show_default=True,
+    help="plot one figure for each set of trials grouped by this key in parameters.",
+)
+@click.option(
+    "--include",
+    "-i",
+    type=(str, str),
+    multiple=True,
+    help="only include trials with this key-value pair in parameters.",
+)
+@click.option(
+    "--exclude",
+    "-e",
+    type=(str, str),
+    multiple=True,
+    help="exclude trials with this key-value pair in parameters.",
+)
+@click.option(
+    "--subskey",
+    "-k",
+    type=(str, str),
+    multiple=True,
+    help="for this key-value pair, substitute 'value' for 'key' in parameters.",
+)
+@click.option(
+    "--subsval",
+    "-v",
+    type=(str, str),
+    multiple=True,
+    help="for this key-value pair, substitute 'value' for all 'key's in parameters.",
+)
+@click.option(
+    "--progress", default="progress", help="prefix for experiment progress files."
+)
+@click.option(
+    "--params", default="params", help="prefix for experiment parameters files."
+)
+@click.option(
+    "--xaxis",
+    "-x",
+    "x",
+    default="timesteps_total",
+    show_default=True,
+    help="names of variables in ``data``, optional. "
+    "Input data variables; must be numeric. Should pass reference columns in ``data``.",
+)
+@click.option(
+    "--yaxis",
+    "-y",
+    "y",
+    default="episode_reward_mean",
+    show_default=True,
+    help="names of variables in ``data``, optional. "
+    "Input data variables; must be numeric. Should pass reference columns in ``data``.",
+)
+@click.option(
+    "--hue",
+    default=None,
+    show_default=True,
+    help="name of variables in ``data`` or vector data, optional. "
+    "Grouping variable that will produce lines with different colors. "
+    "Can be either categorical or numeric, although color mapping will "
+    "behave differently in latter case.",
+)
+@click.option(
+    "--size",
+    default=None,
+    show_default=True,
+    help="name of variables in ``data`` or vector data, optional. "
+    "Grouping variable that will produce lines with different widths. "
+    "Can be either categorical or numeric, although size mapping will "
+    "behave differently in latter case.",
+)
+@click.option(
+    "--style",
+    default=None,
+    show_default=True,
+    help="name of variables in ``data`` or vector data, optional. "
+    "Grouping variable that will produce lines with different dashes "
+    "and/or markers. Can have a numeric dtype but will always be treated "
+    "as categorical.",
+)
+@click.option(
+    "--palette",
+    default="deep",
+    show_default=True,
+    help="palette name, optional. "
+    "Colors to use for the different levels of the ``hue`` variable. Should "
+    "be something that can be interpreted by :func:`color_palette`.",
+)
+@click.option(
+    "--units",
+    default=None,
+    show_default=True,
+    help="Grouping variable identifying sampling units. When used, a separate "
+    "line will be drawn for each unit with appropriate semantics, but no "
+    "legend entry will be added. Useful for showing distribution of "
+    "experimental replicates when exact identities are not needed.",
+)
+@click.option(
+    "--estimator",
+    default="mean",
+    show_default=True,
+    help="name of pandas method or None, optional. "
+    "Method for aggregating across multiple observations of the ``y`` "
+    "variable at the same ``x`` level. If ``None``, all observations will "
+    "be drawn.",
+)
+@click.option(
+    "--err-style",
+    default="band",
+    show_default=True,
+    help="'band' or 'bars', optional. "
+    "Whether to draw the confidence intervals with translucent error bands "
+    "or discrete error bars.",
+)
 @click.option(
     "--legend",
     "-l",
     type=click.Choice(["full", "brief"]),
     default="brief",
     show_default=True,
-)
-@click.option(
-    "--progress", default="progress", help="Prefix for experiment progress files"
-)
-@click.option(
-    "--params", default="params", help="Prefix for experiment parameters files"
+    help="'brief', 'full', or False, optional "
+    "How to draw the legend. If 'brief', numeric ``hue`` and ``size`` "
+    "variables will be represented with a sample of evenly spaced values. "
+    "If 'full', every group will get an entry in the legend. If ``False``, "
+    "no legend data is added and no legend is drawn.",
 )
 @click.pass_context
 def cli(ctx, **args):
+    "CLI to draw Seaborn's lineplot from experiment data."
     ctx.obj = args
     exps_data = core.load_exps_data(
         args["logdir"], progress_prefix=args["progress"], config_prefix=args["params"]
@@ -120,16 +232,33 @@ def cli(ctx, **args):
         hue=args["hue"],
         size=args["size"],
         style=args["style"],
-        estimator=None if args["units"] else args["estimator"],
-        units="unit" if args["units"] else None,
+        units=args["units"],
+        estimator=args["estimator"],
+        err_style=args["err_style"],
         legend=args["legend"],
-        palette=sns.color_palette("deep", 1),
     )
 
 
 @cli.command()
-@click.option("--context", default="paper", show_default=True)
-@click.option("--axstyle", default="darkgrid", show_default=True)
+@click.option(
+    "--context",
+    type=click.Choice("paper notebook talk poster".split()),
+    default="paper",
+    show_default=True,
+    help="This affects things like the size of the labels, lines, and other "
+    "elements of the plot, but not the overall style. The base context "
+    "is 'notebook', and the other contexts are 'paper', 'talk', and 'poster', "
+    "which are version of the notebook parameters scaled by .8, 1.3, and 1.6, "
+    "respectively.",
+)
+@click.option(
+    "--axstyle",
+    type=click.Choice("darkgrid whitegrid dark white ticks".split()),
+    default="darkgrid",
+    show_default=True,
+    help="This affects things like the color of the axes, whether a grid is "
+    "enabled by default, and other aesthetic elements.",
+)
 @click.pass_context
 def show(ctx, **args):
     args.update(ctx.obj)
@@ -143,8 +272,17 @@ def show(ctx, **args):
 
 
 @cli.command()
-@click.option("--latex/--no-latex", default=False)
-@click.option("--latexcol", default=2, show_default=True)
+@click.option(
+    "--latex/--no-latex",
+    default=False,
+    help="whether to save the plot in a LaTex friendly format.",
+)
+@click.option(
+    "--latexcol",
+    default=2,
+    show_default=True,
+    help="resize the image to fit the desired number of columns.",
+)
 @click.option(
     "--facecolor",
     "-fc",
@@ -152,7 +290,7 @@ def show(ctx, **args):
     show_default=True,
     help="http://latexcolor.com",
 )
-@click.option("--out", "-o", required=True)
+@click.option("--out", "-o", required=True, help="file to save the output image to.")
 @click.pass_context
 def save(ctx, **args):
     args.update(ctx.obj)
