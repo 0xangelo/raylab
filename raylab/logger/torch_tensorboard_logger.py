@@ -16,7 +16,8 @@ class TorchTBLogger(Logger):
     @override(Logger)
     def on_result(self, result):
         tmp = result.copy()
-        for k in ["config", "pid", "timestamp", TIME_TOTAL_S, TRAINING_ITERATION]:
+        elim = ["config", "pid", "timestamp", "done", TIME_TOTAL_S, TRAINING_ITERATION]
+        for k in elim:
             if k in tmp:
                 del tmp[k]
 
