@@ -13,3 +13,15 @@ class ConfigJsonLogger(_JsonLogger):
     @override(_JsonLogger)
     def on_result(self, result):
         pass
+
+    @override(_JsonLogger)
+    def write(self, b):
+        pass
+
+    @override(_JsonLogger)
+    def flush(self):
+        pass
+
+    @override(_JsonLogger)
+    def close(self):
+        pass
