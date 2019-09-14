@@ -23,8 +23,19 @@ def get_last_checkpoint_path(logdir):
     nargs=1,
     type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True),
 )
-@click.option("--metric", default="episode_reward_mean")
-@click.option("--mode", default="max")
+@click.option(
+    "--metric",
+    default="episode_reward_mean",
+    show_default=True,
+    help="Key for trial info to order on.",
+)
+@click.option(
+    "--mode",
+    type=click.Choice("max min".split()),
+    default="max",
+    show_default=True,
+    help="Criterion to order trials by.",
+)
 def main(logdir, metric, mode):
     """Find the best experiment checkpoint as measured by a metric."""
     analysis = ExperimentAnalysis(logdir)
