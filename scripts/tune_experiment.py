@@ -61,7 +61,7 @@ from raylab.utils.dynamic_import import import_module_from_path
 @click.option(
     "--checkpoint-at-end",
     type=bool,
-    default=False,
+    default=True,
     show_default=True,
     help="Whether to checkpoint at the end of the experiment regardless of "
     "the checkpoint_freq.",
