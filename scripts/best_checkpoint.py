@@ -1,3 +1,4 @@
+# pylint: disable=missing-docstring
 import os.path as osp
 from glob import glob
 
@@ -20,11 +21,12 @@ def get_last_checkpoint_path(logdir):
 @click.argument(
     "logdir",
     nargs=1,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True),
 )
 @click.option("--metric", default="episode_reward_mean")
 @click.option("--mode", default="max")
 def main(logdir, metric, mode):
+    """Find the best experiment checkpoint as measured by a metric."""
     analysis = ExperimentAnalysis(logdir)
     best_logdir = analysis.get_best_logdir(metric, mode=mode)
     last_checkpoint_path = get_last_checkpoint_path(best_logdir)
