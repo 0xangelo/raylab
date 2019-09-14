@@ -4,9 +4,9 @@ import pickle
 from contextlib import suppress
 
 import click
-import gym
 import ray
 from ray.tune.registry import TRAINABLE_CLASS, _global_registry
+from ray.rllib.utils import merge_dicts
 
 import raylab
 
@@ -27,6 +27,10 @@ def get_agent(checkpoint, algo, env):
     with open(config_path, "rb") as file:
         config = pickle.load(file)
 
+    if "evaluation_config" in config:
+        eval_conf = config["evaluation_config"]
+        config = merge_dicts(config, eval_conf)
+
     agent_cls = _global_registry.get(TRAINABLE_CLASS, algo)
     agent = agent_cls(env=env, config=config)
     agent.restore(checkpoint)
@@ -46,7 +50,7 @@ def main(checkpoint, algo, env):
     raylab.register_all_environments()
     ray.init()
     agent = get_agent(checkpoint, algo, env)
-    env = gym.make(agent.config["env"])
+    env = agent.workers.local_worker().env
 
     obs, done, cummulative_reward = env.reset(), True, 0
     with suppress(KeyboardInterrupt), env:
