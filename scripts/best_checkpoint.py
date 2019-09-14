@@ -1,4 +1,5 @@
 # pylint: disable=missing-docstring
+import logging
 import os.path as osp
 from glob import glob
 
@@ -38,6 +39,8 @@ def get_last_checkpoint_path(logdir):
 )
 def main(logdir, metric, mode):
     """Find the best experiment checkpoint as measured by a metric."""
+    logging.getLogger("ray.tune").setLevel("ERROR")
+
     analysis = ExperimentAnalysis(logdir)
     best_logdir = analysis.get_best_logdir(metric, mode=mode)
     last_checkpoint_path = get_last_checkpoint_path(best_logdir)
