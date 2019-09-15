@@ -1,5 +1,6 @@
 """NAF policy class using PyTorch."""
 import inspect
+import itertools
 
 import torch
 import torch.nn as nn
@@ -185,10 +186,30 @@ class NAFTorchPolicy(TorchPolicy):
                 batch_tensors[SampleBatch.REWARDS],
                 batch_tensors[SampleBatch.REWARDS] + gamma * next_value.squeeze(-1),
             )
+            if config["clipped_double_q"]:
+                twin_next_value = module["twin_target_value"](
+                    batch_tensors[SampleBatch.NEXT_OBS]
+                )
+                twin_target_value = torch.where(
+                    batch_tensors[SampleBatch.DONES],
+                    batch_tensors[SampleBatch.REWARDS],
+                    batch_tensors[SampleBatch.REWARDS]
+                    + gamma * twin_next_value.squeeze(-1),
+                )
+                target_value = torch.min(target_value, twin_target_value)
+
         action_value = module["naf"](
             batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
         )
         td_error = torch.nn.MSELoss()(action_value.squeeze(-1), target_value)
+        if config["clipped_double_q"]:
+            twin_action_value = module["twin_naf"](
+                batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
+            )
+            twin_td_error = torch.nn.MSELoss()(
+                twin_action_value.squeeze(-1), target_value
+            )
+            td_error = (td_error + twin_td_error) / 2
 
         stats = {
             "q_mean": action_value.mean().item(),
@@ -207,30 +228,59 @@ class NAFTorchPolicy(TorchPolicy):
             activation=config["module"]["activation"],
             layer_norm=(config["exploration"] == "parameter_noise"),
         )
+
+        def action_module_kwargs(in_features):
+            return dict(
+                in_features=in_features,
+                action_low=torch.from_numpy(action_space.low).float(),
+                action_high=torch.from_numpy(action_space.high).float(),
+            )
+
         logits_module = modules.FullyConnectedModule(**logits_module_kwargs)
         value_module = modules.ValueModule(logits_module.out_features)
         action_module = modules.ActionModule(
-            logits_module.out_features,
-            action_low=torch.from_numpy(action_space.low).float(),
-            action_high=torch.from_numpy(action_space.high).float(),
+            **action_module_kwargs(logits_module.out_features)
         )
         tril_module = modules.TrilMatrixModule(
             logits_module.out_features, action_space.shape[0]
         )
         advantage_module = modules.AdvantageModule(tril_module, action_module)
 
-        # Create target modules
-        target_logits_module = modules.FullyConnectedModule(**logits_module_kwargs)
-        target_value_module = modules.ValueModule(target_logits_module.out_features)
-
-        # Build components
+        # Build main components
         module = nn.ModuleDict()
         module["naf"] = modules.NAF(logits_module, value_module, advantage_module)
         module["value"] = nn.Sequential(logits_module, value_module)
         module["target_value"] = nn.Sequential(
-            target_logits_module, target_value_module
+            modules.FullyConnectedModule(**logits_module_kwargs),
+            modules.ValueModule(logits_module.out_features),
         )
         module["target_value"].load_state_dict(module["value"].state_dict())
+
+        if config["clipped_double_q"]:
+            twin_logits_module = modules.FullyConnectedModule(**logits_module_kwargs)
+            twin_value_module = modules.ValueModule(twin_logits_module.out_features)
+            module["twin_naf"] = modules.NAF(
+                twin_logits_module,
+                twin_value_module,
+                modules.AdvantageModule(
+                    modules.TrilMatrixModule(
+                        twin_logits_module.out_features, action_space.shape[0]
+                    ),
+                    modules.ActionModule(
+                        **action_module_kwargs(twin_logits_module.out_features)
+                    ),
+                ),
+            )
+            module["twin_value"] = nn.Sequential(twin_logits_module, twin_value_module)
+            module["twin_target_value"] = nn.Sequential(
+                modules.FullyConnectedModule(**logits_module_kwargs),
+                modules.ValueModule(twin_logits_module.out_features),
+            )
+            module["twin_target_value"].load_state_dict(
+                module["twin_value"].state_dict()
+            )
+
+        # Configure policy module based on exploration strategy
         if config["exploration"] == "full_gaussian":
             module["policy"] = modules.MultivariateGaussianPolicy(
                 logits_module, action_module, tril_module
@@ -239,9 +289,7 @@ class NAFTorchPolicy(TorchPolicy):
             module["policy"] = modules.DeterministicPolicy(
                 logits_module=modules.FullyConnectedModule(**logits_module_kwargs),
                 action_module=modules.ActionModule(
-                    logits_module.out_features,
-                    action_low=torch.from_numpy(action_space.low).float(),
-                    action_high=torch.from_numpy(action_space.high).float(),
+                    **action_module_kwargs(logits_module.out_features)
                 ),
             )
             module["target_policy"] = modules.DeterministicPolicy(
@@ -276,7 +324,10 @@ class NAFTorchPolicy(TorchPolicy):
             )
 
         optimizer_options = config["torch_optimizer_options"]
-        optimizer = optimizer_cls(module["naf"].parameters(), **optimizer_options)
+        parameters = module["naf"].parameters()
+        if config["clipped_double_q"]:
+            parameters = itertools.chain(parameters, module["twin_naf"].parameters())
+        optimizer = optimizer_cls(parameters, **optimizer_options)
         return optimizer
 
 
@@ -288,6 +339,10 @@ def trace_components(module, obs_space, action_space):
     module["value"] = torch.jit.trace(module["value"], obs)
     module["target_value"] = torch.jit.trace(module["target_value"], obs)
     module["policy"] = torch.jit.trace(module["policy"], obs)
+    if "twin_naf" in module:
+        module["twin_naf"] = torch.jit.trace(module["twin_naf"], (obs, actions))
+        module["twin_value"] = torch.jit.trace(module["twin_value"], obs)
+        module["twin_target_value"] = torch.jit.trace(module["twin_target_value"], obs)
 
 
 def script_components(module):
@@ -296,3 +351,7 @@ def script_components(module):
     module["value"] = torch.jit.script(module["value"])
     module["target_value"] = torch.jit.script(module["target_value"])
     module["policy"] = torch.jit.script(module["policy"])
+    if "twin_naf" in module:
+        module["twin_naf"] = torch.jit.script(module["twin_naf"])
+        module["twin_value"] = torch.jit.script(module["twin_value"])
+        module["twin_target_value"] = torch.jit.script(module["twin_target_value"])

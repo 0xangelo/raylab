@@ -14,6 +14,9 @@ from raylab.algorithms.naf.naf_policy import NAFTorchPolicy
 
 DEFAULT_CONFIG = with_common_config(
     {
+        # === Twin Delayed DDPG (TD3) tricks ===
+        # Clipped Double Q-Learning
+        "clipped_double_q": False,
         # === Replay buffer ===
         # Size of the replay buffer. Note that if async_updates is set, then
         # each worker will have a replay buffer of this size.
@@ -139,6 +142,7 @@ class NAFTrainer(Trainer):
     # === New Methods ===
 
     def update_exploration_phase(self):
+        """Signal to policies if training is still in the pure exploration phase."""
         global_timestep = self.optimizer.num_steps_sampled
         pure_expl_steps = self.config["pure_exploration_steps"]
         if pure_expl_steps:
