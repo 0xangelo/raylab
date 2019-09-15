@@ -11,17 +11,23 @@ def torch_script(request):
     return request.param
 
 
-@pytest.fixture(params=[None, "diag_gaussian", "full_gaussian"])
+@pytest.fixture(params=[None, "diag_gaussian", "full_gaussian", "parameter_noise"])
 def exploration(request):
     return request.param
 
 
+@pytest.fixture(params=[True, False])
+def clipped_double_q(request):
+    return request.param
+
+
 @pytest.fixture
-def config(torch_script, exploration):
+def config(torch_script, exploration, clipped_double_q):
     return {
         "module": {"layers": [32, 32], "activation": "elu", "ortho_init_gain": 1.0},
         "torch_script": torch_script,
         "exploration": exploration,
+        "clipped_double_q": clipped_double_q,
     }
 
 
