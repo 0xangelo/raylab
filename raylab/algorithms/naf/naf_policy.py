@@ -110,17 +110,14 @@ class NAFTorchPolicy(TorchPolicy):
 
     def perturb_policy_parameters(self):
         """Update the perturbed policy's parameters for exploration."""
-        pol, t_pol = self.module["policy"], self.module["target_policy"]
-        layer_norms = (m for m in pol.modules() if isinstance(m, nn.LayerNorm))
-        layer_norm_params = set(p for m in layer_norms for p in m.parameters())
-
-        stddev = self._param_noise_spec.stddev
-        for par, t_par in zip(pol.parameters(), t_pol.parameters()):
-            if par not in layer_norm_params:
-                par.data.copy_(t_par.data + torch.randn_like(t_par) * stddev)
+        torch_util.perturb_module_params(
+            self.module["policy"],
+            self.module["target_policy"],
+            self._param_noise_spec.stddev,
+        )
 
     def update_parameter_noise(self, sample_batch):
-        """Update parameter noise stddev given a batch from the perturbed policy"""
+        """Update parameter noise stddev given a batch from the perturbed policy."""
         noisy_actions = sample_batch[SampleBatch.ACTIONS]
         target_actions = self.module["target_policy"](
             torch_util.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS], self.device)
@@ -284,6 +281,7 @@ class NAFTorchPolicy(TorchPolicy):
 
 
 def trace_components(module, obs_space, action_space):
+    """Use tracing to produce TorchScript modules."""
     obs = torch.randn(1, *obs_space.shape)
     actions = torch.randn(1, *action_space.shape)
     module["naf"] = torch.jit.trace(module["naf"], (obs, actions))
@@ -293,6 +291,7 @@ def trace_components(module, obs_space, action_space):
 
 
 def script_components(module):
+    """Use scripting to produce TorchScript modules."""
     module["naf"] = torch.jit.script(module["naf"])
     module["value"] = torch.jit.script(module["value"])
     module["target_value"] = torch.jit.script(module["target_value"])

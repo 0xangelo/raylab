@@ -66,3 +66,22 @@ def initialize_orthogonal(gain=1.0):
                 nn.init.constant_(module.bias, 0)
 
     return initialize
+
+
+def perturb_module_params(module, target_module, stddev):
+    """Load state dict from another module and perturb parameters not in layer norms.
+
+    Arguments:
+        module (nn.Module): the module to perturb
+        target_module (nn.Module): the module to copy from
+        stddev (float): the gaussian standard deviation with which to perturb parameters
+            excluding those from layer norms
+    """
+    module.load_state_dict(target_module.state_dict())
+
+    layer_norms = (m for m in module.modules() if isinstance(m, nn.LayerNorm))
+    layer_norm_params = set(p for m in layer_norms for p in m.parameters())
+    to_perturb = (p for p in module.parameters() if p not in layer_norm_params)
+
+    for param in to_perturb:
+        param.add_(torch.randn_like(param) * stddev)
