@@ -120,7 +120,7 @@ class NAFTorchPolicy(TorchPolicy):
         """Update parameter noise stddev given a batch from the perturbed policy."""
         noisy_actions = sample_batch[SampleBatch.ACTIONS]
         target_actions = self.module["target_policy"](
-            torch_util.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS], self.device)
+            self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
         ).numpy()
         distance = param_noise.ddpg_distance_metric(noisy_actions, target_actions)
         self._param_noise_spec.adapt(distance)
@@ -138,8 +138,8 @@ class NAFTorchPolicy(TorchPolicy):
 
     def _uniform_random_actions(self, obs_batch):
         dist = torch.distributions.Uniform(
-            torch_util.convert_to_tensor(self.action_space.low, self.device),
-            torch_util.convert_to_tensor(self.action_space.high, self.device),
+            self.convert_to_tensor(self.action_space.low),
+            self.convert_to_tensor(self.action_space.high),
         )
         actions = dist.sample(sample_shape=obs_batch.shape[:-1])
         return actions
