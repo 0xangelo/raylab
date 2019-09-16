@@ -12,6 +12,11 @@ import numpy as np
 
 
 class CartPoleStatelessWrapper(gym.ObservationWrapper):
+    """Removes velocities from the state vector.
+
+    This wrapper is specific to CartPoleEnv.
+    """
+
     def __init__(self, env):
         super(CartPoleStatelessWrapper, self).__init__(env)
         high = np.r_[
@@ -20,4 +25,5 @@ class CartPoleStatelessWrapper(gym.ObservationWrapper):
         self.observation_space = spaces.Box(-high, high, dtype=np.float32)
 
     def observation(self, observation):
+        # pylint: disable=missing-docstring
         return np.r_[observation[0], observation[2]]
