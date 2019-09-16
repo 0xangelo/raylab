@@ -3,7 +3,6 @@ import time
 
 from ray import tune
 from ray.rllib.utils.annotations import override
-from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.agents.trainer import Trainer, with_common_config
@@ -110,14 +109,7 @@ class NAFTrainer(Trainer):
             samples = worker.sample()
             steps_sampled += samples.count
             for row in samples.rows():
-                self.replay.add(
-                    row[SampleBatch.CUR_OBS],
-                    row[SampleBatch.ACTIONS],
-                    row[SampleBatch.REWARDS],
-                    row[SampleBatch.NEXT_OBS],
-                    row[SampleBatch.DONES],
-                    weight=None,
-                )
+                self.replay.add(row)
 
             for _ in range(samples.count):
                 batch = self.replay.sample(self.config["train_batch_size"])
