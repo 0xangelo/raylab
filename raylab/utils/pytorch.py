@@ -85,3 +85,22 @@ def perturb_module_params(module, target_module, stddev):
 
     for param in to_perturb:
         param.data.add_(torch.randn_like(param) * stddev)
+
+
+def get_activation(activation):
+    """Return activation module type from string.
+
+    Arguments:
+        activation (str): name of activation function
+    """
+    if isinstance(activation, str):
+        if activation == "relu":
+            return nn.ReLU
+        if activation == "elu":
+            return nn.ELU
+        if activation == "tanh":
+            return nn.Tanh
+        raise NotImplementedError("Unsupported activation name '{}'".format(activation))
+    raise ValueError(
+        "'activation' must be a string type, got '{}'".format(type(activation))
+    )

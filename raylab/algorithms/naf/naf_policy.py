@@ -254,7 +254,7 @@ class NAFTorchPolicy(TorchPolicy):
 
         # Build main components
         module = nn.ModuleDict()
-        module["naf"] = modules.NAF(logits_module, value_module, advantage_module)
+        module["naf"] = modules.NAFModule(logits_module, value_module, advantage_module)
         module["value"] = nn.Sequential(logits_module, value_module)
         module["target_value"] = nn.Sequential(
             modules.FullyConnectedModule(**logits_module_kwargs),
@@ -265,7 +265,7 @@ class NAFTorchPolicy(TorchPolicy):
         if config["clipped_double_q"]:
             twin_logits_module = modules.FullyConnectedModule(**logits_module_kwargs)
             twin_value_module = modules.ValueModule(twin_logits_module.out_features)
-            module["twin_naf"] = modules.NAF(
+            module["twin_naf"] = modules.NAFModule(
                 twin_logits_module,
                 twin_value_module,
                 modules.AdvantageModule(
