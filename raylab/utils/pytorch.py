@@ -84,4 +84,4 @@ def perturb_module_params(module, target_module, stddev):
     to_perturb = (p for p in module.parameters() if p not in layer_norm_params)
 
     for param in to_perturb:
-        param.add_(torch.randn_like(param) * stddev)
+        param.data.add_(torch.randn_like(param) * stddev)

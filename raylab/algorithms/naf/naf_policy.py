@@ -100,6 +100,12 @@ class NAFTorchPolicy(TorchPolicy):
         torch_util.update_polyak(
             self.module["value"], self.module["target_value"], self.config["polyak"]
         )
+        if self.config["clipped_double_q"]:
+            torch_util.update_polyak(
+                self.module["twin_value"],
+                self.module["twin_target_value"],
+                self.config["polyak"],
+            )
         return {LEARNER_STATS_KEY: info}
 
     # === NEW METHODS ===
