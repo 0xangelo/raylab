@@ -34,6 +34,7 @@ class AdaptiveParamNoiseSpec:
 
     @property
     def stddev(self):
+        """Return the current standard deviation."""
         return self._stddev
 
     def __repr__(self):
