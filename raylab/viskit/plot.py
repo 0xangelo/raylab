@@ -1,3 +1,4 @@
+# pylint: disable=missing-docstring
 from math import sqrt
 from contextlib import nullcontext
 
