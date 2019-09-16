@@ -1,4 +1,6 @@
-import os  # pylint: disable=missing-docstring
+# pylint: disable=missing-docstring
+# pylint: enable=missing-docstring
+import os
 from abc import abstractmethod
 
 import torch
@@ -27,7 +29,7 @@ class TorchPolicy(Policy):
     @staticmethod
     @abstractmethod
     def get_default_config():
-        pass
+        """Return the default config for this policy class."""
 
     @override(Policy)
     def get_weights(self):
@@ -38,6 +40,7 @@ class TorchPolicy(Policy):
         self.module.load_state_dict(weights)
 
     def convert_to_tensor(self, arr):
+        """Convert an array to a PyTorch tensor in this policy's device."""
         return convert_to_tensor(arr, self.device)
 
     def _lazy_tensor_dict(self, sample_batch):
