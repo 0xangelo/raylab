@@ -3,17 +3,12 @@ import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
 # pylint: disable=unused-import
-from raylab.modules import (
-    FullyConnectedModule,
-    TrilMatrixModule,
-    ActionModule,
-    ValueModule,
-)
+from raylab.modules import FullyConnected, TrilMatrix, ActionOutput, ValueFunction
 
 # pylint: enable=unused-import
 
 
-class NAFModule(nn.Module):
+class NAF(nn.Module):
     """Neural network module implementing the Normalized Advantage Function (NAF)."""
 
     def __init__(self, logits_module, value_module, advantage_module):
@@ -62,7 +57,7 @@ class MultivariateGaussianPolicy(nn.Module):
         return loc, scale_tril
 
 
-class AdvantageModule(nn.Module):
+class AdvantageFunction(nn.Module):
     """Neural network module implementing the advantage function term of NAF."""
 
     def __init__(self, tril_module, action_module):

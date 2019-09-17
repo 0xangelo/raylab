@@ -4,7 +4,7 @@ import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
 
-class TrilMatrixModule(nn.Module):
+class TrilMatrix(nn.Module):
     """Neural network module which outputs a lower-triangular matrix."""
 
     __constants__ = {"in_features", "matrix_dim", "row_sizes"}

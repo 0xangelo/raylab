@@ -3,7 +3,7 @@ import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
 
-class ValueModule(nn.Module):
+class ValueFunction(nn.Module):
     """Neural network module mapping inputs to value function outputs."""
 
     __constants__ = {"in_features", "out_features"}

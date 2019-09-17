@@ -4,7 +4,7 @@ import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
 
-class ActionModule(nn.Module):
+class ActionOutput(nn.Module):
     """Neural network module mapping inputs to actions in specified range."""
 
     __constants__ = {"in_features", "out_features"}

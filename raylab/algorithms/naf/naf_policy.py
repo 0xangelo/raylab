@@ -242,45 +242,45 @@ class NAFTorchPolicy(TorchPolicy):
                 action_high=torch.from_numpy(action_space.high).float(),
             )
 
-        logits_module = modules.FullyConnectedModule(**logits_module_kwargs)
-        value_module = modules.ValueModule(logits_module.out_features)
-        action_module = modules.ActionModule(
+        logits_module = modules.FullyConnected(**logits_module_kwargs)
+        value_module = modules.ValueFunction(logits_module.out_features)
+        action_module = modules.ActionOutput(
             **action_module_kwargs(logits_module.out_features)
         )
-        tril_module = modules.TrilMatrixModule(
+        tril_module = modules.TrilMatrix(
             logits_module.out_features, action_space.shape[0]
         )
-        advantage_module = modules.AdvantageModule(tril_module, action_module)
+        advantage_module = modules.AdvantageFunction(tril_module, action_module)
 
         # Build main components
         module = nn.ModuleDict()
-        module["naf"] = modules.NAFModule(logits_module, value_module, advantage_module)
+        module["naf"] = modules.NAF(logits_module, value_module, advantage_module)
         module["value"] = nn.Sequential(logits_module, value_module)
         module["target_value"] = nn.Sequential(
-            modules.FullyConnectedModule(**logits_module_kwargs),
-            modules.ValueModule(logits_module.out_features),
+            modules.FullyConnected(**logits_module_kwargs),
+            modules.ValueFunction(logits_module.out_features),
         )
         module["target_value"].load_state_dict(module["value"].state_dict())
 
         if config["clipped_double_q"]:
-            twin_logits_module = modules.FullyConnectedModule(**logits_module_kwargs)
-            twin_value_module = modules.ValueModule(twin_logits_module.out_features)
-            module["twin_naf"] = modules.NAFModule(
+            twin_logits_module = modules.FullyConnected(**logits_module_kwargs)
+            twin_value_module = modules.ValueFunction(twin_logits_module.out_features)
+            module["twin_naf"] = modules.NAF(
                 twin_logits_module,
                 twin_value_module,
-                modules.AdvantageModule(
-                    modules.TrilMatrixModule(
+                modules.AdvantageFunction(
+                    modules.TrilMatrix(
                         twin_logits_module.out_features, action_space.shape[0]
                     ),
-                    modules.ActionModule(
+                    modules.ActionOutput(
                         **action_module_kwargs(twin_logits_module.out_features)
                     ),
                 ),
             )
             module["twin_value"] = nn.Sequential(twin_logits_module, twin_value_module)
             module["twin_target_value"] = nn.Sequential(
-                modules.FullyConnectedModule(**logits_module_kwargs),
-                modules.ValueModule(twin_logits_module.out_features),
+                modules.FullyConnected(**logits_module_kwargs),
+                modules.ValueFunction(twin_logits_module.out_features),
             )
             module["twin_target_value"].load_state_dict(
                 module["twin_value"].state_dict()
@@ -293,8 +293,8 @@ class NAFTorchPolicy(TorchPolicy):
             )
         elif config["exploration"] == "parameter_noise":
             module["policy"] = modules.DeterministicPolicy(
-                logits_module=modules.FullyConnectedModule(**logits_module_kwargs),
-                action_module=modules.ActionModule(
+                logits_module=modules.FullyConnected(**logits_module_kwargs),
+                action_module=modules.ActionOutput(
                     **action_module_kwargs(logits_module.out_features)
                 ),
             )

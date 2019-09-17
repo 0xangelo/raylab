@@ -5,7 +5,7 @@ from ray.rllib.utils.annotations import override
 from raylab.utils.pytorch import get_activation
 
 
-class FullyConnectedModule(nn.Module):
+class FullyConnected(nn.Module):
     """Neural network module that applies several fully connected modules to inputs."""
 
     __constants__ = {"in_features", "out_features"}

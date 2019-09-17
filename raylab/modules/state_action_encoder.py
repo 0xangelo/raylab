@@ -3,10 +3,10 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
-from .fully_connected import FullyConnectedModule
+from .fully_connected import FullyConnected
 
 
-class StateActionEncodingModule(nn.Module):
+class StateActionEncoder(nn.Module):
     """Neural network module which concatenates action after the first layer."""
 
     __constants__ = {"in_features", "out_features"}
@@ -18,7 +18,7 @@ class StateActionEncodingModule(nn.Module):
             self.obs_module = nn.Sequential(nn.Linear(obs_dim, units[0]), activation())
             input_dim = units[0] + action_dim
             units = units[1:]
-            self.sequential_module = FullyConnectedModule(
+            self.sequential_module = FullyConnected(
                 input_dim, units=units, activation=activation
             )
             self.out_features = self.sequential_module.out_features

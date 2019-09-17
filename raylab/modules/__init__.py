@@ -1,8 +1,8 @@
 """Collection of neural network modules in PyTorch."""
 import torch.nn as nn
 
-from raylab.modules.fully_connected import FullyConnectedModule
-from raylab.modules.state_action_encoder import StateActionEncodingModule
-from raylab.modules.tril_matrix import TrilMatrixModule
-from raylab.modules.action import ActionModule
-from raylab.modules.value import ValueModule
+from raylab.modules.fully_connected import FullyConnected
+from raylab.modules.state_action_encoder import StateActionEncoder
+from raylab.modules.tril_matrix import TrilMatrix
+from raylab.modules.action_output import ActionOutput
+from raylab.modules.value_function import ValueFunction
