@@ -193,6 +193,8 @@ class SVGInfTorchPolicy(TorchPolicy):
 
     def update_targets(self):
         """Update target networks through one step of polyak averaging."""
+        module, target_module = self.module["value"], self.module["target_value"]
+        torch_util.update_polyak(module, target_module, self.config["polyak"])
 
     def compute_stochastic_value_gradient_loss(self, batch_tensors):
         """Compute Stochatic Value Gradient loss given a full trajectory."""
