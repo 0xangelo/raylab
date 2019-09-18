@@ -30,9 +30,9 @@ def get_optimizer_class(name):
         The corresponding `torch.optim.Optimizer` subclass
     """
     if name in dir(torch.optim):
-        obj = getattr(torch.optim, name)
-        if issubclass(obj, torch.optim.Optimizer) and obj is not torch.optim.Optimizer:
-            return obj
+        cls = getattr(torch.optim, name)
+        if issubclass(cls, torch.optim.Optimizer) and cls is not torch.optim.Optimizer:
+            return cls
     raise ValueError("Unsupported optimizer name '{}'".format(name))
 
 
