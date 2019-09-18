@@ -27,6 +27,10 @@ class SVGInfTorchPolicy(TorchPolicy):
         self.module = self._make_module(
             self.observation_space, self.action_space, self.config
         )
+        # Currently hardcoded distributions
+        self._model_dist = DiagMultivariateNormal
+        self._policy_dist = DiagMultivariateNormal
+
         self.off_policy_optimizer = self._make_off_policy_optimizer()
         self.on_policy_optimizer = self._make_on_policy_optimizer()
 
@@ -56,8 +60,8 @@ class SVGInfTorchPolicy(TorchPolicy):
     ):
         # pylint: disable=too-many-arguments,unused-argument
         obs_batch = self.convert_to_tensor(obs_batch)
-        loc, scale_diag = self.module["policy"](obs_batch)
-        dist = DiagMultivariateNormal(loc, scale_diag)
+        dist_params = self.module["policy"](obs_batch)
+        dist = self._policy_dist(*dist_params)
         actions = dist.sample()
         actions_logp = dist.log_prob(actions)
 
@@ -79,7 +83,7 @@ class SVGInfTorchPolicy(TorchPolicy):
         batch_tensors = self._lazy_tensor_dict(samples)
 
         if self._off_policy_learning:
-            loss, info = self.compute_joint_dynamics_value_loss(batch_tensors)
+            loss, info = self.compute_joint_model_value_loss(batch_tensors)
             self.off_policy_optimizer.zero_grad()
             loss.backward()
             self.off_policy_optimizer.step()
@@ -114,16 +118,23 @@ class SVGInfTorchPolicy(TorchPolicy):
         )
 
         value_config = config["module"]["value"]
-        value_logits_module = modules.FullyConnected(
-            in_features=obs_space.shape[0],
-            units=value_config["layers"],
-            activation=value_config["activation"],
-        )
-        value_output = modules.ValueFunction(value_logits_module.out_features)
-        module["value"] = nn.Sequential(value_logits_module, value_output)
-        module["value"].apply(
-            torch_util.initialize_orthogonal(value_config["ortho_init_gain"])
-        )
+
+        def make_value_module():
+            value_logits_module = modules.FullyConnected(
+                in_features=obs_space.shape[0],
+                units=value_config["layers"],
+                activation=value_config["activation"],
+            )
+            value_output = modules.ValueFunction(value_logits_module.out_features)
+
+            value_module = nn.Sequential(value_logits_module, value_output)
+            value_module.apply(
+                torch_util.initialize_orthogonal(value_config["ortho_init_gain"])
+            )
+            return value_module
+
+        module["value"] = make_value_module()
+        module["target_value"] = make_value_module()
 
         policy_config = config["module"]["policy"]
         policy_logits_module = modules.FullyConnected(
@@ -152,8 +163,33 @@ class SVGInfTorchPolicy(TorchPolicy):
         params = self.module["policy"].parameters()
         return optim_cls(params, **self.config["on_policy_optimizer_options"])
 
-    def compute_joint_dynamics_value_loss(self, batch_tensors):
-        """Compute dynamics MLE loss and fitted value function loss."""
+    def compute_joint_model_value_loss(self, batch_tensors):
+        """Compute model MLE loss and fitted value function loss."""
+        # pylint: disable=too-many-locals
+        obs, actions, rewards, next_obs, dones, old_logp = (
+            batch_tensors[SampleBatch.CUR_OBS],
+            batch_tensors[SampleBatch.ACTIONS],
+            batch_tensors[SampleBatch.REWARDS],
+            batch_tensors[SampleBatch.NEXT_OBS],
+            batch_tensors[SampleBatch.DONES],
+            batch_tensors[self.ACTION_LOGP],
+        )
+
+        dist_params = self.module["model"](obs, actions)
+        dist = self._model_dist(*dist_params)
+        mle_loss = dist.log_prob(next_obs).mean().neg()
+
+        with torch.no_grad():
+            next_val = self.module["target_value"](next_obs).squeeze(-1)
+            dist_params = self.module["policy"](obs)
+            curr_logp = self._policy_dist(*dist_params)
+            is_ratio = torch.exp(curr_logp - old_logp)
+
+        targets = torch.where(dones, rewards, rewards + self.config["gamma"] * next_val)
+        values = self.module["value"](obs).squeeze(-1)
+        value_loss = is_ratio * torch.nn.MSELoss(reduction="none")(values, targets)
+
+        return mle_loss + self.config["vf_loss_coeff"] * value_loss.mean()
 
     def update_targets(self):
         """Update target networks through one step of polyak averaging."""
