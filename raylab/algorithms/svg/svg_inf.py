@@ -28,6 +28,23 @@ DEFAULT_CONFIG = with_common_config(
         "on_policy_optimizer_options": {"lr": 1e-3},
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
+        # === Network ===
+        # Size and activation of the fully connected networks computing the logits
+        # for the policy, value function and model. No layers means the component is
+        # linear in states and/or actions.
+        "module": {
+            "policy": {
+                "layers": [100, 100],
+                "activation": "Tanh",
+                "ortho_init_gain": 0.2,
+            },
+            "value": {
+                "layers": [400, 200],
+                "activation": "Tanh",
+                "ortho_init_gain": 0.2,
+            },
+            "model": {"layers": [40, 40], "activation": "Tanh", "ortho_init_gain": 0.2},
+        },
     }
 )
 

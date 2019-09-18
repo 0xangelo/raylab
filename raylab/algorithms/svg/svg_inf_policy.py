@@ -6,6 +6,9 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.policy import TorchPolicy
+from raylab.algorithms.svg.svg_module import ParallelDynamicsModel
+from raylab.distributions import DiagMultivariateNormal
+import raylab.modules as modules
 
 
 class SVGInfTorchPolicy(TorchPolicy):
@@ -78,8 +81,42 @@ class SVGInfTorchPolicy(TorchPolicy):
 
     # === NEW METHODS ===
 
-    def _make_module(self, obs_space, action_space, config):
-        pass
+    @staticmethod
+    def _make_module(obs_space, action_space, config):
+        module = nn.ModuleDict()
+
+        policy_logits_module = modules.FullyConnected(
+            in_features=obs_space.shape[0],
+            units=config["modules"]["policy"]["layers"],
+            activation=config["modules"]["policy"]["activation"],
+        )
+        policy_dist_params_module = modules.DiagMultivariateNormalParams(
+            policy_logits_module.out_features, action_space.shape[0]
+        )
+        module["policy"] = nn.Sequential(
+            policy_logits_module, policy_dist_params_module
+        )
+
+        model_logits_modules = [
+            modules.StateActionEncoder(
+                obs_dim=obs_space.shape[0],
+                action_dim=action_space.shape[0],
+                units=config["modules"]["model"]["layers"],
+                activation=config["modules"]["model"]["activation"],
+            )
+            for _ in range(obs_space.shape[0])
+        ]
+        module["model"] = ParallelDynamicsModel(*model_logits_modules)
+
+        value_logits_module = modules.FullyConnected(
+            in_features=obs_space.shape[0],
+            units=config["modules"]["value"]["layers"],
+            activation=config["modules"]["value"]["activation"],
+        )
+        value_output = modules.ValueFunction(value_logits_module.out_features)
+        module["value"] = nn.Sequential(value_logits_module, value_output)
+
+        return module
 
     def _make_off_policy_optimizer(self):
         pass
