@@ -24,7 +24,7 @@ def clipped_double_q(request):
 @pytest.fixture
 def config(torch_script, exploration, clipped_double_q):
     return {
-        "module": {"layers": [32, 32], "activation": "elu", "ortho_init_gain": 1.0},
+        "module": {"layers": [32, 32], "activation": "ELU", "ortho_init_gain": 1.0},
         "torch_script": torch_script,
         "exploration": exploration,
         "clipped_double_q": clipped_double_q,

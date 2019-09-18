@@ -93,14 +93,13 @@ def get_activation(activation):
     Arguments:
         activation (str): name of activation function
     """
-    if isinstance(activation, str):
-        if activation == "relu":
-            return nn.ReLU
-        if activation == "elu":
-            return nn.ELU
-        if activation == "tanh":
-            return nn.Tanh
-        raise NotImplementedError("Unsupported activation name '{}'".format(activation))
-    raise ValueError(
-        "'activation' must be a string type, got '{}'".format(type(activation))
-    )
+    if not isinstance(activation, str):
+        raise ValueError(
+            "'activation' must be a string type, got '{}'".format(type(activation))
+        )
+
+    if activation in dir(torch.nn.modules.activation):
+        cls = getattr(torch.nn.modules.activation, activation)
+        if issubclass(cls, nn.Module):
+            return cls
+    raise ValueError("Unsupported activation name '{}'".format(activation))
