@@ -59,20 +59,13 @@ class ReplayBuffer(_ReplayBuffer):
 
         obses_t, actions, rewards, obses_tp1, dones, *extras = zip(*sample)
 
-        def unpack(obs):
-            return np.array(unpack_if_needed(obs), copy=False)
+        obses_t = [np.array(unpack_if_needed(o), copy=False) for o in obses_t]
+        actions = [np.array(a, copy=False) for a in actions]
+        obses_tp1 = [np.array(unpack_if_needed(o), copy=False) for o in obses_tp1]
 
-        obses_t = list(map(unpack, obses_t))
-        actions = list(map(lambda a: np.array(a, copy=False), actions))
-        obses_tp1 = list(map(unpack, obses_tp1))
-
-        return (
-            np.array(obses_t),
-            np.array(actions),
-            np.array(rewards),
-            np.array(obses_tp1),
-            np.array(dones),
-        ) + tuple(map(np.array, extras))
+        return tuple(
+            map(np.array, (obses_t, actions, rewards, obses_tp1, dones) + extras)
+        )
 
     @override(_ReplayBuffer)
     def sample(self, batch_size):
