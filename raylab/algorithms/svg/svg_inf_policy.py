@@ -1,4 +1,6 @@
 """SVG(inf) policy class using PyTorch."""
+import itertools
+
 import torch
 import torch.nn as nn
 from ray.rllib.policy.policy import LEARNER_STATS_KEY
@@ -9,14 +11,15 @@ from raylab.policy import TorchPolicy
 from raylab.algorithms.svg.svg_module import ParallelDynamicsModel
 from raylab.distributions import DiagMultivariateNormal
 import raylab.modules as modules
+import raylab.utils.pytorch as torch_util
 
 
 class SVGInfTorchPolicy(TorchPolicy):
     """Stochastic Value Gradients policy for full trajectories."""
 
-    ACTION_LOGP = "action_logp"
-
     # pylint: disable=abstract-method
+
+    ACTION_LOGP = "action_logp"
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
@@ -53,6 +56,16 @@ class SVGInfTorchPolicy(TorchPolicy):
     ):
         # pylint: disable=too-many-arguments,unused-argument
         obs_batch = self.convert_to_tensor(obs_batch)
+        loc, scale_diag = self.module["policy"](obs_batch)
+        dist = DiagMultivariateNormal(loc, scale_diag)
+        actions = dist.sample()
+        actions_logp = dist.log_prob(actions)
+
+        return (
+            actions.cpu().numpy(),
+            state_batches,
+            {self.ACTION_LOGP: actions_logp.cpu().numpy()},
+        )
 
     @torch.no_grad()
     @override(TorchPolicy)
@@ -85,44 +98,59 @@ class SVGInfTorchPolicy(TorchPolicy):
     def _make_module(obs_space, action_space, config):
         module = nn.ModuleDict()
 
-        policy_logits_module = modules.FullyConnected(
-            in_features=obs_space.shape[0],
-            units=config["modules"]["policy"]["layers"],
-            activation=config["modules"]["policy"]["activation"],
-        )
-        policy_dist_params_module = modules.DiagMultivariateNormalParams(
-            policy_logits_module.out_features, action_space.shape[0]
-        )
-        module["policy"] = nn.Sequential(
-            policy_logits_module, policy_dist_params_module
-        )
-
+        model_config = config["module"]["model"]
         model_logits_modules = [
             modules.StateActionEncoder(
                 obs_dim=obs_space.shape[0],
                 action_dim=action_space.shape[0],
-                units=config["modules"]["model"]["layers"],
-                activation=config["modules"]["model"]["activation"],
+                units=model_config["layers"],
+                activation=model_config["activation"],
             )
             for _ in range(obs_space.shape[0])
         ]
         module["model"] = ParallelDynamicsModel(*model_logits_modules)
+        module["model"].apply(
+            torch_util.initialize_orthogonal(model_config["ortho_init_gain"])
+        )
 
+        value_config = config["module"]["value"]
         value_logits_module = modules.FullyConnected(
             in_features=obs_space.shape[0],
-            units=config["modules"]["value"]["layers"],
-            activation=config["modules"]["value"]["activation"],
+            units=value_config["layers"],
+            activation=value_config["activation"],
         )
         value_output = modules.ValueFunction(value_logits_module.out_features)
         module["value"] = nn.Sequential(value_logits_module, value_output)
+        module["value"].apply(
+            torch_util.initialize_orthogonal(value_config["ortho_init_gain"])
+        )
+
+        policy_config = config["module"]["policy"]
+        policy_logits_module = modules.FullyConnected(
+            in_features=obs_space.shape[0],
+            units=policy_config["layers"],
+            activation=policy_config["activation"],
+        )
+        policy_dist_param_module = modules.DiagMultivariateNormalParams(
+            policy_logits_module.out_features, action_space.shape[0]
+        )
+        module["policy"] = nn.Sequential(policy_logits_module, policy_dist_param_module)
+        module["policy"].apply(
+            torch_util.initialize_orthogonal(policy_config["ortho_init_gain"])
+        )
 
         return module
 
     def _make_off_policy_optimizer(self):
-        pass
+        optim_cls = torch_util.get_optimizer_class(self.config["off_policy_optimizer"])
+        off_policy_modules = self.module["model"], self.module["value"]
+        params = itertools.chain(*[m.parameters() for m in off_policy_modules])
+        return optim_cls(params, **self.config["off_policy_optimizer_options"])
 
     def _make_on_policy_optimizer(self):
-        pass
+        optim_cls = torch_util.get_optimizer_class(self.config["on_policy_optimizer"])
+        params = self.module["policy"].parameters()
+        return optim_cls(params, **self.config["on_policy_optimizer_options"])
 
     def compute_joint_dynamics_value_loss(self, batch_tensors):
         """Compute dynamics MLE loss and fitted value function loss."""
