@@ -10,7 +10,7 @@ class FullyConnected(nn.Module):
 
     __constants__ = {"in_features", "out_features"}
 
-    def __init__(self, in_features, units=(), activation="relu", layer_norm=False):
+    def __init__(self, in_features, units=(), activation="ReLU", layer_norm=False):
         super().__init__()
         self.in_features = in_features
         activation = get_activation(activation)
