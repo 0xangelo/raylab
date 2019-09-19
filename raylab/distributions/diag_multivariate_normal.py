@@ -1,4 +1,5 @@
 # pylint: disable=missing-docstring
+import torch
 import torch.distributions as dists
 
 
@@ -15,3 +16,11 @@ class DiagMultivariateNormal(dists.Independent):
         super().__init__(
             base_distribution, reinterpreted_batch_ndims=1, validate_args=validate_args
         )
+
+    def reproduce(self, event):
+        """Produce a reparametrized sample with the value as `event`."""
+        loc = self.base_dist.loc
+        scale_diag = self.base_dist.scale
+        with torch.no_grad():
+            eps = (event - loc) / scale_diag
+        return loc + scale_diag * eps
