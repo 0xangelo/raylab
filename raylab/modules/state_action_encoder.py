@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
+from raylab.utils.pytorch import get_activation
 from .fully_connected import FullyConnected
 
 
@@ -15,7 +16,8 @@ class StateActionEncoder(nn.Module):
         super().__init__()
         self.in_features = obs_dim
         if units:
-            self.obs_module = nn.Sequential(nn.Linear(obs_dim, units[0]), activation())
+            activ = get_activation(activation)
+            self.obs_module = nn.Sequential(nn.Linear(obs_dim, units[0]), activ())
             input_dim = units[0] + action_dim
             units = units[1:]
             self.sequential_module = FullyConnected(
