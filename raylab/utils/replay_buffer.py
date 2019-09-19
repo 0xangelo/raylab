@@ -64,11 +64,11 @@ class ReplayBuffer(_ReplayBuffer):
         obses_tp1 = [np.array(unpack_if_needed(o), copy=False) for o in obses_tp1]
 
         return tuple(
-            map(np.array, (obses_t, actions, rewards, obses_tp1, dones) + extras)
+            map(np.array, [obses_t, actions, rewards, obses_tp1, dones] + extras)
         )
 
     @override(_ReplayBuffer)
     def sample(self, batch_size):
         idxes = random.choices(range(len(self._storage)), k=batch_size)
         data = self._encode_sample(idxes)
-        return SampleBatch({key: datum for key, datum in zip(self._batch_keys, data)})
+        return SampleBatch({k: v for k, v in zip(self._batch_keys, data)})
