@@ -1,5 +1,6 @@
 """SVG(inf) policy class using PyTorch."""
 import itertools
+import collections
 
 import torch
 import torch.nn as nn
@@ -8,10 +9,13 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.policy import TorchPolicy
-from raylab.algorithms.svg.svg_module import ParallelDynamicsModel
+from raylab.algorithms.svg.svg_module import ParallelDynamicsModel, RecurrentPolicyModel
 from raylab.distributions import DiagMultivariateNormal
 import raylab.modules as modules
 import raylab.utils.pytorch as torch_util
+
+
+Transition = collections.namedtuple("Transition", "obs actions rewards next_obs dones")
 
 
 class SVGInfTorchPolicy(TorchPolicy):
@@ -30,6 +34,15 @@ class SVGInfTorchPolicy(TorchPolicy):
         # Currently hardcoded distributions
         self._model_dist = DiagMultivariateNormal
         self._policy_dist = DiagMultivariateNormal
+
+        # Add recurrent policy-model combination
+        self.module["recurrent"] = RecurrentPolicyModel(
+            self.module["policy"],
+            self.module["model"],
+            self._policy_dist,
+            self._model_dist,
+            self.config["reward_fn"],
+        )
 
         self.off_policy_optimizer = self._make_off_policy_optimizer()
         self.on_policy_optimizer = self._make_on_policy_optimizer()
@@ -80,23 +93,29 @@ class SVGInfTorchPolicy(TorchPolicy):
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
-
         if self._off_policy_learning:
+            batch_tensors = self._lazy_tensor_dict(samples)
             loss, info = self.compute_joint_model_value_loss(batch_tensors)
             self.off_policy_optimizer.zero_grad()
             loss.backward()
             self.off_policy_optimizer.step()
             self.update_targets()
         else:
-            loss, info = self.compute_stochastic_value_gradient_loss(batch_tensors)
+            episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
+            loss, info = self.compute_stochastic_value_gradient_loss(episodes)
             self.on_policy_optimizer.zero_grad()
             loss.backward()
+            params = self.module["policy"].parameters()
+            nn.utils.clip_grad_norm_(params, max_norm=self.config["max_grad_norm"])
             self.on_policy_optimizer.step()
 
         return {LEARNER_STATS_KEY: info}
 
     # === NEW METHODS ===
+
+    def off_policy_learning(self, learn_off_policy):
+        """Set the current learning state to off-policy or not."""
+        self._off_policy_learning = learn_off_policy
 
     @staticmethod
     def _make_module(obs_space, action_space, config):
@@ -165,36 +184,54 @@ class SVGInfTorchPolicy(TorchPolicy):
 
     def compute_joint_model_value_loss(self, batch_tensors):
         """Compute model MLE loss and fitted value function loss."""
-        # pylint: disable=too-many-locals
-        obs, actions, rewards, next_obs, dones, old_logp = (
-            batch_tensors[SampleBatch.CUR_OBS],
-            batch_tensors[SampleBatch.ACTIONS],
-            batch_tensors[SampleBatch.REWARDS],
-            batch_tensors[SampleBatch.NEXT_OBS],
-            batch_tensors[SampleBatch.DONES],
-            batch_tensors[self.ACTION_LOGP],
-        )
+        columns = [
+            SampleBatch.CUR_OBS,
+            SampleBatch.ACTIONS,
+            SampleBatch.REWARDS,
+            SampleBatch.NEXT_OBS,
+            SampleBatch.DONES,
+        ]
+        trans = Transition(*[batch_tensors[c] for c in columns])
 
-        dist_params = self.module["model"](obs, actions)
+        dist_params = self.module["model"](trans.obs, trans.actions)
         dist = self._model_dist(*dist_params)
-        mle_loss = dist.log_prob(next_obs).mean().neg()
+        mle_loss = dist.log_prob(trans.next_obs).mean().neg()
 
         with torch.no_grad():
-            next_val = self.module["target_value"](next_obs).squeeze(-1)
-            dist_params = self.module["policy"](obs)
-            curr_logp = self._policy_dist(*dist_params)
-            is_ratio = torch.exp(curr_logp - old_logp)
+            next_val = self.module["target_value"](trans.next_obs).squeeze(-1)
+            dist_params = self.module["policy"](trans.obs)
+            curr_logp = self._policy_dist(*dist_params).log_prob(trans.actions)
+            is_ratio = torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP])
 
-        targets = torch.where(dones, rewards, rewards + self.config["gamma"] * next_val)
-        values = self.module["value"](obs).squeeze(-1)
-        value_loss = is_ratio * torch.nn.MSELoss(reduction="none")(values, targets)
+        targets = torch.where(
+            trans.dones, trans.rewards, trans.rewards + self.config["gamma"] * next_val
+        )
+        values = self.module["value"](trans.obs).squeeze(-1)
+        value_loss = is_ratio * torch.nn.MSELoss(reduction="none")(values, targets) / 2
 
-        return mle_loss + self.config["vf_loss_coeff"] * value_loss.mean()
+        joint_loss = mle_loss + self.config["vf_loss_coeff"] * value_loss.mean()
+        return joint_loss, {}
 
     def update_targets(self):
         """Update target networks through one step of polyak averaging."""
         module, target_module = self.module["value"], self.module["target_value"]
         torch_util.update_polyak(module, target_module, self.config["polyak"])
 
-    def compute_stochastic_value_gradient_loss(self, batch_tensors):
-        """Compute Stochatic Value Gradient loss given a full trajectory."""
+    def compute_stochastic_value_gradient_loss(self, episodes):
+        """Compute Stochatic Value Gradient loss given full trajectories."""
+        cur_obs = torch.stack([e[SampleBatch.CUR_OBS][0] for e in episodes])
+        action_seqs = [e[SampleBatch.ACTIONS] for e in episodes]
+        obs_seqs = [e[SampleBatch.NEXT_OBS] for e in episodes]
+        action_batch = nn.utils.rnn.pad_sequence(action_seqs)
+        obs_batch = nn.utils.rnn.pad_sequence(obs_seqs)
+
+        rew_batch, last_obs = self.module["recurrent"](action_batch, obs_batch, cur_obs)
+        rew_seqs = [rew_batch[: len(o), i, ...] for i, o in enumerate(obs_seqs)]
+        last_vals = [self.module["value"](o[None]).squeeze(0) for o in last_obs]
+        gamma = torch.tensor(self.config["gamma"])  # pylint: disable=not-callable
+        values = [
+            torch.sum(r * gamma ** torch.arange(len(r)).float()) + v * gamma ** len(r)
+            for r, v in zip(rew_seqs, last_vals)
+        ]
+        mean_value = sum(values) / len(values)
+        return mean_value, {}

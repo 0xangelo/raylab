@@ -7,4 +7,10 @@ def _import_naf():
     return NAFTrainer
 
 
-ALGORITHMS = {"NAF": _import_naf}
+def _import_svg_inf():
+    from raylab.algorithms.svg.svg_inf import SVGInfTrainer
+
+    return SVGInfTrainer
+
+
+ALGORITHMS = {"NAF": _import_naf, "SVG(inf)": _import_svg_inf}

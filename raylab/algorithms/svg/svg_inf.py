@@ -26,6 +26,10 @@ DEFAULT_CONFIG = with_common_config(
         "on_policy_optimizer": "Adam",
         # Keyword arguments to be passed to the on-policy optimizer
         "on_policy_optimizer_options": {"lr": 1e-3},
+        # Weight of the fitted V loss in the joint model-value loss
+        "vf_loss_coeff": 1.0,
+        # Clip gradient norms by this value
+        "max_grad_norm": 1.0,
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
         # === Network ===
@@ -45,6 +49,10 @@ DEFAULT_CONFIG = with_common_config(
             },
             "model": {"layers": [40, 40], "activation": "Tanh", "ortho_init_gain": 0.2},
         },
+        # === Reward Function ===
+        # Reward function in PyTorch, so that gradients can propagate back to the policy
+        # parameters. Note: this should work with batches of states and actions.
+        "reward_fn": lambda s, a: s.sum(dim=-1) + a.sum(dim=-1),
     }
 )
 
@@ -77,7 +85,7 @@ class SVGInfTrainer(Trainer):
 
         samples = worker.sample()
         self.optimizer.num_steps_sampled += samples.count
-        for row in samples.row():
+        for row in samples.rows():
             self.replay.add(row)
 
         policy.off_policy_learning(True)
