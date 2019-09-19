@@ -61,11 +61,11 @@ class TorchPolicy(Policy):
 
         if "\n" in config:
             config = "{\n" + config + "\n}"
-            config = _addindent(config, 4)
+            config = _addindent(config, 2)
 
             fmt = "\n".join(args)
             fmt = fmt.format(config=config, **kwargs)
-            fmt = _addindent(fmt, 4)
+            fmt = _addindent(fmt, 2)
         else:
             config = "{" + config + "}"
             fmt = " ".join(args) + ")"
