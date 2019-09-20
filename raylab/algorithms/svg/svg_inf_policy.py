@@ -78,11 +78,8 @@ class SVGInfTorchPolicy(TorchPolicy):
         actions = dist.sample()
         actions_logp = dist.log_prob(actions)
 
-        return (
-            actions.cpu().numpy(),
-            state_batches,
-            {self.ACTION_LOGP: actions_logp.cpu().numpy()},
-        )
+        extra_action_fetches = {self.ACTION_LOGP: actions_logp.cpu().numpy()}
+        return actions.cpu().numpy(), state_batches, extra_action_fetches
 
     @torch.no_grad()
     @override(TorchPolicy)
