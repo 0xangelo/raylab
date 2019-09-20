@@ -87,7 +87,7 @@ class ReproduceRollout(nn.Module):
             residual = self.model_rsample(m_dist_params, next_ob - init_ob)
             _next_ob = init_ob + residual
 
-            rew = self.reward_fn(init_ob, _act)
+            rew = self.reward_fn(init_ob, _act, _next_ob)
             reward_seq.append(rew)
 
             init_ob = _next_ob
