@@ -4,9 +4,6 @@ This can be run from the command line by executing
 `python scripts/tune_experiment.py 'SVG(inf)' --local-dir <experiment dir>
     --config examples/svg_inf_defaults.py --stop timesteps_total 100000`
 """
-import math
-
-import torch
 from ray import tune
 
 
@@ -34,14 +31,4 @@ def get_config():
         # periodically print out summaries of relevant internal dataflow (this is
         # also printed out once at startup at the INFO level).
         "log_level": "WARN",
-        # === Reward Function ===
-        # Reward function in PyTorch, so that gradients can propagate back to the policy
-        # parameters. Note: this should work with batches of states and actions.
-        "reward_fn": tune.function(reward_fn),
     }
-
-
-def reward_fn(state, action, next_state):
-    reward_theta = (torch.cos(next_state[..., 2]) + 1.0) / 2.0
-    reward_x = torch.cos((next_state[..., 0] / 2.4) * (math.pi / 2.0))
-    return reward_theta * reward_x
