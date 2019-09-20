@@ -84,7 +84,8 @@ class ReproduceRollout(nn.Module):
             _act = self.policy_rsample(pi_dist_params, act)
 
             m_dist_params = self.model_module(init_ob, _act)
-            _next_ob = self.model_rsample(m_dist_params, next_ob)
+            residual = self.model_rsample(m_dist_params, next_ob - init_ob)
+            _next_ob = init_ob + residual
 
             rew = self.reward_fn(init_ob, _act)
             reward_seq.append(rew)

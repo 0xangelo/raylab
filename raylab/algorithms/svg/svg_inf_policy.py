@@ -195,7 +195,8 @@ class SVGInfTorchPolicy(TorchPolicy):
         trans = Transition(*[batch_tensors[c] for c in columns])
 
         dist_params = self.module["model"](trans.obs, trans.actions)
-        mle_loss = self.module["model_logp"](dist_params, trans.next_obs).mean().neg()
+        residual = trans.next_obs - trans.obs
+        mle_loss = self.module["model_logp"](dist_params, residual).mean().neg()
 
         with torch.no_grad():
             next_val = self.module["target_value"](trans.next_obs).squeeze(-1)
