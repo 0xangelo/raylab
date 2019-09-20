@@ -32,6 +32,8 @@ DEFAULT_CONFIG = with_common_config(
         "max_grad_norm": 1.0,
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
+        # === Rollout Worker ===
+        "num_workers": 0,
         # === Network ===
         # Size and activation of the fully connected networks computing the logits
         # for the policy, value function and model. No layers means the component is
