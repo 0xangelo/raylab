@@ -236,7 +236,7 @@ class SVGInfTorchPolicy(TorchPolicy):
             rewards, last_obs = self.module["rollout"](actions, next_obs, init_obs)
             last_val = self.module["value"](last_obs)
             values = torch.cat([rewards, last_val], dim=0)
-            total_loss += torch.sum(values * gamma ** torch.arange(values.size(0)))
+            total_loss += torch.sum(values * gamma ** torch.arange(len(values)).float())
 
         return total_loss / len(episodes), {}
 
