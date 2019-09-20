@@ -6,7 +6,7 @@ from ray import tune
 import click
 
 import raylab
-from raylab.logger import DEFAULT_LOGGERS
+from raylab.logger import DEFAULT_LOGGERS as CUSTOM_LOGGERS
 from raylab.utils.dynamic_import import import_module_from_path
 
 
@@ -75,7 +75,9 @@ from raylab.utils.dynamic_import import import_module_from_path
     "By default, this is capped at 20GB but can be set higher.",
 )
 @click.option(
-    "--custom-loggers", is_flag=True, help="Use custom loggers from raylab.logger."
+    "--custom-loggers/--no-custom-loggers",
+    default=True,
+    help="Use custom loggers from raylab.logger.",
 )
 @click.option(
     "--tune-log-level",
@@ -106,7 +108,7 @@ def main(**args):  # pylint: disable=missing-docstring
         config=config,
         checkpoint_freq=args["checkpoint_freq"],
         checkpoint_at_end=args["checkpoint_at_end"],
-        loggers=DEFAULT_LOGGERS if args["custom_loggers"] else None,
+        loggers=CUSTOM_LOGGERS if args["custom_loggers"] else None,
     )
 
 
