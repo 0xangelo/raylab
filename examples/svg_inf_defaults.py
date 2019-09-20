@@ -21,7 +21,7 @@ def get_config():
         # === Replay Buffer ===
         "buffer_size": int(1e5),
         # === RolloutWorker ===
-        "sample_batch_size": 2000,
+        "sample_batch_size": 1000,
         "batch_mode": "complete_episodes",
         "horizon": 250,
         "seed": tune.grid_search(list(range(10))),
