@@ -51,7 +51,7 @@ class TorchPolicy(Policy):
         return tensor_batch
 
     def __repr__(self):
-        args = ["{name}(", "{observation_space},", "{action_space},", "{config}", ")"]
+        args = ["{name}(", "{observation_space}, ", "{action_space}, ", "{config}", ")"]
         config = pretty_print(self._raw_user_config).rstrip("\n")
         kwargs = dict(
             name=self.__class__.__name__,
@@ -67,8 +67,7 @@ class TorchPolicy(Policy):
             fmt = fmt.format(config=config, **kwargs)
             fmt = _addindent(fmt, 2)
         else:
-            config = "{" + config + "}"
-            fmt = " ".join(args) + ")"
+            fmt = "".join(args)
             fmt = fmt.format(config=config, **kwargs)
         return fmt
 
