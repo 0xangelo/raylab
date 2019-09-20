@@ -18,7 +18,7 @@ class DiagMultivariateNormal(dists.Independent):
         )
 
     def reproduce(self, event):
-        """Produce a reparametrized sample with the value as `event`."""
+        """Produce a reparametrized sample with the same value as `event`."""
         loc = self.base_dist.loc
         scale_diag = self.base_dist.scale
         with torch.no_grad():
