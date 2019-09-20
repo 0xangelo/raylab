@@ -51,10 +51,6 @@ DEFAULT_CONFIG = with_common_config(
             },
             "model": {"layers": [40, 40], "activation": "Tanh", "ortho_init_gain": 1.0},
         },
-        # === Reward Function ===
-        # Reward function in PyTorch, so that gradients can propagate back to the policy
-        # parameters. Note: this should work with batches of states and actions.
-        "reward_fn": None,
     }
 )
 
@@ -73,6 +69,11 @@ class SVGInfTrainer(Trainer):
         self._validate_config(config)
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
+        )
+        self.workers.foreach_worker(
+            lambda w: w.foreach_trainable_policy(
+                lambda p, _: p.set_reward_fn(w.env.reward_fn)
+            )
         )
         # Dummy optimizer to log stats
         self.optimizer = PolicyOptimizer(self.workers)
@@ -112,4 +113,3 @@ class SVGInfTrainer(Trainer):
     @staticmethod
     def _validate_config(config):
         assert config["num_workers"] == 0, "No point in using additional workers."
-        assert callable(config["reward_fn"]), "SVG(inf) requires a reward function."

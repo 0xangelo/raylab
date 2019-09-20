@@ -86,6 +86,8 @@ class SVGInfTorchPolicy(TorchPolicy):
             loss, info = self.compute_joint_model_value_loss(batch_tensors)
             self.off_policy_optimizer.zero_grad()
             loss.backward()
+            info = self.extra_grad_info(info)
+            info["off_policy_loss"] = loss.item()
             self.off_policy_optimizer.step()
             self.update_targets()
         else:
@@ -93,8 +95,8 @@ class SVGInfTorchPolicy(TorchPolicy):
             loss, info = self.compute_stochastic_value_gradient_loss(episodes)
             self.on_policy_optimizer.zero_grad()
             loss.backward()
-            params = self.module["policy"].parameters()
-            nn.utils.clip_grad_norm_(params, max_norm=self.config["max_grad_norm"])
+            info = self.extra_grad_info(info)
+            info["on_policy_loss"] = loss.item()
             self.on_policy_optimizer.step()
 
         return {LEARNER_STATS_KEY: info}
@@ -162,15 +164,19 @@ class SVGInfTorchPolicy(TorchPolicy):
         module["policy_rsample"] = NormalRSample()
         module["model_rsample"] = NormalRSample()
 
+        return module
+
+    def set_reward_fn(self, reward_fn):
+        """Set the reward function to use when unrolling the policy and model."""
         # Add recurrent policy-model combination
+        module = self.module
         module["rollout"] = ReproduceRollout(
             module["policy"],
             module["model"],
             module["policy_rsample"],
             module["model_rsample"],
-            config["reward_fn"],
+            reward_fn,
         )
-        return module
 
     def _make_off_policy_optimizer(self):
         optim_cls = torch_util.get_optimizer_class(self.config["off_policy_optimizer"])
@@ -220,19 +226,36 @@ class SVGInfTorchPolicy(TorchPolicy):
 
     def compute_stochastic_value_gradient_loss(self, episodes):
         """Compute Stochatic Value Gradient loss given full trajectories."""
-        cur_obs = torch.stack([e[SampleBatch.CUR_OBS][0] for e in episodes])
-        action_seqs = [e[SampleBatch.ACTIONS] for e in episodes]
-        obs_seqs = [e[SampleBatch.NEXT_OBS] for e in episodes]
-        action_batch = nn.utils.rnn.pad_sequence(action_seqs)
-        obs_batch = nn.utils.rnn.pad_sequence(obs_seqs)
-
-        rew_batch, last_obs = self.module["rollout"](action_batch, obs_batch, cur_obs)
-        rew_seqs = [rew_batch[: len(o), i, ...] for i, o in enumerate(obs_seqs)]
-        last_vals = [self.module["value"](o[None]).squeeze(0) for o in last_obs]
+        total_loss = 0
         gamma = torch.tensor(self.config["gamma"])  # pylint: disable=not-callable
-        values = [
-            torch.sum(r * gamma ** torch.arange(len(r)).float()) + v * gamma ** len(r)
-            for r, v in zip(rew_seqs, last_vals)
-        ]
-        mean_value = sum(values) / len(values)
-        return mean_value, {}
+        for episode in episodes:
+            init_obs = episode[SampleBatch.CUR_OBS][0]
+            actions = episode[SampleBatch.ACTIONS]
+            next_obs = episode[SampleBatch.NEXT_OBS]
+
+            rewards, last_obs = self.module["rollout"](actions, next_obs, init_obs)
+            last_val = self.module["value"](last_obs)
+            values = torch.cat([rewards, last_val], dim=0)
+            total_loss += torch.sum(values * gamma ** torch.arange(values.size(0)))
+
+        return total_loss / len(episodes), {}
+
+    def extra_grad_info(self, info):
+        """Add gradient norm to info dict. Also clips on-policy gradient."""
+        if self._off_policy_learning:
+            model_params = self.module["model"].parameters()
+            value_params = self.module["value"].parameters()
+            fetches = {
+                "model_grad_norm": nn.utils.clip_grad_norm_(model_params, float("inf")),
+                "value_grad_norm": nn.utils.clip_grad_norm_(value_params, float("inf")),
+                **info,
+            }
+        else:
+            policy_params = self.module["policy"].parameters()
+            fetches = {
+                "policy_grad_norm": nn.utils.clip_grad_norm_(
+                    policy_params, max_norm=self.config["max_grad_norm"]
+                ),
+                **info,
+            }
+        return fetches
