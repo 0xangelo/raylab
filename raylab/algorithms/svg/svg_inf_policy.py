@@ -9,8 +9,12 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.policy import TorchPolicy
-from raylab.algorithms.svg.svg_module import ParallelDynamicsModel, RecurrentPolicyModel
-from raylab.distributions import DiagMultivariateNormal
+from raylab.algorithms.svg.svg_module import (
+    ParallelDynamicsModel,
+    ReproduceRollout,
+    NormalLogProb,
+    NormalRSample,
+)
 import raylab.modules as modules
 import raylab.utils.pytorch as torch_util
 
@@ -30,18 +34,6 @@ class SVGInfTorchPolicy(TorchPolicy):
 
         self.module = self._make_module(
             self.observation_space, self.action_space, self.config
-        )
-        # Currently hardcoded distributions
-        self._model_dist = DiagMultivariateNormal
-        self._policy_dist = DiagMultivariateNormal
-
-        # Add recurrent policy-model combination
-        self.module["recurrent"] = RecurrentPolicyModel(
-            self.module["policy"],
-            self.module["model"],
-            self._policy_dist,
-            self._model_dist,
-            self.config["reward_fn"],
         )
 
         self.off_policy_optimizer = self._make_off_policy_optimizer()
@@ -74,12 +66,11 @@ class SVGInfTorchPolicy(TorchPolicy):
         # pylint: disable=too-many-arguments,unused-argument
         obs_batch = self.convert_to_tensor(obs_batch)
         dist_params = self.module["policy"](obs_batch)
-        dist = self._policy_dist(*dist_params)
-        actions = dist.sample()
-        actions_logp = dist.log_prob(actions)
+        actions = self.module["policy_rsample"](dist_params)
+        logp = self.module["policy_logp"](dist_params, actions)
 
-        extra_action_fetches = {self.ACTION_LOGP: actions_logp.cpu().numpy()}
-        return actions.cpu().numpy(), state_batches, extra_action_fetches
+        extra_fetches = {self.ACTION_LOGP: logp.cpu().numpy()}
+        return actions.cpu().numpy(), state_batches, extra_fetches
 
     @torch.no_grad()
     @override(TorchPolicy)
@@ -166,6 +157,19 @@ class SVGInfTorchPolicy(TorchPolicy):
             torch_util.initialize_orthogonal(policy_config["ortho_init_gain"])
         )
 
+        module["policy_logp"] = NormalLogProb()
+        module["model_logp"] = NormalLogProb()
+        module["policy_rsample"] = NormalRSample()
+        module["model_rsample"] = NormalRSample()
+
+        # Add recurrent policy-model combination
+        module["rollout"] = ReproduceRollout(
+            module["policy"],
+            module["model"],
+            module["policy_rsample"],
+            module["model_rsample"],
+            config["reward_fn"],
+        )
         return module
 
     def _make_off_policy_optimizer(self):
@@ -191,13 +195,12 @@ class SVGInfTorchPolicy(TorchPolicy):
         trans = Transition(*[batch_tensors[c] for c in columns])
 
         dist_params = self.module["model"](trans.obs, trans.actions)
-        dist = self._model_dist(*dist_params)
-        mle_loss = dist.log_prob(trans.next_obs).mean().neg()
+        mle_loss = self.module["model_logp"](dist_params, trans.next_obs).mean().neg()
 
         with torch.no_grad():
             next_val = self.module["target_value"](trans.next_obs).squeeze(-1)
             dist_params = self.module["policy"](trans.obs)
-            curr_logp = self._policy_dist(*dist_params).log_prob(trans.actions)
+            curr_logp = self.module["policy_logp"](dist_params, trans.actions)
             is_ratio = torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP])
 
         targets = torch.where(
@@ -222,7 +225,7 @@ class SVGInfTorchPolicy(TorchPolicy):
         action_batch = nn.utils.rnn.pad_sequence(action_seqs)
         obs_batch = nn.utils.rnn.pad_sequence(obs_seqs)
 
-        rew_batch, last_obs = self.module["recurrent"](action_batch, obs_batch, cur_obs)
+        rew_batch, last_obs = self.module["rollout"](action_batch, obs_batch, cur_obs)
         rew_seqs = [rew_batch[: len(o), i, ...] for i, o in enumerate(obs_seqs)]
         last_vals = [self.module["value"](o[None]).squeeze(0) for o in last_obs]
         gamma = torch.tensor(self.config["gamma"])  # pylint: disable=not-callable
