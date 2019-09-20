@@ -23,12 +23,14 @@ class DiagMultivariateNormalParams(nn.Module):
         super().__init__()
         self.loc_module = nn.Linear(in_features, event_dim)
         if input_dependent_scale:
-            self.scale_diag_module = nn.Linear(in_features, event_dim)
+            self.pre_scale_module = nn.Linear(in_features, event_dim)
         else:
-            self.scale_diag_module = ExpandVector(event_dim)
+            self.pre_scale_module = ExpandVector(event_dim)
+        self.softplus = nn.Softplus()
 
     @override(nn.Module)
     def forward(self, inputs):  # pylint: disable=arguments-differ
         loc = self.loc_module(inputs)
-        scale_diag = self.scale_diag_module(inputs)
+        unnormalized_scale = self.pre_scale_module(inputs)
+        scale_diag = self.softplus(unnormalized_scale)
         return loc, scale_diag
