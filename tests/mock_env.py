@@ -2,6 +2,7 @@
 import gym
 from gym.spaces import Box
 import numpy as np
+import torch
 
 
 class MockEnv(gym.Env):  # pylint: disable=abstract-method
@@ -14,11 +15,22 @@ class MockEnv(gym.Env):  # pylint: disable=abstract-method
         self.observation_space = Box(high=1, low=-1, shape=(4,), dtype=np.float32)
         action_dim = self.config["action_dim"]
         self.action_space = Box(high=1, low=-1, shape=(action_dim,), dtype=np.float32)
+        self.goal = np.zeros(self.observation_space.shape)
+        self.state = None
 
     def reset(self):
         self.time = 0
-        return self.observation_space.sample()
+        self.state = self.observation_space.sample()
+        return self.state
 
     def step(self, action):
         self.time += 1
-        return self.observation_space.sample(), 1.0, self.time >= self.horizon, {}
+        self.state = np.clip(
+            self.state + action, self.observation_space.low, self.observation_space.high
+        )
+        reward = np.linalg.norm((self.state - self.goal), axis=-1)
+        return self.state, reward, self.time >= self.horizon, {}
+
+    def reward_fn(self, state, action, next_state):
+        # pylint: disable=missing-docstring,unused-argument
+        return torch.norm(next_state - torch.from_numpy(self.goal).float(), dim=-1)
