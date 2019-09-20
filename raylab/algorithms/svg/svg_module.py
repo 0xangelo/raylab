@@ -36,11 +36,12 @@ class NormalLogProb(nn.Module):
         loc, scale = params
         var = scale ** 2
         log_scale = scale.log()
-        return (
+        _log_prob = (
             -((value - loc) ** 2) / (2 * var)
             - log_scale
             - math.log(math.sqrt(2 * math.pi))
         )
+        return _log_prob.sum(-1)
 
 
 class NormalRSample(nn.Module):
