@@ -30,6 +30,8 @@ DEFAULT_CONFIG = with_common_config(
         "vf_loss_coeff": 1.0,
         # Clip gradient norms by this value
         "max_grad_norm": 1.0,
+        # Clip importance sampling weights by this value
+        "max_is_ratio": 5.0,
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
         # === Rollout Worker ===

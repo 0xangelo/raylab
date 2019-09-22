@@ -209,6 +209,7 @@ class SVGInfTorchPolicy(TorchPolicy):
             dist_params = self.module["policy"](trans.obs)
             curr_logp = self.module["policy_logp"](dist_params, trans.actions)
             is_ratio = torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP])
+            is_ratio = torch.clamp(is_ratio, max=self.config["max_is_ratio"])
 
         targets = torch.where(
             trans.dones, trans.rewards, trans.rewards + self.config["gamma"] * next_val
