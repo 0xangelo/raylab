@@ -23,7 +23,31 @@ def _cartpole_stateless_maker(_):
     return CartPoleStatelessWrapper(CartPoleEnv())
 
 
+def _time_aware_env_maker(config):
+    import gym
+    from gym.wrappers import TimeLimit
+    from raylab.envs.time_aware_env import AddRelativeTimestep
+
+    env = gym.make(config["env_id"])
+    has_timelimit = False
+    while hasattr(env, "env"):
+        if isinstance(env, TimeLimit):
+            has_timelimit = True
+            break
+
+    if has_timelimit:
+        env.spec.max_episode_steps = config["max_episode_steps"]
+        # pylint: disable=protected-access
+        env._max_episode_steps = config["max_episode_steps"]
+        # pylint: enable=protected-access
+    else:
+        env = TimeLimit(env, max_episode_steps=config["max_episode_steps"])
+
+    return AddRelativeTimestep(env)
+
+
 ENVS = {
     "CartPoleSwingUp": _cartpole_swingup_maker,
     "CartPoleStateless": _cartpole_stateless_maker,
+    "TimeAwareEnv": _time_aware_env_maker,
 }
