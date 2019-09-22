@@ -87,14 +87,9 @@ class NAFTorchPolicy(TorchPolicy):
         loss, info = self.compute_loss(batch_tensors, self.module, self.config)
         self.optimizer.zero_grad()
         loss.backward()
-
-        total_norm = 0
-        for param in self.module["naf"].parameters():
-            param_norm = param.grad.data.norm(2)
-            total_norm += param_norm.item() ** 2
-        total_norm = total_norm ** (1.0 / 2)
-        info["grad_norm"] = total_norm
-
+        info["grad_norm"] = nn.utils.clip_grad_norm_(
+            self.module["naf"].parameters(), float("inf")
+        )
         self.optimizer.step()
 
         torch_util.update_polyak(
