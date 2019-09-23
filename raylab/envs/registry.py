@@ -2,18 +2,9 @@
 
 
 def _cartpole_swingup_maker(_):
-    import math
-    import torch
-    from gym_cartpole_swingup.envs import CartPoleSwingUpEnv
+    from raylab.envs.cartpole_swingup import CartPoleSwingUpEnv
 
-    def reward_fn(state, action, next_state):  # pylint: disable=unused-argument
-        reward_theta = (torch.cos(next_state[..., 2]) + 1.0) / 2.0
-        reward_x = torch.cos((next_state[..., 0] / 2.4) * (math.pi / 2.0))
-        return reward_theta * reward_x
-
-    env = CartPoleSwingUpEnv()
-    setattr(env, "reward_fn", reward_fn)
-    return env
+    return CartPoleSwingUpEnv()
 
 
 def _cartpole_stateless_maker(_):
