@@ -1,4 +1,6 @@
 """PyTorch related utilities."""
+import functools
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -103,3 +105,23 @@ def get_activation(activation):
         if issubclass(cls, nn.Module):
             return cls
     raise ValueError("Unsupported activation name '{}'".format(activation))
+
+
+def trace(func):
+    """
+    Wrapps and automatically traces an instance function on first call.
+
+    Arguments:
+        func (callable): the callable to be converted to TorchScript. Should not
+            have any input-dependent control flow.
+    """
+    method_name = "_traced_" + func.__name__
+
+    @functools.wraps(func)
+    def wrapped(self, *args):
+        if not hasattr(self, method_name):
+            traced = torch.jit.trace(functools.partial(func, self), args)
+            setattr(self, method_name, traced)
+        return getattr(self, method_name)(*args)
+
+    return wrapped
