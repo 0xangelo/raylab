@@ -87,7 +87,6 @@ class SVGInfTorchPolicy(TorchPolicy):
             self.off_policy_optimizer.zero_grad()
             loss.backward()
             info = self.extra_grad_info(info)
-            info["off_policy_loss"] = loss.item()
             self.off_policy_optimizer.step()
             self.update_targets()
         else:
@@ -96,7 +95,6 @@ class SVGInfTorchPolicy(TorchPolicy):
             self.on_policy_optimizer.zero_grad()
             loss.backward()
             info = self.extra_grad_info(info)
-            info["on_policy_loss"] = loss.item()
             self.on_policy_optimizer.step()
 
         return {LEARNER_STATS_KEY: info}
@@ -205,20 +203,27 @@ class SVGInfTorchPolicy(TorchPolicy):
         mle_loss = self.module["model_logp"](dist_params, residual).mean().neg()
 
         with torch.no_grad():
-            next_val = self.module["target_value"](trans.next_obs).squeeze(-1)
+            targets = self.module["target_value"](trans.next_obs).squeeze(-1)
             dist_params = self.module["policy"](trans.obs)
             curr_logp = self.module["policy_logp"](dist_params, trans.actions)
             is_ratio = torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP])
             is_ratio = torch.clamp(is_ratio, max=self.config["max_is_ratio"])
 
         targets = torch.where(
-            trans.dones, trans.rewards, trans.rewards + self.config["gamma"] * next_val
+            trans.dones, trans.rewards, trans.rewards + self.config["gamma"] * targets
         )
         values = self.module["value"](trans.obs).squeeze(-1)
-        value_loss = is_ratio * torch.nn.MSELoss(reduction="none")(values, targets) / 2
+        value_loss = torch.mean(
+            is_ratio * nn.MSELoss(reduction="none")(values, targets) / 2
+        )
 
-        joint_loss = mle_loss + self.config["vf_loss_coeff"] * value_loss.mean()
-        return joint_loss, {}
+        joint_loss = mle_loss + self.config["vf_loss_coeff"] * value_loss
+        info = {
+            "off_policy_loss": joint_loss.item(),
+            "mle_loss": mle_loss.item(),
+            "value_loss": value_loss.item(),
+        }
+        return joint_loss, info
 
     def update_targets(self):
         """Update target networks through one step of polyak averaging."""
@@ -239,7 +244,8 @@ class SVGInfTorchPolicy(TorchPolicy):
             values = torch.cat([rewards, last_val], dim=0)
             total_loss += torch.sum(values * gamma ** torch.arange(len(values)).float())
 
-        return total_loss / len(episodes), {}
+        loss = total_loss / len(episodes)
+        return loss, {"on_policy_loss": loss.item()}
 
     def extra_grad_info(self, info):
         """Add gradient norm to info dict. Also clips on-policy gradient."""
