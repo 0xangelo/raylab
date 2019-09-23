@@ -72,13 +72,6 @@ class SVGInfTorchPolicy(TorchPolicy):
         extra_fetches = {self.ACTION_LOGP: logp.cpu().numpy()}
         return actions.cpu().numpy(), state_batches, extra_fetches
 
-    @torch.no_grad()
-    @override(TorchPolicy)
-    def postprocess_trajectory(
-        self, sample_batch, other_agent_batches=None, episode=None
-    ):
-        return sample_batch
-
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
         if self._off_policy_learning:
@@ -86,7 +79,7 @@ class SVGInfTorchPolicy(TorchPolicy):
             loss, info = self.compute_joint_model_value_loss(batch_tensors)
             self.off_policy_optimizer.zero_grad()
             loss.backward()
-            info = self.extra_grad_info(info)
+            info.update(self.extra_grad_info())
             self.off_policy_optimizer.step()
             self.update_targets()
         else:
@@ -94,8 +87,9 @@ class SVGInfTorchPolicy(TorchPolicy):
             loss, info = self.compute_stochastic_value_gradient_loss(episodes)
             self.on_policy_optimizer.zero_grad()
             loss.backward()
-            info = self.extra_grad_info(info)
+            info.update(self.extra_grad_info())
             self.on_policy_optimizer.step()
+            info.update(self.add_kl_info(self._lazy_tensor_dict(samples)))
 
         return {LEARNER_STATS_KEY: info}
 
@@ -247,22 +241,30 @@ class SVGInfTorchPolicy(TorchPolicy):
         loss = total_loss / len(episodes)
         return loss, {"on_policy_loss": loss.item()}
 
-    def extra_grad_info(self, info):
-        """Add gradient norm to info dict. Also clips on-policy gradient."""
+    def extra_grad_info(self):
+        """Compute gradient norm for components. Also clips on-policy gradient."""
         if self._off_policy_learning:
             model_params = self.module["model"].parameters()
             value_params = self.module["value"].parameters()
             fetches = {
                 "model_grad_norm": nn.utils.clip_grad_norm_(model_params, float("inf")),
                 "value_grad_norm": nn.utils.clip_grad_norm_(value_params, float("inf")),
-                **info,
             }
         else:
             policy_params = self.module["policy"].parameters()
             fetches = {
                 "policy_grad_norm": nn.utils.clip_grad_norm_(
                     policy_params, max_norm=self.config["max_grad_norm"]
-                ),
-                **info,
+                )
             }
         return fetches
+
+    def add_kl_info(self, tensors):
+        """Add average KL divergence between new and old policies."""
+
+        keys = (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, self.ACTION_LOGP)
+        obs, act, logp = [tensors[k] for k in keys]
+        dist_params = self.module["policy"](obs)
+        _logp = self.module["policy_logp"](dist_params, act)
+
+        return {"kl_div": torch.mean(logp - _logp).item()}
