@@ -12,6 +12,14 @@ class AddRelativeTimestep(gym.ObservationWrapper):
 
     def __init__(self, env=None):
         super().__init__(env)
+
+        _env = env
+        while hasattr(_env, "env"):
+            if isinstance(_env, gym.wrappers.TimeLimit):
+                break
+            _env = _env.env
+        self._env = _env
+
         self.observation_space = gym.spaces.Box(
             low=np.append(self.observation_space.low, 0.0),
             high=np.append(self.observation_space.high, 1.0),
@@ -21,5 +29,5 @@ class AddRelativeTimestep(gym.ObservationWrapper):
     def observation(self, observation):
         # pylint: disable=protected-access
         return np.append(
-            observation, (self.env._elapsed_steps / self.spec.timestep_limit)
+            observation, (self._env._elapsed_steps / self._env._max_episode_steps)
         )
