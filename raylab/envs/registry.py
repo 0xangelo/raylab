@@ -42,8 +42,15 @@ def _time_aware_env_maker(config):
     return AddRelativeTimestep(env)
 
 
+def _navigation_maker(config):
+    from raylab.envs.navigation import NavigationEnv
+
+    return NavigationEnv(config)
+
+
 ENVS = {
     "CartPoleSwingUp": _cartpole_swingup_maker,
     "CartPoleStateless": _cartpole_stateless_maker,
     "TimeAwareEnv": _time_aware_env_maker,
+    "Navigation": _navigation_maker,
 }
