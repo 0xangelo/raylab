@@ -41,6 +41,10 @@ class TorchPolicy(Policy):
     def set_weights(self, weights):
         self.module.load_state_dict(weights)
 
+    @abstractmethod
+    def optimizer(self):
+        """PyTorch optimizer to use."""
+
     def convert_to_tensor(self, arr):
         """Convert an array to a PyTorch tensor in this policy's device."""
         return convert_to_tensor(arr, self.device)

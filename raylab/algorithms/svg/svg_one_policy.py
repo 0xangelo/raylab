@@ -1,38 +1,30 @@
 """SVG(inf) policy class using PyTorch."""
-import collections
-
 import torch
 import torch.nn as nn
 from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.policy import TorchPolicy
-from raylab.algorithms.svg.svg_inf_policy import SVGInfTorchPolicy
+from raylab.algorithms.svg.svg_inf_policy import SVGInfTorchPolicy, Transition
 import raylab.modules as modules
 import raylab.utils.pytorch as torch_util
 
 
-Transition = collections.namedtuple("Transition", "obs actions rewards next_obs dones")
-
-
-class SVGOneTorchPolicy(TorchPolicy):
-    """Stochastic Value Gradients policy for full trajectories."""
+class SVGOneTorchPolicy(SVGInfTorchPolicy):
+    """Stochastic Value Gradients policy for off-policy learning."""
 
     # pylint: disable=abstract-method
-
-    ACTION_LOGP = "action_logp"
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
 
-        self.module = SVGInfTorchPolicy._make_module(  # pylint: disable=protected-access
+        self.module = self._make_module(
             self.observation_space, self.action_space, self.config
         )
         self._optimizer = self.optimizer()
 
     @staticmethod
-    @override(TorchPolicy)
+    @override(SVGInfTorchPolicy)
     def get_default_config():
         """Return the default config for SVG(1)"""
         # pylint: disable=cyclic-import
@@ -40,28 +32,7 @@ class SVGOneTorchPolicy(TorchPolicy):
 
         return DEFAULT_CONFIG
 
-    @torch.no_grad()
-    @override(TorchPolicy)
-    def compute_actions(
-        self,
-        obs_batch,
-        state_batches,
-        prev_action_batch=None,
-        prev_reward_batch=None,
-        info_batch=None,
-        episodes=None,
-        **kwargs
-    ):
-        # pylint: disable=too-many-arguments,unused-argument
-        obs_batch = self.convert_to_tensor(obs_batch)
-        dist_params = self.module.policy(obs_batch)
-        actions = self.module.policy_rsample(dist_params)
-        logp = self.module.policy_logp(dist_params, actions)
-
-        extra_fetches = {self.ACTION_LOGP: logp.cpu().numpy()}
-        return actions.cpu().numpy(), state_batches, extra_fetches
-
-    @override(TorchPolicy)
+    @override(SVGInfTorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
         loss, info = self.compute_joint_loss(batch_tensors)
@@ -73,9 +44,9 @@ class SVGOneTorchPolicy(TorchPolicy):
 
         return {LEARNER_STATS_KEY: info}
 
-    @override(TorchPolicy)
+    @override(SVGInfTorchPolicy)
     def optimizer(self):
-        """Custom PyTorch optimizer to use."""
+        """PyTorch optimizer to use."""
         optim_cls = torch_util.get_optimizer_class(self.config["torch_optimizer"])
         options = self.config["torch_optimizer_options"]
         params = [
@@ -83,7 +54,7 @@ class SVGOneTorchPolicy(TorchPolicy):
         ]
         return optim_cls(params)
 
-    # === NEW METHODS ===
+    @override(SVGInfTorchPolicy)
     def set_reward_fn(self, reward_fn):
         """Set the reward function to use when unrolling the policy and model."""
         # Add recurrent policy-model combination
@@ -142,11 +113,7 @@ class SVGOneTorchPolicy(TorchPolicy):
         }
         return loss, info
 
-    def update_targets(self):
-        """Update target networks through one step of polyak averaging."""
-        polyak = self.config["polyak"]
-        torch_util.update_polyak(self.module.value, self.module.target_value, polyak)
-
+    @override(SVGInfTorchPolicy)
     def extra_grad_info(self):
         """Compute gradient norm for components. Also clips policy gradient."""
         model_params = self.module.model.parameters()
@@ -160,12 +127,3 @@ class SVGOneTorchPolicy(TorchPolicy):
             ),
         }
         return fetches
-
-    def add_kl_info(self, tensors):
-        """Add average KL divergence between new and old policies."""
-        keys = (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, self.ACTION_LOGP)
-        obs, act, logp = [tensors[k] for k in keys]
-        dist_params = self.module.policy(obs)
-        _logp = self.module.policy_logp(dist_params, act)
-
-        return {"kl_div": torch.mean(logp - _logp).item()}

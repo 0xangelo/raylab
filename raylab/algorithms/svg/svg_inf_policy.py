@@ -35,9 +35,7 @@ class SVGInfTorchPolicy(TorchPolicy):
         self.module = self._make_module(
             self.observation_space, self.action_space, self.config
         )
-
-        self.off_policy_optimizer = self._make_off_policy_optimizer()
-        self.on_policy_optimizer = self._make_on_policy_optimizer()
+        self.off_policy_optimizer, self.on_policy_optimizer = self.optimizer()
 
         # Flag for off-policy learning
         self._off_policy_learning = False
@@ -65,9 +63,9 @@ class SVGInfTorchPolicy(TorchPolicy):
     ):
         # pylint: disable=too-many-arguments,unused-argument
         obs_batch = self.convert_to_tensor(obs_batch)
-        dist_params = self.module["policy"](obs_batch)
-        actions = self.module["policy_rsample"](dist_params)
-        logp = self.module["policy_logp"](dist_params, actions)
+        dist_params = self.module.policy(obs_batch)
+        actions = self.module.policy_rsample(dist_params)
+        logp = self.module.policy_logp(dist_params, actions)
 
         extra_fetches = {self.ACTION_LOGP: logp.cpu().numpy()}
         return actions.cpu().numpy(), state_batches, extra_fetches
@@ -93,6 +91,25 @@ class SVGInfTorchPolicy(TorchPolicy):
 
         return {LEARNER_STATS_KEY: info}
 
+    @override(TorchPolicy)
+    def optimizer(self):
+        """PyTorch optimizers to use."""
+        optim_cls = torch_util.get_optimizer_class(self.config["off_policy_optimizer"])
+        params = itertools.chain(
+            *[self.module[k].parameters() for k in ["model", "value"]]
+        )
+        off_policy_optim = optim_cls(
+            params, **self.config["off_policy_optimizer_options"]
+        )
+
+        optim_cls = torch_util.get_optimizer_class(self.config["on_policy_optimizer"])
+        on_policy_optim = optim_cls(
+            self.module.policy.parameters(),
+            **self.config["on_policy_optimizer_options"]
+        )
+
+        return off_policy_optim, on_policy_optim
+
     # === NEW METHODS ===
 
     def off_policy_learning(self, learn_off_policy):
@@ -113,8 +130,8 @@ class SVGInfTorchPolicy(TorchPolicy):
             )
             for _ in range(obs_space.shape[0])
         ]
-        module["model"] = ParallelDynamicsModel(*model_logits_modules)
-        module["model"].apply(
+        module.model = ParallelDynamicsModel(*model_logits_modules)
+        module.model.apply(
             torch_util.initialize_(
                 model_config["initializer"], **model_config["initializer_options"]
             )
@@ -138,8 +155,8 @@ class SVGInfTorchPolicy(TorchPolicy):
             )
             return value_module
 
-        module["value"] = make_value_module()
-        module["target_value"] = make_value_module()
+        module.value = make_value_module()
+        module.target_value = make_value_module()
 
         policy_config = config["module"]["policy"]
         policy_logits_module = modules.FullyConnected(
@@ -150,17 +167,17 @@ class SVGInfTorchPolicy(TorchPolicy):
         policy_dist_param_module = modules.DiagMultivariateNormalParams(
             policy_logits_module.out_features, action_space.shape[0]
         )
-        module["policy"] = nn.Sequential(policy_logits_module, policy_dist_param_module)
-        module["policy"].apply(
+        module.policy = nn.Sequential(policy_logits_module, policy_dist_param_module)
+        module.policy.apply(
             torch_util.initialize_(
                 policy_config["initializer"], **policy_config["initializer_options"]
             )
         )
 
-        module["policy_logp"] = NormalLogProb()
-        module["model_logp"] = NormalLogProb()
-        module["policy_rsample"] = NormalRSample()
-        module["model_rsample"] = NormalRSample()
+        module.policy_logp = NormalLogProb()
+        module.model_logp = NormalLogProb()
+        module.policy_rsample = NormalRSample()
+        module.model_rsample = NormalRSample()
 
         return module
 
@@ -168,24 +185,13 @@ class SVGInfTorchPolicy(TorchPolicy):
         """Set the reward function to use when unrolling the policy and model."""
         # Add recurrent policy-model combination
         module = self.module
-        module["rollout"] = ReproduceRollout(
-            module["policy"],
-            module["model"],
-            module["policy_rsample"],
-            module["model_rsample"],
+        module.rollout = ReproduceRollout(
+            module.policy,
+            module.model,
+            module.policy_rsample,
+            module.model_rsample,
             reward_fn,
         )
-
-    def _make_off_policy_optimizer(self):
-        optim_cls = torch_util.get_optimizer_class(self.config["off_policy_optimizer"])
-        off_policy_modules = self.module["model"], self.module["value"]
-        params = itertools.chain(*[m.parameters() for m in off_policy_modules])
-        return optim_cls(params, **self.config["off_policy_optimizer_options"])
-
-    def _make_on_policy_optimizer(self):
-        optim_cls = torch_util.get_optimizer_class(self.config["on_policy_optimizer"])
-        params = self.module["policy"].parameters()
-        return optim_cls(params, **self.config["on_policy_optimizer_options"])
 
     def compute_joint_model_value_loss(self, batch_tensors):
         """Compute model MLE loss and fitted value function loss."""
@@ -198,21 +204,21 @@ class SVGInfTorchPolicy(TorchPolicy):
         ]
         trans = Transition(*[batch_tensors[c] for c in columns])
 
-        dist_params = self.module["model"](trans.obs, trans.actions)
+        dist_params = self.module.model(trans.obs, trans.actions)
         residual = trans.next_obs - trans.obs
-        mle_loss = self.module["model_logp"](dist_params, residual).mean().neg()
+        mle_loss = self.module.model_logp(dist_params, residual).mean().neg()
 
         with torch.no_grad():
-            targets = self.module["target_value"](trans.next_obs).squeeze(-1)
-            dist_params = self.module["policy"](trans.obs)
-            curr_logp = self.module["policy_logp"](dist_params, trans.actions)
+            targets = self.module.target_value(trans.next_obs).squeeze(-1)
+            dist_params = self.module.policy(trans.obs)
+            curr_logp = self.module.policy_logp(dist_params, trans.actions)
             is_ratio = torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP])
             is_ratio = torch.clamp(is_ratio, max=self.config["max_is_ratio"])
 
         targets = torch.where(
             trans.dones, trans.rewards, trans.rewards + self.config["gamma"] * targets
         )
-        values = self.module["value"](trans.obs).squeeze(-1)
+        values = self.module.value(trans.obs).squeeze(-1)
         value_loss = torch.mean(
             is_ratio * nn.MSELoss(reduction="none")(values, targets) / 2
         )
@@ -227,8 +233,8 @@ class SVGInfTorchPolicy(TorchPolicy):
 
     def update_targets(self):
         """Update target networks through one step of polyak averaging."""
-        module, target_module = self.module["value"], self.module["target_value"]
-        torch_util.update_polyak(module, target_module, self.config["polyak"])
+        polyak = self.config["polyak"]
+        torch_util.update_polyak(self.module.value, self.module.target_value, polyak)
 
     def compute_stochastic_value_gradient_loss(self, episodes):
         """Compute Stochatic Value Gradient loss given full trajectories."""
@@ -239,8 +245,8 @@ class SVGInfTorchPolicy(TorchPolicy):
             actions = episode[SampleBatch.ACTIONS]
             next_obs = episode[SampleBatch.NEXT_OBS]
 
-            rewards, last_obs = self.module["rollout"](actions, next_obs, init_obs)
-            last_val = self.module["value"](last_obs)
+            rewards, last_obs = self.module.rollout(actions, next_obs, init_obs)
+            last_val = self.module.value(last_obs)
             values = torch.cat([rewards, last_val], dim=0)
             total_loss += torch.sum(values * gamma ** torch.arange(len(values)).float())
 
@@ -250,14 +256,14 @@ class SVGInfTorchPolicy(TorchPolicy):
     def extra_grad_info(self):
         """Compute gradient norm for components. Also clips on-policy gradient."""
         if self._off_policy_learning:
-            model_params = self.module["model"].parameters()
-            value_params = self.module["value"].parameters()
+            model_params = self.module.model.parameters()
+            value_params = self.module.value.parameters()
             fetches = {
                 "model_grad_norm": nn.utils.clip_grad_norm_(model_params, float("inf")),
                 "value_grad_norm": nn.utils.clip_grad_norm_(value_params, float("inf")),
             }
         else:
-            policy_params = self.module["policy"].parameters()
+            policy_params = self.module.policy.parameters()
             fetches = {
                 "policy_grad_norm": nn.utils.clip_grad_norm_(
                     policy_params, max_norm=self.config["max_grad_norm"]
@@ -270,7 +276,7 @@ class SVGInfTorchPolicy(TorchPolicy):
 
         keys = (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, self.ACTION_LOGP)
         obs, act, logp = [tensors[k] for k in keys]
-        dist_params = self.module["policy"](obs)
-        _logp = self.module["policy_logp"](dist_params, act)
+        dist_params = self.module.policy(obs)
+        _logp = self.module.policy_logp(dist_params, act)
 
         return {"kl_div": torch.mean(logp - _logp).item()}
