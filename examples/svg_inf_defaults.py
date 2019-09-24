@@ -1,4 +1,4 @@
-"""Tune experiment configuration SVG(inf).
+"""Tune experiment configuration for SVG(inf) on CartPoleSwingUp.
 
 This can be run from the command line by executing
 `python scripts/tune_experiment.py 'SVG(inf)' --local-dir <experiment dir>
@@ -23,6 +23,35 @@ def get_config():
         "on_policy_optimizer": "Adam",
         # Keyword arguments to be passed to the on-policy optimizer
         "on_policy_optimizer_options": {"lr": 3e-4},
+        # Clip gradient norms by this value
+        "max_grad_norm": 10.0,
+        # === Network ===
+        # Size and activation of the fully connected networks computing the logits
+        # for the policy, value function and model. No layers means the component is
+        # linear in states and/or actions.
+        "module": {
+            "policy": {
+                "layers": [100, 100],
+                "activation": "Tanh",
+                # "initializer": "xavier_normal",
+                "initializer": "xavier_uniform",
+                "initializer_options": {"gain": 5 / 3},
+            },
+            "value": {
+                "layers": [400, 200],
+                "activation": "Tanh",
+                # "initializer": "xavier_normal",
+                "initializer": "xavier_uniform",
+                "initializer_options": {"gain": 5 / 3},
+            },
+            "model": {
+                "layers": [40, 40],
+                "activation": "Tanh",
+                # "initializer": "xavier_normal",
+                "initializer": "xavier_uniform",
+                "initializer_options": {"gain": 5 / 3},
+            },
+        },
         # === RolloutWorker ===
         "sample_batch_size": 1,
         "batch_mode": "complete_episodes",
