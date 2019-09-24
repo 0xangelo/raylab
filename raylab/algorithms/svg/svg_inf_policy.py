@@ -250,7 +250,7 @@ class SVGInfTorchPolicy(TorchPolicy):
             values = torch.cat([rewards, last_val], dim=0)
             total_loss += torch.sum(values * gamma ** torch.arange(len(values)).float())
 
-        loss = total_loss / len(episodes)
+        loss = -(total_loss / len(episodes))
         return loss, {"on_policy_loss": loss.item()}
 
     def extra_grad_info(self):
