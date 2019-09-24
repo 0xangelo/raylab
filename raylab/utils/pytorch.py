@@ -26,7 +26,7 @@ def get_optimizer_class(name):
     """Return the optimizer class given its name.
 
     Arguments:
-        name (str): string representing the name of optimizer
+        name (str): string representing the name of the optimizer
 
     Returns:
         The corresponding `torch.optim.Optimizer` subclass
@@ -35,7 +35,33 @@ def get_optimizer_class(name):
         cls = getattr(torch.optim, name)
         if issubclass(cls, torch.optim.Optimizer) and cls is not torch.optim.Optimizer:
             return cls
-    raise ValueError("Unsupported optimizer name '{}'".format(name))
+    raise ValueError(f"Couldn't find optimizer with name '{name}'")
+
+
+def get_activation(name):
+    """Return activation module type from string.
+
+    Arguments:
+        name (str): string representing the name of activation function
+    """
+    if name in dir(nn.modules.activation):
+        cls = getattr(nn.modules.activation, name)
+        if issubclass(cls, nn.Module):
+            return cls
+    raise ValueError(f"Couldn't find activation with name '{name}'")
+
+
+def get_initializer(name):
+    """Return initializer function given its name.
+
+    Arguments:
+        name (str): string representing the name of initializer function
+    """
+    name_ = name + "_"
+    if name in dir(nn.init) and name_ in dir(nn.init):
+        func = getattr(nn.init, name_)
+        return func
+    raise ValueError(f"Couldn't find initializer with name '{name}'")
 
 
 def update_polyak(from_module, to_module, polyak):
@@ -87,24 +113,6 @@ def perturb_module_params(module, target_module, stddev):
 
     for param in to_perturb:
         param.data.add_(torch.randn_like(param) * stddev)
-
-
-def get_activation(activation):
-    """Return activation module type from string.
-
-    Arguments:
-        activation (str): name of activation function
-    """
-    if not isinstance(activation, str):
-        raise ValueError(
-            "'activation' must be a string type, got '{}'".format(type(activation))
-        )
-
-    if activation in dir(torch.nn.modules.activation):
-        cls = getattr(torch.nn.modules.activation, activation)
-        if issubclass(cls, nn.Module):
-            return cls
-    raise ValueError("Unsupported activation name '{}'".format(activation))
 
 
 def trace(func):
