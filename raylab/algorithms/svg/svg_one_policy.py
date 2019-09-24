@@ -5,6 +5,7 @@ from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
+from raylab.policy import TorchPolicy
 from raylab.algorithms.svg.svg_inf_policy import SVGInfTorchPolicy, Transition
 import raylab.modules as modules
 import raylab.utils.pytorch as torch_util
@@ -16,7 +17,8 @@ class SVGOneTorchPolicy(SVGInfTorchPolicy):
     # pylint: disable=abstract-method
 
     def __init__(self, observation_space, action_space, config):
-        super().__init__(observation_space, action_space, config)
+        # pylint: disable=non-parent-init-called,super-init-not-called
+        TorchPolicy.__init__(self, observation_space, action_space, config)
 
         self.module = self._make_module(
             self.observation_space, self.action_space, self.config
