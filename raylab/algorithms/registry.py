@@ -13,4 +13,14 @@ def _import_svg_inf():
     return SVGInfTrainer
 
 
-ALGORITHMS = {"NAF": _import_naf, "SVG(inf)": _import_svg_inf}
+def _import_svg_one():
+    from raylab.algorithms.svg.svg_one import SVGOneTrainer
+
+    return SVGOneTrainer
+
+
+ALGORITHMS = {
+    "NAF": _import_naf,
+    "SVG(inf)": _import_svg_inf,
+    "SVG(one)": _import_svg_one,
+}
