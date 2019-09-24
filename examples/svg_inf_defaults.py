@@ -18,11 +18,16 @@ def get_config():
         "no_done_at_end": False,
         # === Replay Buffer ===
         "buffer_size": int(1e5),
+        # === Optimization ===
+        # Name of Pytorch optimizer class for paremetrized policy
+        "on_policy_optimizer": "Adam",
+        # Keyword arguments to be passed to the on-policy optimizer
+        "on_policy_optimizer_options": {"lr": 3e-4},
         # === RolloutWorker ===
         "sample_batch_size": 1,
         "batch_mode": "complete_episodes",
         "horizon": None,
-        "seed": tune.grid_search(list(range(10))),
+        "seed": None,
         # === Trainer ===
         "train_batch_size": 128,
         "timesteps_per_iteration": 1000,
