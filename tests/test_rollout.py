@@ -11,8 +11,8 @@ def worker_kwargs():
 
 
 def test_output_action_in_action_space(env_creator, policy_cls):
-    if policy_cls is SVGInfTorchPolicy:
-        pytest.skip("SVGInfTorchPolicy doesn't squash actions to the action space.")
+    if issubclass(policy_cls, SVGInfTorchPolicy):
+        pytest.skip("SVG policies don't squash actions to the action space.")
     env = env_creator()
     policy = policy_cls(env.observation_space, env.action_space, {})
 
