@@ -77,23 +77,27 @@ def update_polyak(from_module, to_module, polyak):
         target.data.mul_(polyak).add_(1 - polyak, source.data)
 
 
-def initialize_orthogonal(gain=1.0):
-    """Initialize the parameters of a module as orthogonal matrices.
+def initialize_(name, **options):
+    """Return a callable to apply an initializer with the given name and options.
 
     Arguments:
-        gain (float): scaling factor for the orthogonal initializer
+        name (str): name of initializer function
+        **options: keyword arguments to be passed to the initializer
 
     Returns:
         A callable to be used with `nn.Module.apply`.
     """
 
-    def initialize(module):
+    initializer = get_initializer(name)
+    func_ = functools.partial(initializer, **options)
+
+    def init(module):
         if isinstance(module, nn.Linear):
-            nn.init.orthogonal_(module.weight, gain=gain)
+            func_(module.weight)
             if module.bias is not None:
                 nn.init.constant_(module.bias, 0)
 
-    return initialize
+    return init
 
 
 def perturb_module_params(module, target_module, stddev):

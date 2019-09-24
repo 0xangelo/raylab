@@ -8,11 +8,7 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.policy import TorchPolicy
-from raylab.algorithms.svg.svg_module import (
-    ParallelDynamicsModel,
-    NormalLogProb,
-    NormalRSample,
-)
+from raylab.algorithms.svg.svg_inf_policy import SVGInfTorchPolicy
 import raylab.modules as modules
 import raylab.utils.pytorch as torch_util
 
@@ -30,7 +26,7 @@ class SVGOneTorchPolicy(TorchPolicy):
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
 
-        self.module = self._make_module(
+        self.module = SVGInfTorchPolicy._make_module(  # pylint: disable=protected-access
             self.observation_space, self.action_space, self.config
         )
         self._optimizer = self.optimizer()
@@ -88,65 +84,6 @@ class SVGOneTorchPolicy(TorchPolicy):
         return optim_cls(params)
 
     # === NEW METHODS ===
-    @staticmethod
-    def _make_module(obs_space, action_space, config):
-        module = nn.ModuleDict()
-
-        model_config = config["module"]["model"]
-        model_logits_modules = [
-            modules.StateActionEncoder(
-                obs_dim=obs_space.shape[0],
-                action_dim=action_space.shape[0],
-                units=model_config["layers"],
-                activation=model_config["activation"],
-            )
-            for _ in range(obs_space.shape[0])
-        ]
-        module.model = ParallelDynamicsModel(*model_logits_modules)
-        module.model.apply(
-            torch_util.initialize_orthogonal(model_config["ortho_init_gain"])
-        )
-
-        value_config = config["module"]["value"]
-
-        def make_value_module():
-            value_logits_module = modules.FullyConnected(
-                in_features=obs_space.shape[0],
-                units=value_config["layers"],
-                activation=value_config["activation"],
-            )
-            value_output = modules.ValueFunction(value_logits_module.out_features)
-
-            value_module = nn.Sequential(value_logits_module, value_output)
-            value_module.apply(
-                torch_util.initialize_orthogonal(value_config["ortho_init_gain"])
-            )
-            return value_module
-
-        module.value = make_value_module()
-        module.target_value = make_value_module()
-
-        policy_config = config["module"]["policy"]
-        policy_logits_module = modules.FullyConnected(
-            in_features=obs_space.shape[0],
-            units=policy_config["layers"],
-            activation=policy_config["activation"],
-        )
-        policy_dist_param_module = modules.DiagMultivariateNormalParams(
-            policy_logits_module.out_features, action_space.shape[0]
-        )
-        module.policy = nn.Sequential(policy_logits_module, policy_dist_param_module)
-        module.policy.apply(
-            torch_util.initialize_orthogonal(policy_config["ortho_init_gain"])
-        )
-
-        module.policy_logp = NormalLogProb()
-        module.model_logp = NormalLogProb()
-        module.policy_rsample = NormalRSample()
-        module.model_rsample = NormalRSample()
-
-        return module
-
     def set_reward_fn(self, reward_fn):
         """Set the reward function to use when unrolling the policy and model."""
         # Add recurrent policy-model combination

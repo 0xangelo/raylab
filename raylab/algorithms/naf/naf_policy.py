@@ -301,7 +301,10 @@ class NAFTorchPolicy(TorchPolicy):
 
         # Initialize modules
         module.apply(
-            torch_util.initialize_orthogonal(config["module"]["ortho_init_gain"])
+            torch_util.initialize_(
+                config["module"]["initializer"],
+                **config["module"]["initializer_options"]
+            )
         )
 
         if config["torch_script"] == "trace":

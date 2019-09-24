@@ -115,7 +115,9 @@ class SVGInfTorchPolicy(TorchPolicy):
         ]
         module["model"] = ParallelDynamicsModel(*model_logits_modules)
         module["model"].apply(
-            torch_util.initialize_orthogonal(model_config["ortho_init_gain"])
+            torch_util.initialize_(
+                model_config["initializer"], **model_config["initializer_options"]
+            )
         )
 
         value_config = config["module"]["value"]
@@ -130,7 +132,9 @@ class SVGInfTorchPolicy(TorchPolicy):
 
             value_module = nn.Sequential(value_logits_module, value_output)
             value_module.apply(
-                torch_util.initialize_orthogonal(value_config["ortho_init_gain"])
+                torch_util.initialize_(
+                    value_config["initializer"], **value_config["initializer_options"]
+                )
             )
             return value_module
 
@@ -148,7 +152,9 @@ class SVGInfTorchPolicy(TorchPolicy):
         )
         module["policy"] = nn.Sequential(policy_logits_module, policy_dist_param_module)
         module["policy"].apply(
-            torch_util.initialize_orthogonal(policy_config["ortho_init_gain"])
+            torch_util.initialize_(
+                policy_config["initializer"], **policy_config["initializer_options"]
+            )
         )
 
         module["policy_logp"] = NormalLogProb()

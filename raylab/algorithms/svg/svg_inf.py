@@ -44,14 +44,21 @@ DEFAULT_CONFIG = with_common_config(
             "policy": {
                 "layers": [100, 100],
                 "activation": "Tanh",
-                "ortho_init_gain": 1.0,
+                "initializer": "orthogonal",
+                "initializer_options": {"gain": 1.0},
             },
             "value": {
                 "layers": [400, 200],
                 "activation": "Tanh",
-                "ortho_init_gain": 1.0,
+                "initializer": "orthogonal",
+                "initializer_options": {"gain": 1.0},
             },
-            "model": {"layers": [40, 40], "activation": "Tanh", "ortho_init_gain": 1.0},
+            "model": {
+                "layers": [40, 40],
+                "activation": "Tanh",
+                "initializer": "orthogonal",
+                "initializer_options": {"gain": 1.0},
+            },
         },
     }
 )
