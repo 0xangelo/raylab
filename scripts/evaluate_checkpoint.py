@@ -41,10 +41,11 @@ def get_agent(checkpoint, algo, env):
 @click.argument("checkpoint")
 @click.option("--algo", default=None, help="Name of the trainable class to run.")
 @click.option("--env", default=None, help="Name of the environment to interact with.")
-def main(checkpoint, algo, env):
+@click.pass_context
+def main(ctx, checkpoint, algo, env):
     """Produce rollouts."""
-    if not algo or not env:
-        return
+    if not algo:
+        ctx.exit()
 
     raylab.register_all_agents()
     raylab.register_all_environments()
