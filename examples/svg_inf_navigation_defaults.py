@@ -2,7 +2,7 @@
 
 This can be run from the command line by executing
 `python scripts/tune_experiment.py 'SVG(inf)' --local-dir <experiment dir>
-    --config examples/svg_inf_defaults.py --stop timesteps_total 100000`
+    --config examples/svg_inf_navigation_defaults.py --stop timesteps_total 10000`
 """
 from ray import tune
 
@@ -17,7 +17,7 @@ def get_config():
         # Name of Pytorch optimizer class for paremetrized policy
         "on_policy_optimizer": "Adam",
         # Keyword arguments to be passed to the on-policy optimizer
-        "on_policy_optimizer_options": {"lr": tune.grid_search([7e-4, 3e-4])},
+        "on_policy_optimizer_options": {"lr": tune.grid_search([3e-4])},
         # Clip gradient norms by this value
         "max_grad_norm": 10.0,
         # === Regularization ===
@@ -52,6 +52,7 @@ def get_config():
                 # "initializer": "xavier_normal",
                 "initializer": "xavier_uniform",
                 "initializer_options": {"gain": 5 / 3},
+                "delay_action": tune.grid_search([False]),
             },
         },
         # === RolloutWorker ===
