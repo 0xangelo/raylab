@@ -106,13 +106,13 @@ class SVGInfTrainer(Trainer):
         for row in samples.rows():
             self.replay.add(row)
 
-        policy.off_policy_learning(True)
+        policy.learn_off_policy()
         for _ in range(samples.count):
             batch = self.replay.sample(self.config["train_batch_size"])
             off_policy_stats = get_learner_stats(policy.learn_on_batch(batch))
             self.optimizer.num_steps_trained += batch.count
 
-        policy.off_policy_learning(False)
+        policy.learn_on_policy()
         on_policy_stats = get_learner_stats(policy.learn_on_batch(samples))
         policy.update_kl_coeff(on_policy_stats["policy_kl_div"])
 

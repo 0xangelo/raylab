@@ -1,5 +1,6 @@
 """SVG(inf) policy class using PyTorch."""
 import itertools
+import functools
 import collections
 
 import torch
@@ -114,9 +115,12 @@ class SVGInfTorchPolicy(TorchPolicy):
 
     # ================================= NEW METHODS ====================================
 
-    def off_policy_learning(self, learn_off_policy):
+    def set_off_policy(self, learn_off_policy):
         """Set the current learning state to off-policy or not."""
         self._off_policy_learning = learn_off_policy
+
+    learn_off_policy = functools.partialmethod(set_off_policy, True)
+    learn_on_policy = functools.partialmethod(set_off_policy, False)
 
     @staticmethod
     def _make_module(obs_space, action_space, config):
