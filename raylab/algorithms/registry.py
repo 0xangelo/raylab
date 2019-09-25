@@ -22,5 +22,5 @@ def _import_svg_one():
 ALGORITHMS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
-    "SVG(one)": _import_svg_one,
+    "SVG(1)": _import_svg_one,
 }
