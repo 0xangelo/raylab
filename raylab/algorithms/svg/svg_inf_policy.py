@@ -165,7 +165,9 @@ class SVGInfTorchPolicy(TorchPolicy):
             activation=policy_config["activation"],
         )
         policy_dist_param_module = modules.DiagMultivariateNormalParams(
-            policy_logits_module.out_features, action_space.shape[0]
+            policy_logits_module.out_features,
+            action_space.shape[0],
+            input_dependent_scale=policy_config["input_dependent_scale"],
         )
         module.policy = nn.Sequential(policy_logits_module, policy_dist_param_module)
         module.policy.apply(

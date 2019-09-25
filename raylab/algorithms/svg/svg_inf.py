@@ -51,20 +51,21 @@ DEFAULT_CONFIG = with_common_config(
             "policy": {
                 "layers": [100, 100],
                 "activation": "Tanh",
-                "initializer": "orthogonal",
-                "initializer_options": {"gain": 1.0},
+                "initializer": "xavier_uniform",
+                "initializer_options": {"gain": 5 / 3},
+                "input_dependent_scale": False,
             },
             "value": {
                 "layers": [400, 200],
                 "activation": "Tanh",
-                "initializer": "orthogonal",
-                "initializer_options": {"gain": 1.0},
+                "initializer": "xavier_uniform",
+                "initializer_options": {"gain": 5 / 3},
             },
             "model": {
                 "layers": [40, 40],
                 "activation": "Tanh",
-                "initializer": "orthogonal",
-                "initializer_options": {"gain": 1.0},
+                "initializer": "xavier_uniform",
+                "initializer_options": {"gain": 5 / 3},
             },
         },
     }
