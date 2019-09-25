@@ -81,14 +81,17 @@ class SVGOneTorchPolicy(SVGInfTorchPolicy):
         mle_loss = self.module.model_logp(dist_params, residual).mean().neg()
 
         with torch.no_grad():
-            targets = self.module.target_value(trans.next_obs).squeeze(-1)
-            dist_params = self.module.policy(trans.obs)
-            curr_logp = self.module.policy_logp(dist_params, trans.actions)
-            is_ratio = torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP])
-            is_ratio = torch.clamp(is_ratio, max=self.config["max_is_ratio"])
+            next_vals = self.module.target_value(trans.next_obs).squeeze(-1)
+            curr_logp = self.module.policy_logp(
+                self.module.policy(trans.obs), trans.actions
+            )
+            is_ratio = torch.clamp(
+                torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP]),
+                max=self.config["max_is_ratio"],
+            )
 
         targets = torch.where(
-            trans.dones, trans.rewards, trans.rewards + self.config["gamma"] * targets
+            trans.dones, trans.rewards, trans.rewards + self.config["gamma"] * next_vals
         )
         values = self.module.value(trans.obs).squeeze(-1)
         value_loss = torch.mean(
@@ -96,9 +99,10 @@ class SVGOneTorchPolicy(SVGInfTorchPolicy):
         )
 
         _acts = self.module.policy_rsample(self.module.policy(trans.obs), trans.actions)
-        _next_obs = self.module.model_rsample(
-            self.module.model(trans.obs, _acts), trans.next_obs
+        residual = self.module.model_rsample(
+            self.module.model(trans.obs, _acts), trans.next_obs - trans.obs
         )
+        _next_obs = trans.obs + residual
         svg_loss = torch.mean(
             is_ratio
             * (
