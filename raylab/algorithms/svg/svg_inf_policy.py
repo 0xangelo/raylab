@@ -274,6 +274,7 @@ class SVGInfTorchPolicy(TorchPolicy):
                     policy_params, max_norm=self.config["max_grad_norm"]
                 ),
                 "policy_entropy": self.module.entropy(batch_tensors).mean().item(),
+                "curr_kl_coeff": self._kl_coeff_spec.curr_coeff,
             }
         return fetches
 
