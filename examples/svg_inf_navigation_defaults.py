@@ -32,28 +32,8 @@ def get_config():
         # for the policy, value function and model. No layers means the component is
         # linear in states and/or actions.
         "module": {
-            "policy": {
-                "layers": [100, 100],
-                "activation": "Tanh",
-                # "initializer": "xavier_normal",
-                "initializer": "xavier_uniform",
-                "initializer_options": {"gain": 5 / 3},
-            },
-            "value": {
-                "layers": [400, 200],
-                "activation": "Tanh",
-                # "initializer": "xavier_normal",
-                "initializer": "xavier_uniform",
-                "initializer_options": {"gain": 5 / 3},
-            },
-            "model": {
-                "layers": [40, 40],
-                "activation": "Tanh",
-                # "initializer": "xavier_normal",
-                "initializer": "xavier_uniform",
-                "initializer_options": {"gain": 5 / 3},
-                "delay_action": tune.grid_search([False]),
-            },
+            "policy": {"input_dependent_scale": False},
+            "model": {"delay_action": tune.grid_search([False])},
         },
         # === RolloutWorker ===
         "sample_batch_size": 1,
