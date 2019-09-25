@@ -83,11 +83,8 @@ class SVGInfTorchPolicy(TorchPolicy):
         else:
             episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
             loss, info = self.compute_stochastic_value_gradient_loss(episodes)
-
-            new_params = self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
-            kl_div = self.module.kl_div(batch_tensors, new_params).mean()
+            kl_div = self._avg_kl_divergence(batch_tensors)
             loss = loss + kl_div * self._kl_coeff_spec.curr_coeff
-
             self.on_policy_optimizer.zero_grad()
             loss.backward()
             info.update(self.extra_grad_info(batch_tensors))
@@ -115,7 +112,7 @@ class SVGInfTorchPolicy(TorchPolicy):
 
         return off_policy_optim, on_policy_optim
 
-    # === NEW METHODS ===
+    # ================================= NEW METHODS ====================================
 
     def off_policy_learning(self, learn_off_policy):
         """Set the current learning state to off-policy or not."""
@@ -130,6 +127,7 @@ class SVGInfTorchPolicy(TorchPolicy):
             mods.StateActionEncoder(
                 obs_dim=obs_space.shape[0],
                 action_dim=action_space.shape[0],
+                delay_action=model_config["delay_action"],
                 units=model_config["layers"],
                 activation=model_config["activation"],
             )
@@ -279,12 +277,14 @@ class SVGInfTorchPolicy(TorchPolicy):
             }
         return fetches
 
+    def _avg_kl_divergence(self, batch_tensors):
+        new_params = self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
+        return self.module.kl_div(batch_tensors, new_params).mean()
+
     @torch.no_grad()
     def extra_apply_info(self, batch_tensors):
         """Add average KL divergence between new and old policies."""
-        new_params = self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
-        kl_div = self.module.kl_div(batch_tensors, new_params).mean().item()
-        return {"policy_kl_div": kl_div}
+        return {"policy_kl_div": self._avg_kl_divergence(batch_tensors).item()}
 
     def update_kl_coeff(self, kl_div):
         """

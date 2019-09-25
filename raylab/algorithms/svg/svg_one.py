@@ -60,6 +60,7 @@ DEFAULT_CONFIG = with_common_config(
                 "activation": "Tanh",
                 "initializer": "xavier_uniform",
                 "initializer_options": {"gain": 5 / 3},
+                "delay_action": False,
             },
         },
     }
