@@ -3,6 +3,7 @@ import pytest
 
 import raylab
 from raylab.algorithms.registry import ALGORITHMS
+from raylab.envs.registry import ENVS
 
 from .mock_env import MockEnv
 
@@ -24,3 +25,13 @@ def policy_cls(trainer_cls):
 @pytest.fixture
 def env_creator():
     return MockEnv
+
+
+@pytest.fixture
+def navigation_env():
+    return ENVS["Navigation"]
+
+
+@pytest.fixture
+def cartpole_swingup_env():
+    return ENVS["CartPoleSwingUp"]
