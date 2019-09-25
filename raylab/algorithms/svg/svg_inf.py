@@ -36,7 +36,7 @@ DEFAULT_CONFIG = with_common_config(
         "polyak": 0.995,
         # === Regularization ===
         "kl_schedule": {
-            "initial_kl": 0.2,
+            "initial_coeff": 0.2,
             "desired_kl": 0.01,
             "adaptation_coeff": 2.0,
             "threshold": 1.5,
@@ -116,6 +116,7 @@ class SVGInfTrainer(Trainer):
 
         policy.off_policy_learning(False)
         on_policy_stats = get_learner_stats(policy.learn_on_batch(samples))
+        policy.update_kl_coeff(on_policy_stats["policy_kl_div"])
 
         learner_stats = {**off_policy_stats, **on_policy_stats}
         res = self.collect_metrics()
