@@ -24,8 +24,10 @@ class ParallelDynamicsModel(nn.Module):
 
     def __init__(self, *logits_modules):
         super().__init__()
-        self.logits_modules = logits_modules
-        self.loc_modules = [nn.Linear(m.out_features, 1) for m in self.logits_modules]
+        self.logits_modules = nn.ModuleList(logits_modules)
+        self.loc_modules = nn.ModuleList(
+            [nn.Linear(m.out_features, 1) for m in self.logits_modules]
+        )
         self.log_scale = nn.Parameter(torch.zeros(len(self.logits_modules)))
 
     @override(nn.Module)
