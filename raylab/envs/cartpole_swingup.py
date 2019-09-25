@@ -1,6 +1,6 @@
 # pylint: disable=missing-docstring
 # pylint: enable=missing-docstring
-import math
+import numpy as np
 import torch
 from gym_cartpole_swingup.envs import CartPoleSwingUpEnv as _CartPoleSwingUpEnv
 
@@ -14,5 +14,5 @@ class CartPoleSwingUpEnv(_CartPoleSwingUpEnv):
         Assumes all but the last dimension are batch ones.
         """
         reward_theta = (next_state[..., 2] + 1.0) / 2.0
-        reward_x = torch.cos((next_state[..., 0] / self.x_threshold) * (math.pi / 2.0))
+        reward_x = torch.cos((next_state[..., 0] / self.x_threshold) * (np.pi / 2.0))
         return reward_theta * reward_x
