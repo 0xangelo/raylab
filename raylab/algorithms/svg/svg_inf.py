@@ -34,6 +34,13 @@ DEFAULT_CONFIG = with_common_config(
         "max_is_ratio": 5.0,
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
+        # === Regularization ===
+        "kl_schedule": {
+            "initial_kl": 0.2,
+            "desired_kl": 0.01,
+            "adaptation_coeff": 2.0,
+            "threshold": 1.5,
+        },
         # === Rollout Worker ===
         "num_workers": 0,
         # === Network ===
