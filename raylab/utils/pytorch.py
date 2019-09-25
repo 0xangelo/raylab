@@ -1,5 +1,6 @@
 """PyTorch related utilities."""
 import functools
+import inspect
 
 import numpy as np
 import torch
@@ -26,7 +27,7 @@ def get_optimizer_class(name):
     """Return the optimizer class given its name.
 
     Arguments:
-        name (str): string representing the name of the optimizer
+        name (str): the optimizer's name
 
     Returns:
         The corresponding `torch.optim.Optimizer` subclass
@@ -42,8 +43,11 @@ def get_activation(name):
     """Return activation module type from string.
 
     Arguments:
-        name (str): string representing the name of activation function
+        name (str or None): the activation function's name
     """
+    if name is None:
+        return None
+
     if name in dir(nn.modules.activation):
         cls = getattr(nn.modules.activation, name)
         if issubclass(cls, nn.Module):
@@ -55,7 +59,7 @@ def get_initializer(name):
     """Return initializer function given its name.
 
     Arguments:
-        name (str): string representing the name of initializer function
+        name (str): the initializer function's name
     """
     name_ = name + "_"
     if name in dir(nn.init) and name_ in dir(nn.init):
@@ -77,11 +81,15 @@ def update_polyak(from_module, to_module, polyak):
         target.data.mul_(polyak).add_(1 - polyak, source.data)
 
 
-def initialize_(name, **options):
+def initialize_(name, activation=None, **options):
     """Return a callable to apply an initializer with the given name and options.
+
+    If `gain` is part of the initializer's argspec and is not specified in options,
+    the recommended value from `nn.init.calculate_gain` is used.
 
     Arguments:
         name (str): name of initializer function
+        activation (str): name of activation function following linear layer, optional
         **options: keyword arguments to be passed to the initializer
 
     Returns:
@@ -89,6 +97,11 @@ def initialize_(name, **options):
     """
 
     initializer = get_initializer(name)
+    if activation and "gain" in inspect.signature(initializer).parameters:
+        recommended_gain = nn.init.calculate_gain(
+            activation.lower(), param=options.get("negative_slope")
+        )
+        options = {"gain": recommended_gain, **options}
     func_ = functools.partial(initializer, **options)
 
     def init(module):

@@ -11,7 +11,7 @@ class StateActionEncoder(nn.Module):
 
     __constants__ = {"in_features", "out_features"}
 
-    def __init__(self, obs_dim, action_dim, units=(), delay_action=True, **fc_kwargs):
+    def __init__(self, obs_dim, action_dim, delay_action=True, units=(), **fc_kwargs):
         super().__init__()
         self.in_features = obs_dim + action_dim
         if units:

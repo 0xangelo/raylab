@@ -130,15 +130,11 @@ class SVGInfTorchPolicy(TorchPolicy):
                 delay_action=model_config["delay_action"],
                 units=model_config["layers"],
                 activation=model_config["activation"],
+                **model_config["initializer_options"]
             )
             for _ in range(obs_space.shape[0])
         ]
         module.model = svgm.ParallelDynamicsModel(*model_logits_modules)
-        module.model.apply(
-            torch_util.initialize_(
-                model_config["initializer"], **model_config["initializer_options"]
-            )
-        )
 
         value_config = config["module"]["value"]
 
@@ -147,15 +143,11 @@ class SVGInfTorchPolicy(TorchPolicy):
                 in_features=obs_space.shape[0],
                 units=value_config["layers"],
                 activation=value_config["activation"],
+                **model_config["initializer_options"]
             )
             value_output = mods.ValueFunction(value_logits_module.out_features)
 
             value_module = nn.Sequential(value_logits_module, value_output)
-            value_module.apply(
-                torch_util.initialize_(
-                    value_config["initializer"], **value_config["initializer_options"]
-                )
-            )
             return value_module
 
         module.value = make_value_module()
@@ -166,6 +158,7 @@ class SVGInfTorchPolicy(TorchPolicy):
             in_features=obs_space.shape[0],
             units=policy_config["layers"],
             activation=policy_config["activation"],
+            **model_config["initializer_options"]
         )
         policy_dist_param_module = mods.DiagMultivariateNormalParams(
             policy_logits_module.out_features,
@@ -173,11 +166,6 @@ class SVGInfTorchPolicy(TorchPolicy):
             input_dependent_scale=policy_config["input_dependent_scale"],
         )
         module.policy = nn.Sequential(policy_logits_module, policy_dist_param_module)
-        module.policy.apply(
-            torch_util.initialize_(
-                policy_config["initializer"], **policy_config["initializer_options"]
-            )
-        )
 
         module.policy_logp = svgm.DiagNormalLogProb()
         module.model_logp = svgm.DiagNormalLogProb()
