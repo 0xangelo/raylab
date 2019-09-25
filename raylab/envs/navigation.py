@@ -72,7 +72,7 @@ class NavigationEnv(gym.Env):
     def step(self, action):
         state, action = map(torch.as_tensor, (self._state, action))
         next_state = self.transition_fn(state, action)
-        reward = self.reward_fn(state, action, next_state).numpy()
+        reward = self.reward_fn(state, action, next_state).item()
         self._state = next_state.numpy()
         return self._state, reward, self._terminal(), {}
 
@@ -95,7 +95,8 @@ class NavigationEnv(gym.Env):
 
         position = state + (deceleration * action)
         next_state = self._sample_noise(position)
-        return torch.cat([next_state, time + 1 / self._horizon], dim=-1)
+        time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0)
+        return torch.cat([next_state, time], dim=-1)
 
     def _sample_noise(self, position):
         loc = position + torch.as_tensor(self._noise["loc"])
