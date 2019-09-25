@@ -202,32 +202,16 @@ class SVGInfTorchPolicy(TorchPolicy):
 
     def compute_joint_model_value_loss(self, batch_tensors):
         """Compute model MLE loss and fitted value function loss."""
-        columns = [
-            SampleBatch.CUR_OBS,
-            SampleBatch.ACTIONS,
-            SampleBatch.REWARDS,
-            SampleBatch.NEXT_OBS,
-            SampleBatch.DONES,
-        ]
-        trans = Transition(*[batch_tensors[c] for c in columns])
-
-        dist_params = self.module.model(trans.obs, trans.actions)
-        residual = trans.next_obs - trans.obs
-        mle_loss = self.module.model_logp(dist_params, residual).mean().neg()
+        mle_loss = self._avg_model_logp(batch_tensors).neg()
 
         with torch.no_grad():
-            targets = self.module.target_value(trans.next_obs).squeeze(-1)
-            dist_params = self.module.policy(trans.obs)
-            curr_logp = self.module.policy_logp(dist_params, trans.actions)
-            is_ratio = torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP])
-            is_ratio = torch.clamp(is_ratio, max=self.config["max_is_ratio"])
+            targets = self._compute_value_targets(batch_tensors)
+            is_ratio = self._compute_is_ratios(batch_tensors)
 
-        targets = torch.where(
-            trans.dones, trans.rewards, trans.rewards + self.config["gamma"] * targets
-        )
-        values = self.module.value(trans.obs).squeeze(-1)
+        _is_ratio = torch.clamp(is_ratio, max=self.config["max_is_ratio"])
+        values = self.module.value(batch_tensors[SampleBatch.CUR_OBS]).squeeze(-1)
         value_loss = torch.mean(
-            is_ratio * nn.MSELoss(reduction="none")(values, targets) / 2
+            _is_ratio * nn.MSELoss(reduction="none")(values, targets) / 2
         )
 
         joint_loss = mle_loss + self.config["vf_loss_coeff"] * value_loss
@@ -235,6 +219,7 @@ class SVGInfTorchPolicy(TorchPolicy):
             "off_policy_loss": joint_loss.item(),
             "mle_loss": mle_loss.item(),
             "value_loss": value_loss.item(),
+            "avg_is_ratio": is_ratio.mean().item(),
         }
         return joint_loss, info
 
@@ -275,12 +260,9 @@ class SVGInfTorchPolicy(TorchPolicy):
                 ),
                 "policy_entropy": self.module.entropy(batch_tensors).mean().item(),
                 "curr_kl_coeff": self._kl_coeff_spec.curr_coeff,
+                "cur_model_err": self._avg_model_logp(batch_tensors).neg().item(),
             }
         return fetches
-
-    def _avg_kl_divergence(self, batch_tensors):
-        new_params = self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
-        return self.module.kl_div(batch_tensors, new_params).mean()
 
     @torch.no_grad()
     def extra_apply_info(self, batch_tensors):
@@ -292,3 +274,34 @@ class SVGInfTorchPolicy(TorchPolicy):
         Update KL penalty based on observed divergence between successive policies.
         """
         self._kl_coeff_spec.adapt(kl_div)
+
+    def _avg_model_logp(self, batch_tensors):
+        dist_params = self.module.model(
+            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
+        )
+        residual = (
+            batch_tensors[SampleBatch.NEXT_OBS] - batch_tensors[SampleBatch.CUR_OBS]
+        )
+        return self.module.model_logp(dist_params, residual).mean()
+
+    def _compute_value_targets(self, batch_tensors):
+        next_obs = batch_tensors[SampleBatch.NEXT_OBS]
+        next_vals = self.module.target_value(next_obs).squeeze(-1)
+        targets = torch.where(
+            batch_tensors[SampleBatch.DONES],
+            batch_tensors[SampleBatch.REWARDS],
+            batch_tensors[SampleBatch.REWARDS] + self.config["gamma"] * next_vals,
+        )
+        return targets
+
+    def _compute_is_ratios(self, batch_tensors):
+        dist_params = self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
+        curr_logp = self.module.policy_logp(
+            dist_params, batch_tensors[SampleBatch.ACTIONS]
+        )
+        is_ratio = torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP])
+        return is_ratio
+
+    def _avg_kl_divergence(self, batch_tensors):
+        new_params = self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
+        return self.module.kl_div(batch_tensors, new_params).mean()
