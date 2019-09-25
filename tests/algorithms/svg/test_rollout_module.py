@@ -6,15 +6,20 @@ from ray.rllib.policy.sample_batch import SampleBatch
 
 
 @pytest.fixture(params=(True, False))
+def env_creator(request, cartpole_swingup_env, navigation_env):
+    return cartpole_swingup_env if request.param else navigation_env
+
+
+@pytest.fixture(params=(True, False))
 def policy_config(request):
     return {"module": {"policy": {"input_dependent_scale": request.param}}}
 
 
 @pytest.fixture
-def setup_navigation(svg_inf_policy, navigation_env, policy_config):
+def setup_worker(svg_inf_policy, env_creator, policy_config):
     def setup():
         worker = RolloutWorker(
-            env_creator=navigation_env,
+            env_creator=env_creator,
             policy=svg_inf_policy,
             policy_config=policy_config,
             batch_steps=1,
@@ -27,8 +32,8 @@ def setup_navigation(svg_inf_policy, navigation_env, policy_config):
     return setup
 
 
-def test_reproduce_rewards(setup_navigation):
-    worker, policy = setup_navigation()
+def test_reproduce_rewards(setup_worker):
+    worker, policy = setup_worker()
 
     traj = worker.sample()
     tensors = policy._lazy_tensor_dict(traj)
@@ -39,11 +44,11 @@ def test_reproduce_rewards(setup_navigation):
             tensors[SampleBatch.CUR_OBS][0],
         )
 
-    assert np.allclose(traj[SampleBatch.REWARDS], rewards.numpy())
+    assert np.allclose(traj[SampleBatch.REWARDS], rewards.numpy(), atol=1e-6)
 
 
-def test_propagates_gradients(setup_navigation):
-    worker, policy = setup_navigation()
+def test_propagates_gradients(setup_worker):
+    worker, policy = setup_worker()
 
     traj = worker.sample()
     tensors = policy._lazy_tensor_dict(traj)
