@@ -9,13 +9,8 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.policy import TorchPolicy
-from raylab.algorithms.svg.svg_module import (
-    ParallelDynamicsModel,
-    ReproduceRollout,
-    NormalLogProb,
-    NormalRSample,
-)
-import raylab.modules as modules
+import raylab.algorithms.svg.svg_module as svgm
+import raylab.modules as mods
 import raylab.utils.pytorch as torch_util
 
 
@@ -67,17 +62,20 @@ class SVGInfTorchPolicy(TorchPolicy):
         actions = self.module.policy_rsample(dist_params)
         logp = self.module.policy_logp(dist_params, actions)
 
-        extra_fetches = {self.ACTION_LOGP: logp.cpu().numpy()}
+        extra_fetches = {
+            self.ACTION_LOGP: logp.cpu().numpy(),
+            **{k: v.numpy() for k, v in dist_params.items()},
+        }
         return actions.cpu().numpy(), state_batches, extra_fetches
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
+        batch_tensors = self._lazy_tensor_dict(samples)
         if self._off_policy_learning:
-            batch_tensors = self._lazy_tensor_dict(samples)
             loss, info = self.compute_joint_model_value_loss(batch_tensors)
             self.off_policy_optimizer.zero_grad()
             loss.backward()
-            info.update(self.extra_grad_info())
+            info.update(self.extra_grad_info(batch_tensors))
             self.off_policy_optimizer.step()
             self.update_targets()
         else:
@@ -85,9 +83,9 @@ class SVGInfTorchPolicy(TorchPolicy):
             loss, info = self.compute_stochastic_value_gradient_loss(episodes)
             self.on_policy_optimizer.zero_grad()
             loss.backward()
-            info.update(self.extra_grad_info())
+            info.update(self.extra_grad_info(batch_tensors))
             self.on_policy_optimizer.step()
-            info.update(self.add_kl_info(self._lazy_tensor_dict(samples)))
+            info.update(self.extra_apply_info(batch_tensors))
 
         return {LEARNER_STATS_KEY: info}
 
@@ -122,7 +120,7 @@ class SVGInfTorchPolicy(TorchPolicy):
 
         model_config = config["module"]["model"]
         model_logits_modules = [
-            modules.StateActionEncoder(
+            mods.StateActionEncoder(
                 obs_dim=obs_space.shape[0],
                 action_dim=action_space.shape[0],
                 units=model_config["layers"],
@@ -130,7 +128,7 @@ class SVGInfTorchPolicy(TorchPolicy):
             )
             for _ in range(obs_space.shape[0])
         ]
-        module.model = ParallelDynamicsModel(*model_logits_modules)
+        module.model = svgm.ParallelDynamicsModel(*model_logits_modules)
         module.model.apply(
             torch_util.initialize_(
                 model_config["initializer"], **model_config["initializer_options"]
@@ -140,12 +138,12 @@ class SVGInfTorchPolicy(TorchPolicy):
         value_config = config["module"]["value"]
 
         def make_value_module():
-            value_logits_module = modules.FullyConnected(
+            value_logits_module = mods.FullyConnected(
                 in_features=obs_space.shape[0],
                 units=value_config["layers"],
                 activation=value_config["activation"],
             )
-            value_output = modules.ValueFunction(value_logits_module.out_features)
+            value_output = mods.ValueFunction(value_logits_module.out_features)
 
             value_module = nn.Sequential(value_logits_module, value_output)
             value_module.apply(
@@ -159,12 +157,12 @@ class SVGInfTorchPolicy(TorchPolicy):
         module.target_value = make_value_module()
 
         policy_config = config["module"]["policy"]
-        policy_logits_module = modules.FullyConnected(
+        policy_logits_module = mods.FullyConnected(
             in_features=obs_space.shape[0],
             units=policy_config["layers"],
             activation=policy_config["activation"],
         )
-        policy_dist_param_module = modules.DiagMultivariateNormalParams(
+        policy_dist_param_module = mods.DiagMultivariateNormalParams(
             policy_logits_module.out_features,
             action_space.shape[0],
             input_dependent_scale=policy_config["input_dependent_scale"],
@@ -176,10 +174,12 @@ class SVGInfTorchPolicy(TorchPolicy):
             )
         )
 
-        module.policy_logp = NormalLogProb()
-        module.model_logp = NormalLogProb()
-        module.policy_rsample = NormalRSample()
-        module.model_rsample = NormalRSample()
+        module.policy_logp = svgm.DiagNormalLogProb()
+        module.model_logp = svgm.DiagNormalLogProb()
+        module.policy_rsample = svgm.DiagNormalRSample()
+        module.model_rsample = svgm.DiagNormalRSample()
+        module.entropy = svgm.DiagNormalEntropy()
+        module.kl_div = svgm.DiagNormalKL()
 
         return module
 
@@ -187,7 +187,7 @@ class SVGInfTorchPolicy(TorchPolicy):
         """Set the reward function to use when unrolling the policy and model."""
         # Add recurrent policy-model combination
         module = self.module
-        module.rollout = ReproduceRollout(
+        module.rollout = svgm.ReproduceRollout(
             module.policy,
             module.model,
             module.policy_rsample,
@@ -240,22 +240,20 @@ class SVGInfTorchPolicy(TorchPolicy):
 
     def compute_stochastic_value_gradient_loss(self, episodes):
         """Compute Stochatic Value Gradient loss given full trajectories."""
-        total_loss = 0
-        gamma = torch.tensor(self.config["gamma"])  # pylint: disable=not-callable
+        total_ret = 0
         for episode in episodes:
             init_obs = episode[SampleBatch.CUR_OBS][0]
             actions = episode[SampleBatch.ACTIONS]
             next_obs = episode[SampleBatch.NEXT_OBS]
 
-            rewards, last_obs = self.module.rollout(actions, next_obs, init_obs)
-            last_val = self.module.value(last_obs)
-            values = torch.cat([rewards, last_val], dim=0)
-            total_loss += torch.sum(values * gamma ** torch.arange(len(values)).float())
+            rewards, _ = self.module.rollout(actions, next_obs, init_obs)
+            total_ret += rewards.sum()
 
-        loss = -(total_loss / len(episodes))
-        return loss, {"on_policy_loss": loss.item()}
+        avg_sim_return = total_ret / len(episodes)
+        return -avg_sim_return, {"avg_sim_return": avg_sim_return.item()}
 
-    def extra_grad_info(self):
+    @torch.no_grad()
+    def extra_grad_info(self, batch_tensors):
         """Compute gradient norm for components. Also clips on-policy gradient."""
         if self._off_policy_learning:
             model_params = self.module.model.parameters()
@@ -269,16 +267,14 @@ class SVGInfTorchPolicy(TorchPolicy):
             fetches = {
                 "policy_grad_norm": nn.utils.clip_grad_norm_(
                     policy_params, max_norm=self.config["max_grad_norm"]
-                )
+                ),
+                "policy_entropy": self.module.entropy(batch_tensors).mean().item(),
             }
         return fetches
 
-    def add_kl_info(self, tensors):
+    @torch.no_grad()
+    def extra_apply_info(self, batch_tensors):
         """Add average KL divergence between new and old policies."""
-
-        keys = (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, self.ACTION_LOGP)
-        obs, act, logp = [tensors[k] for k in keys]
-        dist_params = self.module.policy(obs)
-        _logp = self.module.policy_logp(dist_params, act)
-
-        return {"kl_div": torch.mean(logp - _logp).item()}
+        new_params = self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
+        kl_div = self.module.kl_div(batch_tensors, new_params).mean().item()
+        return {"policy_kl_div": kl_div}

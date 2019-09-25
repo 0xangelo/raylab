@@ -33,4 +33,4 @@ class DiagMultivariateNormalParams(nn.Module):
         loc = self.loc_module(inputs)
         unnormalized_scale = self.pre_scale_module(inputs)
         scale_diag = self.softplus(unnormalized_scale)
-        return loc, scale_diag
+        return dict(loc=loc, scale_diag=scale_diag)

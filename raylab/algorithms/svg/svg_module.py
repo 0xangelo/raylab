@@ -1,9 +1,19 @@
 """Neural network modules for Stochastic Value Gradients."""
-import math
-
 import torch
 import torch.nn as nn
+from torch.distributions.kl import kl_divergence
 from ray.rllib.utils.annotations import override
+
+from raylab.distributions import DiagMultivariateNormal
+
+__all__ = [
+    "ParallelDynamicsModel",
+    "DiagNormalLogProb",
+    "DiagNormalEntropy",
+    "DiagNormalRSample",
+    "DiagNormalKL",
+    "ReproduceRollout",
+]
 
 
 class ParallelDynamicsModel(nn.Module):
@@ -23,39 +33,61 @@ class ParallelDynamicsModel(nn.Module):
         logits = [m(obs, actions) for m in self.logits_modules]
         loc = torch.cat([m(i) for m, i in zip(self.loc_modules, logits)], dim=-1)
         scale_diag = self.log_scale.exp()
-        return loc, scale_diag
+        return dict(loc=loc, scale_diag=scale_diag)
 
 
-class NormalLogProb(nn.Module):
+class DiagNormalLogProb(nn.Module):
     """
     Calculates the log-likelihood of an event given a Normal distribution's parameters.
     """
 
     @override(nn.Module)
     def forward(self, params, value):  # pylint: disable=arguments-differ
-        loc, scale = params
-        var = scale ** 2
-        log_scale = scale.log()
-        _log_prob = (
-            -((value - loc) ** 2) / (2 * var)
-            - log_scale
-            - math.log(math.sqrt(2 * math.pi))
-        )
-        return _log_prob.sum(-1)
+        return DiagMultivariateNormal(
+            loc=params["loc"], scale_diag=params["scale_diag"]
+        ).log_prob(value)
 
 
-class NormalRSample(nn.Module):
+class DiagNormalEntropy(nn.Module):
+    """
+    Calculates the entropy given a Normal distribution's parameters.
+    """
+
+    @override(nn.Module)
+    def forward(self, params):  # pylint: disable=arguments-differ
+        return DiagMultivariateNormal(
+            loc=params["loc"], scale_diag=params["scale_diag"]
+        ).entropy()
+
+
+class DiagNormalRSample(nn.Module):
     """Produce a reparametrized Normal sample, possibly with a desired value."""
 
     @override(nn.Module)
     def forward(self, params, value=None):  # pylint: disable=arguments-differ
-        loc, scale = params
+        loc, scale_diag = params["loc"], params["scale_diag"]
         if value is None:
             eps = torch.randn_like(loc)
         else:
             with torch.no_grad():
-                eps = (value - loc) / scale
-        return loc + scale * eps
+                eps = (value - loc) / scale_diag
+        return loc + scale_diag * eps
+
+
+class DiagNormalKL(nn.Module):
+    """
+    Calculates the KL divergence between Normal distributions given their parameters.
+    """
+
+    @override(nn.Module)
+    def forward(self, params, params_):  # pylint: disable=arguments-differ
+        dist = DiagMultivariateNormal(
+            loc=params["loc"], scale_diag=params["scale_diag"]
+        )
+        dist_ = DiagMultivariateNormal(
+            loc=params_["loc"], scale_diag=params_["scale_diag"]
+        )
+        return kl_divergence(dist, dist_)
 
 
 class ReproduceRollout(nn.Module):
