@@ -17,12 +17,14 @@ def get_config():
         # forever without returning done=True.
         "no_done_at_end": False,
         # === PG ===
-        # No remote workers by default
-        "num_workers": 0,
         # Learning rate
         "lr": 0.001,
         # Use PyTorch as backend
         "use_pytorch": True,
+        # === RolloutWorker ===
+        "num_workers": 0,
+        "sample_batch_size": 1000,
+        "batch_mode": "complete_episodes",
         # === Model ===
         "model": {
             # Nonlinearity for fully connected net (tanh, relu)
