@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
+from raylab.utils.pytorch import initialize_
+
 
 class ExpandVector(nn.Module):
     """Holds a single paramater vector an expands it to match batch shape of inputs."""
@@ -17,7 +19,10 @@ class ExpandVector(nn.Module):
 
 
 class DiagMultivariateNormalParams(nn.Module):
-    """Neural network module mapping inputs DiagMultivariateNormal parameters."""
+    """Neural network module mapping inputs DiagMultivariateNormal parameters.
+
+    This module is initialized to be closed to a standard Normal distribution.
+    """
 
     def __init__(self, in_features, event_dim, input_dependent_scale=True):
         super().__init__()
@@ -26,11 +31,10 @@ class DiagMultivariateNormalParams(nn.Module):
             self.pre_scale_module = nn.Linear(in_features, event_dim)
         else:
             self.pre_scale_module = ExpandVector(event_dim)
-        self.softplus = nn.Softplus()
+        self.apply(initialize_("orthogonal", gain=0.01))
 
     @override(nn.Module)
     def forward(self, inputs):  # pylint: disable=arguments-differ
         loc = self.loc_module(inputs)
-        unnormalized_scale = self.pre_scale_module(inputs)
-        scale_diag = self.softplus(unnormalized_scale)
+        scale_diag = self.pre_scale_module(inputs).exp()
         return dict(loc=loc, scale_diag=scale_diag)
