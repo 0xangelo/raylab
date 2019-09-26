@@ -2,7 +2,7 @@
 import pytest
 from ray.rllib import RolloutWorker
 
-from raylab.algorithms.svg.svg_inf_policy import SVGInfTorchPolicy
+from raylab.algorithms.svg.svg_base_policy import SVGBaseTorchPolicy
 
 
 @pytest.fixture
@@ -11,7 +11,7 @@ def worker_kwargs():
 
 
 def test_output_action_in_action_space(env_creator, policy_cls):
-    if issubclass(policy_cls, SVGInfTorchPolicy):
+    if issubclass(policy_cls, SVGBaseTorchPolicy):
         pytest.skip("SVG policies don't squash actions to the action space.")
     env = env_creator()
     policy = policy_cls(env.observation_space, env.action_space, {})
