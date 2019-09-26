@@ -1,22 +1,17 @@
-"""Learning Continuous Control Policies by Stochastic Value Gradients.
-
-http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients
-"""
-from ray.rllib.agents.trainer import Trainer, with_common_config
+"""Trainer and configuration for SVG(1)."""
+from ray.rllib.agents.trainer import Trainer, with_base_config
 from ray.rllib.utils.annotations import override
 from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.evaluation.metrics import get_learner_stats
 
+from raylab.algorithms.svg import SVG_BASE_CONFIG
 from raylab.algorithms.svg.svg_inf_policy import SVGInfTorchPolicy
 from raylab.utils.replay_buffer import ReplayBuffer
 
 
-DEFAULT_CONFIG = with_common_config(
+DEFAULT_CONFIG = with_base_config(
+    SVG_BASE_CONFIG,
     {
-        # === Replay buffer ===
-        # Size of the replay buffer. Note that if async_updates is set, then
-        # each worker will have a replay buffer of this size.
-        "buffer_size": 500000,
         # === Optimization ===
         # Name of Pytorch optimizer class for dynamics model and value function
         "off_policy_optimizer": "Adam",
@@ -25,15 +20,7 @@ DEFAULT_CONFIG = with_common_config(
         # Name of Pytorch optimizer class for paremetrized policy
         "on_policy_optimizer": "Adam",
         # Keyword arguments to be passed to the on-policy optimizer
-        "on_policy_optimizer_options": {"lr": 1e-3},
-        # Weight of the fitted V loss in the joint model-value loss
-        "vf_loss_coeff": 1.0,
-        # Clip gradient norms by this value
-        "max_grad_norm": 1.0,
-        # Clip importance sampling weights by this value
-        "max_is_ratio": 5.0,
-        # Interpolation factor in polyak averaging for target networks.
-        "polyak": 0.995,
+        "on_policy_optimizer_options": {"lr": 3e-4},
         # === Regularization ===
         "kl_schedule": {
             "initial_coeff": 0.2,
@@ -41,32 +28,7 @@ DEFAULT_CONFIG = with_common_config(
             "adaptation_coeff": 2.0,
             "threshold": 1.5,
         },
-        # === Rollout Worker ===
-        "num_workers": 0,
-        # === Network ===
-        # Size and activation of the fully connected networks computing the logits
-        # for the policy, value function and model. No layers means the component is
-        # linear in states and/or actions.
-        "module": {
-            "policy": {
-                "layers": [100, 100],
-                "activation": "Tanh",
-                "initializer_options": {"name": "xavier_uniform"},
-                "input_dependent_scale": False,
-            },
-            "value": {
-                "layers": [400, 200],
-                "activation": "Tanh",
-                "initializer_options": {"name": "xavier_uniform"},
-            },
-            "model": {
-                "layers": [40, 40],
-                "activation": "Tanh",
-                "initializer_options": {"name": "xavier_uniform"},
-                "delay_action": False,
-            },
-        },
-    }
+    },
 )
 
 
