@@ -82,6 +82,7 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         }
         return loss, info
 
+    @torch.no_grad()
     def extra_grad_info(self, batch_tensors):
         """Compute gradient norm for components. Also clips policy gradient."""
         model_params = self.module.model.parameters()
@@ -93,7 +94,11 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
             "policy_grad_norm": nn.utils.clip_grad_norm_(
                 policy_params, max_norm=self.config["max_grad_norm"]
             ),
-            "policy_entropy": self.module.entropy(batch_tensors).mean().item(),
+            "policy_entropy": self.module.entropy(
+                self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
+            )
+            .mean()
+            .item(),
         }
         return fetches
 
