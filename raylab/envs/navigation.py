@@ -82,7 +82,7 @@ class NavigationEnv(gym.Env):
 
     def reward_fn(self, state, action, next_state):
         # pylint: disable=unused-argument,missing-docstring
-        next_state = next_state[:2]
+        next_state = next_state[..., :2]
         goal = torch.from_numpy(self._end)
         return torch.norm(next_state - goal, dim=-1).neg()
 
