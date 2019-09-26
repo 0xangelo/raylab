@@ -34,7 +34,7 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         loss, info = self.compute_joint_loss(batch_tensors)
         self._optimizer.zero_grad()
         loss.backward()
-        info.update(self.extra_grad_info())
+        info.update(self.extra_grad_info(batch_tensors))
         self._optimizer.step()
         self.update_targets()
 
@@ -71,7 +71,7 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         )
 
         td_targets = self._compute_policy_td_targets(batch_tensors)
-        svg_loss = torch.mean(_is_ratio * td_targets)
+        svg_loss = torch.mean(_is_ratio * td_targets).neg()
 
         loss = mle_loss + self.config["vf_loss_coeff"] * value_loss + svg_loss
         info = {
@@ -82,7 +82,7 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         }
         return loss, info
 
-    def extra_grad_info(self):
+    def extra_grad_info(self, batch_tensors):
         """Compute gradient norm for components. Also clips policy gradient."""
         model_params = self.module.model.parameters()
         value_params = self.module.value.parameters()
@@ -93,6 +93,7 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
             "policy_grad_norm": nn.utils.clip_grad_norm_(
                 policy_params, max_norm=self.config["max_grad_norm"]
             ),
+            "policy_entropy": self.module.entropy(batch_tensors).mean().item(),
         }
         return fetches
 
