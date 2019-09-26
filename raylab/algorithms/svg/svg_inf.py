@@ -21,13 +21,6 @@ DEFAULT_CONFIG = with_base_config(
         "on_policy_optimizer": "Adam",
         # Keyword arguments to be passed to the on-policy optimizer
         "on_policy_optimizer_options": {"lr": 3e-4},
-        # === Regularization ===
-        "kl_schedule": {
-            "initial_coeff": 0.2,
-            "desired_kl": 0.01,
-            "adaptation_coeff": 2.0,
-            "threshold": 1.5,
-        },
     },
 )
 

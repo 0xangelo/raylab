@@ -5,12 +5,32 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.policy import TorchPolicy
+from raylab.utils.adaptive_kl import AdaptiveKLCoeffSpec
 import raylab.algorithms.svg.svg_module as svgm
 import raylab.modules as mods
 import raylab.utils.pytorch as torch_util
 
 
-class SVGBaseTorchPolicy(TorchPolicy):
+class AdaptiveKLCoeffMixin:
+    """Adds adaptive KL penalty as in PPO."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._kl_coeff_spec = AdaptiveKLCoeffSpec(**self.config["kl_schedule"])
+
+    def update_kl_coeff(self, kl_div):
+        """
+        Update KL penalty based on observed divergence between successive policies.
+        """
+        self._kl_coeff_spec.adapt(kl_div)
+
+    @property
+    def curr_kl_coeff(self):
+        """Return current KL coefficient."""
+        return self._kl_coeff_spec.curr_coeff
+
+
+class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
     """Stochastic Value Gradients policy using PyTorch."""
 
     # pylint: disable=abstract-method
@@ -19,7 +39,6 @@ class SVGBaseTorchPolicy(TorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-
         self.module = self._make_module(
             self.observation_space, self.action_space, self.config
         )

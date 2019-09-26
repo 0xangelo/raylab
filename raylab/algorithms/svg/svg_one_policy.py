@@ -32,10 +32,12 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
         loss, info = self.compute_joint_loss(batch_tensors)
+        loss = loss + self.curr_kl_coeff * self._avg_kl_divergence(batch_tensors)
         self._optimizer.zero_grad()
         loss.backward()
         info.update(self.extra_grad_info(batch_tensors))
         self._optimizer.step()
+        info.update(self.extra_apply_info(batch_tensors))
         self.update_targets()
 
         return {LEARNER_STATS_KEY: info}
@@ -101,6 +103,11 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
             .item(),
         }
         return fetches
+
+    @torch.no_grad()
+    def extra_apply_info(self, batch_tensors):
+        """Add average KL divergence between new and old policies."""
+        return {"policy_kl_div": self._avg_kl_divergence(batch_tensors).item()}
 
     def _compute_policy_td_targets(self, batch_tensors):
         _acts = self.module.policy_rsample(

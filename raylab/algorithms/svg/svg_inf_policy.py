@@ -9,7 +9,6 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.algorithms.svg.svg_base_policy import SVGBaseTorchPolicy
-from raylab.utils.adaptive_kl import AdaptiveKLCoeffSpec
 import raylab.algorithms.svg.svg_module as svgm
 import raylab.utils.pytorch as torch_util
 
@@ -26,7 +25,6 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
         self.off_policy_optimizer, self.on_policy_optimizer = self.optimizer()
         # Flag for off-policy learning
         self._off_policy_learning = False
-        self._kl_coeff_spec = AdaptiveKLCoeffSpec(**self.config["kl_schedule"])
 
     @staticmethod
     @override(SVGBaseTorchPolicy)
@@ -51,7 +49,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
             episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
             loss, info = self.compute_stochastic_value_gradient_loss(episodes)
             kl_div = self._avg_kl_divergence(batch_tensors)
-            loss = loss + kl_div * self._kl_coeff_spec.curr_coeff
+            loss = loss + kl_div * self.curr_kl_coeff
             self.on_policy_optimizer.zero_grad()
             loss.backward()
             info.update(self.extra_grad_info(batch_tensors))
@@ -99,12 +97,6 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
 
     learn_off_policy = functools.partialmethod(set_off_policy, True)
     learn_on_policy = functools.partialmethod(set_off_policy, False)
-
-    def update_kl_coeff(self, kl_div):
-        """
-        Update KL penalty based on observed divergence between successive policies.
-        """
-        self._kl_coeff_spec.adapt(kl_div)
 
     def compute_joint_model_value_loss(self, batch_tensors):
         """Compute model MLE loss and fitted value function loss."""
