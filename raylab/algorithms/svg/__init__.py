@@ -2,7 +2,12 @@
 
 http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients
 """
-from ray.rllib.agents.trainer import with_common_config
+import numpy as np
+from ray import tune
+from ray.rllib.agents.trainer import Trainer, with_common_config
+from ray.rllib.optimizers import PolicyOptimizer
+from ray.rllib.utils.annotations import override
+
 
 SVG_BASE_CONFIG = with_common_config(
     {
@@ -53,3 +58,62 @@ SVG_BASE_CONFIG = with_common_config(
         },
     }
 )
+
+
+class SVGBaseTrainer(Trainer):
+    """Base Trainer to set up SVG algorithms. This should not be instantiated."""
+
+    # pylint: disable=abstract-method,no-member,attribute-defined-outside-init
+
+    @override(Trainer)
+    def _init(self, config, env_creator):
+        self._validate_config(config)
+        self.workers = self._make_workers(
+            env_creator, self._policy, config, num_workers=0
+        )
+        self.workers.foreach_worker(
+            lambda w: w.foreach_trainable_policy(
+                lambda p, _: p.set_reward_fn(w.env.reward_fn)
+            )
+        )
+        # Dummy optimizer to log stats since Trainer.collect_metrics is coupled with it
+        self.optimizer = PolicyOptimizer(self.workers)
+
+    # === New Methods ===
+
+    @staticmethod
+    def _validate_config(config):
+        assert config["num_workers"] == 0, "No point in using additional workers."
+
+        start_callback = config["callbacks"]["on_episode_start"]
+
+        def on_episode_start(info):
+            episode = info["episode"]
+            episode.user_data["policy_locs"] = []
+            episode.user_data["policy_scales"] = []
+            if start_callback:
+                start_callback(info)
+
+        step_callback = config["callbacks"]["on_episode_step"]
+
+        def on_episode_step(info):
+            episode = info["episode"]
+            if episode.length > 0:
+                policy_info = episode.last_pi_info_for()
+                episode.user_data["policy_locs"].append(policy_info["loc"])
+                episode.user_data["policy_scales"].append(policy_info["scale_diag"])
+            if step_callback:
+                step_callback(info)
+
+        end_callback = config["callbacks"]["on_episode_end"]
+
+        def on_episode_end(info):
+            eps = info["episode"]
+            eps.custom_metrics["policy_loc"] = np.mean(eps.user_data["policy_locs"])
+            eps.custom_metrics["policy_scale"] = np.mean(eps.user_data["policy_scales"])
+            if end_callback:
+                end_callback(info)
+
+        config["callbacks"]["on_episode_start"] = tune.function(on_episode_start)
+        config["callbacks"]["on_episode_step"] = tune.function(on_episode_step)
+        config["callbacks"]["on_episode_end"] = tune.function(on_episode_end)

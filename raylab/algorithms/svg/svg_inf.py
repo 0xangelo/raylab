@@ -1,10 +1,9 @@
 """Trainer and configuration for SVG(1)."""
-from ray.rllib.agents.trainer import Trainer, with_base_config
+from ray.rllib.agents.trainer import with_base_config
 from ray.rllib.utils.annotations import override
-from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.evaluation.metrics import get_learner_stats
 
-from raylab.algorithms.svg import SVG_BASE_CONFIG
+from raylab.algorithms.svg import SVG_BASE_CONFIG, SVGBaseTrainer
 from raylab.algorithms.svg.svg_inf_policy import SVGInfTorchPolicy
 from raylab.utils.replay_buffer import ReplayBuffer
 
@@ -25,7 +24,7 @@ DEFAULT_CONFIG = with_base_config(
 )
 
 
-class SVGInfTrainer(Trainer):
+class SVGInfTrainer(SVGBaseTrainer):
     """Single agent trainer for SVG(inf)."""
 
     # pylint: disable=attribute-defined-outside-init
@@ -34,24 +33,14 @@ class SVGInfTrainer(Trainer):
     _default_config = DEFAULT_CONFIG
     _policy = SVGInfTorchPolicy
 
-    @override(Trainer)
+    @override(SVGBaseTrainer)
     def _init(self, config, env_creator):
-        self._validate_config(config)
-        self.workers = self._make_workers(
-            env_creator, self._policy, config, num_workers=0
-        )
-        self.workers.foreach_worker(
-            lambda w: w.foreach_trainable_policy(
-                lambda p, _: p.set_reward_fn(w.env.reward_fn)
-            )
-        )
-        # Dummy optimizer to log stats
-        self.optimizer = PolicyOptimizer(self.workers)
+        super()._init(config, env_creator)
         self.replay = ReplayBuffer(
             config["buffer_size"], extra_keys=[self._policy.ACTION_LOGP]
         )
 
-    @override(Trainer)
+    @override(SVGBaseTrainer)
     def _train(self):
         worker = self.workers.local_worker()
         policy = worker.get_policy()
@@ -78,9 +67,3 @@ class SVGInfTrainer(Trainer):
             info=dict(learner=learner_stats, **res.get("info", {})),
         )
         return res
-
-    # === New Methods ===
-
-    @staticmethod
-    def _validate_config(config):
-        assert config["num_workers"] == 0, "No point in using additional workers."
