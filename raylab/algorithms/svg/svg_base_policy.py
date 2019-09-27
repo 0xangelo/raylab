@@ -78,6 +78,7 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
         module.update(SVGBaseTorchPolicy._make_model(obs_space, action_space, config))
         module.value = SVGBaseTorchPolicy._make_critic(obs_space, config)
         module.target_value = SVGBaseTorchPolicy._make_critic(obs_space, config)
+        module.target_value.load_state_dict(module.value.state_dict())
         module.update(SVGBaseTorchPolicy._make_policy(obs_space, action_space, config))
         return module
 
