@@ -21,15 +21,21 @@ def get_config():  # pylint: disable=missing-docstring
         "torch_optimizer_options": {
             "model": {"lr": 1e-3},
             "value": {"lr": 1e-3},
-            "policy": {"lr": 1e-3},
+            "policy": {"lr": tune.grid_search([3e-4])},
         },
         # Clip gradient norms by this value
-        "max_grad_norm": float("inf"),
+        "max_grad_norm": 40.0,
+        # === Regularization ===
+        "kl_schedule": {"initial_coeff": tune.grid_search([0.0])},
         # === Network ===
         # Size and activation of the fully connected networks computing the logits
         # for the policy, value function and model. No layers means the component is
         # linear in states and/or actions.
-        "module": {"model": {"delay_action": True}},
+        "module": {
+            "policy": {"layers": [100, 100], "input_dependent_scale": False},
+            "value": {"layers": [200, 100]},
+            "model": {"layers": [20, 20], "delay_action": True},
+        },
         # === RolloutWorker ===
         "sample_batch_size": 1,
         "batch_mode": "complete_episodes",
