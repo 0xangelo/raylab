@@ -97,11 +97,15 @@ def initialize_(name, activation=None, **options):
     """
 
     initializer = get_initializer(name)
-    if activation and "gain" in inspect.signature(initializer).parameters:
+    if (
+        activation
+        and "gain" not in options
+        and "gain" in inspect.signature(initializer).parameters
+    ):
         recommended_gain = nn.init.calculate_gain(
             activation.lower(), param=options.get("negative_slope")
         )
-        options = {"gain": recommended_gain, **options}
+        options["gain"] = recommended_gain
     func_ = functools.partial(initializer, **options)
 
     def init(module):
