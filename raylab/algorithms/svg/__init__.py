@@ -63,7 +63,8 @@ SVG_BASE_CONFIG = with_common_config(
 class SVGBaseTrainer(Trainer):
     """Base Trainer to set up SVG algorithms. This should not be instantiated."""
 
-    # pylint: disable=abstract-method,no-member,attribute-defined-outside-init
+    # pylint: disable=abstract-method,no-member,attribute-defined-outside-init,protected-access
+    _allow_unknown_subkeys = Trainer._allow_unknown_subkeys + ["module"]
 
     @override(Trainer)
     def _init(self, config, env_creator):
