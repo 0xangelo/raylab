@@ -1,8 +1,7 @@
 """Tune experiment configuration to compare exploration options in NAF.
 
 This can be run from the command line by executing
-`python scripts/tune_experiment.py NAF --local-dir <experiment dir>
-    --config examples/naf_exploration_experiment --stop timesteps_total 100000`
+`raylab experiment NAF --config examples/naf_exploration_experiment.py -s timesteps_total 100000`
 """
 from ray import tune
 
@@ -24,8 +23,7 @@ def get_config():
         # === RolloutWorker ===
         "sample_batch_size": 1,
         "batch_mode": "complete_episodes",
-        "horizon": 500,
-        "seed": tune.grid_search(list(range(10))),
+        "horizon": 250,
         # === Trainer ===
         "train_batch_size": 128,
         "timesteps_per_iteration": 1000,
