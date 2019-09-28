@@ -13,7 +13,7 @@ import raylab.algorithms.naf.naf_module as modules
 from raylab.policy import TorchPolicy, AdaptiveParamNoiseMixin
 
 
-class NAFTorchPolicy(TorchPolicy, AdaptiveParamNoiseMixin):
+class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
     """Normalized Advantage Function policy in Pytorch to use with RLlib."""
 
     # pylint: disable=abstract-method

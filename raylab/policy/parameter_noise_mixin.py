@@ -31,7 +31,7 @@ class AdaptiveParamNoiseMixin:
         perturb_module_params(
             self.module["policy"],
             self.module["target_policy"],
-            self._param_noise_spec.stddev,
+            self._param_noise_spec.curr_stddev,
         )
 
     @abstractmethod
