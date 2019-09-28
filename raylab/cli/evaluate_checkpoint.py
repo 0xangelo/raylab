@@ -51,12 +51,14 @@ def rollout(ctx, checkpoint, algo, env):
     agent = get_agent(checkpoint, algo, env)
     env = agent.workers.local_worker().env
 
-    obs, done, cummulative_reward = env.reset(), True, 0
+    horizon = agent.config["horizon"] or float("inf")
+    obs, done, cummulative_reward, time = env.reset(), True, 0, 0
     with suppress(KeyboardInterrupt), env:
         while True:
             obs, rew, done, _ = env.step(agent.compute_action(obs))
             cummulative_reward += rew
+            time += 1
             env.render()
-            if done:
+            if done or time >= horizon:
                 print("cummulative_reward:", cummulative_reward)
-                obs, done, cummulative_reward = env.reset(), False, 0
+                obs, done, cummulative_reward, time = env.reset(), False, 0, 0
