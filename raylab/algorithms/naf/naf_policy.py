@@ -9,12 +9,11 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as torch_util
-import raylab.utils.param_noise as param_noise
 import raylab.algorithms.naf.naf_module as modules
-from raylab.policy import TorchPolicy
+from raylab.policy import TorchPolicy, AdaptiveParamNoiseMixin
 
 
-class NAFTorchPolicy(TorchPolicy):
+class NAFTorchPolicy(TorchPolicy, AdaptiveParamNoiseMixin):
     """Normalized Advantage Function policy in Pytorch to use with RLlib."""
 
     # pylint: disable=abstract-method
@@ -29,10 +28,6 @@ class NAFTorchPolicy(TorchPolicy):
 
         # Flag for uniform random actions
         self._pure_exploration = False
-        if self.config["exploration"] == "parameter_noise":
-            self._param_noise_spec = param_noise.AdaptiveParamNoiseSpec(
-                **config["param_noise_spec"]
-            )
 
     @staticmethod
     @override(TorchPolicy)
@@ -110,22 +105,9 @@ class NAFTorchPolicy(TorchPolicy):
         """Set a boolean flag that tells the policy to act randomly."""
         self._pure_exploration = phase
 
-    def perturb_policy_parameters(self):
-        """Update the perturbed policy's parameters for exploration."""
-        torch_util.perturb_module_params(
-            self.module["policy"],
-            self.module["target_policy"],
-            self._param_noise_spec.stddev,
-        )
-
-    def update_parameter_noise(self, sample_batch):
-        """Update parameter noise stddev given a batch from the perturbed policy."""
-        noisy_actions = sample_batch[SampleBatch.ACTIONS]
-        target_actions = self.module["target_policy"](
-            self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        ).numpy()
-        distance = param_noise.ddpg_distance_metric(noisy_actions, target_actions)
-        self._param_noise_spec.adapt(distance)
+    @override(AdaptiveParamNoiseMixin)
+    def _compute_noise_free_actions(self, obs_batch):
+        return self.module["target_policy"](self.convert_to_tensor(obs_batch)).numpy()
 
     # === Action Sampling ===
     def _greedy_actions(self, obs_batch):
