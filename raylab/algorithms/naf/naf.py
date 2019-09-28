@@ -71,7 +71,7 @@ DEFAULT_CONFIG = with_common_config(
         "param_noise_spec": {
             "initial_stddev": 0.1,
             "desired_action_stddev": 0.2,
-            "adaptation_coefficient": 1.01,
+            "adaptation_coeff": 1.01,
         },
         # === Evaluation ===
         # Extra arguments to pass to evaluation workers.
