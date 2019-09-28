@@ -1,4 +1,4 @@
-"""Simulate an agent from a given checkpoint in the desired environment."""
+"""CLI for rolling out trained policies."""
 import os
 import pickle
 from contextlib import suppress
@@ -7,8 +7,6 @@ import click
 import ray
 from ray.tune.registry import TRAINABLE_CLASS, _global_registry
 from ray.rllib.utils import merge_dicts
-
-import raylab
 
 
 def get_agent(checkpoint, algo, env):
@@ -40,15 +38,15 @@ def get_agent(checkpoint, algo, env):
 @click.command()
 @click.argument("checkpoint")
 @click.option("--algo", default=None, help="Name of the trainable class to run.")
-@click.option("--env", default=None, help="Name of the environment to interact with.")
+@click.option(
+    "--env", default=None, help="Name of the environment to interact with, optional."
+)
 @click.pass_context
-def main(ctx, checkpoint, algo, env):
-    """Produce rollouts."""
+def rollout(ctx, checkpoint, algo, env):
+    """Simulate an agent from a given checkpoint in the desired environment."""
     if not algo:
         ctx.exit()
 
-    raylab.register_all_agents()
-    raylab.register_all_environments()
     ray.init()
     agent = get_agent(checkpoint, algo, env)
     env = agent.workers.local_worker().env
@@ -62,7 +60,3 @@ def main(ctx, checkpoint, algo, env):
             if done:
                 print("cummulative_reward:", cummulative_reward)
                 obs, done, cummulative_reward = env.reset(), False, 0
-
-
-if __name__ == "__main__":
-    main()  # pylint: disable=no-value-for-parameter

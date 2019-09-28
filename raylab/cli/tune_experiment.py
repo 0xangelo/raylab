@@ -5,7 +5,6 @@ import ray
 from ray import tune
 import click
 
-import raylab
 from raylab.logger import DEFAULT_LOGGERS as CUSTOM_LOGGERS
 from raylab.utils.dynamic_import import import_module_from_path
 
@@ -94,9 +93,6 @@ def experiment(**args):
     else:
         module = import_module_from_path(args["config"])
         config = module.get_config()
-
-    raylab.register_all_agents()
-    raylab.register_all_environments()
 
     ray.init(object_store_memory=args["object_store_memory"])
     logging.getLogger("ray.tune").setLevel(args["tune_log_level"])

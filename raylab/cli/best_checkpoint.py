@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring
+"""CLI for finding the best checkpoint of an experiment."""
 import logging
 import os.path as osp
 from glob import glob
@@ -37,7 +37,7 @@ def get_last_checkpoint_path(logdir):
     show_default=True,
     help="Criterion to order trials by.",
 )
-def main(logdir, metric, mode):
+def find_best(logdir, metric, mode):
     """Find the best experiment checkpoint as measured by a metric."""
     logging.getLogger("ray.tune").setLevel("ERROR")
 
@@ -45,7 +45,3 @@ def main(logdir, metric, mode):
     best_logdir = analysis.get_best_logdir(metric, mode=mode)
     last_checkpoint_path = get_last_checkpoint_path(best_logdir)
     click.echo(last_checkpoint_path)
-
-
-if __name__ == "__main__":
-    main()  # pylint: disable=no-value-for-parameter
