@@ -82,7 +82,7 @@ from raylab.utils.dynamic_import import import_module_from_path
 @click.option(
     "--tune-log-level",
     type=str,
-    default="INFO",
+    default="WARN",
     show_default=True,
     help="Logging level for the trial executor process. This is independent from each "
     "trainer's logging level.",
