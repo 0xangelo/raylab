@@ -87,7 +87,8 @@ from raylab.utils.dynamic_import import import_module_from_path
     help="Logging level for the trial executor process. This is independent from each "
     "trainer's logging level.",
 )
-def main(**args):  # pylint: disable=missing-docstring
+def experiment(**args):
+    """Launch a Tune experiment from a config file."""
     if args["config"] is None:
         config = {}
     else:
@@ -110,7 +111,3 @@ def main(**args):  # pylint: disable=missing-docstring
         checkpoint_at_end=args["checkpoint_at_end"],
         loggers=CUSTOM_LOGGERS if args["custom_loggers"] else None,
     )
-
-
-if __name__ == "__main__":
-    main()  # pylint: disable=no-value-for-parameter
