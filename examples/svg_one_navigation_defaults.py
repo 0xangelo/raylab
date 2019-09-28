@@ -4,6 +4,7 @@ This can be run from the command line by executing
 `python scripts/tune_experiment.py 'SVG(1)' --local-dir <experiment dir>
     --config examples/svg_one_navigation_defaults.py --stop timesteps_total 10000`
 """
+import numpy as np
 from ray import tune  # pylint: disable=unused-import
 
 
@@ -23,12 +24,24 @@ def get_config():  # pylint: disable=missing-docstring
             "policy": {"lr": 1e-3},
         },
         # Clip gradient norms by this value
-        "max_grad_norm": float("inf"),
+        "max_grad_norm": 1e3,
         # === Network ===
         # Size and activation of the fully connected networks computing the logits
         # for the policy, value function and model. No layers means the component is
         # linear in states and/or actions.
-        "module": {"model": {"delay_action": True}},
+        "module": {
+            "policy": {
+                "layers": (100, 100),
+                "activation": "Tanh",
+                "input_dependent_scale": False,
+            },
+            "value": {
+                "layers": (200, 100),
+                "activation": "ELU",
+                "initializer_options": {"gain": np.sqrt(2)},
+            },
+            "model": {"layers": (20, 20), "activation": "Tanh", "delay_action": True},
+        },
         # === RolloutWorker ===
         "sample_batch_size": 1,
         "batch_mode": "complete_episodes",
