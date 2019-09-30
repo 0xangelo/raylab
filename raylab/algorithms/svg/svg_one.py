@@ -56,7 +56,8 @@ class SVGOneTrainer(SVGBaseTrainer):
             batch = self.replay.sample(self.config["train_batch_size"])
             learner_stats = get_learner_stats(policy.learn_on_batch(batch))
             self.optimizer.num_steps_trained += batch.count
-        policy.update_kl_coeff(learner_stats["policy_kl_div"])
+
+        learner_stats.update(policy.update_kl_coeff(samples))
 
         res = self.collect_metrics()
         res.update(

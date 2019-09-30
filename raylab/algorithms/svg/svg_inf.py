@@ -58,7 +58,6 @@ class SVGInfTrainer(SVGBaseTrainer):
 
         policy.learn_on_policy()
         on_policy_stats = get_learner_stats(policy.learn_on_batch(samples))
-        policy.update_kl_coeff(on_policy_stats["policy_kl_div"])
 
         learner_stats = {**off_policy_stats, **on_policy_stats}
         res = self.collect_metrics()

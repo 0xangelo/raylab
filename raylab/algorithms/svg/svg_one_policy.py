@@ -37,7 +37,6 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         loss.backward()
         info.update(self.extra_grad_info(batch_tensors))
         self._optimizer.step()
-        info.update(self.extra_apply_info(batch_tensors))
         self.update_targets()
 
         return {LEARNER_STATS_KEY: info}
@@ -101,13 +100,9 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
             )
             .mean()
             .item(),
+            "curr_kl_coeff": self.curr_kl_coeff,
         }
         return fetches
-
-    @torch.no_grad()
-    def extra_apply_info(self, batch_tensors):
-        """Add average KL divergence between new and old policies."""
-        return {"policy_kl_div": self._avg_kl_divergence(batch_tensors).item()}
 
     def _compute_policy_td_targets(self, batch_tensors):
         _acts = self.module.policy_rsample(

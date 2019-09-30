@@ -47,6 +47,11 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
         }
         return actions.cpu().numpy(), state_batches, extra_fetches
 
+    @torch.no_grad()
+    @override(AdaptiveKLCoeffMixin)
+    def _kl_divergence(self, sample_batch):
+        return self._avg_kl_divergence(self._lazy_tensor_dict(sample_batch)).item()
+
     # ================================= NEW METHODS ====================================
 
     def set_reward_fn(self, reward_fn):
