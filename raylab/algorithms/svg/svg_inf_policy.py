@@ -114,7 +114,6 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
 
         joint_loss = mle_loss + self.config["vf_loss_coeff"] * value_loss
         info = {
-            "off_policy_loss": joint_loss.item(),
             "mle_loss": mle_loss.item(),
             "value_loss": value_loss.item(),
             "avg_is_ratio": is_ratio.mean().item(),
