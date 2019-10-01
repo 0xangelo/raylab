@@ -11,11 +11,14 @@ from ray import tune  # pylint: disable=unused-import
 def get_config():  # pylint: disable=missing-docstring
     return {
         # === Environment ===
-        "env": "CartPoleSwingUp",
-        "horizon": 500,
-        "no_done_at_end": tune.grid_search([True]),
+        "env": "TimeLimitedEnv",
+        "env_config": {
+            "env_id": "CartPoleSwingUp",
+            "max_episode_steps": 500,
+            "time_aware": False,
+        },
         # === Replay Buffer ===
-        "buffer_size": int(1e5),
+        "buffer_size": int(2e5),
         # === Optimization ===
         # Name of Pytorch optimizer class for paremetrized policy
         "torch_optimizer": "Adam",
@@ -23,13 +26,13 @@ def get_config():  # pylint: disable=missing-docstring
         "torch_optimizer_options": {
             "model": {"lr": 1e-3},
             "value": {"lr": 1e-3},
-            "policy": {"lr": 1e-3},
+            "policy": {"lr": tune.grid_search([1e-3, 3e-4])},
         },
         # Clip gradient norms by this value
         "max_grad_norm": 1e3,
         # === Regularization ===
         "kl_schedule": {
-            "initial_coeff": tune.grid_search([0.5]),
+            "initial_coeff": 0.2,
             "desired_kl": 0.01,
             "adaptation_coeff": 1.01,
             "threshold": 1.0,
