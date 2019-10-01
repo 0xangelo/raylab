@@ -28,34 +28,34 @@ def _on_episode_end(info):
     episode.custom_metrics["pole_angle"] = pole_angle
 
 
-def get_config():
+def get_config():  # pylint: disable=missing-docstring
     return {
         # === Environment ===
         "env": "CartPoleSwingUp",
-        "env_config": {"max_episode_steps": 250, "time_aware": True},
+        "env_config": {"max_episode_steps": 500, "time_aware": True},
         # === Replay Buffer ===
-        "buffer_size": int(1e5),
+        "buffer_size": int(1e6),
         # === Optimization ===
         # Name of Pytorch optimizer class for paremetrized policy
         "on_policy_optimizer": "Adam",
         # Keyword arguments to be passed to the on-policy optimizer
         "on_policy_optimizer_options": {"lr": 3e-4},
         # Clip gradient norms by this value
-        "max_grad_norm": 10.0,
+        "max_grad_norm": 1e3,
         # === Regularization ===
         "kl_schedule": {
-            "initial_coeff": 0.0,
+            "initial_coeff": tune.grid_search([0.0, 0.2]),
             "desired_kl": 0.01,
-            "adaptation_coeff": 2.0,
-            "threshold": 1.5,
+            "adaptation_coeff": 1.01,
+            "threshold": 1.0,
         },
         # === Network ===
         # Size and activation of the fully connected networks computing the logits
         # for the policy, value function and model. No layers means the component is
         # linear in states and/or actions.
         "module": {
-            "policy": {"input_dependent_scale": False},
-            "model": {"delay_action": tune.grid_search([True, False])},
+            "policy": {"input_dependent_scale": True},
+            "model": {"delay_action": True},
         },
         # === RolloutWorker ===
         "sample_batch_size": 1,
