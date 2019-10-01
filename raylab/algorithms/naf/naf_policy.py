@@ -71,6 +71,9 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
     def postprocess_trajectory(
         self, sample_batch, other_agent_batches=None, episode=None
     ):
+        sample_batch = super().postprocess_trajectory(
+            sample_batch, other_agent_batches=other_agent_batches, episode=episode
+        )
         if self.config["exploration"] == "parameter_noise":
             self.update_parameter_noise(sample_batch)
         return sample_batch

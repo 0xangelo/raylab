@@ -9,6 +9,7 @@ from ray.rllib.utils import merge_dicts
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.rllib.policy import Policy
+from ray.rllib.policy.sample_batch import SampleBatch
 
 from raylab.utils.pytorch import convert_to_tensor
 
@@ -40,6 +41,15 @@ class TorchPolicy(Policy):
     @override(Policy)
     def set_weights(self, weights):
         self.module.load_state_dict(weights)
+
+    @override(Policy)
+    def postprocess_trajectory(
+        self, sample_batch, other_agent_batches=None, episode=None
+    ):
+        if not self.config["env_config"].get("time_aware"):
+            hit_limit = sample_batch[SampleBatch.INFOS][-1].get("TimeLimit.truncated")
+            sample_batch[SampleBatch.DONES][-1] = not hit_limit
+        return sample_batch
 
     @abstractmethod
     def optimizer(self):

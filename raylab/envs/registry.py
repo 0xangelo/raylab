@@ -17,13 +17,12 @@ def _cartpole_stateless_maker(_):
 
 def _time_limited_env_maker(config):
     from raylab.envs.time_aware_env import AddRelativeTimestep
-    from raylab.envs.peb_env import IgnoreTimeoutTerminations
 
-    env = env_maker(config["env_id"])(**config)
+    env = env_maker(config["env_id"])(config)
     env = add_time_limit(env, config["max_episode_steps"])
     if config.get("time_aware", False):
         return AddRelativeTimestep(env)
-    return IgnoreTimeoutTerminations(env)
+    return env
 
 
 def _navigation_maker(config):
