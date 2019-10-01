@@ -35,9 +35,9 @@ def svg_inf_policy(svg_inf_trainer):
 
 
 @pytest.fixture
-def cartpole_swingup_env(cartpole_swingup_env):
-    return lambda _: cartpole_swingup_env(
-        {"time_aware": True, "max_episode_steps": 200}
+def cartpole_swingup_env(time_limited_env):
+    return lambda _: time_limited_env(
+        {"env_id": "CartPoleSwingUp", "time_aware": True, "max_episode_steps": 200}
     )
 
 

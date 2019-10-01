@@ -3,13 +3,16 @@ import pytest
 
 import raylab
 from raylab.algorithms.registry import ALGORITHMS
-from raylab.envs.registry import ENVS
 
 from .mock_env import MockEnv
 
 
-raylab.register_all_agents()
-raylab.register_all_environments()
+@pytest.fixture
+def envs():
+    from raylab.envs.registry import ENVS
+
+    raylab.register_all_environments()
+    return ENVS
 
 
 @pytest.fixture(params=list(ALGORITHMS.values()))
@@ -19,7 +22,7 @@ def trainer_cls(request):
 
 @pytest.fixture
 def policy_cls(trainer_cls):
-    return trainer_cls._policy  # pylint: disable=protected-access
+    return trainer_cls._policy
 
 
 @pytest.fixture
@@ -28,10 +31,21 @@ def env_creator():
 
 
 @pytest.fixture
-def navigation_env():
-    return ENVS["Navigation"]
+def navigation_env(envs):
+    return envs["Navigation"]
 
 
 @pytest.fixture
-def cartpole_swingup_env():
-    return ENVS["CartPoleSwingUp"]
+def time_limited_env(envs):
+    return envs["TimeLimitedEnv"]
+
+
+@pytest.fixture(params=(True, False))
+def cartpole_swingup_env(request, time_limited_env):
+    return lambda _: time_limited_env(
+        {
+            "env_id": "CartPoleSwingUp",
+            "time_aware": request.param,
+            "max_episode_steps": 200,
+        }
+    )
