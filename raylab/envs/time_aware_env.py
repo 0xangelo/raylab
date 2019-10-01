@@ -26,6 +26,13 @@ class AddRelativeTimestep(gym.ObservationWrapper):
             dtype=self.observation_space.dtype,
         )
 
+        if hasattr(self.env, "reward_fn"):
+
+            def reward_fn(state, action, next_state):
+                return self.env.reward_fn(state[..., :-1], action, next_state[..., :-1])
+
+            self.reward_fn = reward_fn
+
     def observation(self, observation):
         # pylint: disable=protected-access
         return np.append(
