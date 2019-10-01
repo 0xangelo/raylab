@@ -22,6 +22,10 @@ def test_target_value_output(policy_and_batch):
     targets = policy._compute_value_targets(batch)
     assert targets.shape == (10,)
     assert targets.dtype == torch.float32
+    assert torch.allclose(
+        targets[batch[SampleBatch.DONES]],
+        batch[SampleBatch.REWARDS][batch[SampleBatch.DONES]],
+    )
 
     policy.module.zero_grad()
     targets.mean().backward()
