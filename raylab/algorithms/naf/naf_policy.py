@@ -4,7 +4,6 @@ import itertools
 
 import torch
 import torch.nn as nn
-from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
@@ -95,7 +94,7 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
                 self.module["twin_target_value"],
                 self.config["polyak"],
             )
-        return {LEARNER_STATS_KEY: info}
+        return self._learner_stats(info)
 
     @override(TorchPolicy)
     def make_module(self, obs_space, action_space, config):
