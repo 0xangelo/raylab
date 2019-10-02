@@ -17,8 +17,6 @@ from raylab.utils.pytorch import convert_to_tensor
 class TorchPolicy(Policy):
     """Custom TorchPolicy that aims to be more general than RLlib's one."""
 
-    module = None
-
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
         self._raw_user_config = config
@@ -28,6 +26,8 @@ class TorchPolicy(Policy):
             if bool(os.environ.get("CUDA_VISIBLE_DEVICES", None))
             else torch.device("cpu")
         )
+        self.module = self.make_module(observation_space, action_space, self.config)
+        self.module.to(self.device)
 
     @staticmethod
     @abstractmethod
@@ -54,6 +54,19 @@ class TorchPolicy(Policy):
     @abstractmethod
     def optimizer(self):
         """PyTorch optimizer to use."""
+
+    @abstractmethod
+    def make_module(self, obs_space, action_space, config):
+        """Build the PyTorch nn.Module to be used by this policy.
+
+        Arguments:
+            obs_space (gym.spaces.Space): the observation space for this policy
+            action_space (gym.spaces.Space): the action_space for this policy
+            config (dict): the user config merged with the default one.
+
+        Returns:
+            A neural network module.
+        """
 
     def convert_to_tensor(self, arr):
         """Convert an array to a PyTorch tensor in this policy's device."""

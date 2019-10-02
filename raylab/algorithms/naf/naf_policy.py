@@ -20,10 +20,6 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-
-        self.module = self._make_module(
-            self.observation_space, self.action_space, self.config
-        )
         self.optimizer = self._make_optimizer(self.module, self.config)
 
         # Flag for uniform random actions
@@ -100,6 +96,99 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
                 self.config["polyak"],
             )
         return {LEARNER_STATS_KEY: info}
+
+    @override(TorchPolicy)
+    def make_module(self, obs_space, action_space, config):
+        # Create base modules
+        logits_module_kwargs = dict(
+            in_features=obs_space.shape[0],
+            units=config["module"]["layers"],
+            activation=config["module"]["activation"],
+            layer_norm=(config["exploration"] == "parameter_noise"),
+        )
+
+        def action_module_kwargs(in_features):
+            return dict(
+                in_features=in_features,
+                action_low=torch.from_numpy(action_space.low).float(),
+                action_high=torch.from_numpy(action_space.high).float(),
+            )
+
+        logits_module = modules.FullyConnected(**logits_module_kwargs)
+        value_module = modules.ValueFunction(logits_module.out_features)
+        action_module = modules.ActionOutput(
+            **action_module_kwargs(logits_module.out_features)
+        )
+        tril_module = modules.TrilMatrix(
+            logits_module.out_features, action_space.shape[0]
+        )
+        advantage_module = modules.AdvantageFunction(tril_module, action_module)
+
+        # Build main components
+        module = nn.ModuleDict()
+        module["naf"] = modules.NAF(logits_module, value_module, advantage_module)
+        module["value"] = nn.Sequential(logits_module, value_module)
+        module["target_value"] = nn.Sequential(
+            modules.FullyConnected(**logits_module_kwargs),
+            modules.ValueFunction(logits_module.out_features),
+        )
+        module["target_value"].load_state_dict(module["value"].state_dict())
+
+        if config["clipped_double_q"]:
+            twin_logits_module = modules.FullyConnected(**logits_module_kwargs)
+            twin_value_module = modules.ValueFunction(twin_logits_module.out_features)
+            module["twin_naf"] = modules.NAF(
+                twin_logits_module,
+                twin_value_module,
+                modules.AdvantageFunction(
+                    modules.TrilMatrix(
+                        twin_logits_module.out_features, action_space.shape[0]
+                    ),
+                    modules.ActionOutput(
+                        **action_module_kwargs(twin_logits_module.out_features)
+                    ),
+                ),
+            )
+            module["twin_value"] = nn.Sequential(twin_logits_module, twin_value_module)
+            module["twin_target_value"] = nn.Sequential(
+                modules.FullyConnected(**logits_module_kwargs),
+                modules.ValueFunction(twin_logits_module.out_features),
+            )
+            module["twin_target_value"].load_state_dict(
+                module["twin_value"].state_dict()
+            )
+
+        # Configure policy module based on exploration strategy
+        if config["exploration"] == "full_gaussian":
+            module["policy"] = modules.MultivariateGaussianPolicy(
+                logits_module, action_module, tril_module
+            )
+        elif config["exploration"] == "parameter_noise":
+            module["policy"] = modules.DeterministicPolicy(
+                logits_module=modules.FullyConnected(**logits_module_kwargs),
+                action_module=modules.ActionOutput(
+                    **action_module_kwargs(logits_module.out_features)
+                ),
+            )
+            module["target_policy"] = modules.DeterministicPolicy(
+                logits_module, action_module
+            )
+        else:
+            module["policy"] = modules.DeterministicPolicy(logits_module, action_module)
+
+        # Initialize modules
+        module.apply(
+            torch_util.initialize_(
+                config["module"]["initializer"],
+                **config["module"]["initializer_options"]
+            )
+        )
+
+        if config["torch_script"] == "trace":
+            trace_components(module, obs_space, action_space)
+        elif config["torch_script"] == "script":
+            script_components(module)
+        return module
 
     # === NEW METHODS ===
 
@@ -204,99 +293,6 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
             "td_error": td_error.item(),
         }
         return td_error, stats
-
-    @staticmethod
-    def _make_module(obs_space, action_space, config):
-        # Create base modules
-        logits_module_kwargs = dict(
-            in_features=obs_space.shape[0],
-            units=config["module"]["layers"],
-            activation=config["module"]["activation"],
-            layer_norm=(config["exploration"] == "parameter_noise"),
-        )
-
-        def action_module_kwargs(in_features):
-            return dict(
-                in_features=in_features,
-                action_low=torch.from_numpy(action_space.low).float(),
-                action_high=torch.from_numpy(action_space.high).float(),
-            )
-
-        logits_module = modules.FullyConnected(**logits_module_kwargs)
-        value_module = modules.ValueFunction(logits_module.out_features)
-        action_module = modules.ActionOutput(
-            **action_module_kwargs(logits_module.out_features)
-        )
-        tril_module = modules.TrilMatrix(
-            logits_module.out_features, action_space.shape[0]
-        )
-        advantage_module = modules.AdvantageFunction(tril_module, action_module)
-
-        # Build main components
-        module = nn.ModuleDict()
-        module["naf"] = modules.NAF(logits_module, value_module, advantage_module)
-        module["value"] = nn.Sequential(logits_module, value_module)
-        module["target_value"] = nn.Sequential(
-            modules.FullyConnected(**logits_module_kwargs),
-            modules.ValueFunction(logits_module.out_features),
-        )
-        module["target_value"].load_state_dict(module["value"].state_dict())
-
-        if config["clipped_double_q"]:
-            twin_logits_module = modules.FullyConnected(**logits_module_kwargs)
-            twin_value_module = modules.ValueFunction(twin_logits_module.out_features)
-            module["twin_naf"] = modules.NAF(
-                twin_logits_module,
-                twin_value_module,
-                modules.AdvantageFunction(
-                    modules.TrilMatrix(
-                        twin_logits_module.out_features, action_space.shape[0]
-                    ),
-                    modules.ActionOutput(
-                        **action_module_kwargs(twin_logits_module.out_features)
-                    ),
-                ),
-            )
-            module["twin_value"] = nn.Sequential(twin_logits_module, twin_value_module)
-            module["twin_target_value"] = nn.Sequential(
-                modules.FullyConnected(**logits_module_kwargs),
-                modules.ValueFunction(twin_logits_module.out_features),
-            )
-            module["twin_target_value"].load_state_dict(
-                module["twin_value"].state_dict()
-            )
-
-        # Configure policy module based on exploration strategy
-        if config["exploration"] == "full_gaussian":
-            module["policy"] = modules.MultivariateGaussianPolicy(
-                logits_module, action_module, tril_module
-            )
-        elif config["exploration"] == "parameter_noise":
-            module["policy"] = modules.DeterministicPolicy(
-                logits_module=modules.FullyConnected(**logits_module_kwargs),
-                action_module=modules.ActionOutput(
-                    **action_module_kwargs(logits_module.out_features)
-                ),
-            )
-            module["target_policy"] = modules.DeterministicPolicy(
-                logits_module, action_module
-            )
-        else:
-            module["policy"] = modules.DeterministicPolicy(logits_module, action_module)
-
-        # Initialize modules
-        module.apply(
-            torch_util.initialize_(
-                config["module"]["initializer"],
-                **config["module"]["initializer_options"]
-            )
-        )
-
-        if config["torch_script"] == "trace":
-            trace_components(module, obs_space, action_space)
-        elif config["torch_script"] == "script":
-            script_components(module)
-        return module
 
     @staticmethod
     def _make_optimizer(module, config):
