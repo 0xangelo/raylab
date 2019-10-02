@@ -19,7 +19,7 @@ class ExpandVector(nn.Module):
 
 
 class DiagMultivariateNormalParams(nn.Module):
-    """Neural network module mapping inputs DiagMultivariateNormal parameters.
+    """Neural network module mapping inputs to DiagMultivariateNormal parameters.
 
     This module is initialized to be closed to a standard Normal distribution.
     """
