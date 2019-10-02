@@ -1,5 +1,4 @@
 """NAF policy class using PyTorch."""
-import inspect
 import itertools
 
 import torch
@@ -19,7 +18,7 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self.optimizer = self._make_optimizer(self.module, self.config)
+        self._optimizer = self.optimizer()
 
         # Flag for uniform random actions
         self._pure_exploration = False
@@ -78,12 +77,12 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
         batch_tensors = self._lazy_tensor_dict(samples)
 
         loss, info = self.compute_loss(batch_tensors, self.module, self.config)
-        self.optimizer.zero_grad()
+        self._optimizer.zero_grad()
         loss.backward()
         info["grad_norm"] = nn.utils.clip_grad_norm_(
             self.module["naf"].parameters(), float("inf")
         )
-        self.optimizer.step()
+        self._optimizer.step()
 
         torch_util.update_polyak(
             self.module["value"], self.module["target_value"], self.config["polyak"]
@@ -95,6 +94,17 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
                 self.config["polyak"],
             )
         return self._learner_stats(info)
+
+    @override(TorchPolicy)
+    def optimizer(self):
+        cls = torch_util.get_optimizer_class(self.config["torch_optimizer"])
+
+        options = self.config["torch_optimizer_options"]
+        params = self.module["naf"].parameters()
+        if self.config["clipped_double_q"]:
+            params = itertools.chain(params, self.module["twin_naf"].parameters())
+        optimizer = cls(params, **options)
+        return optimizer
 
     @override(TorchPolicy)
     def make_module(self, obs_space, action_space, config):
@@ -292,27 +302,6 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
             "td_error": td_error.item(),
         }
         return td_error, stats
-
-    @staticmethod
-    def _make_optimizer(module, config):
-        optimizer = config["torch_optimizer"]
-        if isinstance(optimizer, str):
-            optimizer_cls = torch_util.get_optimizer_class(optimizer)
-        elif inspect.isclass(optimizer):
-            optimizer_cls = optimizer
-        else:
-            raise ValueError(
-                "'torch_optimizer' must be a string or class, got '{}'".format(
-                    type(optimizer)
-                )
-            )
-
-        optimizer_options = config["torch_optimizer_options"]
-        parameters = module["naf"].parameters()
-        if config["clipped_double_q"]:
-            parameters = itertools.chain(parameters, module["twin_naf"].parameters())
-        optimizer = optimizer_cls(parameters, **optimizer_options)
-        return optimizer
 
 
 def trace_components(module, obs_space, action_space):
