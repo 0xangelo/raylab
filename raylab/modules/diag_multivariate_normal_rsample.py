@@ -37,5 +37,5 @@ class DiagMultivariateNormalRSample(nn.Module):
                 loc=self.action_loc, scale=self.action_scale, cache_size=1, event_dim=1
             )
             dist = dists.TransformedDistribution(dist, [squash, shift])
-        sample = dist.mean if self.mean_only else dist.rsample
+        sample = dist.mean if self.mean_only else dist.rsample()
         return sample, dist.log_prob(sample)
