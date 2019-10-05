@@ -19,8 +19,15 @@ def _import_svg_one():
     return SVGOneTrainer
 
 
+def _import_sac():
+    from raylab.algorithms.sac.sac import SACTrainer
+
+    return SACTrainer
+
+
 ALGORITHMS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
     "SVG(1)": _import_svg_one,
+    "SAC": _import_sac,
 }
