@@ -16,6 +16,7 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
     # pylint: disable=abstract-method
 
     ACTION_LOGP = "action_logp"
+    IS_RATIOS = "is_ratios"
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
@@ -56,6 +57,29 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
 
     def set_reward_fn(self, reward_fn):
         """Set the reward function to use when unrolling the policy and model."""
+
+    @torch.no_grad()
+    def add_importance_sampling_ratios(self, batch_tensors):
+        """Compute and add truncated importance sampling ratios to tensor batch."""
+        is_ratios = self._compute_is_ratios(batch_tensors)
+        _is_ratios = torch.clamp(is_ratios, max=self.config["max_is_ratio"])
+        batch_tensors[self.IS_RATIOS] = _is_ratios
+        return batch_tensors, {"avg_is_ratio": is_ratios.mean().item()}
+
+    def compute_joint_model_value_loss(self, batch_tensors):
+        """Compute model MLE loss and fitted value function loss."""
+        mle_loss = self._avg_model_logp(batch_tensors).neg()
+
+        with torch.no_grad():
+            targets = self._compute_value_targets(batch_tensors)
+        _is_ratios = batch_tensors[self.IS_RATIOS]
+        values = self.module.value(batch_tensors[SampleBatch.CUR_OBS]).squeeze(-1)
+        value_loss = torch.mean(
+            _is_ratios * nn.MSELoss(reduction="none")(values, targets) / 2
+        )
+
+        loss = mle_loss + self.config["vf_loss_coeff"] * value_loss
+        return loss, {"mle_loss": mle_loss.item(), "value_loss": value_loss.item()}
 
     @staticmethod
     def _make_module(obs_space, action_space, config):

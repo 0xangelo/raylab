@@ -39,7 +39,9 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
         if self._off_policy_learning:
-            loss, info = self.compute_joint_model_value_loss(batch_tensors)
+            batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
+            loss, _info = self.compute_joint_model_value_loss(batch_tensors)
+            info.update(_info)
             self.off_policy_optimizer.zero_grad()
             loss.backward()
             info.update(self.extra_grad_info(batch_tensors))
@@ -97,28 +99,6 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
 
     learn_off_policy = functools.partialmethod(set_off_policy, True)
     learn_on_policy = functools.partialmethod(set_off_policy, False)
-
-    def compute_joint_model_value_loss(self, batch_tensors):
-        """Compute model MLE loss and fitted value function loss."""
-        mle_loss = self._avg_model_logp(batch_tensors).neg()
-
-        with torch.no_grad():
-            targets = self._compute_value_targets(batch_tensors)
-            is_ratio = self._compute_is_ratios(batch_tensors)
-
-        _is_ratio = torch.clamp(is_ratio, max=self.config["max_is_ratio"])
-        values = self.module.value(batch_tensors[SampleBatch.CUR_OBS]).squeeze(-1)
-        value_loss = torch.mean(
-            _is_ratio * nn.MSELoss(reduction="none")(values, targets) / 2
-        )
-
-        joint_loss = mle_loss + self.config["vf_loss_coeff"] * value_loss
-        info = {
-            "mle_loss": mle_loss.item(),
-            "value_loss": value_loss.item(),
-            "avg_is_ratio": is_ratio.mean().item(),
-        }
-        return joint_loss, info
 
     def compute_stochastic_value_gradient_loss(self, episodes):
         """Compute Stochatic Value Gradient loss given full trajectories."""

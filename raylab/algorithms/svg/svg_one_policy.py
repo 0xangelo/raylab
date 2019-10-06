@@ -1,4 +1,6 @@
 """SVG(inf) policy class using PyTorch."""
+from functools import partialmethod
+
 import torch
 import torch.nn as nn
 from ray.rllib.policy.policy import LEARNER_STATS_KEY
@@ -31,10 +33,20 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
     @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
-        loss, info = self.compute_joint_loss(batch_tensors)
-        loss = loss + self.curr_kl_coeff * self._avg_kl_divergence(batch_tensors)
+        batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
         self._optimizer.zero_grad()
-        loss.backward()
+
+        self._unfreeze_non_policy_grads()
+        model_value_loss, _info = self.compute_joint_model_value_loss(batch_tensors)
+        info.update(_info)
+        model_value_loss.backward()
+
+        self._freeze_non_policy_grads()
+        pi_loss, _info = self.compute_stochastic_value_gradient_loss(batch_tensors)
+        info.update(_info)
+        pi_loss = pi_loss + self.curr_kl_coeff * self._avg_kl_divergence(batch_tensors)
+        pi_loss.backward()
+
         info.update(self.extra_grad_info(batch_tensors))
         self._optimizer.step()
         self.update_targets()
@@ -57,31 +69,11 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
 
     # ================================= NEW METHODS ====================================
 
-    def compute_joint_loss(self, batch_tensors):  # pylint: disable=too-many-locals
-        """Compute model MLE, fitted V, and policy losses."""
-        mle_loss = self._avg_model_logp(batch_tensors).neg()
-
-        with torch.no_grad():
-            targets = self._compute_value_targets(batch_tensors)
-            is_ratio = self._compute_is_ratios(batch_tensors)
-            _is_ratio = torch.clamp(is_ratio, max=self.config["max_is_ratio"])
-
-        values = self.module.value(batch_tensors[SampleBatch.CUR_OBS]).squeeze(-1)
-        value_loss = torch.mean(
-            _is_ratio * nn.MSELoss(reduction="none")(values, targets) / 2
-        )
-
+    def compute_stochastic_value_gradient_loss(self, batch_tensors):
+        """Compute bootstrapped Stochatic Value Gradient loss."""
         td_targets = self._compute_policy_td_targets(batch_tensors)
-        svg_loss = torch.mean(_is_ratio * td_targets).neg()
-
-        loss = mle_loss + self.config["vf_loss_coeff"] * value_loss + svg_loss
-        info = {
-            "mle_loss": mle_loss.item(),
-            "value_loss": value_loss.item(),
-            "svg_loss": svg_loss.item(),
-            "avg_is_ratio": is_ratio.mean().item(),
-        }
-        return loss, info
+        svg_loss = torch.mean(batch_tensors[self.IS_RATIOS] * td_targets).neg()
+        return svg_loss, {"svg_loss": svg_loss.item()}
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):
@@ -103,6 +95,13 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
             "curr_kl_coeff": self.curr_kl_coeff,
         }
         return fetches
+
+    def _set_non_policy_require_grad(self, require_grad):
+        for name in ("model", "value"):
+            self.module[name].requires_grad_(require_grad)
+
+    _freeze_non_policy_grads = partialmethod(_set_non_policy_require_grad, False)
+    _unfreeze_non_policy_grads = partialmethod(_set_non_policy_require_grad, True)
 
     def _compute_policy_td_targets(self, batch_tensors):
         _acts = self.module.policy_rsample(
