@@ -38,6 +38,27 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
 
         return DEFAULT_CONFIG
 
+    @override(TorchPolicy)
+    def optimizer(self):
+        pi_cls = torch_util.get_optimizer_class(self.config["policy_optimizer"]["name"])
+        pi_optim = pi_cls(
+            self.module.policy.parameters(),
+            **self.config["policy_optimizer"]["options"]
+        )
+
+        qf_cls = torch_util.get_optimizer_class(self.config["critic_optimizer"]["name"])
+        qf_params = self.module.critic.parameters()
+        if self.config["clipped_double_q"]:
+            qf_params = itertools.chain(qf_params, self.module.twin_critic.parameters())
+        qf_optim = qf_cls(qf_params, **self.config["critic_optimizer"]["options"])
+
+        al_cls = torch_util.get_optimizer_class(self.config["alpha_optimizer"]["name"])
+        al_optim = al_cls(
+            [self.module.log_alpha], **self.config["alpha_optimizer"]["options"]
+        )
+
+        return OptimizerCollection(policy=pi_optim, critic=qf_optim, alpha=al_optim)
+
     @torch.no_grad()
     @override(TorchPolicy)
     def compute_actions(
@@ -66,80 +87,55 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         module, config = self.module, self.config
         info = {}
 
-        critic_loss, stats = self.compute_critic_loss(batch_tensors, module, config)
-        info.update(stats)
-        self._optimizer.critic.zero_grad()
-        critic_loss.backward()
-        info.update(self.extra_grad_info(batch_tensors, "critic"))
-        self._optimizer.critic.step()
-        info.update(self.extra_apply_info(batch_tensors, "critic"))
-
-        policy_loss, stats = self.compute_policy_loss(batch_tensors, module, config)
-        info.update(stats)
-        self._optimizer.policy.zero_grad()
-        policy_loss.backward()
-        info.update(self.extra_grad_info(batch_tensors, "policy"))
-        self._optimizer.policy.step()
-        info.update(self.extra_apply_info(batch_tensors, "policy"))
-
-        alpha_loss, stats = self.compute_alpha_loss(batch_tensors, module, config)
-        info.update(stats)
-        self._optimizer.alpha.zero_grad()
-        alpha_loss.backward()
-        info.update(self.extra_grad_info(batch_tensors, "alpha"))
-        self._optimizer.alpha.step()
-        info.update(self.extra_apply_info(batch_tensors, "alpha"))
+        info.update(self._update_critic(batch_tensors, module, config))
+        info.update(self._update_policy(batch_tensors, module, config))
+        info.update(self._update_alpha(batch_tensors, module, config))
 
         self.update_targets()
-        losses_info = {
-            "critic_loss": critic_loss.item(),
-            "policy_loss": policy_loss.item(),
-            "alpha_loss": alpha_loss.item(),
-        }
-        info.update(losses_info)
         return self._learner_stats(info)
 
-    @override(TorchPolicy)
-    def optimizer(self):
-        pi_cls = torch_util.get_optimizer_class(self.config["policy_optimizer"]["name"])
-        pi_optim = pi_cls(
-            self.module.policy.parameters(),
-            **self.config["policy_optimizer"]["options"]
-        )
+    def _update_critic(self, batch_tensors, module, config):
+        critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
+        self._optimizer.critic.zero_grad()
+        critic_loss.backward()
+        grad_stats = {
+            "critic_grad_norm": nn.utils.clip_grad_norm_(
+                self._optimizer.critic.param_groups[0]["params"], float("inf")
+            )
+        }
+        info.update(grad_stats)
 
-        qf_cls = torch_util.get_optimizer_class(self.config["critic_optimizer"]["name"])
-        qf_params = self.module.critic.parameters()
-        if self.config["clipped_double_q"]:
-            qf_params = itertools.chain(qf_params, self.module.twin_critic.parameters())
-        qf_optim = qf_cls(qf_params, **self.config["critic_optimizer"]["options"])
+        self._optimizer.critic.step()
+        return info
 
-        al_cls = torch_util.get_optimizer_class(self.config["alpha_optimizer"]["name"])
-        al_optim = al_cls(
-            [self.module.log_alpha], **self.config["alpha_optimizer"]["options"]
-        )
+    def _update_policy(self, batch_tensors, module, config):
+        policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
+        self._optimizer.policy.zero_grad()
+        policy_loss.backward()
+        grad_stats = {
+            "policy_grad_norm": nn.utils.clip_grad_norm_(
+                module.policy.parameters(), float("inf")
+            )
+        }
+        info.update(grad_stats)
 
-        return OptimizerCollection(policy=pi_optim, critic=qf_optim, alpha=al_optim)
+        self._optimizer.policy.step()
+        apply_stats = {}
+        info.update(apply_stats)
+        return info
 
-    @override(TorchPolicy)
-    def make_module(self, obs_space, action_space, config):
-        module = nn.ModuleDict()
-        module.update(self._make_policy(obs_space, action_space, config))
+    def _update_alpha(self, batch_tensors, module, config):
+        alpha_loss, info = self.compute_alpha_loss(batch_tensors, module, config)
+        self._optimizer.alpha.zero_grad()
+        alpha_loss.backward()
+        grad_stats = {
+            "alpha_grad_norm": self.module.log_alpha.norm().item(),
+            "curr_alpha": self.module.log_alpha.item(),
+        }
+        info.update(grad_stats)
 
-        def make_critic():
-            return self._make_critic(obs_space, action_space, config)
-
-        module.critic = make_critic()
-        module.target_critic = make_critic()
-        module.target_critic.load_state_dict(module.critic.state_dict())
-        if config["clipped_double_q"]:
-            module.twin_critic = make_critic()
-            module.target_twin_critic = make_critic()
-            module.target_twin_critic.load_state_dict(module.twin_critic.state_dict())
-
-        module.log_alpha = nn.Parameter(torch.zeros([]))
-        return module
-
-    # ================================= NEW METHODS ====================================
+        self._optimizer.alpha.step()
+        return info
 
     def compute_critic_loss(self, batch_tensors, module, config):
         """Compute Soft Policy Iteration loss for Q value function."""
@@ -190,6 +186,7 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
             action_values = torch.min(action_values, module.twin_critic(obs, actions))
         max_objective = torch.mean(action_values - module.log_alpha.exp() * logp)
         stats = {
+            "policy_loss": max_objective.neg().item(),
             "qpi_mean": action_values.mean().item(),
             "logp_mean": logp.mean().item(),
         }
@@ -201,41 +198,7 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         _, logp = module.sampler(batch_tensors[SampleBatch.CUR_OBS])
         alpha = module.log_alpha.exp()
         entropy_diff = torch.mean(-alpha * logp - alpha * config["target_entropy"])
-        return entropy_diff, {}
-
-    @torch.no_grad()
-    def extra_grad_info(self, batch_tensors, key):  # pylint: disable=unused-argument
-        """Return extra stats for `key` component after computing its gradients."""
-        if key == "critic":
-            info = {
-                "critic_grad_norm": nn.utils.clip_grad_norm_(
-                    self._optimizer.critic.param_groups[0]["params"], float("inf")
-                )
-            }
-        elif key == "policy":
-            info = {
-                "policy_grad_norm": nn.utils.clip_grad_norm_(
-                    self.module.policy.parameters(), float("inf")
-                )
-            }
-        elif key == "alpha":
-            info = {
-                "alpha_grad_norm": self.module.log_alpha.norm().item(),
-                "curr_alpha": self.module.log_alpha.item(),
-            }
-        else:
-            info = {}
-        return info
-
-    @torch.no_grad()
-    def extra_apply_info(self, batch_tensors, key):
-        """Return extra stats for `key` component after applying its gradients."""
-        # pylint: disable=unused-argument,no-self-use
-        if key == "policy":
-            info = {}  # Calculate cross-entropy later
-        else:
-            info = {}
-        return info
+        return entropy_diff, {"alpha_loss": entropy_diff.item()}
 
     def update_targets(self):
         """Update target networks through one step of polyak averaging."""
@@ -245,6 +208,25 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
             torch_util.update_polyak(
                 self.module.twin_critic, self.module.target_twin_critic, polyak
             )
+
+    @override(TorchPolicy)
+    def make_module(self, obs_space, action_space, config):
+        module = nn.ModuleDict()
+        module.update(self._make_policy(obs_space, action_space, config))
+
+        def make_critic():
+            return self._make_critic(obs_space, action_space, config)
+
+        module.critic = make_critic()
+        module.target_critic = make_critic()
+        module.target_critic.load_state_dict(module.critic.state_dict())
+        if config["clipped_double_q"]:
+            module.twin_critic = make_critic()
+            module.target_twin_critic = make_critic()
+            module.target_twin_critic.load_state_dict(module.twin_critic.state_dict())
+
+        module.log_alpha = nn.Parameter(torch.zeros([]))
+        return module
 
     def _make_policy(self, obs_space, action_space, config):
         policy_config = config["module"]["policy"]
