@@ -24,16 +24,29 @@ def action_bounds(request):
 
 
 @pytest.fixture
-def module_and_inputs(mean_only, squashed, action_bounds):
-    return (
-        DiagMultivariateNormalRSample(
-            mean_only=mean_only, squashed=squashed, **action_bounds
-        ),
-        {
-            "loc": torch.randn((10,) + action_bounds["action_low"].shape),
-            "scale_diag": torch.randn((10,) + action_bounds["action_low"].shape),
-        },
-    )
+def module_and_inputs_fn():
+    def func(mean_only, squashed, action_bounds):
+        return (
+            DiagMultivariateNormalRSample(
+                mean_only=mean_only, squashed=squashed, **action_bounds
+            ),
+            {
+                "loc": torch.randn((10,) + action_bounds["action_low"].shape),
+                "scale_diag": torch.randn((10,) + action_bounds["action_low"].shape),
+            },
+        )
+
+    return func
+
+
+@pytest.fixture
+def module_and_inputs(module_and_inputs_fn, mean_only, squashed, action_bounds):
+    return module_and_inputs_fn(mean_only, squashed, action_bounds)
+
+
+@pytest.fixture
+def mean_module_and_inputs(module_and_inputs_fn, squashed, action_bounds):
+    return module_and_inputs_fn(True, squashed, action_bounds)
 
 
 def test_forward(module_and_inputs):
@@ -56,3 +69,18 @@ def test_forward(module_and_inputs):
     loc.grad = None
     logp.mean().backward()
     assert loc.grad is not None
+
+
+def test_mean_only_is_deterministic(mean_module_and_inputs):
+    module, inputs = mean_module_and_inputs
+    loc, scale = inputs["loc"], inputs["scale_diag"]
+    loc.requires_grad_(True)
+    scale.requires_grad_(True)
+
+    var1, _ = module(inputs)
+    var2, _ = module(inputs)
+    assert torch.allclose(var1, var2)
+
+    (var1 + var2).mean().backward()
+    assert loc.grad is not None
+    assert scale.grad is None
