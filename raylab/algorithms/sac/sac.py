@@ -57,8 +57,8 @@ DEFAULT_CONFIG = with_common_config(
         # === Rollout Worker ===
         "num_workers": 0,
         # === Exploration ===
-        # Whether to act greedly or exploratory, mostly for evaluation purposes
-        "greedy": False,
+        # Whether to sample only the mean action, mostly for evaluation purposes
+        "mean_action_only": False,
         # Until this many timesteps have elapsed, the agent's policy will be
         # ignored & it will instead take uniform random actions. Can be used in
         # conjunction with learning_starts (which controls when the first
@@ -70,7 +70,7 @@ DEFAULT_CONFIG = with_common_config(
         # Extra arguments to pass to evaluation workers.
         # Typical usage is to pass extra args to evaluation env creator
         # and to disable exploration by computing deterministic actions
-        "evaluation_config": {"greedy": True, "pure_exploration_steps": 0},
+        "evaluation_config": {"mean_action_only": True, "pure_exploration_steps": 0},
     }
 )
 

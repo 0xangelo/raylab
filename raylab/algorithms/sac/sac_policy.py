@@ -53,9 +53,7 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         # pylint: disable=too-many-arguments,unused-argument
         obs_batch = self.convert_to_tensor(obs_batch)
 
-        if self.config["greedy"]:
-            actions, _ = self.module.greedy(obs_batch)
-        elif self.is_uniform_random:
+        if self.is_uniform_random:
             actions = self._uniform_random_actions(obs_batch)
         else:
             actions, _ = self.module.sampler(obs_batch)
@@ -248,25 +246,13 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         sampler_module = nn.Sequential(
             policy_module,
             mods.DiagMultivariateNormalRSample(
+                mean_only=config["mean_action_only"],
                 squashed=True,
                 action_low=self.convert_to_tensor(action_space.low),
                 action_high=self.convert_to_tensor(action_space.high),
             ),
         )
-        greedy_module = nn.Sequential(
-            policy_module,
-            mods.DiagMultivariateNormalRSample(
-                mean_only=True,
-                squashed=True,
-                action_low=self.convert_to_tensor(action_space.low),
-                action_high=self.convert_to_tensor(action_space.high),
-            ),
-        )
-        return {
-            "policy": policy_module,
-            "sampler": sampler_module,
-            "greedy": greedy_module,
-        }
+        return {"policy": policy_module, "sampler": sampler_module}
 
     @staticmethod
     def _make_critic(obs_space, action_space, config):
