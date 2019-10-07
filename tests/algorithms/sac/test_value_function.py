@@ -49,7 +49,7 @@ def test_target_value_output(policy_and_batch):
 
 def test_critic_loss(policy_and_batch):
     policy, batch = policy_and_batch
-    loss = policy.compute_critic_loss(batch, policy.module, policy.config)
+    loss, _ = policy.compute_critic_loss(batch, policy.module, policy.config)
 
     assert loss.shape == ()
     assert loss.dtype == torch.float32

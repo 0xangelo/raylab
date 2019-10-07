@@ -17,7 +17,7 @@ def test_alpha_init(policy_and_batch_fn, target_entropy):
 
 def test_alpha_loss(policy_and_batch_fn, target_entropy):
     policy, batch = policy_and_batch_fn(target_entropy)
-    loss = policy.compute_alpha_loss(batch, policy.module, policy.config)
+    loss, _ = policy.compute_alpha_loss(batch, policy.module, policy.config)
 
     assert loss.shape == ()
     assert loss.dtype == torch.float32

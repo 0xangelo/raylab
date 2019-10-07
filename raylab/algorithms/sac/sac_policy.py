@@ -63,23 +63,27 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
+        module, config = self.module, self.config
         info = {}
 
-        critic_loss = self.compute_critic_loss(batch_tensors, self.module, self.config)
+        critic_loss, stats = self.compute_critic_loss(batch_tensors, module, config)
+        info.update(stats)
         self._optimizer.critic.zero_grad()
         critic_loss.backward()
         info.update(self.extra_grad_info(batch_tensors, "critic"))
         self._optimizer.critic.step()
         info.update(self.extra_apply_info(batch_tensors, "critic"))
 
-        policy_loss = self.compute_policy_loss(batch_tensors, self.module, self.config)
+        policy_loss, stats = self.compute_policy_loss(batch_tensors, module, config)
+        info.update(stats)
         self._optimizer.policy.zero_grad()
         policy_loss.backward()
         info.update(self.extra_grad_info(batch_tensors, "policy"))
         self._optimizer.policy.step()
         info.update(self.extra_apply_info(batch_tensors, "policy"))
 
-        alpha_loss = self.compute_alpha_loss(batch_tensors, self.module, self.config)
+        alpha_loss, stats = self.compute_alpha_loss(batch_tensors, module, config)
+        info.update(stats)
         self._optimizer.alpha.zero_grad()
         alpha_loss.backward()
         info.update(self.extra_grad_info(batch_tensors, "alpha"))
@@ -150,7 +154,13 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         if config["clipped_double_q"]:
             twin_values = module.twin_critic(obs, actions).squeeze(-1)
             critic_loss = (critic_loss + loss_fn(twin_values, target_values)) / 2
-        return critic_loss
+        stats = {
+            "q_mean": values.mean().item(),
+            "q_max": values.max().item(),
+            "q_min": values.min().item(),
+            "td_error": critic_loss.item(),
+        }
+        return critic_loss, stats
 
     @staticmethod
     def _compute_critic_targets(batch_tensors, module, config):
@@ -179,7 +189,11 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         if config["clipped_double_q"]:
             action_values = torch.min(action_values, module.twin_critic(obs, actions))
         max_objective = torch.mean(action_values - module.log_alpha.exp() * logp)
-        return max_objective.neg()
+        stats = {
+            "qpi_mean": action_values.mean().item(),
+            "logp_mean": logp.mean().item(),
+        }
+        return max_objective.neg(), stats
 
     @staticmethod
     def compute_alpha_loss(batch_tensors, module, config):
@@ -187,7 +201,7 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         _, logp = module.sampler(batch_tensors[SampleBatch.CUR_OBS])
         alpha = module.log_alpha.exp()
         entropy_diff = torch.mean(-alpha * logp - alpha * config["target_entropy"])
-        return entropy_diff
+        return entropy_diff, {}
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors, key):  # pylint: disable=unused-argument
@@ -205,7 +219,10 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
                 )
             }
         elif key == "alpha":
-            info = {"alpha_grad_norm": self.module.log_alpha.norm().item()}
+            info = {
+                "alpha_grad_norm": self.module.log_alpha.norm().item(),
+                "curr_alpha": self.module.log_alpha.item(),
+            }
         else:
             info = {}
         return info
