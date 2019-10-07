@@ -1,5 +1,4 @@
 """SAC policy class using PyTorch."""
-import itertools
 import collections
 
 import torch
@@ -47,10 +46,10 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         )
 
         qf_cls = torch_util.get_optimizer_class(self.config["critic_optimizer"]["name"])
-        qf_params = self.module.critic.parameters()
-        if self.config["clipped_double_q"]:
-            qf_params = itertools.chain(qf_params, self.module.twin_critic.parameters())
-        qf_optim = qf_cls(qf_params, **self.config["critic_optimizer"]["options"])
+        qf_optim = qf_cls(
+            self.module.critics.parameters(),
+            **self.config["critic_optimizer"]["options"]
+        )
 
         al_cls = torch_util.get_optimizer_class(self.config["alpha_optimizer"]["name"])
         al_optim = al_cls(
@@ -100,7 +99,7 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         critic_loss.backward()
         grad_stats = {
             "critic_grad_norm": nn.utils.clip_grad_norm_(
-                self._optimizer.critic.param_groups[0]["params"], float("inf")
+                module.critics.parameters(), float("inf")
             )
         }
         info.update(grad_stats)
@@ -141,15 +140,13 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         """Compute Soft Policy Iteration loss for Q value function."""
         obs = batch_tensors[SampleBatch.CUR_OBS]
         actions = batch_tensors[SampleBatch.ACTIONS]
+
         with torch.no_grad():
             target_values = self._compute_critic_targets(batch_tensors, module, config)
-
         loss_fn = nn.MSELoss()
-        values = module.critic(obs, actions).squeeze(-1)
-        critic_loss = loss_fn(values, target_values)
-        if config["clipped_double_q"]:
-            twin_values = module.twin_critic(obs, actions).squeeze(-1)
-            critic_loss = (critic_loss + loss_fn(twin_values, target_values)) / 2
+        values = torch.cat([m(obs, actions) for m in module.critics], dim=-1)
+        critic_loss = loss_fn(values, target_values.unsqueeze(-1).expand_as(values))
+
         stats = {
             "q_mean": values.mean().item(),
             "q_max": values.max().item(),
@@ -165,11 +162,9 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         dones = batch_tensors[SampleBatch.DONES]
 
         next_acts, logp = module.sampler(next_obs)
-        next_vals = module.target_critic(next_obs, next_acts).squeeze(-1)
-        if config["clipped_double_q"]:
-            twin_next_vals = module.target_twin_critic(next_obs, next_acts).squeeze(-1)
-            next_vals = torch.min(next_vals, twin_next_vals)
-
+        next_vals, _ = torch.cat(
+            [m(next_obs, next_acts) for m in module.target_critics], dim=-1
+        ).min(dim=-1)
         return torch.where(
             dones,
             rewards,
@@ -179,12 +174,15 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
     @staticmethod
     def compute_policy_loss(batch_tensors, module, config):
         """Compute Soft Policy Iteration loss for reparameterized stochastic policy."""
+        # pylint: disable=unused-argument
         obs = batch_tensors[SampleBatch.CUR_OBS]
+
         actions, logp = module.sampler(obs)
-        action_values = module.critic(obs, actions)
-        if config["clipped_double_q"]:
-            action_values = torch.min(action_values, module.twin_critic(obs, actions))
+        action_values, _ = torch.cat(
+            [m(obs, actions) for m in module.critics], dim=-1
+        ).min(dim=-1)
         max_objective = torch.mean(action_values - module.log_alpha.exp() * logp)
+
         stats = {
             "policy_loss": max_objective.neg().item(),
             "qpi_mean": action_values.mean().item(),
@@ -202,12 +200,9 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
 
     def update_targets(self):
         """Update target networks through one step of polyak averaging."""
-        polyak = self.config["polyak"]
-        torch_util.update_polyak(self.module.critic, self.module.target_critic, polyak)
-        if self.config["clipped_double_q"]:
-            torch_util.update_polyak(
-                self.module.twin_critic, self.module.target_twin_critic, polyak
-            )
+        torch_util.update_polyak(
+            self.module.critics, self.module.target_critics, self.config["polyak"]
+        )
 
     @override(TorchPolicy)
     def make_module(self, obs_space, action_space, config):
@@ -217,13 +212,12 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         def make_critic():
             return self._make_critic(obs_space, action_space, config)
 
-        module.critic = make_critic()
-        module.target_critic = make_critic()
-        module.target_critic.load_state_dict(module.critic.state_dict())
+        module.critics = nn.ModuleList([make_critic()])
+        module.target_critics = nn.ModuleList([make_critic()])
         if config["clipped_double_q"]:
-            module.twin_critic = make_critic()
-            module.target_twin_critic = make_critic()
-            module.target_twin_critic.load_state_dict(module.twin_critic.state_dict())
+            module.critics.append(make_critic())
+            module.target_critics.append(make_critic())
+        module.target_critics.load_state_dict(module.critics.state_dict())
 
         module.log_alpha = nn.Parameter(torch.zeros([]))
         return module

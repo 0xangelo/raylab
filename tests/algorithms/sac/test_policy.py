@@ -52,6 +52,4 @@ def test_policy_policy_loss(
     loss.backward()
     assert all(p.grad is not None for p in policy.module.policy.parameters())
     assert policy.module.log_alpha.grad is not None
-    assert all(p.grad is not None for p in policy.module.critic.parameters())
-    if policy.config["clipped_double_q"]:
-        assert all(p.grad is not None for p in policy.module.twin_critic.parameters())
+    assert all(p.grad is not None for p in policy.module.critics.parameters())
