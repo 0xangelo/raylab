@@ -47,6 +47,5 @@ def action_space():
 
 
 def test_make_module(obs_space, action_space, config):
-    # pylint: disable=protected-access
-    module = NAFTorchPolicy._make_module(obs_space, action_space, config)
-    assert isinstance(module, nn.ModuleDict)
+    policy = NAFTorchPolicy(obs_space, action_space, config)
+    assert isinstance(policy.module, nn.ModuleDict)

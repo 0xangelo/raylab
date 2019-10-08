@@ -18,12 +18,6 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
     ACTION_LOGP = "action_logp"
     IS_RATIOS = "is_ratios"
 
-    def __init__(self, observation_space, action_space, config):
-        super().__init__(observation_space, action_space, config)
-        self.module = self._make_module(
-            self.observation_space, self.action_space, self.config
-        )
-
     @torch.no_grad()
     @override(TorchPolicy)
     def compute_actions(
@@ -47,6 +41,16 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
             **{k: v.numpy() for k, v in dist_params.items()},
         }
         return actions.cpu().numpy(), state_batches, extra_fetches
+
+    @override(TorchPolicy)
+    def make_module(self, obs_space, action_space, config):
+        module = nn.ModuleDict()
+        module.update(SVGBaseTorchPolicy._make_model(obs_space, action_space, config))
+        module.value = SVGBaseTorchPolicy._make_critic(obs_space, config)
+        module.target_value = SVGBaseTorchPolicy._make_critic(obs_space, config)
+        module.target_value.load_state_dict(module.value.state_dict())
+        module.update(SVGBaseTorchPolicy._make_policy(obs_space, action_space, config))
+        return module
 
     @torch.no_grad()
     @override(AdaptiveKLCoeffMixin)
@@ -80,16 +84,6 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
 
         loss = mle_loss + self.config["vf_loss_coeff"] * value_loss
         return loss, {"mle_loss": mle_loss.item(), "value_loss": value_loss.item()}
-
-    @staticmethod
-    def _make_module(obs_space, action_space, config):
-        module = nn.ModuleDict()
-        module.update(SVGBaseTorchPolicy._make_model(obs_space, action_space, config))
-        module.value = SVGBaseTorchPolicy._make_critic(obs_space, config)
-        module.target_value = SVGBaseTorchPolicy._make_critic(obs_space, config)
-        module.target_value.load_state_dict(module.value.state_dict())
-        module.update(SVGBaseTorchPolicy._make_policy(obs_space, action_space, config))
-        return module
 
     @staticmethod
     def _make_model(obs_space, action_space, config):

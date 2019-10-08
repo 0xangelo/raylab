@@ -3,7 +3,6 @@ from functools import partialmethod
 
 import torch
 import torch.nn as nn
-from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
@@ -51,7 +50,7 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         self._optimizer.step()
         self.update_targets()
 
-        return {LEARNER_STATS_KEY: info}
+        return self._learner_stats(info)
 
     @override(SVGBaseTorchPolicy)
     def optimizer(self):

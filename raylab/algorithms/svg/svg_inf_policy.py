@@ -4,7 +4,6 @@ import functools
 
 import torch
 import torch.nn as nn
-from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
@@ -58,7 +57,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
             self.on_policy_optimizer.step()
             info.update(self.update_kl_coeff(samples))
 
-        return {LEARNER_STATS_KEY: info}
+        return self._learner_stats(info)
 
     @override(SVGBaseTorchPolicy)
     def optimizer(self):

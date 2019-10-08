@@ -2,3 +2,4 @@
 from raylab.policy.torch_policy import TorchPolicy
 from raylab.policy.kl_coeff_mixin import AdaptiveKLCoeffMixin
 from raylab.policy.parameter_noise_mixin import AdaptiveParamNoiseMixin
+from raylab.policy.pure_exploration_mixin import PureExplorationMixin
