@@ -18,6 +18,9 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
     ACTION_LOGP = "action_logp"
     IS_RATIOS = "is_ratios"
 
+    def set_reward_fn(self, reward_fn):
+        """Set the reward function to use when unrolling the policy and model."""
+
     @torch.no_grad()
     @override(TorchPolicy)
     def compute_actions(
@@ -45,45 +48,17 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
     @override(TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module = nn.ModuleDict()
-        module.update(SVGBaseTorchPolicy._make_model(obs_space, action_space, config))
-        module.value = SVGBaseTorchPolicy._make_critic(obs_space, config)
-        module.target_value = SVGBaseTorchPolicy._make_critic(obs_space, config)
+        module.update(self._make_model(obs_space, action_space, config))
+
+        def make_vf():
+            return self._make_critic(obs_space, config)
+
+        module.value = make_vf()
+        module.target_value = make_vf().requires_grad_(False)
         module.target_value.load_state_dict(module.value.state_dict())
-        module.update(SVGBaseTorchPolicy._make_policy(obs_space, action_space, config))
+
+        module.update(self._make_policy(obs_space, action_space, config))
         return module
-
-    @torch.no_grad()
-    @override(AdaptiveKLCoeffMixin)
-    def _kl_divergence(self, sample_batch):
-        return self._avg_kl_divergence(self._lazy_tensor_dict(sample_batch)).item()
-
-    # ================================= NEW METHODS ====================================
-
-    def set_reward_fn(self, reward_fn):
-        """Set the reward function to use when unrolling the policy and model."""
-
-    @torch.no_grad()
-    def add_importance_sampling_ratios(self, batch_tensors):
-        """Compute and add truncated importance sampling ratios to tensor batch."""
-        is_ratios = self._compute_is_ratios(batch_tensors)
-        _is_ratios = torch.clamp(is_ratios, max=self.config["max_is_ratio"])
-        batch_tensors[self.IS_RATIOS] = _is_ratios
-        return batch_tensors, {"avg_is_ratio": is_ratios.mean().item()}
-
-    def compute_joint_model_value_loss(self, batch_tensors):
-        """Compute model MLE loss and fitted value function loss."""
-        mle_loss = self._avg_model_logp(batch_tensors).neg()
-
-        with torch.no_grad():
-            targets = self._compute_value_targets(batch_tensors)
-        _is_ratios = batch_tensors[self.IS_RATIOS]
-        values = self.module.value(batch_tensors[SampleBatch.CUR_OBS]).squeeze(-1)
-        value_loss = torch.mean(
-            _is_ratios * nn.MSELoss(reduction="none")(values, targets) / 2
-        )
-
-        loss = mle_loss + self.config["vf_loss_coeff"] * value_loss
-        return loss, {"mle_loss": mle_loss.item(), "value_loss": value_loss.item()}
 
     @staticmethod
     def _make_model(obs_space, action_space, config):
@@ -140,10 +115,45 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
             "kl_div": svgm.DiagNormalKL(),
         }
 
-    def update_targets(self):
-        """Update target networks through one step of polyak averaging."""
-        polyak = self.config["polyak"]
-        torch_util.update_polyak(self.module.value, self.module.target_value, polyak)
+    @torch.no_grad()
+    @override(AdaptiveKLCoeffMixin)
+    def _kl_divergence(self, sample_batch):
+        return self._avg_kl_divergence(self._lazy_tensor_dict(sample_batch)).item()
+
+    def _avg_kl_divergence(self, batch_tensors):
+        new_params = self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
+        return self.module.kl_div(batch_tensors, new_params).mean()
+
+    @torch.no_grad()
+    def add_importance_sampling_ratios(self, batch_tensors):
+        """Compute and add truncated importance sampling ratios to tensor batch."""
+        is_ratios = self._compute_is_ratios(batch_tensors)
+        _is_ratios = torch.clamp(is_ratios, max=self.config["max_is_ratio"])
+        batch_tensors[self.IS_RATIOS] = _is_ratios
+        return batch_tensors, {"avg_is_ratio": is_ratios.mean().item()}
+
+    def _compute_is_ratios(self, batch_tensors):
+        dist_params = self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
+        curr_logp = self.module.policy_logp(
+            dist_params, batch_tensors[SampleBatch.ACTIONS]
+        )
+        is_ratio = torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP])
+        return is_ratio
+
+    def compute_joint_model_value_loss(self, batch_tensors):
+        """Compute model MLE loss and fitted value function loss."""
+        mle_loss = self._avg_model_logp(batch_tensors).neg()
+
+        with torch.no_grad():
+            targets = self._compute_value_targets(batch_tensors)
+        _is_ratios = batch_tensors[self.IS_RATIOS]
+        values = self.module.value(batch_tensors[SampleBatch.CUR_OBS]).squeeze(-1)
+        value_loss = torch.mean(
+            _is_ratios * nn.MSELoss(reduction="none")(values, targets) / 2
+        )
+
+        loss = mle_loss + self.config["vf_loss_coeff"] * value_loss
+        return loss, {"mle_loss": mle_loss.item(), "value_loss": value_loss.item()}
 
     def _avg_model_logp(self, batch_tensors):
         dist_params = self.module.model(
@@ -164,14 +174,7 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
         )
         return targets
 
-    def _compute_is_ratios(self, batch_tensors):
-        dist_params = self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
-        curr_logp = self.module.policy_logp(
-            dist_params, batch_tensors[SampleBatch.ACTIONS]
-        )
-        is_ratio = torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP])
-        return is_ratio
-
-    def _avg_kl_divergence(self, batch_tensors):
-        new_params = self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
-        return self.module.kl_div(batch_tensors, new_params).mean()
+    def update_targets(self):
+        """Update target networks through one step of polyak averaging."""
+        polyak = self.config["polyak"]
+        torch_util.update_polyak(self.module.value, self.module.target_value, polyak)

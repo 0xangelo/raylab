@@ -1,5 +1,5 @@
 """SVG(inf) policy class using PyTorch."""
-from functools import partialmethod
+import contextlib
 
 import torch
 import torch.nn as nn
@@ -30,29 +30,6 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         return DEFAULT_CONFIG
 
     @override(SVGBaseTorchPolicy)
-    def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
-        batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
-        self._optimizer.zero_grad()
-
-        self._unfreeze_non_policy_grads()
-        model_value_loss, _info = self.compute_joint_model_value_loss(batch_tensors)
-        info.update(_info)
-        model_value_loss.backward()
-
-        self._freeze_non_policy_grads()
-        pi_loss, _info = self.compute_stochastic_value_gradient_loss(batch_tensors)
-        info.update(_info)
-        pi_loss = pi_loss + self.curr_kl_coeff * self._avg_kl_divergence(batch_tensors)
-        pi_loss.backward()
-
-        info.update(self.extra_grad_info(batch_tensors))
-        self._optimizer.step()
-        self.update_targets()
-
-        return self._learner_stats(info)
-
-    @override(SVGBaseTorchPolicy)
     def optimizer(self):
         """PyTorch optimizer to use."""
         optim_cls = torch_util.get_optimizer_class(self.config["torch_optimizer"])
@@ -66,13 +43,54 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
     def set_reward_fn(self, reward_fn):
         self.module.reward = modules.Lambda(reward_fn)
 
-    # ================================= NEW METHODS ====================================
+    @override(SVGBaseTorchPolicy)
+    def learn_on_batch(self, samples):
+        batch_tensors = self._lazy_tensor_dict(samples)
+        batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
+        self._optimizer.zero_grad()
+
+        model_value_loss, stats = self.compute_joint_model_value_loss(batch_tensors)
+        info.update(stats)
+        model_value_loss.backward()
+
+        with self.freeze_nets("model", "value"):
+            svg_loss, stats = self.compute_stochastic_value_gradient_loss(batch_tensors)
+            info.update(stats)
+            kl_loss = self.curr_kl_coeff * self._avg_kl_divergence(batch_tensors)
+            (svg_loss + kl_loss).backward()
+
+        info.update(self.extra_grad_info(batch_tensors))
+        self._optimizer.step()
+        self.update_targets()
+
+        return self._learner_stats(info)
 
     def compute_stochastic_value_gradient_loss(self, batch_tensors):
         """Compute bootstrapped Stochatic Value Gradient loss."""
         td_targets = self._compute_policy_td_targets(batch_tensors)
         svg_loss = torch.mean(batch_tensors[self.IS_RATIOS] * td_targets).neg()
         return svg_loss, {"svg_loss": svg_loss.item()}
+
+    def _compute_policy_td_targets(self, batch_tensors):
+        _acts = self.module.policy_rsample(
+            self.module.policy(batch_tensors[SampleBatch.CUR_OBS]),
+            batch_tensors[SampleBatch.ACTIONS],
+        )
+        _residual = self.module.model_rsample(
+            self.module.model(batch_tensors[SampleBatch.CUR_OBS], _acts),
+            batch_tensors[SampleBatch.NEXT_OBS] - batch_tensors[SampleBatch.CUR_OBS],
+        )
+        _next_obs = batch_tensors[SampleBatch.CUR_OBS] + _residual
+        _rewards = self.module.reward(
+            batch_tensors[SampleBatch.CUR_OBS], _acts, _next_obs
+        )
+        _next_vals = self.module.value(_next_obs).squeeze(-1)
+        td_targets = torch.where(
+            batch_tensors[SampleBatch.DONES],
+            _rewards,
+            _rewards + self.config["gamma"] * _next_vals,
+        )
+        return td_targets
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):
@@ -95,30 +113,13 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         }
         return fetches
 
-    def _set_non_policy_require_grad(self, require_grad):
-        for name in ("model", "value"):
-            self.module[name].requires_grad_(require_grad)
-
-    _freeze_non_policy_grads = partialmethod(_set_non_policy_require_grad, False)
-    _unfreeze_non_policy_grads = partialmethod(_set_non_policy_require_grad, True)
-
-    def _compute_policy_td_targets(self, batch_tensors):
-        _acts = self.module.policy_rsample(
-            self.module.policy(batch_tensors[SampleBatch.CUR_OBS]),
-            batch_tensors[SampleBatch.ACTIONS],
-        )
-        _residual = self.module.model_rsample(
-            self.module.model(batch_tensors[SampleBatch.CUR_OBS], _acts),
-            batch_tensors[SampleBatch.NEXT_OBS] - batch_tensors[SampleBatch.CUR_OBS],
-        )
-        _next_obs = batch_tensors[SampleBatch.CUR_OBS] + _residual
-        _rewards = self.module.reward(
-            batch_tensors[SampleBatch.CUR_OBS], _acts, _next_obs
-        )
-        _next_vals = self.module.value(_next_obs).squeeze(-1)
-        td_targets = torch.where(
-            batch_tensors[SampleBatch.DONES],
-            _rewards,
-            _rewards + self.config["gamma"] * _next_vals,
-        )
-        return td_targets
+    @contextlib.contextmanager
+    def freeze_nets(self, *names):
+        """Disable gradient requirements for the desired modules in this context."""
+        try:
+            for name in names:
+                self.module[name].requires_grad_(False)
+            yield
+        finally:
+            for name in names:
+                self.module[name].requires_grad_(True)
