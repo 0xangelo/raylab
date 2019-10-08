@@ -26,13 +26,13 @@ def get_config():  # pylint: disable=missing-docstring
         "torch_optimizer_options": {
             "model": {"lr": 1e-3},
             "value": {"lr": 1e-3},
-            "policy": {"lr": tune.grid_search([1e-3, 3e-4])},
+            "policy": {"lr": 1e-3},
         },
         # Clip gradient norms by this value
         "max_grad_norm": 1e3,
         # === Regularization ===
         "kl_schedule": {
-            "initial_coeff": 0.2,
+            "initial_coeff": tune.grid_search([0.0, 0.2]),
             "desired_kl": 0.01,
             "adaptation_coeff": 1.01,
             "threshold": 1.0,
