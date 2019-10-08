@@ -22,7 +22,7 @@ DEFAULT_CONFIG = with_common_config(
         "target_entropy": None,
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning
-        "clipped_double_q": False,
+        "clipped_double_q": True,
         # === Replay buffer ===
         # Size of the replay buffer. Note that if async_updates is set, then
         # each worker will have a replay buffer of this size.
@@ -45,7 +45,7 @@ DEFAULT_CONFIG = with_common_config(
                 "units": (400, 300),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
-                "input_dependent_scale": False,
+                "input_dependent_scale": True,
             },
             "critic": {
                 "units": (400, 300),
