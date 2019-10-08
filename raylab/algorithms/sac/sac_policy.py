@@ -128,8 +128,8 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         self._optimizer.alpha.zero_grad()
         alpha_loss.backward()
         grad_stats = {
-            "alpha_grad_norm": self.module.log_alpha.norm().item(),
-            "curr_alpha": self.module.log_alpha.item(),
+            "alpha_grad_norm": self.module.log_alpha.grad.norm().item(),
+            "curr_alpha": self.module.log_alpha.exp().item(),
         }
         info.update(grad_stats)
 
