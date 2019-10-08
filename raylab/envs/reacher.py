@@ -13,7 +13,7 @@ class ReacherEnv(_ReacherEnv):
 
         Assumes all but the last dimension are batch ones.
         """
-        dist = state[..., -1:]
+        dist = state[..., -3:]
         reward_dist = -torch.norm(dist, dim=-1)
         reward_ctrl = -torch.sum(action ** 2, dim=-1)
         return reward_dist + reward_ctrl
