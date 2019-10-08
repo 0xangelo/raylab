@@ -20,6 +20,8 @@ DEFAULT_CONFIG = with_base_config(
         "on_policy_optimizer": "Adam",
         # Keyword arguments to be passed to the on-policy optimizer
         "on_policy_optimizer_options": {"lr": 3e-4},
+        # Model and Value function updates per step in the environment
+        "updates_per_step": 1.0,
     },
 )
 
@@ -51,7 +53,7 @@ class SVGInfTrainer(SVGBaseTrainer):
             self.replay.add(row)
 
         policy.learn_off_policy()
-        for _ in range(samples.count):
+        for _ in range(int(samples.count * self.config["updates_per_step"])):
             batch = self.replay.sample(self.config["train_batch_size"])
             off_policy_stats = get_learner_stats(policy.learn_on_batch(batch))
             self.optimizer.num_steps_trained += batch.count
