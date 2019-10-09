@@ -7,7 +7,9 @@ from raylab.modules.tril_matrix import TrilMatrix
 from raylab.modules.action_output import ActionOutput
 from raylab.modules.value_function import ValueFunction
 from raylab.modules.diag_multivariate_normal_params import DiagMultivariateNormalParams
-from raylab.modules.diag_multivariate_normal_rsample import (
+from raylab.modules.diag_multivariate_normal_ops import (
     DiagMultivariateNormalRSample,
+    DiagMultivariateNormalLogProb,
+    DiagMultivariateNormalReproduce,
 )
 from raylab.modules.lambd import Lambda
