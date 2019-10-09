@@ -112,8 +112,8 @@ class SVGBaseTrainer(Trainer):
 
         def on_episode_end(info):
             eps = info["episode"]
-            mean_action = np.mean(eps.user_data["actions"], axis=-1)
-            std_action = np.std(eps.user_data["actions"], axis=-1)
+            mean_action = np.mean(eps.user_data["actions"], axis=0)
+            std_action = np.std(eps.user_data["actions"], axis=0)
             for idx, (mean, std) in enumerate(zip(mean_action, std_action)):
                 eps.custom_metrics[f"mean_action[{idx}]"] = mean
                 eps.custom_metrics[f"std_action[{idx}]"] = std
