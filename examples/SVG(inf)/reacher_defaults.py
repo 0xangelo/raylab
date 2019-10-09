@@ -1,4 +1,9 @@
-"""Tune experiment configuration for SVG(1) on MujocoReacher."""
+"""Tune experiment configuration for SVG(inf) on MujocoReacher.
+
+This can be run from the command line by executing
+`python scripts/tune_experiment.py 'SVG(inf)' --local-dir <experiment dir>
+    --config examples/svg_one_cartpole_defaults.py --stop timesteps_total 100000`
+"""
 import numpy as np
 from ray import tune  # pylint: disable=unused-import
 
@@ -16,13 +21,11 @@ def get_config():  # pylint: disable=missing-docstring
         "buffer_size": int(1e5),
         # === Optimization ===
         # Name of Pytorch optimizer class for paremetrized policy
-        "torch_optimizer": "Adam",
+        "on_policy_optimizer": "Adam",
         # Keyword arguments to be passed to the on-policy optimizer
-        "torch_optimizer_options": {
-            "model": {"lr": 1e-3},
-            "value": {"lr": 1e-3},
-            "policy": {"lr": 1e-3},
-        },
+        "on_policy_optimizer_options": {"lr": 3e-4},
+        # Model and Value function updates per step in the environment
+        "updates_per_step": 1,
         # Clip gradient norms by this value
         "max_grad_norm": 1e3,
         # === Regularization ===
