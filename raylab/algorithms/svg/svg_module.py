@@ -1,19 +1,7 @@
 """Neural network modules for Stochastic Value Gradients."""
 import torch
 import torch.nn as nn
-from torch.distributions.kl import kl_divergence
 from ray.rllib.utils.annotations import override
-
-from raylab.distributions import DiagMultivariateNormal
-
-__all__ = [
-    "ParallelDynamicsModel",
-    "DiagNormalLogProb",
-    "DiagNormalEntropy",
-    "DiagNormalRSample",
-    "DiagNormalKL",
-    "ReproduceRollout",
-]
 
 
 class ParallelDynamicsModel(nn.Module):
@@ -38,58 +26,58 @@ class ParallelDynamicsModel(nn.Module):
         return dict(loc=loc, scale_diag=scale_diag)
 
 
-class DiagNormalLogProb(nn.Module):
-    """
-    Calculates the log-likelihood of an event given a Normal distribution's parameters.
-    """
+class ModelReproduce(nn.Module):
+    """Reproduces observed transitions."""
+
+    def __init__(self, params_module, resample_module):
+        super().__init__()
+        self.params_module = params_module
+        self.resample_module = resample_module
 
     @override(nn.Module)
-    def forward(self, params, value):  # pylint: disable=arguments-differ
-        return DiagMultivariateNormal(
-            loc=params["loc"], scale_diag=params["scale_diag"]
-        ).log_prob(value)
+    def forward(self, obs, actions, new_obs):  # pylint: disable=arguments-differ
+        residual = self.resample_module(self.params_module(obs, actions), new_obs - obs)
+        return obs + residual
 
 
-class DiagNormalEntropy(nn.Module):
-    """
-    Calculates the entropy given a Normal distribution's parameters.
-    """
+class ModelLogProb(nn.Module):
+    """Computes the log-likelihood of transitions."""
 
-    @override(nn.Module)
-    def forward(self, params):  # pylint: disable=arguments-differ
-        return DiagMultivariateNormal(
-            loc=params["loc"], scale_diag=params["scale_diag"]
-        ).entropy()
-
-
-class DiagNormalRSample(nn.Module):
-    """Produce a reparametrized Normal sample, possibly with a desired value."""
+    def __init__(self, params_module, logp_module):
+        super().__init__()
+        self.params_module = params_module
+        self.logp_module = logp_module
 
     @override(nn.Module)
-    def forward(self, params, value=None):  # pylint: disable=arguments-differ
-        loc, scale_diag = params["loc"], params["scale_diag"]
-        if value is None:
-            eps = torch.randn_like(loc)
-        else:
-            with torch.no_grad():
-                eps = (value - loc) / scale_diag
-        return loc + scale_diag * eps
+    def forward(self, obs, actions, new_obs):  # pylint: disable=arguments-differ
+        residual = new_obs - obs
+        return self.logp_module(self.params_module(obs, actions), residual)
 
 
-class DiagNormalKL(nn.Module):
-    """
-    Calculates the KL divergence between Normal distributions given their parameters.
-    """
+class PolicyReproduce(nn.Module):
+    """Reproduces observed actions."""
+
+    def __init__(self, params_module, resample_module):
+        super().__init__()
+        self.params_module = params_module
+        self.resample_module = resample_module
 
     @override(nn.Module)
-    def forward(self, params, params_):  # pylint: disable=arguments-differ
-        dist = DiagMultivariateNormal(
-            loc=params["loc"], scale_diag=params["scale_diag"]
-        )
-        dist_ = DiagMultivariateNormal(
-            loc=params_["loc"], scale_diag=params_["scale_diag"]
-        )
-        return kl_divergence(dist, dist_)
+    def forward(self, obs, actions):  # pylint: disable=arguments-differ
+        return self.resample_module(self.params_module(obs), actions)
+
+
+class PolicyLogProb(nn.Module):
+    """Computes the log-likelihood of actions."""
+
+    def __init__(self, params_module, logp_module):
+        super().__init__()
+        self.params_module = params_module
+        self.logp_module = logp_module
+
+    @override(nn.Module)
+    def forward(self, obs, actions):  # pylint: disable=arguments-differ
+        return self.logp_module(self.params_module(obs), actions)
 
 
 class ReproduceRollout(nn.Module):
@@ -98,15 +86,11 @@ class ReproduceRollout(nn.Module):
     given a trajectory.
     """
 
-    def __init__(
-        self, policy_module, model_module, policy_rsample, model_rsample, reward_fn
-    ):
+    def __init__(self, policy_reproduce, model_reproduce, reward_fn):
         # pylint: disable=too-many-arguments
         super().__init__()
-        self.policy_module = policy_module
-        self.model_module = model_module
-        self.policy_rsample = policy_rsample
-        self.model_rsample = model_rsample
+        self.policy_reproduce = policy_reproduce
+        self.model_reproduce = model_reproduce
         self.reward_fn = reward_fn
 
     @override(nn.Module)
@@ -114,15 +98,8 @@ class ReproduceRollout(nn.Module):
         # pylint: disable=arguments-differ,too-many-locals,consider-using-enumerate
         reward_seq = []
         for act, next_ob in zip(acts, next_obs):
-            pi_dist_params = self.policy_module(init_ob)
-            _act = self.policy_rsample(pi_dist_params, act)
-
-            m_dist_params = self.model_module(init_ob, _act)
-            residual = self.model_rsample(m_dist_params, next_ob - init_ob)
-            _next_ob = init_ob + residual
-
-            rew = self.reward_fn(init_ob, _act, _next_ob)
-            reward_seq.append(rew)
-
+            _act = self.policy_reproduce(init_ob, act)
+            _next_ob = self.model_reproduce(init_ob, _act, next_ob)
+            reward_seq.append(self.reward_fn(init_ob, _act, _next_ob))
             init_ob = _next_ob
         return torch.stack(reward_seq), init_ob

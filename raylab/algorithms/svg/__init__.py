@@ -8,6 +8,8 @@ from ray.rllib.agents.trainer import Trainer, with_common_config
 from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils.annotations import override
 
+from raylab.utils.replay_buffer import ReplayBuffer
+
 
 SVG_BASE_CONFIG = with_common_config(
     {
@@ -79,6 +81,9 @@ class SVGBaseTrainer(Trainer):
         )
         # Dummy optimizer to log stats since Trainer.collect_metrics is coupled with it
         self.optimizer = PolicyOptimizer(self.workers)
+        self.replay = ReplayBuffer(
+            config["buffer_size"], extra_keys=[self._policy.ACTION_LOGP]
+        )
 
     # === New Methods ===
 
@@ -90,8 +95,7 @@ class SVGBaseTrainer(Trainer):
 
         def on_episode_start(info):
             episode = info["episode"]
-            episode.user_data["policy_locs"] = []
-            episode.user_data["policy_scales"] = []
+            episode.user_data["actions"] = []
             if start_callback:
                 start_callback(info)
 
@@ -100,9 +104,7 @@ class SVGBaseTrainer(Trainer):
         def on_episode_step(info):
             episode = info["episode"]
             if episode.length > 0:
-                policy_info = episode.last_pi_info_for()
-                episode.user_data["policy_locs"].append(policy_info["loc"])
-                episode.user_data["policy_scales"].append(policy_info["scale_diag"])
+                episode.user_data["actions"].append(episode.last_action_for())
             if step_callback:
                 step_callback(info)
 
@@ -110,8 +112,11 @@ class SVGBaseTrainer(Trainer):
 
         def on_episode_end(info):
             eps = info["episode"]
-            eps.custom_metrics["policy_loc"] = np.mean(eps.user_data["policy_locs"])
-            eps.custom_metrics["policy_scale"] = np.mean(eps.user_data["policy_scales"])
+            mean_action = np.mean(eps.user_data["actions"], axis=-1)
+            std_action = np.std(eps.user_data["actions"], axis=-1)
+            for idx, (mean, std) in enumerate(zip(mean_action, std_action)):
+                eps.custom_metrics[f"mean_action[{idx}]"] = mean
+                eps.custom_metrics[f"std_action[{idx}]"] = std
             if end_callback:
                 end_callback(info)
 

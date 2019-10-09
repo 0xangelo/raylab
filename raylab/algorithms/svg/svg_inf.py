@@ -1,11 +1,10 @@
-"""Trainer and configuration for SVG(1)."""
+"""Trainer and configuration for SVG(inf)."""
 from ray.rllib.agents.trainer import with_base_config
 from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
 
 from raylab.algorithms.svg import SVG_BASE_CONFIG, SVGBaseTrainer
 from raylab.algorithms.svg.svg_inf_policy import SVGInfTorchPolicy
-from raylab.utils.replay_buffer import ReplayBuffer
 
 
 DEFAULT_CONFIG = with_base_config(
@@ -34,13 +33,6 @@ class SVGInfTrainer(SVGBaseTrainer):
     _name = "SVG(inf)"
     _default_config = DEFAULT_CONFIG
     _policy = SVGInfTorchPolicy
-
-    @override(SVGBaseTrainer)
-    def _init(self, config, env_creator):
-        super()._init(config, env_creator)
-        self.replay = ReplayBuffer(
-            config["buffer_size"], extra_keys=[self._policy.ACTION_LOGP]
-        )
 
     @override(SVGBaseTrainer)
     def _train(self):

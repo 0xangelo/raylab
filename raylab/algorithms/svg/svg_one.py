@@ -5,7 +5,6 @@ from ray.rllib.evaluation.metrics import get_learner_stats
 
 from raylab.algorithms.svg import SVG_BASE_CONFIG, SVGBaseTrainer
 from raylab.algorithms.svg.svg_one_policy import SVGOneTorchPolicy
-from raylab.utils.replay_buffer import ReplayBuffer
 
 
 DEFAULT_CONFIG = with_base_config(
@@ -21,6 +20,21 @@ DEFAULT_CONFIG = with_base_config(
             "value": {"lr": 1e-3},
             "policy": {"lr": 1e-3},
         },
+        # === Exploration ===
+        # Whether to sample only the mean action, mostly for evaluation purposes
+        "mean_action_only": False,
+        # Until this many timesteps have elapsed, the agent's policy will be
+        # ignored & it will instead take uniform random actions. Can be used in
+        # conjunction with learning_starts (which controls when the first
+        # optimization step happens) to decrease dependence of exploration &
+        # optimization on initial policy parameters. Note that this will be
+        # disabled when the action noise scale is set to 0 (e.g during evaluation).
+        "pure_exploration_steps": 1000,
+        # === Evaluation ===
+        # Extra arguments to pass to evaluation workers.
+        # Typical usage is to pass extra args to evaluation env creator
+        # and to disable exploration by computing deterministic actions
+        "evaluation_config": {"mean_action_only": True, "pure_exploration_steps": 0},
     },
 )
 
@@ -33,14 +47,6 @@ class SVGOneTrainer(SVGBaseTrainer):
     _name = "SVG(1)"
     _default_config = DEFAULT_CONFIG
     _policy = SVGOneTorchPolicy
-
-    @override(SVGBaseTrainer)
-    def _init(self, config, env_creator):
-        super()._init(config, env_creator)
-        self.replay = ReplayBuffer(
-            config["buffer_size"],
-            extra_keys=[self._policy.ACTION_LOGP, "loc", "scale_diag"],
-        )
 
     @override(SVGBaseTrainer)
     def _train(self):

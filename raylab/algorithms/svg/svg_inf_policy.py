@@ -83,11 +83,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
         # Add recurrent policy-model combination
         module = self.module
         module.rollout = svgm.ReproduceRollout(
-            module.policy,
-            module.model,
-            module.policy_rsample,
-            module.model_rsample,
-            reward_fn,
+            module.policy_reproduce, module.model_reproduce, reward_fn
         )
 
     # ================================= NEW METHODS ====================================
@@ -129,7 +125,13 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
                 "policy_grad_norm": nn.utils.clip_grad_norm_(
                     policy_params, max_norm=self.config["max_grad_norm"]
                 ),
-                "policy_entropy": self.module.entropy(batch_tensors).mean().item(),
+                "policy_entropy": self.module.policy_logp(
+                    batch_tensors[SampleBatch.CUR_OBS],
+                    batch_tensors[SampleBatch.ACTIONS],
+                )
+                .mean()
+                .neg()
+                .item(),
                 "curr_kl_coeff": self.curr_kl_coeff,
             }
         return fetches

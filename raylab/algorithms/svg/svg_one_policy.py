@@ -72,25 +72,23 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         return svg_loss, {"svg_loss": svg_loss.item()}
 
     def _compute_policy_td_targets(self, batch_tensors):
-        _acts = self.module.policy_rsample(
-            self.module.policy(batch_tensors[SampleBatch.CUR_OBS]),
-            batch_tensors[SampleBatch.ACTIONS],
+        _acts = self.module.policy_reproduce(
+            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
         )
-        _residual = self.module.model_rsample(
-            self.module.model(batch_tensors[SampleBatch.CUR_OBS], _acts),
-            batch_tensors[SampleBatch.NEXT_OBS] - batch_tensors[SampleBatch.CUR_OBS],
+        _next_obs = self.module.model_reproduce(
+            batch_tensors[SampleBatch.CUR_OBS],
+            _acts,
+            batch_tensors[SampleBatch.NEXT_OBS],
         )
-        _next_obs = batch_tensors[SampleBatch.CUR_OBS] + _residual
         _rewards = self.module.reward(
             batch_tensors[SampleBatch.CUR_OBS], _acts, _next_obs
         )
         _next_vals = self.module.value(_next_obs).squeeze(-1)
-        td_targets = torch.where(
+        return torch.where(
             batch_tensors[SampleBatch.DONES],
             _rewards,
             _rewards + self.config["gamma"] * _next_vals,
         )
-        return td_targets
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):
@@ -104,10 +102,11 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
             "policy_grad_norm": nn.utils.clip_grad_norm_(
                 policy_params, max_norm=self.config["max_grad_norm"]
             ),
-            "policy_entropy": self.module.entropy(
-                self.module.policy(batch_tensors[SampleBatch.CUR_OBS])
+            "policy_entropy": self.module.policy_logp(
+                batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
             )
             .mean()
+            .neg()
             .item(),
             "curr_kl_coeff": self.curr_kl_coeff,
         }
