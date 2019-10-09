@@ -131,6 +131,5 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
                 ),
                 "policy_entropy": self.module.entropy(batch_tensors).mean().item(),
                 "curr_kl_coeff": self.curr_kl_coeff,
-                "cur_model_err": self._avg_model_logp(batch_tensors).neg().item(),
             }
         return fetches
