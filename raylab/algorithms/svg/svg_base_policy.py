@@ -131,10 +131,7 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
         return self._avg_kl_divergence(self._lazy_tensor_dict(sample_batch)).item()
 
     def _avg_kl_divergence(self, batch_tensors):
-        logp = self.module.policy_logp(
-            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
-        )
-        return torch.mean(batch_tensors[self.ACTION_LOGP] - logp)
+        """Compute the empirical average KL divergence given sample tensors."""
 
     @torch.no_grad()
     def add_importance_sampling_ratios(self, batch_tensors):

@@ -30,6 +30,14 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         return DEFAULT_CONFIG
 
     @override(SVGBaseTorchPolicy)
+    def make_module(self, obs_space, action_space, config):
+        module = super().make_module(obs_space, action_space, config)
+        old = self._make_policy(obs_space, action_space, config)
+        module.old_policy = old["policy"].requires_grad_(False)
+        module.old_sampler = old["sampler"]
+        return module
+
+    @override(SVGBaseTorchPolicy)
     def optimizer(self):
         """PyTorch optimizer to use."""
         optim_cls = torch_util.get_optimizer_class(self.config["torch_optimizer"])
@@ -42,6 +50,10 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
     @override(SVGBaseTorchPolicy)
     def set_reward_fn(self, reward_fn):
         self.module.reward = modules.Lambda(reward_fn)
+
+    def update_old_policy(self):
+        """Copy params of current policy into old one for future KL computation."""
+        self.module.old_policy.load_state_dict(self.module.policy.state_dict())
 
     @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):
@@ -89,6 +101,12 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
             _rewards,
             _rewards + self.config["gamma"] * _next_vals,
         )
+
+    @override(SVGBaseTorchPolicy)
+    def _avg_kl_divergence(self, batch_tensors):
+        old_act, old_logp = self.module.old_sampler(batch_tensors[SampleBatch.CUR_OBS])
+        logp = self.module.policy_logp(batch_tensors[SampleBatch.CUR_OBS], old_act)
+        return torch.mean(old_logp - logp)
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):

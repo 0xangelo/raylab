@@ -1,4 +1,6 @@
 """Trainer and configuration for SVG(1)."""
+import time
+
 from ray.rllib.agents.trainer import with_base_config
 from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
@@ -50,20 +52,31 @@ class SVGOneTrainer(SVGBaseTrainer):
 
     @override(SVGBaseTrainer)
     def _train(self):
+        optimizer = self.optimizer
         worker = self.workers.local_worker()
         policy = worker.get_policy()
 
-        samples = worker.sample()
-        self.optimizer.num_steps_sampled += samples.count
-        for row in samples.rows():
-            self.replay.add(row)
+        start = time.time()
+        old_steps_sampled = optimizer.num_steps_sampled
+        while True:
+            samples = worker.sample()
+            optimizer.num_steps_sampled += samples.count
+            for row in samples.rows():
+                self.replay.add(row)
 
-        for _ in range(samples.count):
-            batch = self.replay.sample(self.config["train_batch_size"])
-            learner_stats = get_learner_stats(policy.learn_on_batch(batch))
-            self.optimizer.num_steps_trained += batch.count
+            policy.update_old_policy()
+            for _ in range(samples.count):
+                batch = self.replay.sample(self.config["train_batch_size"])
+                learner_stats = get_learner_stats(policy.learn_on_batch(batch))
+                optimizer.num_steps_trained += batch.count
+            learner_stats.update(policy.update_kl_coeff(samples))
 
-        learner_stats.update(policy.update_kl_coeff(samples))
+            steps_sampled = optimizer.num_steps_sampled - old_steps_sampled
+            if (
+                time.time() - start >= self.config["min_iter_time_s"]
+                and steps_sampled >= self.config["timesteps_per_iteration"]
+            ):
+                break
 
         res = self.collect_metrics()
         res.update(
