@@ -34,13 +34,6 @@ def svg_inf_policy(svg_inf_trainer):
     return svg_inf_trainer._policy
 
 
-@pytest.fixture
-def cartpole_swingup_env(time_limited_env):
-    return lambda _: time_limited_env(
-        {"env_id": "CartPoleSwingUp", "time_aware": True, "max_episode_steps": 200}
-    )
-
-
 @pytest.fixture(params=((1,), (2,), (4,)))
 def shape(request):
     return request.param
@@ -54,3 +47,23 @@ def obs_space(shape):
 @pytest.fixture
 def action_space(shape):
     return spaces.Box(-1, 1, shape=shape)
+
+
+@pytest.fixture
+def cartpole_swingup_env(time_limited_env):
+    return lambda _: time_limited_env(
+        {"env_id": "CartPoleSwingUp", "time_aware": True, "max_episode_steps": 200}
+    )
+
+
+@pytest.fixture
+def reacher_env(time_limited_env):
+    return lambda _: time_limited_env(
+        {"env_id": "MujocoReacher", "time_aware": True, "max_episode_steps": 50}
+    )
+
+
+@pytest.fixture(params=range(3))
+def env_creator(request, cartpole_swingup_env, navigation_env, reacher_env):
+    creators = [cartpole_swingup_env, navigation_env, reacher_env]
+    return creators[request.param]
