@@ -80,7 +80,7 @@ class SVGOneTrainer(SVGBaseTrainer):
 
         res = self.collect_metrics()
         res.update(
-            timesteps_this_iter=samples.count,
+            timesteps_this_iter=steps_sampled,
             info=dict(learner=learner_stats, **res.get("info", {})),
         )
         return res
