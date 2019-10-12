@@ -1,6 +1,4 @@
 """Continuous Q-Learning with Normalized Advantage Functions."""
-import time
-
 from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers import PolicyOptimizer
@@ -107,13 +105,11 @@ class NAFTrainer(ExplorationPhaseMixin, ParameterNoiseMixin, Trainer):
         worker = self.workers.local_worker()
         policy = worker.get_policy()
 
-        start = time.time()
-        steps_sampled = 0
-        while True:
+        while not self._iteration_done():
             self.update_exploration_phase()
 
             samples = worker.sample()
-            steps_sampled += samples.count
+            self.optimizer.num_steps_sampled += samples.count
             for row in samples.rows():
                 self.replay.add(row)
 
@@ -122,20 +118,7 @@ class NAFTrainer(ExplorationPhaseMixin, ParameterNoiseMixin, Trainer):
                 stats = get_learner_stats(policy.learn_on_batch(batch))
                 self.optimizer.num_steps_trained += batch.count
 
-            if (
-                time.time() - start >= self.config["min_iter_time_s"]
-                and steps_sampled >= self.config["timesteps_per_iteration"]
-            ):
-                break
-
-        self.optimizer.num_steps_sampled += steps_sampled
-
-        res = self.collect_metrics()
-        res.update(
-            timesteps_this_iter=steps_sampled,
-            info=dict(learner=stats, **res.get("info", {})),
-        )
-        return res
+        return self._log_metrics(stats)
 
     @staticmethod
     def _validate_config(config):
