@@ -20,11 +20,11 @@ def get_config():
         "batch_mode": "complete_episodes",
         # === Trainer ===
         "train_batch_size": 128,
-        "timesteps_per_iteration": 50,
+        "timesteps_per_iteration": 1000,
         # === Evaluation ===
         # Evaluate with every `evaluation_interval` training iterations.
         # The evaluation stats will be reported under the "evaluation" metric key.
-        "evaluation_interval": 20,
+        "evaluation_interval": 1,
         # === Debugging ===
         # Set the ray.rllib.* log level for the agent process and its workers.
         # Should be one of DEBUG, INFO, WARN, or ERROR. The DEBUG level will also
