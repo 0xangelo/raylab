@@ -25,21 +25,6 @@ class NAF(nn.Module):
         return advantage + best_value
 
 
-class DeterministicPolicy(nn.Module):
-    """Neural network module implementing a deterministic continuous policy."""
-
-    def __init__(self, logits_module, action_module):
-        super().__init__()
-        self.logits_module = logits_module
-        self.action_module = action_module
-
-    @override(nn.Module)
-    def forward(self, obs):  # pylint: disable=arguments-differ
-        logits = self.logits_module(obs)
-        actions = self.action_module(logits)
-        return actions
-
-
 class MultivariateGaussianPolicy(nn.Module):
     """Neural network module implementing a multivariate gaussian policy."""
 

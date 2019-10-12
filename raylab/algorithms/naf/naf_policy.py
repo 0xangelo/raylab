@@ -1,25 +1,18 @@
 """NAF policy class using PyTorch."""
-import itertools
-
 import torch
 import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as torch_util
-import raylab.algorithms.naf.naf_module as modules
-from raylab.policy import TorchPolicy, AdaptiveParamNoiseMixin
+import raylab.algorithms.naf.naf_module as mods
+from raylab.policy import TorchPolicy, AdaptiveParamNoiseMixin, PureExplorationMixin
 
 
-class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
+class NAFTorchPolicy(AdaptiveParamNoiseMixin, PureExplorationMixin, TorchPolicy):
     """Normalized Advantage Function policy in Pytorch to use with RLlib."""
 
     # pylint: disable=abstract-method
-
-    def __init__(self, observation_space, action_space, config):
-        super().__init__(observation_space, action_space, config)
-        # Flag for uniform random actions
-        self._pure_exploration = False
 
     @staticmethod
     @override(TorchPolicy)
@@ -29,6 +22,82 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
         from raylab.algorithms.naf.naf import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
+
+    @override(TorchPolicy)
+    def make_module(self, obs_space, action_space, config):
+        module = nn.ModuleDict()
+        module.update(self._make_naf(obs_space, action_space, config))
+        if config["clipped_double_q"]:
+            twin_modules = self._make_naf(obs_space, action_space, config)
+            module["naf"].extend(twin_modules["naf"])
+            module["value"].extend(twin_modules["value"])
+        module.target_value = nn.ModuleList(
+            [self._make_value(obs_space, config) for _ in module.value]
+        )
+        module.target_value.load_state_dict(module.value.state_dict())
+
+        # Configure policy module based on exploration strategy
+        if config["exploration"] == "full_gaussian":
+            module.policy = mods.MultivariateGaussianPolicy(
+                module.logits, module.action, module.tril
+            )
+        elif config["exploration"] == "parameter_noise":
+            logits_module = self._make_encoder(obs_space, config)
+            module.policy = nn.Sequential(
+                logits_module,
+                mods.ActionOutput(
+                    in_features=logits_module.out_features,
+                    action_low=self.convert_to_tensor(action_space.low),
+                    action_high=self.convert_to_tensor(action_space.high),
+                ),
+            )
+            module.target_policy = nn.Sequential(module.logits, module.action)
+        else:
+            module.policy = nn.Sequential(module.logits, module.action)
+
+        return module
+
+    def _make_naf(self, obs_space, action_space, config):
+        value = self._make_value(obs_space, config)
+        logits_module = value[0]
+        value_module = value[1]
+        action_module = mods.ActionOutput(
+            in_features=logits_module.out_features,
+            action_low=self.convert_to_tensor(action_space.low),
+            action_high=self.convert_to_tensor(action_space.high),
+        )
+        tril_module = mods.TrilMatrix(logits_module.out_features, action_space.shape[0])
+        advantage_module = mods.AdvantageFunction(tril_module, action_module)
+        return {
+            "naf": nn.ModuleList(
+                [mods.NAF(logits_module, value_module, advantage_module)]
+            ),
+            "value": nn.ModuleList([value]),
+            "logits": logits_module,
+            "action": action_module,
+            "tril": tril_module,
+        }
+
+    def _make_value(self, obs_space, config):
+        logits_module = self._make_encoder(obs_space, config)
+        value_module = mods.ValueFunction(logits_module.out_features)
+        return nn.Sequential(logits_module, value_module)
+
+    @staticmethod
+    def _make_encoder(obs_space, config):
+        return mods.FullyConnected(
+            in_features=obs_space.shape[0],
+            units=config["module"]["units"],
+            activation=config["module"]["activation"],
+            layer_norm=(config["exploration"] == "parameter_noise"),
+            **config["module"]["initializer_options"],
+        )
+
+    @override(TorchPolicy)
+    def optimizer(self):
+        cls = torch_util.get_optimizer_class(self.config["torch_optimizer"])
+        options = self.config["torch_optimizer_options"]
+        return cls(self.module.naf.parameters(), **options)
 
     @torch.no_grad()
     @override(TorchPolicy)
@@ -40,14 +109,14 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
         prev_reward_batch=None,
         info_batch=None,
         episodes=None,
-        **kwargs
+        **kwargs,
     ):
         # pylint: disable=too-many-arguments,unused-argument
         obs_batch = self.convert_to_tensor(obs_batch)
 
         if self.config["greedy"]:
             actions = self._greedy_actions(obs_batch)
-        elif self._pure_exploration:
+        elif self.is_uniform_random:
             actions = self._uniform_random_actions(obs_batch)
         elif self.config["exploration"] == "full_gaussian":
             actions = self._multivariate_gaussian_actions(obs_batch)
@@ -57,6 +126,39 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
             actions = self.module["policy"](obs_batch)
 
         return actions.cpu().numpy(), state_batches, {}
+
+    # === Action Sampling ===
+    def _greedy_actions(self, obs_batch):
+        policy = self.module.policy
+        if "target_policy" in self.module:
+            policy = self.module.target_policy
+
+        out = policy(obs_batch)
+        if isinstance(out, tuple):
+            out, _ = out
+        return out
+
+    def _multivariate_gaussian_actions(self, obs_batch):
+        loc, scale_tril = self.module.policy(obs_batch)
+        scale_coeff = self.config["scale_tril_coeff"]
+        dist = torch.distributions.MultivariateNormal(
+            loc=loc, scale_tril=scale_tril * scale_coeff
+        )
+        actions = dist.sample()
+        return actions
+
+    def _diagonal_gaussian_actions(self, obs_batch):
+        loc = self.module.policy(obs_batch)
+        stddev = self.config["diag_gaussian_stddev"]
+        dist = torch.distributions.MultivariateNormal(
+            loc=loc, scale_tril=torch.diag(torch.ones(self.action_space.shape)) * stddev
+        )
+        actions = dist.sample()
+        return actions
+
+    @override(AdaptiveParamNoiseMixin)
+    def _compute_noise_free_actions(self, obs_batch):
+        return self.module.target_policy(self.convert_to_tensor(obs_batch)).numpy()
 
     @torch.no_grad()
     @override(TorchPolicy)
@@ -77,178 +179,15 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
         loss, info = self.compute_loss(batch_tensors, self.module, self.config)
         self._optimizer.zero_grad()
         loss.backward()
-        info["grad_norm"] = nn.utils.clip_grad_norm_(
-            self.module["naf"].parameters(), float("inf")
-        )
+        info.update(self.extra_grad_info())
         self._optimizer.step()
 
         torch_util.update_polyak(
-            self.module["value"], self.module["target_value"], self.config["polyak"]
+            self.module.value, self.module.target_value, self.config["polyak"]
         )
-        if self.config["clipped_double_q"]:
-            torch_util.update_polyak(
-                self.module["twin_value"],
-                self.module["twin_target_value"],
-                self.config["polyak"],
-            )
         return self._learner_stats(info)
 
-    @override(TorchPolicy)
-    def optimizer(self):
-        cls = torch_util.get_optimizer_class(self.config["torch_optimizer"])
-
-        options = self.config["torch_optimizer_options"]
-        params = self.module["naf"].parameters()
-        if self.config["clipped_double_q"]:
-            params = itertools.chain(params, self.module["twin_naf"].parameters())
-        optimizer = cls(params, **options)
-        return optimizer
-
-    @override(TorchPolicy)
-    def make_module(self, obs_space, action_space, config):
-        # Create base modules
-        logits_module_kwargs = dict(
-            in_features=obs_space.shape[0],
-            units=config["module"]["layers"],
-            activation=config["module"]["activation"],
-            layer_norm=(config["exploration"] == "parameter_noise"),
-        )
-
-        def action_module_kwargs(in_features):
-            return dict(
-                in_features=in_features,
-                action_low=torch.from_numpy(action_space.low).float(),
-                action_high=torch.from_numpy(action_space.high).float(),
-            )
-
-        logits_module = modules.FullyConnected(**logits_module_kwargs)
-        value_module = modules.ValueFunction(logits_module.out_features)
-        action_module = modules.ActionOutput(
-            **action_module_kwargs(logits_module.out_features)
-        )
-        tril_module = modules.TrilMatrix(
-            logits_module.out_features, action_space.shape[0]
-        )
-        advantage_module = modules.AdvantageFunction(tril_module, action_module)
-
-        # Build main components
-        module = nn.ModuleDict()
-        module["naf"] = modules.NAF(logits_module, value_module, advantage_module)
-        module["value"] = nn.Sequential(logits_module, value_module)
-        module["target_value"] = nn.Sequential(
-            modules.FullyConnected(**logits_module_kwargs),
-            modules.ValueFunction(logits_module.out_features),
-        )
-        module["target_value"].load_state_dict(module["value"].state_dict())
-
-        if config["clipped_double_q"]:
-            twin_logits_module = modules.FullyConnected(**logits_module_kwargs)
-            twin_value_module = modules.ValueFunction(twin_logits_module.out_features)
-            module["twin_naf"] = modules.NAF(
-                twin_logits_module,
-                twin_value_module,
-                modules.AdvantageFunction(
-                    modules.TrilMatrix(
-                        twin_logits_module.out_features, action_space.shape[0]
-                    ),
-                    modules.ActionOutput(
-                        **action_module_kwargs(twin_logits_module.out_features)
-                    ),
-                ),
-            )
-            module["twin_value"] = nn.Sequential(twin_logits_module, twin_value_module)
-            module["twin_target_value"] = nn.Sequential(
-                modules.FullyConnected(**logits_module_kwargs),
-                modules.ValueFunction(twin_logits_module.out_features),
-            )
-            module["twin_target_value"].load_state_dict(
-                module["twin_value"].state_dict()
-            )
-
-        # Configure policy module based on exploration strategy
-        if config["exploration"] == "full_gaussian":
-            module["policy"] = modules.MultivariateGaussianPolicy(
-                logits_module, action_module, tril_module
-            )
-        elif config["exploration"] == "parameter_noise":
-            module["policy"] = modules.DeterministicPolicy(
-                logits_module=modules.FullyConnected(**logits_module_kwargs),
-                action_module=modules.ActionOutput(
-                    **action_module_kwargs(logits_module.out_features)
-                ),
-            )
-            module["target_policy"] = modules.DeterministicPolicy(
-                logits_module, action_module
-            )
-        else:
-            module["policy"] = modules.DeterministicPolicy(logits_module, action_module)
-
-        # Initialize modules
-        module.apply(
-            torch_util.initialize_(
-                config["module"]["initializer"],
-                **config["module"]["initializer_options"]
-            )
-        )
-
-        if config["torch_script"] == "trace":
-            trace_components(module, obs_space, action_space)
-        elif config["torch_script"] == "script":
-            script_components(module)
-        return module
-
-    # === NEW METHODS ===
-
-    # === Exploration ===
-    def set_pure_exploration_phase(self, phase):
-        """Set a boolean flag that tells the policy to act randomly."""
-        self._pure_exploration = phase
-
-    @override(AdaptiveParamNoiseMixin)
-    def _compute_noise_free_actions(self, obs_batch):
-        return self.module["target_policy"](self.convert_to_tensor(obs_batch)).numpy()
-
-    # === Action Sampling ===
-    def _greedy_actions(self, obs_batch):
-        policy = self.module["policy"]
-        if "target_policy" in self.module:
-            policy = self.module["target_policy"]
-
-        out = policy(obs_batch)
-        if isinstance(out, tuple):
-            out, _ = out
-        return out
-
-    def _uniform_random_actions(self, obs_batch):
-        dist = torch.distributions.Uniform(
-            self.convert_to_tensor(self.action_space.low),
-            self.convert_to_tensor(self.action_space.high),
-        )
-        actions = dist.sample(sample_shape=obs_batch.shape[:-1])
-        return actions
-
-    def _multivariate_gaussian_actions(self, obs_batch):
-        loc, scale_tril = self.module["policy"](obs_batch)
-        scale_coeff = self.config["scale_tril_coeff"]
-        dist = torch.distributions.MultivariateNormal(
-            loc=loc, scale_tril=scale_tril * scale_coeff
-        )
-        actions = dist.sample()
-        return actions
-
-    def _diagonal_gaussian_actions(self, obs_batch):
-        loc = self.module["policy"](obs_batch)
-        stddev = self.config["diag_gaussian_stddev"]
-        dist = torch.distributions.MultivariateNormal(
-            loc=loc, scale_tril=torch.diag(torch.ones(self.action_space.shape)) * stddev
-        )
-        actions = dist.sample()
-        return actions
-
-    # === Static Methods ===
-
-    @staticmethod
-    def compute_loss(batch_tensors, module, config):
+    def compute_loss(self, batch_tensors, module, config):
         """Compute the forward pass of NAF's loss function.
 
         Arguments:
@@ -261,68 +200,40 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
             A scalar tensor sumarizing the losses for this experience batch.
         """
         with torch.no_grad():
-            next_value = module["target_value"](batch_tensors[SampleBatch.NEXT_OBS])
-            gamma = config["gamma"]
-            target_value = torch.where(
-                batch_tensors[SampleBatch.DONES],
-                batch_tensors[SampleBatch.REWARDS],
-                batch_tensors[SampleBatch.REWARDS] + gamma * next_value.squeeze(-1),
-            )
-            if config["clipped_double_q"]:
-                twin_next_value = module["twin_target_value"](
-                    batch_tensors[SampleBatch.NEXT_OBS]
-                )
-                twin_target_value = torch.where(
-                    batch_tensors[SampleBatch.DONES],
-                    batch_tensors[SampleBatch.REWARDS],
-                    batch_tensors[SampleBatch.REWARDS]
-                    + gamma * twin_next_value.squeeze(-1),
-                )
-                target_value = torch.min(target_value, twin_target_value)
+            target_values = self._compute_critic_targets(batch_tensors, module, config)
 
-        action_value = module["naf"](
-            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
+        obs = batch_tensors[SampleBatch.CUR_OBS]
+        actions = batch_tensors[SampleBatch.ACTIONS]
+        action_values = torch.cat([m(obs, actions) for m in module.naf], dim=-1)
+        loss_fn = torch.nn.MSELoss()
+        td_error = loss_fn(
+            action_values, target_values.unsqueeze(-1).expand_as(action_values)
         )
-        td_error = torch.nn.MSELoss()(action_value.squeeze(-1), target_value)
-        if config["clipped_double_q"]:
-            twin_action_value = module["twin_naf"](
-                batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
-            )
-            twin_td_error = torch.nn.MSELoss()(
-                twin_action_value.squeeze(-1), target_value
-            )
-            td_error = (td_error + twin_td_error) / 2
 
         stats = {
-            "q_mean": action_value.mean().item(),
-            "q_max": action_value.max().item(),
-            "q_min": action_value.min().item(),
+            "q_mean": action_values.mean().item(),
+            "q_max": action_values.max().item(),
+            "q_min": action_values.min().item(),
             "td_error": td_error.item(),
         }
         return td_error, stats
 
+    @staticmethod
+    def _compute_critic_targets(batch_tensors, module, config):
+        rewards = batch_tensors[SampleBatch.REWARDS]
+        next_obs = batch_tensors[SampleBatch.NEXT_OBS]
+        dones = batch_tensors[SampleBatch.DONES]
 
-def trace_components(module, obs_space, action_space):
-    """Use tracing to produce TorchScript modules."""
-    obs = torch.randn(1, *obs_space.shape)
-    actions = torch.randn(1, *action_space.shape)
-    module["naf"] = torch.jit.trace(module["naf"], (obs, actions))
-    module["value"] = torch.jit.trace(module["value"], obs)
-    module["target_value"] = torch.jit.trace(module["target_value"], obs)
-    module["policy"] = torch.jit.trace(module["policy"], obs)
-    if "twin_naf" in module:
-        module["twin_naf"] = torch.jit.trace(module["twin_naf"], (obs, actions))
-        module["twin_value"] = torch.jit.trace(module["twin_value"], obs)
-        module["twin_target_value"] = torch.jit.trace(module["twin_target_value"], obs)
+        next_vals, _ = torch.cat(
+            [m(next_obs) for m in module.target_value], dim=-1
+        ).min(dim=-1)
+        return torch.where(dones, rewards, rewards + config["gamma"] * next_vals)
 
-
-def script_components(module):
-    """Use scripting to produce TorchScript modules."""
-    module["naf"] = torch.jit.script(module["naf"])
-    module["value"] = torch.jit.script(module["value"])
-    module["target_value"] = torch.jit.script(module["target_value"])
-    module["policy"] = torch.jit.script(module["policy"])
-    if "twin_naf" in module:
-        module["twin_naf"] = torch.jit.script(module["twin_naf"])
-        module["twin_value"] = torch.jit.script(module["twin_value"])
-        module["twin_target_value"] = torch.jit.script(module["twin_target_value"])
+    @torch.no_grad()
+    def extra_grad_info(self):
+        """Compute gradient norm for components."""
+        return {
+            "grad_norm": nn.utils.clip_grad_norm_(
+                self.module.naf.parameters(), float("inf")
+            )
+        }

@@ -1,4 +1,5 @@
 """Continuous Q-Learning with Normalized Advantage Functions."""
+import numpy as np
 from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers import PolicyOptimizer
@@ -23,10 +24,9 @@ DEFAULT_CONFIG = with_common_config(
         # for the normalized advantage function. No layers means the Q function is
         # linear in states and actions.
         "module": {
-            "layers": [400, 300],
+            "units": (400, 300),
             "activation": "ELU",
-            "initializer": "orthogonal",
-            "initializer_options": {"gain": 0.2},
+            "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
         },
         # Which type of TorchScript to use with the module. Possible types include
         # None: module is not converted to TorchScript
