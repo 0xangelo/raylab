@@ -7,10 +7,11 @@ import time
 from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers import PolicyOptimizer
-from ray.rllib.agents.trainer import Trainer, with_common_config
 
 from raylab.utils.replay_buffer import ReplayBuffer
-from raylab.algorithms.sac.sac_policy import SACTorchPolicy
+from raylab.algorithms import Trainer, with_common_config
+from raylab.algorithms.mixins import ExplorationPhaseMixin
+from .sac_policy import SACTorchPolicy
 
 
 DEFAULT_CONFIG = with_common_config(
@@ -75,7 +76,7 @@ DEFAULT_CONFIG = with_common_config(
 )
 
 
-class SACTrainer(Trainer):
+class SACTrainer(ExplorationPhaseMixin, Trainer):
     """Single agent trainer for SAC."""
 
     # pylint: disable=attribute-defined-outside-init
@@ -128,18 +129,6 @@ class SACTrainer(Trainer):
             info=dict(learner=stats, **res.get("info", {})),
         )
         return res
-
-    # === New Methods ===
-
-    def update_exploration_phase(self):
-        """Signal to policies if training is still in the pure exploration phase."""
-        global_timestep = self.optimizer.num_steps_sampled
-        pure_expl_steps = self.config["pure_exploration_steps"]
-        if pure_expl_steps:
-            only_explore = global_timestep < pure_expl_steps
-            self.workers.local_worker().foreach_trainable_policy(
-                lambda p, _: p.set_pure_exploration_phase(only_explore)
-            )
 
     @staticmethod
     def _validate_config(config):

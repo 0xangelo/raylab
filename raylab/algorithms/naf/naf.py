@@ -1,14 +1,14 @@
 """Continuous Q-Learning with Normalized Advantage Functions."""
 import time
 
-from ray import tune
 from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers import PolicyOptimizer
-from ray.rllib.agents.trainer import Trainer, with_common_config
 
 from raylab.utils.replay_buffer import ReplayBuffer
-from raylab.algorithms.naf.naf_policy import NAFTorchPolicy
+from raylab.algorithms import Trainer, with_common_config
+from raylab.algorithms.mixins import ExplorationPhaseMixin, ParameterNoiseMixin
+from .naf_policy import NAFTorchPolicy
 
 
 DEFAULT_CONFIG = with_common_config(
@@ -82,7 +82,7 @@ DEFAULT_CONFIG = with_common_config(
 )
 
 
-class NAFTrainer(Trainer):
+class NAFTrainer(ExplorationPhaseMixin, ParameterNoiseMixin, Trainer):
     """Single agent trainer for NAF."""
 
     # pylint: disable=attribute-defined-outside-init
@@ -94,6 +94,7 @@ class NAFTrainer(Trainer):
     @override(Trainer)
     def _init(self, config, env_creator):
         self._validate_config(config)
+        self._set_parameter_noise_callbacks(config)
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
         )
@@ -136,42 +137,6 @@ class NAFTrainer(Trainer):
         )
         return res
 
-    # === New Methods ===
-
-    def update_exploration_phase(self):
-        """Signal to policies if training is still in the pure exploration phase."""
-        global_timestep = self.optimizer.num_steps_sampled
-        pure_expl_steps = self.config["pure_exploration_steps"]
-        if pure_expl_steps:
-            only_explore = global_timestep < pure_expl_steps
-            self.workers.local_worker().foreach_trainable_policy(
-                lambda p, _: p.set_pure_exploration_phase(only_explore)
-            )
-
     @staticmethod
     def _validate_config(config):
         assert config["num_workers"] == 0, "No point in using additional workers."
-
-        # Taken from ray.rllib.agents.dqn.dqn
-        if config["exploration"] == "parameter_noise":
-            if config["batch_mode"] != "complete_episodes":
-                raise ValueError(
-                    "Exploration with parameter space noise requires "
-                    "batch_mode to be complete_episodes."
-                )
-
-            if config["callbacks"]["on_episode_start"]:
-                start_callback = config["callbacks"]["on_episode_start"]
-            else:
-                start_callback = None
-
-            def on_episode_start(info):
-                # as a callback function to sample and pose parameter space
-                # noise on the parameters of network
-                policies = info["policy"]
-                for pol in policies.values():
-                    pol.perturb_policy_parameters()
-                if start_callback:
-                    start_callback(info)
-
-            config["callbacks"]["on_episode_start"] = tune.function(on_episode_start)
