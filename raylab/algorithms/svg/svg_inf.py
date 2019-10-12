@@ -54,9 +54,4 @@ class SVGInfTrainer(SVGBaseTrainer):
         on_policy_stats = get_learner_stats(policy.learn_on_batch(samples))
 
         learner_stats = {**off_policy_stats, **on_policy_stats}
-        res = self.collect_metrics()
-        res.update(
-            timesteps_this_iter=samples.count,
-            info=dict(learner=learner_stats, **res.get("info", {})),
-        )
-        return res
+        return self._log_metrics(learner_stats)

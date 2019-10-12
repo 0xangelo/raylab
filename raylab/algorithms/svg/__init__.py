@@ -4,11 +4,11 @@ http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochas
 """
 import numpy as np
 from ray import tune
-from ray.rllib.agents.trainer import Trainer, with_common_config
 from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils.annotations import override
 
 from raylab.utils.replay_buffer import ReplayBuffer
+from raylab.algorithms import Trainer, with_common_config
 
 
 SVG_BASE_CONFIG = with_common_config(
@@ -65,8 +65,7 @@ SVG_BASE_CONFIG = with_common_config(
 class SVGBaseTrainer(Trainer):
     """Base Trainer to set up SVG algorithms. This should not be instantiated."""
 
-    # pylint: disable=abstract-method,no-member,attribute-defined-outside-init,protected-access
-    _allow_unknown_subkeys = Trainer._allow_unknown_subkeys + ["module"]
+    # pylint: disable=abstract-method,no-member,attribute-defined-outside-init
 
     @override(Trainer)
     def _init(self, config, env_creator):
@@ -113,10 +112,8 @@ class SVGBaseTrainer(Trainer):
         def on_episode_end(info):
             eps = info["episode"]
             mean_action = np.mean(eps.user_data["actions"], axis=0)
-            std_action = np.std(eps.user_data["actions"], axis=0)
-            for idx, (mean, std) in enumerate(zip(mean_action, std_action)):
-                eps.custom_metrics[f"mean_action[{idx}]"] = mean
-                eps.custom_metrics[f"std_action[{idx}]"] = std
+            for idx, mean in enumerate(mean_action):
+                eps.custom_metrics[f"mean_action-{idx}"] = mean
             if end_callback:
                 end_callback(info)
 
