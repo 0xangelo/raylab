@@ -1,6 +1,7 @@
 """SVG(inf) policy class using PyTorch."""
 import itertools
 import functools
+import collections
 
 import torch
 import torch.nn as nn
@@ -12,6 +13,11 @@ import raylab.algorithms.svg.svg_module as svgm
 import raylab.utils.pytorch as torch_util
 
 
+OptimizerCollection = collections.namedtuple(
+    "OptimizerCollection", "on_policy off_policy"
+)
+
+
 class SVGInfTorchPolicy(SVGBaseTorchPolicy):
     """Stochastic Value Gradients policy for full trajectories."""
 
@@ -21,7 +27,6 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self.off_policy_optimizer, self.on_policy_optimizer = self.optimizer()
         # Flag for off-policy learning
         self._off_policy_learning = False
 
@@ -51,7 +56,9 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
             **self.config["on_policy_optimizer_options"]
         )
 
-        return off_policy_optim, on_policy_optim
+        return OptimizerCollection(
+            on_policy=on_policy_optim, off_policy=off_policy_optim
+        )
 
     @override(SVGBaseTorchPolicy)
     def set_reward_fn(self, reward_fn):
@@ -75,20 +82,20 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
             batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
             loss, _info = self.compute_joint_model_value_loss(batch_tensors)
             info.update(_info)
-            self.off_policy_optimizer.zero_grad()
+            self._optimizer.off_policy.zero_grad()
             loss.backward()
             info.update(self.extra_grad_info(batch_tensors))
-            self.off_policy_optimizer.step()
+            self._optimizer.off_policy.step()
             self.update_targets()
         else:
             episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
             loss, info = self.compute_stochastic_value_gradient_loss(episodes)
             kl_div = self._avg_kl_divergence(batch_tensors)
             loss = loss + kl_div * self.curr_kl_coeff
-            self.on_policy_optimizer.zero_grad()
+            self._optimizer.on_policy.zero_grad()
             loss.backward()
             info.update(self.extra_grad_info(batch_tensors))
-            self.on_policy_optimizer.step()
+            self._optimizer.on_policy.step()
             info.update(self.update_kl_coeff(samples))
 
         return self._learner_stats(info)

@@ -24,7 +24,6 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self._optimizer = self.optimizer()
         if self.config["target_entropy"] is None:
             self.config["target_entropy"] = -len(action_space.shape)
 
@@ -36,6 +35,63 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         from raylab.algorithms.sac.sac import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
+
+    @override(TorchPolicy)
+    def make_module(self, obs_space, action_space, config):
+        module = nn.ModuleDict()
+        module.update(self._make_policy(obs_space, action_space, config))
+
+        def make_critic():
+            return self._make_critic(obs_space, action_space, config)
+
+        module.critics = nn.ModuleList([make_critic()])
+        module.target_critics = nn.ModuleList([make_critic()])
+        if config["clipped_double_q"]:
+            module.critics.append(make_critic())
+            module.target_critics.append(make_critic())
+        module.target_critics.load_state_dict(module.critics.state_dict())
+
+        module.log_alpha = nn.Parameter(torch.zeros([]))
+        return module
+
+    def _make_policy(self, obs_space, action_space, config):
+        policy_config = config["module"]["policy"]
+        logits_module = mods.FullyConnected(
+            in_features=obs_space.shape[0],
+            units=policy_config["units"],
+            activation=policy_config["activation"],
+            **policy_config["initializer_options"]
+        )
+        params_module = mods.DiagMultivariateNormalParams(
+            logits_module.out_features,
+            action_space.shape[0],
+            input_dependent_scale=policy_config["input_dependent_scale"],
+        )
+        policy_module = nn.Sequential(logits_module, params_module)
+        sampler_module = nn.Sequential(
+            policy_module,
+            mods.DiagMultivariateNormalRSample(
+                mean_only=config["mean_action_only"],
+                squashed=True,
+                action_low=self.convert_to_tensor(action_space.low),
+                action_high=self.convert_to_tensor(action_space.high),
+            ),
+        )
+        return {"policy": policy_module, "sampler": sampler_module}
+
+    @staticmethod
+    def _make_critic(obs_space, action_space, config):
+        critic_config = config["module"]["critic"]
+        logits_module = mods.StateActionEncoder(
+            obs_dim=obs_space.shape[0],
+            action_dim=action_space.shape[0],
+            delay_action=critic_config["delay_action"],
+            units=critic_config["units"],
+            activation=critic_config["activation"],
+            **critic_config["initializer_options"]
+        )
+        value_module = mods.ValueFunction(logits_module.out_features)
+        return ActionValueFunction(logits_module, value_module)
 
     @override(TorchPolicy)
     def optimizer(self):
@@ -107,35 +163,6 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         self._optimizer.critic.step()
         return info
 
-    def _update_policy(self, batch_tensors, module, config):
-        policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
-        self._optimizer.policy.zero_grad()
-        policy_loss.backward()
-        grad_stats = {
-            "policy_grad_norm": nn.utils.clip_grad_norm_(
-                module.policy.parameters(), float("inf")
-            )
-        }
-        info.update(grad_stats)
-
-        self._optimizer.policy.step()
-        apply_stats = {}
-        info.update(apply_stats)
-        return info
-
-    def _update_alpha(self, batch_tensors, module, config):
-        alpha_loss, info = self.compute_alpha_loss(batch_tensors, module, config)
-        self._optimizer.alpha.zero_grad()
-        alpha_loss.backward()
-        grad_stats = {
-            "alpha_grad_norm": self.module.log_alpha.grad.norm().item(),
-            "curr_alpha": self.module.log_alpha.exp().item(),
-        }
-        info.update(grad_stats)
-
-        self._optimizer.alpha.step()
-        return info
-
     def compute_critic_loss(self, batch_tensors, module, config):
         """Compute Soft Policy Iteration loss for Q value function."""
         obs = batch_tensors[SampleBatch.CUR_OBS]
@@ -171,6 +198,22 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
             rewards + config["gamma"] * (next_vals - module.log_alpha.exp() * logp),
         )
 
+    def _update_policy(self, batch_tensors, module, config):
+        policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
+        self._optimizer.policy.zero_grad()
+        policy_loss.backward()
+        grad_stats = {
+            "policy_grad_norm": nn.utils.clip_grad_norm_(
+                module.policy.parameters(), float("inf")
+            )
+        }
+        info.update(grad_stats)
+
+        self._optimizer.policy.step()
+        apply_stats = {}
+        info.update(apply_stats)
+        return info
+
     @staticmethod
     def compute_policy_loss(batch_tensors, module, config):
         """Compute Soft Policy Iteration loss for reparameterized stochastic policy."""
@@ -190,10 +233,24 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         }
         return max_objective.neg(), stats
 
+    def _update_alpha(self, batch_tensors, module, config):
+        alpha_loss, info = self.compute_alpha_loss(batch_tensors, module, config)
+        self._optimizer.alpha.zero_grad()
+        alpha_loss.backward()
+        grad_stats = {
+            "alpha_grad_norm": self.module.log_alpha.grad.norm().item(),
+            "curr_alpha": self.module.log_alpha.exp().item(),
+        }
+        info.update(grad_stats)
+
+        self._optimizer.alpha.step()
+        return info
+
     @staticmethod
     def compute_alpha_loss(batch_tensors, module, config):
         """Compute entropy coefficient loss."""
-        _, logp = module.sampler(batch_tensors[SampleBatch.CUR_OBS])
+        with torch.no_grad():
+            _, logp = module.sampler(batch_tensors[SampleBatch.CUR_OBS])
         alpha = module.log_alpha.exp()
         entropy_diff = torch.mean(-alpha * logp - alpha * config["target_entropy"])
         return entropy_diff, {"alpha_loss": entropy_diff.item()}
@@ -203,60 +260,3 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         torch_util.update_polyak(
             self.module.critics, self.module.target_critics, self.config["polyak"]
         )
-
-    @override(TorchPolicy)
-    def make_module(self, obs_space, action_space, config):
-        module = nn.ModuleDict()
-        module.update(self._make_policy(obs_space, action_space, config))
-
-        def make_critic():
-            return self._make_critic(obs_space, action_space, config)
-
-        module.critics = nn.ModuleList([make_critic()])
-        module.target_critics = nn.ModuleList([make_critic()])
-        if config["clipped_double_q"]:
-            module.critics.append(make_critic())
-            module.target_critics.append(make_critic())
-        module.target_critics.load_state_dict(module.critics.state_dict())
-
-        module.log_alpha = nn.Parameter(torch.zeros([]))
-        return module
-
-    def _make_policy(self, obs_space, action_space, config):
-        policy_config = config["module"]["policy"]
-        logits_module = mods.FullyConnected(
-            in_features=obs_space.shape[0],
-            units=policy_config["units"],
-            activation=policy_config["activation"],
-            **policy_config["initializer_options"]
-        )
-        params_module = mods.DiagMultivariateNormalParams(
-            logits_module.out_features,
-            action_space.shape[0],
-            input_dependent_scale=policy_config["input_dependent_scale"],
-        )
-        policy_module = nn.Sequential(logits_module, params_module)
-        sampler_module = nn.Sequential(
-            policy_module,
-            mods.DiagMultivariateNormalRSample(
-                mean_only=config["mean_action_only"],
-                squashed=True,
-                action_low=self.convert_to_tensor(action_space.low),
-                action_high=self.convert_to_tensor(action_space.high),
-            ),
-        )
-        return {"policy": policy_module, "sampler": sampler_module}
-
-    @staticmethod
-    def _make_critic(obs_space, action_space, config):
-        critic_config = config["module"]["critic"]
-        logits_module = mods.StateActionEncoder(
-            obs_dim=obs_space.shape[0],
-            action_dim=action_space.shape[0],
-            delay_action=critic_config["delay_action"],
-            units=critic_config["units"],
-            activation=critic_config["activation"],
-            **critic_config["initializer_options"]
-        )
-        value_module = mods.ValueFunction(logits_module.out_features)
-        return ActionValueFunction(logits_module, value_module)

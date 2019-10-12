@@ -16,10 +16,6 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
 
     # pylint: disable=abstract-method
 
-    def __init__(self, observation_space, action_space, config):
-        super().__init__(observation_space, action_space, config)
-        self._optimizer = self.optimizer()
-
     @staticmethod
     @override(SVGBaseTorchPolicy)
     def get_default_config():

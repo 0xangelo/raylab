@@ -18,8 +18,6 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, TorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self._optimizer = self.optimizer()
-
         # Flag for uniform random actions
         self._pure_exploration = False
 

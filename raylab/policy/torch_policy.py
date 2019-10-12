@@ -1,7 +1,7 @@
 # pylint: disable=missing-docstring
 # pylint: enable=missing-docstring
 import os
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 import torch
 from ray.tune.logger import pretty_print
@@ -14,7 +14,7 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from raylab.utils.pytorch import convert_to_tensor
 
 
-class TorchPolicy(Policy):
+class TorchPolicy(ABC, Policy):
     """Custom TorchPolicy that aims to be more general than RLlib's one."""
 
     def __init__(self, observation_space, action_space, config):
@@ -28,11 +28,29 @@ class TorchPolicy(Policy):
         )
         self.module = self.make_module(observation_space, action_space, self.config)
         self.module.to(self.device)
+        self._optimizer = self.optimizer()
 
     @staticmethod
     @abstractmethod
     def get_default_config():
         """Return the default config for this policy class."""
+
+    @abstractmethod
+    def make_module(self, obs_space, action_space, config):
+        """Build the PyTorch nn.Module to be used by this policy.
+
+        Arguments:
+            obs_space (gym.spaces.Space): the observation space for this policy
+            action_space (gym.spaces.Space): the action_space for this policy
+            config (dict): the user config merged with the default one.
+
+        Returns:
+            A neural network module.
+        """
+
+    @abstractmethod
+    def optimizer(self):
+        """PyTorch optimizer to use."""
 
     @override(Policy)
     def get_weights(self):
@@ -50,23 +68,6 @@ class TorchPolicy(Policy):
             hit_limit = sample_batch[SampleBatch.INFOS][-1].get("TimeLimit.truncated")
             sample_batch[SampleBatch.DONES][-1] = not hit_limit
         return sample_batch
-
-    @abstractmethod
-    def optimizer(self):
-        """PyTorch optimizer to use."""
-
-    @abstractmethod
-    def make_module(self, obs_space, action_space, config):
-        """Build the PyTorch nn.Module to be used by this policy.
-
-        Arguments:
-            obs_space (gym.spaces.Space): the observation space for this policy
-            action_space (gym.spaces.Space): the action_space for this policy
-            config (dict): the user config merged with the default one.
-
-        Returns:
-            A neural network module.
-        """
 
     def convert_to_tensor(self, arr):
         """Convert an array to a PyTorch tensor in this policy's device."""
