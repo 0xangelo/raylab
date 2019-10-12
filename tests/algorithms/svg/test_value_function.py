@@ -19,6 +19,7 @@ def test_target_value_output(policy_and_batch):
     assert next_vals.shape == (10, 1)
     assert next_vals.dtype == torch.float32
 
+    policy.module.target_value.requires_grad_(True)
     targets = policy._compute_value_targets(batch)
     assert targets.shape == (10,)
     assert targets.dtype == torch.float32

@@ -1,13 +1,7 @@
 import pytest
-import numpy as np
 import torch
 from ray.rllib import RolloutWorker
 from ray.rllib.policy.sample_batch import SampleBatch
-
-
-@pytest.fixture(params=(True, False))
-def env_creator(request, cartpole_swingup_env, navigation_env):
-    return cartpole_swingup_env if request.param else navigation_env
 
 
 @pytest.fixture(params=(True, False))
@@ -44,7 +38,8 @@ def test_reproduce_rewards(setup_worker):
             tensors[SampleBatch.CUR_OBS][0],
         )
 
-    assert np.allclose(traj[SampleBatch.REWARDS], rewards.numpy(), atol=1e-6)
+    target = torch.Tensor(traj[SampleBatch.REWARDS])
+    assert torch.allclose(target, rewards, atol=1e-6)
 
 
 def test_propagates_gradients(setup_worker):

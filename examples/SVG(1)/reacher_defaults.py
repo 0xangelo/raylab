@@ -1,9 +1,4 @@
-"""Tune experiment configuration for SVG(1) on Navigation.
-
-This can be run from the command line by executing
-`python scripts/tune_experiment.py 'SVG(1)' --local-dir <experiment dir>
-    --config examples/svg_one_navigation_defaults.py --stop timesteps_total 10000`
-"""
+"""Tune experiment configuration for SVG(1) on MujocoReacher."""
 import numpy as np
 from ray import tune  # pylint: disable=unused-import
 
@@ -11,9 +6,14 @@ from ray import tune  # pylint: disable=unused-import
 def get_config():  # pylint: disable=missing-docstring
     return {
         # === Environment ===
-        "env": "Navigation",
+        "env": "TimeLimitedEnv",
+        "env_config": {
+            "env_id": "MujocoReacher",
+            "max_episode_steps": 50,
+            "time_aware": True,
+        },
         # === Replay Buffer ===
-        "buffer_size": int(1e4),
+        "buffer_size": int(2e4),
         # === Optimization ===
         # Name of Pytorch optimizer class for paremetrized policy
         "torch_optimizer": "Adam",
@@ -27,7 +27,7 @@ def get_config():  # pylint: disable=missing-docstring
         "max_grad_norm": 1e3,
         # === Regularization ===
         "kl_schedule": {
-            "initial_coeff": 0.2,
+            "initial_coeff": 0.5,
             "desired_kl": 0.01,
             "adaptation_coeff": 1.01,
             "threshold": 1.0,
@@ -44,12 +44,12 @@ def get_config():  # pylint: disable=missing-docstring
                 "initializer_options": {"name": "orthogonal"},
             },
             "value": {
-                "layers": (200, 100),
+                "layers": (400, 200),
                 "activation": "ELU",
                 "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
             },
             "model": {
-                "layers": (20, 20),
+                "layers": (40, 40),
                 "activation": "Tanh",
                 "delay_action": True,
                 "initializer_options": {"name": "orthogonal"},
@@ -58,6 +58,7 @@ def get_config():  # pylint: disable=missing-docstring
         # === RolloutWorker ===
         "sample_batch_size": 1,
         "batch_mode": "complete_episodes",
+        "timesteps_per_iteration": 1000,
         # === Trainer ===
         "train_batch_size": 128,
         # === Evaluation ===

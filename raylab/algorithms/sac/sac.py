@@ -96,31 +96,31 @@ class SACTrainer(Trainer):
 
     @override(Trainer)
     def _train(self):
+        optimizer = self.optimizer
         worker = self.workers.local_worker()
         policy = worker.get_policy()
 
         start = time.time()
-        steps_sampled = 0
+        old_steps_sampled = optimizer.num_steps_sampled
         while True:
             self.update_exploration_phase()
 
             samples = worker.sample()
-            steps_sampled += samples.count
+            optimizer.num_steps_sampled += samples.count
             for row in samples.rows():
                 self.replay.add(row)
 
             for _ in range(samples.count):
                 batch = self.replay.sample(self.config["train_batch_size"])
                 stats = get_learner_stats(policy.learn_on_batch(batch))
-                self.optimizer.num_steps_trained += batch.count
+                optimizer.num_steps_trained += batch.count
 
+            steps_sampled = optimizer.num_steps_sampled - old_steps_sampled
             if (
                 time.time() - start >= self.config["min_iter_time_s"]
                 and steps_sampled >= self.config["timesteps_per_iteration"]
             ):
                 break
-
-        self.optimizer.num_steps_sampled += steps_sampled
 
         res = self.collect_metrics()
         res.update(

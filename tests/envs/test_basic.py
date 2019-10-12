@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+import torch
 
 from raylab.envs.registry import ENVS
 
@@ -19,6 +20,10 @@ def test_env_interaction_loop(env):
     assert np.isscalar(rew)
     assert isinstance(done, bool)
     assert isinstance(info, dict)
+
+    if hasattr(env, "reward_fn"):
+        rewt = env.reward_fn(*map(torch.Tensor, (obs, action, new_obs)))
+        assert torch.allclose(torch.as_tensor(rew), rewt)
 
     for _ in range(10):
         if done:

@@ -31,9 +31,16 @@ def _navigation_maker(config):
     return NavigationEnv(config)
 
 
+def _mujoco_reacher_maker(_):
+    from raylab.envs.reacher import ReacherEnv
+
+    return ReacherEnv()
+
+
 ENVS = {
     "CartPoleSwingUp": _cartpole_swingup_maker,
     "CartPoleStateless": _cartpole_stateless_maker,
     "TimeLimitedEnv": _time_limited_env_maker,
     "Navigation": _navigation_maker,
+    "MujocoReacher": _mujoco_reacher_maker,
 }

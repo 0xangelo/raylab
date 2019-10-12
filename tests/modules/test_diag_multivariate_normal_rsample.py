@@ -1,9 +1,7 @@
 import pytest
 import torch
 
-from raylab.modules.diag_multivariate_normal_rsample import (
-    DiagMultivariateNormalRSample,
-)
+from raylab.modules import DiagMultivariateNormalRSample
 
 
 @pytest.fixture(params=(True, False))
