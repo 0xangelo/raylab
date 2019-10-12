@@ -21,7 +21,7 @@ def get_config():  # pylint: disable=missing-docstring
         "torch_optimizer_options": {
             "model": {"lr": 1e-3},
             "value": {"lr": 1e-3},
-            "policy": {"lr": tune.grid_search([1e-3, 3e-4])},
+            "policy": {"lr": 1e-3},
         },
         # Clip gradient norms by this value
         "max_grad_norm": 1e3,
@@ -40,7 +40,7 @@ def get_config():  # pylint: disable=missing-docstring
             "policy": {
                 "layers": (100, 100),
                 "activation": "Tanh",
-                "input_dependent_scale": tune.grid_search([True, False]),
+                "input_dependent_scale": True,
                 "initializer_options": {"name": "orthogonal"},
             },
             "value": {
@@ -59,7 +59,13 @@ def get_config():  # pylint: disable=missing-docstring
         "sample_batch_size": 1,
         "batch_mode": "complete_episodes",
         # === Trainer ===
-        "train_batch_size": 100,
+        "train_batch_size": 128,
+        # === Evaluation ===
+        "evaluation_interval": 1,
+        # Extra arguments to pass to evaluation workers.
+        # Typical usage is to pass extra args to evaluation env creator
+        # and to disable exploration by computing deterministic actions
+        "evaluation_config": {"mean_action_only": True, "pure_exploration_steps": 0},
         # === Debugging ===
         # Set the ray.rllib.* log level for the agent process and its workers.
         # Should be one of DEBUG, INFO, WARN, or ERROR. The DEBUG level will also

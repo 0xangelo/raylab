@@ -13,7 +13,7 @@ def get_config():  # pylint: disable=missing-docstring
             "time_aware": True,
         },
         # === Replay Buffer ===
-        "buffer_size": int(1e5),
+        "buffer_size": int(2e4),
         # === Optimization ===
         # Name of Pytorch optimizer class for paremetrized policy
         "torch_optimizer": "Adam",
@@ -27,7 +27,7 @@ def get_config():  # pylint: disable=missing-docstring
         "max_grad_norm": 1e3,
         # === Regularization ===
         "kl_schedule": {
-            "initial_coeff": tune.grid_search([0.0, 0.2]),
+            "initial_coeff": 0.5,
             "desired_kl": 0.01,
             "adaptation_coeff": 1.01,
             "threshold": 1.0,
@@ -58,8 +58,15 @@ def get_config():  # pylint: disable=missing-docstring
         # === RolloutWorker ===
         "sample_batch_size": 1,
         "batch_mode": "complete_episodes",
+        "timesteps_per_iteration": 1000,
         # === Trainer ===
         "train_batch_size": 128,
+        # === Evaluation ===
+        "evaluation_interval": 1,
+        # Extra arguments to pass to evaluation workers.
+        # Typical usage is to pass extra args to evaluation env creator
+        # and to disable exploration by computing deterministic actions
+        "evaluation_config": {"mean_action_only": True, "pure_exploration_steps": 0},
         # === Debugging ===
         # Set the ray.rllib.* log level for the agent process and its workers.
         # Should be one of DEBUG, INFO, WARN, or ERROR. The DEBUG level will also
