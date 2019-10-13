@@ -41,4 +41,4 @@ class DiagMultivariateNormalParams(nn.Module):
         loc = self.loc_module(inputs)
         log_scale = self.log_scale_module(inputs)
         scale_diag = torch.clamp(log_scale, self.LOG_STD_MIN, self.LOG_STD_MAX).exp()
-        return dict(loc=loc, scale_diag=scale_diag)
+        return {"loc": loc, "scale_diag": scale_diag}
