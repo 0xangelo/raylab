@@ -25,7 +25,7 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
         if self.config["target_entropy"] is None:
-            self.config["target_entropy"] = -len(action_space.shape)
+            self.config["target_entropy"] = -action_space.shape[0]
 
     @staticmethod
     @override(TorchPolicy)
