@@ -13,7 +13,7 @@ def get_config():  # pylint: disable=missing-docstring
             "time_aware": True,
         },
         # === Replay Buffer ===
-        "buffer_size": int(2e4),
+        "buffer_size": int(2e5),
         # === Optimization ===
         # Name of Pytorch optimizer class for paremetrized policy
         "torch_optimizer": "Adam",
@@ -45,7 +45,7 @@ def get_config():  # pylint: disable=missing-docstring
             },
             "value": {
                 "layers": (400, 200),
-                "activation": "ELU",
+                "activation": "Tanh",
                 "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
             },
             "model": {
