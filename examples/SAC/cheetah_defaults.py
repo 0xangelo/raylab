@@ -1,8 +1,4 @@
-"""Tune experiment configuration to test SAC in HalfCheetah-v3.
-
-This can be run from the command line by executing
-`raylab experiment SAC --config examples/naf_exploration_experiment.py -s timesteps_total 100000`
-"""
+"""Tune experiment configuration to test SAC in HalfCheetah-v3."""
 import numpy as np
 from ray import tune
 
