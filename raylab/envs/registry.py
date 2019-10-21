@@ -37,10 +37,17 @@ def _mujoco_reacher_maker(_):
     return ReacherEnv()
 
 
+def _mujoco_half_cheetah_maker(_):
+    from raylab.envs.half_cheetah import HalfCheetahEnv
+
+    return HalfCheetahEnv()
+
+
 ENVS = {
     "CartPoleSwingUp": _cartpole_swingup_maker,
     "CartPoleStateless": _cartpole_stateless_maker,
     "TimeLimitedEnv": _time_limited_env_maker,
     "Navigation": _navigation_maker,
     "MujocoReacher": _mujoco_reacher_maker,
+    "MujocoHalfCheetah": _mujoco_half_cheetah_maker,
 }
