@@ -9,7 +9,7 @@ def target_entropy(request):
 
 def test_alpha_init(policy_and_batch_fn, target_entropy):
     policy, _ = policy_and_batch_fn(target_entropy)
-    target = target_entropy["target_entropy"] or -len(policy.action_space.shape)
+    target = target_entropy["target_entropy"] or -policy.action_space.shape[0]
 
     assert policy.config["target_entropy"] is not None
     assert policy.config["target_entropy"] == target
