@@ -1,16 +1,16 @@
-"""Tune experiment configuration for SVG(1) on MujocoReacher."""
+"""Tune experiment configuration to test SVG(1) in HalfCheetah-v3."""
 import numpy as np
-from ray import tune  # pylint: disable=unused-import
+from ray import tune
 
 
-def get_config():  # pylint: disable=missing-docstring
+def get_config():
     return {
         # === Environment ===
         "env": "TimeLimitedEnv",
         "env_config": {
-            "env_id": "MujocoReacher",
-            "max_episode_steps": 50,
-            "time_aware": True,
+            "env_id": "MujocoHalfCheetah",
+            "max_episode_steps": 250,
+            "time_aware": False,
         },
         # === Replay Buffer ===
         "buffer_size": int(2e5),
@@ -62,7 +62,7 @@ def get_config():  # pylint: disable=missing-docstring
         # === Trainer ===
         "train_batch_size": 128,
         # === Evaluation ===
-        "evaluation_interval": 1,
+        "evaluation_interval": 10,
         # Extra arguments to pass to evaluation workers.
         # Typical usage is to pass extra args to evaluation env creator
         # and to disable exploration by computing deterministic actions
