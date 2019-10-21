@@ -28,9 +28,10 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
     @override(SVGBaseTorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module = super().make_module(obs_space, action_space, config)
-        old = self._make_policy(obs_space, action_space, config)
-        module.old_policy = old["policy"].requires_grad_(False)
-        module.old_sampler = old["sampler"]
+        if not config["replay_kl"]:
+            old = self._make_policy(obs_space, action_space, config)
+            module.old_policy = old["policy"].requires_grad_(False)
+            module.old_sampler = old["sampler"]
         return module
 
     @override(SVGBaseTorchPolicy)
@@ -100,6 +101,12 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
 
     @override(SVGBaseTorchPolicy)
     def _avg_kl_divergence(self, batch_tensors):
+        if self.config["replay_kl"]:
+            logp = self.module.policy_logp(
+                batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
+            )
+            return torch.mean(batch_tensors[self.ACTION_LOGP] - logp)
+
         old_act, old_logp = self.module.old_sampler(batch_tensors[SampleBatch.CUR_OBS])
         logp = self.module.policy_logp(batch_tensors[SampleBatch.CUR_OBS], old_act)
         return torch.mean(old_logp - logp)

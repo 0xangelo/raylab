@@ -20,6 +20,10 @@ DEFAULT_CONFIG = with_base_config(
             "value": {"lr": 1e-3},
             "policy": {"lr": 1e-3},
         },
+        # === Regularization ===
+        # Whether to penalize KL divergence with the current policy or past policies
+        # that generated the replay pool.
+        "replay_kl": True,
         # === Exploration ===
         # Whether to sample only the mean action, mostly for evaluation purposes
         "mean_action_only": False,
@@ -59,7 +63,8 @@ class SVGOneTrainer(SVGBaseTrainer):
             for row in samples.rows():
                 self.replay.add(row)
 
-            policy.update_old_policy()
+            if not self.config["replay_kl"]:
+                policy.update_old_policy()
             for _ in range(samples.count):
                 batch = self.replay.sample(self.config["train_batch_size"])
                 learner_stats = get_learner_stats(policy.learn_on_batch(batch))
