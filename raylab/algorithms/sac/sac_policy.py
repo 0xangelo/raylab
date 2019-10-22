@@ -8,7 +8,7 @@ from ray.rllib.utils.annotations import override
 
 import raylab.modules as mods
 import raylab.utils.pytorch as torch_util
-from raylab.policy import TorchPolicy, PureExplorationMixin
+from raylab.policy import TorchPolicy, PureExplorationMixin, TargetNetworksMixin
 
 
 OptimizerCollection = collections.namedtuple(
@@ -16,7 +16,7 @@ OptimizerCollection = collections.namedtuple(
 )
 
 
-class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
+class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
     """Soft Actor-Critic policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
@@ -143,7 +143,7 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         info.update(self._update_policy(batch_tensors, module, config))
         info.update(self._update_alpha(batch_tensors, module, config))
 
-        self.update_targets()
+        self.update_targets("critics", "target_critics")
         return self._learner_stats(info)
 
     def _update_critic(self, batch_tensors, module, config):
@@ -251,9 +251,3 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
         alpha = module.log_alpha.exp()
         entropy_diff = torch.mean(-alpha * logp - alpha * config["target_entropy"])
         return entropy_diff, {"alpha_loss": entropy_diff.item()}
-
-    def update_targets(self):
-        """Update target networks through one step of polyak averaging."""
-        torch_util.update_polyak(
-            self.module.critics, self.module.target_critics, self.config["polyak"]
-        )

@@ -4,13 +4,12 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.policy import TorchPolicy, AdaptiveKLCoeffMixin
+from raylab.policy import TorchPolicy, AdaptiveKLCoeffMixin, TargetNetworksMixin
 import raylab.algorithms.svg.svg_module as svgm
 import raylab.modules as mods
-import raylab.utils.pytorch as torch_util
 
 
-class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
+class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy):
     """Stochastic Value Gradients policy using PyTorch."""
 
     # pylint: disable=abstract-method
@@ -179,8 +178,3 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TorchPolicy):
             batch_tensors[SampleBatch.REWARDS] + self.config["gamma"] * next_vals,
         )
         return targets
-
-    def update_targets(self):
-        """Update target networks through one step of polyak averaging."""
-        polyak = self.config["polyak"]
-        torch_util.update_polyak(self.module.value, self.module.target_value, polyak)

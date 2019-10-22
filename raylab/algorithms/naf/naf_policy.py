@@ -6,16 +6,21 @@ from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as torch_util
 import raylab.algorithms.naf.naf_module as mods
-from raylab.policy import TorchPolicy, AdaptiveParamNoiseMixin, PureExplorationMixin
+import raylab.policy as raypi
 
 
-class NAFTorchPolicy(AdaptiveParamNoiseMixin, PureExplorationMixin, TorchPolicy):
+class NAFTorchPolicy(
+    raypi.AdaptiveParamNoiseMixin,
+    raypi.PureExplorationMixin,
+    raypi.TargetNetworksMixin,
+    raypi.TorchPolicy,
+):
     """Normalized Advantage Function policy in Pytorch to use with RLlib."""
 
     # pylint: disable=abstract-method
 
     @staticmethod
-    @override(TorchPolicy)
+    @override(raypi.TorchPolicy)
     def get_default_config():
         """Return the default config for NAF."""
         # pylint: disable=cyclic-import
@@ -23,7 +28,7 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, PureExplorationMixin, TorchPolicy)
 
         return DEFAULT_CONFIG
 
-    @override(TorchPolicy)
+    @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module = nn.ModuleDict()
         module.update(self._make_naf(obs_space, action_space, config))
@@ -93,14 +98,14 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, PureExplorationMixin, TorchPolicy)
             **config["module"]["initializer_options"],
         )
 
-    @override(TorchPolicy)
+    @override(raypi.TorchPolicy)
     def optimizer(self):
         cls = torch_util.get_optimizer_class(self.config["torch_optimizer"])
         options = self.config["torch_optimizer_options"]
         return cls(self.module.naf.parameters(), **options)
 
     @torch.no_grad()
-    @override(TorchPolicy)
+    @override(raypi.TorchPolicy)
     def compute_actions(
         self,
         obs_batch,
@@ -156,23 +161,23 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, PureExplorationMixin, TorchPolicy)
         actions = dist.sample()
         return actions
 
-    @override(AdaptiveParamNoiseMixin)
+    @override(raypi.AdaptiveParamNoiseMixin)
     def _compute_noise_free_actions(self, obs_batch):
         return self.module.target_policy(self.convert_to_tensor(obs_batch)).numpy()
 
     @torch.no_grad()
-    @override(TorchPolicy)
+    @override(raypi.TorchPolicy)
     def postprocess_trajectory(
         self, sample_batch, other_agent_batches=None, episode=None
     ):
         sample_batch = super().postprocess_trajectory(
             sample_batch, other_agent_batches=other_agent_batches, episode=episode
-        )
+        )  # pylint: disable=no-member
         if self.config["exploration"] == "parameter_noise":
             self.update_parameter_noise(sample_batch)
         return sample_batch
 
-    @override(TorchPolicy)
+    @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
 
@@ -182,9 +187,7 @@ class NAFTorchPolicy(AdaptiveParamNoiseMixin, PureExplorationMixin, TorchPolicy)
         info.update(self.extra_grad_info())
         self._optimizer.step()
 
-        torch_util.update_polyak(
-            self.module.value, self.module.target_value, self.config["polyak"]
-        )
+        self.update_targets("value", "target_value")
         return self._learner_stats(info)
 
     def compute_loss(self, batch_tensors, module, config):
