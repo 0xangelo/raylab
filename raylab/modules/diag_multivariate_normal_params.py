@@ -19,22 +19,26 @@ class ExpandVector(nn.Module):
 
 
 class DiagMultivariateNormalParams(nn.Module):
-    """Neural network module mapping inputs DiagMultivariateNormal parameters.
+    """Neural network module mapping inputs to DiagMultivariateNormal parameters.
 
     This module is initialized to be closed to a standard Normal distribution.
     """
+
+    LOG_STD_MAX = 2
+    LOG_STD_MIN = -20
 
     def __init__(self, in_features, event_dim, input_dependent_scale=True):
         super().__init__()
         self.loc_module = nn.Linear(in_features, event_dim)
         if input_dependent_scale:
-            self.pre_scale_module = nn.Linear(in_features, event_dim)
+            self.log_scale_module = nn.Linear(in_features, event_dim)
         else:
-            self.pre_scale_module = ExpandVector(event_dim)
+            self.log_scale_module = ExpandVector(event_dim)
         self.apply(initialize_("orthogonal", gain=0.01))
 
     @override(nn.Module)
     def forward(self, inputs):  # pylint: disable=arguments-differ
         loc = self.loc_module(inputs)
-        scale_diag = self.pre_scale_module(inputs).exp()
-        return dict(loc=loc, scale_diag=scale_diag)
+        log_scale = self.log_scale_module(inputs)
+        scale_diag = torch.clamp(log_scale, self.LOG_STD_MIN, self.LOG_STD_MAX).exp()
+        return {"loc": loc, "scale_diag": scale_diag}

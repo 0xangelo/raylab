@@ -5,7 +5,6 @@ from ray.rllib.evaluation.metrics import get_learner_stats
 
 from raylab.algorithms.svg import SVG_BASE_CONFIG, SVGBaseTrainer
 from raylab.algorithms.svg.svg_one_policy import SVGOneTorchPolicy
-from raylab.utils.replay_buffer import ReplayBuffer
 
 
 DEFAULT_CONFIG = with_base_config(
@@ -21,6 +20,25 @@ DEFAULT_CONFIG = with_base_config(
             "value": {"lr": 1e-3},
             "policy": {"lr": 1e-3},
         },
+        # === Regularization ===
+        # Whether to penalize KL divergence with the current policy or past policies
+        # that generated the replay pool.
+        "replay_kl": True,
+        # === Exploration ===
+        # Whether to sample only the mean action, mostly for evaluation purposes
+        "mean_action_only": False,
+        # Until this many timesteps have elapsed, the agent's policy will be
+        # ignored & it will instead take uniform random actions. Can be used in
+        # conjunction with learning_starts (which controls when the first
+        # optimization step happens) to decrease dependence of exploration &
+        # optimization on initial policy parameters. Note that this will be
+        # disabled when the action noise scale is set to 0 (e.g during evaluation).
+        "pure_exploration_steps": 1000,
+        # === Evaluation ===
+        # Extra arguments to pass to evaluation workers.
+        # Typical usage is to pass extra args to evaluation env creator
+        # and to disable exploration by computing deterministic actions
+        "evaluation_config": {"mean_action_only": True, "pure_exploration_steps": 0},
     },
 )
 
@@ -35,33 +53,22 @@ class SVGOneTrainer(SVGBaseTrainer):
     _policy = SVGOneTorchPolicy
 
     @override(SVGBaseTrainer)
-    def _init(self, config, env_creator):
-        super()._init(config, env_creator)
-        self.replay = ReplayBuffer(
-            config["buffer_size"],
-            extra_keys=[self._policy.ACTION_LOGP, "loc", "scale_diag"],
-        )
-
-    @override(SVGBaseTrainer)
     def _train(self):
         worker = self.workers.local_worker()
         policy = worker.get_policy()
 
-        samples = worker.sample()
-        self.optimizer.num_steps_sampled += samples.count
-        for row in samples.rows():
-            self.replay.add(row)
+        while not self._iteration_done():
+            samples = worker.sample()
+            self.optimizer.num_steps_sampled += samples.count
+            for row in samples.rows():
+                self.replay.add(row)
 
-        for _ in range(samples.count):
-            batch = self.replay.sample(self.config["train_batch_size"])
-            learner_stats = get_learner_stats(policy.learn_on_batch(batch))
-            self.optimizer.num_steps_trained += batch.count
+            if not self.config["replay_kl"]:
+                policy.update_old_policy()
+            for _ in range(samples.count):
+                batch = self.replay.sample(self.config["train_batch_size"])
+                learner_stats = get_learner_stats(policy.learn_on_batch(batch))
+                self.optimizer.num_steps_trained += batch.count
+            learner_stats.update(policy.update_kl_coeff(samples))
 
-        learner_stats.update(policy.update_kl_coeff(samples))
-
-        res = self.collect_metrics()
-        res.update(
-            timesteps_this_iter=samples.count,
-            info=dict(learner=learner_stats, **res.get("info", {})),
-        )
-        return res
+        return self._log_metrics(learner_stats)

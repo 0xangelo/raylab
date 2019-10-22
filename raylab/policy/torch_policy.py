@@ -1,23 +1,21 @@
 # pylint: disable=missing-docstring
 # pylint: enable=missing-docstring
 import os
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 import torch
 from ray.tune.logger import pretty_print
 from ray.rllib.utils import merge_dicts
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
-from ray.rllib.policy import Policy
+from ray.rllib.policy.policy import Policy, LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
 
 from raylab.utils.pytorch import convert_to_tensor
 
 
-class TorchPolicy(Policy):
+class TorchPolicy(ABC, Policy):
     """Custom TorchPolicy that aims to be more general than RLlib's one."""
-
-    module = None
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
@@ -28,11 +26,31 @@ class TorchPolicy(Policy):
             if bool(os.environ.get("CUDA_VISIBLE_DEVICES", None))
             else torch.device("cpu")
         )
+        self.module = self.make_module(observation_space, action_space, self.config)
+        self.module.to(self.device)
+        self._optimizer = self.optimizer()
 
     @staticmethod
     @abstractmethod
     def get_default_config():
         """Return the default config for this policy class."""
+
+    @abstractmethod
+    def make_module(self, obs_space, action_space, config):
+        """Build the PyTorch nn.Module to be used by this policy.
+
+        Arguments:
+            obs_space (gym.spaces.Space): the observation space for this policy
+            action_space (gym.spaces.Space): the action_space for this policy
+            config (dict): the user config merged with the default one.
+
+        Returns:
+            A neural network module.
+        """
+
+    @abstractmethod
+    def optimizer(self):
+        """PyTorch optimizer to use."""
 
     @override(Policy)
     def get_weights(self):
@@ -51,10 +69,6 @@ class TorchPolicy(Policy):
             sample_batch[SampleBatch.DONES][-1] = not hit_limit
         return sample_batch
 
-    @abstractmethod
-    def optimizer(self):
-        """PyTorch optimizer to use."""
-
     def convert_to_tensor(self, arr):
         """Convert an array to a PyTorch tensor in this policy's device."""
         return convert_to_tensor(arr, self.device)
@@ -63,6 +77,10 @@ class TorchPolicy(Policy):
         tensor_batch = UsageTrackingDict(sample_batch)
         tensor_batch.set_get_interceptor(self.convert_to_tensor)
         return tensor_batch
+
+    @staticmethod
+    def _learner_stats(info):
+        return {LEARNER_STATS_KEY: info}
 
     def __repr__(self):
         args = ["{name}(", "{observation_space}, ", "{action_space}, ", "{config}", ")"]

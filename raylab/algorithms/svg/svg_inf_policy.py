@@ -1,16 +1,21 @@
 """SVG(inf) policy class using PyTorch."""
 import itertools
 import functools
+import collections
 
 import torch
 import torch.nn as nn
-from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.algorithms.svg.svg_base_policy import SVGBaseTorchPolicy
 import raylab.algorithms.svg.svg_module as svgm
 import raylab.utils.pytorch as torch_util
+
+
+OptimizerCollection = collections.namedtuple(
+    "OptimizerCollection", "on_policy off_policy"
+)
 
 
 class SVGInfTorchPolicy(SVGBaseTorchPolicy):
@@ -22,7 +27,6 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self.off_policy_optimizer, self.on_policy_optimizer = self.optimizer()
         # Flag for off-policy learning
         self._off_policy_learning = False
 
@@ -34,29 +38,6 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
         from raylab.algorithms.svg.svg_inf import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
-
-    @override(SVGBaseTorchPolicy)
-    def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
-        if self._off_policy_learning:
-            loss, info = self.compute_joint_model_value_loss(batch_tensors)
-            self.off_policy_optimizer.zero_grad()
-            loss.backward()
-            info.update(self.extra_grad_info(batch_tensors))
-            self.off_policy_optimizer.step()
-            self.update_targets()
-        else:
-            episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
-            loss, info = self.compute_stochastic_value_gradient_loss(episodes)
-            kl_div = self._avg_kl_divergence(batch_tensors)
-            loss = loss + kl_div * self.curr_kl_coeff
-            self.on_policy_optimizer.zero_grad()
-            loss.backward()
-            info.update(self.extra_grad_info(batch_tensors))
-            self.on_policy_optimizer.step()
-            info.update(self.update_kl_coeff(samples))
-
-        return {LEARNER_STATS_KEY: info}
 
     @override(SVGBaseTorchPolicy)
     def optimizer(self):
@@ -75,21 +56,17 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
             **self.config["on_policy_optimizer_options"]
         )
 
-        return off_policy_optim, on_policy_optim
+        return OptimizerCollection(
+            on_policy=on_policy_optim, off_policy=off_policy_optim
+        )
 
     @override(SVGBaseTorchPolicy)
     def set_reward_fn(self, reward_fn):
         # Add recurrent policy-model combination
         module = self.module
         module.rollout = svgm.ReproduceRollout(
-            module.policy,
-            module.model,
-            module.policy_rsample,
-            module.model_rsample,
-            reward_fn,
+            module.policy_reproduce, module.model_reproduce, reward_fn
         )
-
-    # ================================= NEW METHODS ====================================
 
     def set_off_policy(self, learn_off_policy):
         """Set the current learning state to off-policy or not."""
@@ -98,27 +75,30 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
     learn_off_policy = functools.partialmethod(set_off_policy, True)
     learn_on_policy = functools.partialmethod(set_off_policy, False)
 
-    def compute_joint_model_value_loss(self, batch_tensors):
-        """Compute model MLE loss and fitted value function loss."""
-        mle_loss = self._avg_model_logp(batch_tensors).neg()
+    @override(SVGBaseTorchPolicy)
+    def learn_on_batch(self, samples):
+        batch_tensors = self._lazy_tensor_dict(samples)
+        if self._off_policy_learning:
+            batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
+            loss, _info = self.compute_joint_model_value_loss(batch_tensors)
+            info.update(_info)
+            self._optimizer.off_policy.zero_grad()
+            loss.backward()
+            info.update(self.extra_grad_info(batch_tensors))
+            self._optimizer.off_policy.step()
+            self.update_targets()
+        else:
+            episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
+            loss, info = self.compute_stochastic_value_gradient_loss(episodes)
+            kl_div = self._avg_kl_divergence(batch_tensors)
+            loss = loss + kl_div * self.curr_kl_coeff
+            self._optimizer.on_policy.zero_grad()
+            loss.backward()
+            info.update(self.extra_grad_info(batch_tensors))
+            self._optimizer.on_policy.step()
+            info.update(self.update_kl_coeff(samples))
 
-        with torch.no_grad():
-            targets = self._compute_value_targets(batch_tensors)
-            is_ratio = self._compute_is_ratios(batch_tensors)
-
-        _is_ratio = torch.clamp(is_ratio, max=self.config["max_is_ratio"])
-        values = self.module.value(batch_tensors[SampleBatch.CUR_OBS]).squeeze(-1)
-        value_loss = torch.mean(
-            _is_ratio * nn.MSELoss(reduction="none")(values, targets) / 2
-        )
-
-        joint_loss = mle_loss + self.config["vf_loss_coeff"] * value_loss
-        info = {
-            "mle_loss": mle_loss.item(),
-            "value_loss": value_loss.item(),
-            "avg_is_ratio": is_ratio.mean().item(),
-        }
-        return joint_loss, info
+        return self._learner_stats(info)
 
     def compute_stochastic_value_gradient_loss(self, episodes):
         """Compute Stochatic Value Gradient loss given full trajectories."""
@@ -133,6 +113,13 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
 
         avg_sim_return = total_ret / len(episodes)
         return -avg_sim_return, {"avg_sim_return": avg_sim_return.item()}
+
+    @override(SVGBaseTorchPolicy)
+    def _avg_kl_divergence(self, batch_tensors):
+        logp = self.module.policy_logp(
+            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
+        )
+        return torch.mean(batch_tensors[self.ACTION_LOGP] - logp)
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):
@@ -150,8 +137,13 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
                 "policy_grad_norm": nn.utils.clip_grad_norm_(
                     policy_params, max_norm=self.config["max_grad_norm"]
                 ),
-                "policy_entropy": self.module.entropy(batch_tensors).mean().item(),
+                "policy_entropy": self.module.policy_logp(
+                    batch_tensors[SampleBatch.CUR_OBS],
+                    batch_tensors[SampleBatch.ACTIONS],
+                )
+                .mean()
+                .neg()
+                .item(),
                 "curr_kl_coeff": self.curr_kl_coeff,
-                "cur_model_err": self._avg_model_logp(batch_tensors).neg().item(),
             }
         return fetches

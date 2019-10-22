@@ -9,21 +9,21 @@ from ray import tune
 def get_config():
     return {
         # === Environment ===
-        "env": "CartPoleSwingUp",
-        # Don't set 'done' at the end of the episode. Note that you still need to
-        # set this if soft_horizon=True, unless your env is actually running
-        # forever without returning done=True.
-        "no_done_at_end": True,
+        "env": "TimeLimitedEnv",
+        "env_config": {
+            "env_id": "CartPoleSwingUp",
+            "max_episode_steps": 500,
+            "time_aware": False,
+        },
         # === Replay Buffer ===
         "buffer_size": int(1e5),
         # === Exploration ===
         "exploration": tune.grid_search(["diag_gaussian", "parameter_noise"]),
         "diag_gaussian_stddev": 0.2,
-        "pure_exploration_steps": 10000,
+        "pure_exploration_steps": 5000,
         # === RolloutWorker ===
         "sample_batch_size": 1,
         "batch_mode": "complete_episodes",
-        "horizon": 250,
         # === Trainer ===
         "train_batch_size": 128,
         "timesteps_per_iteration": 1000,
