@@ -12,16 +12,19 @@ The project is structured as follows
 
     raylab
     ├── algorithms      # Trainer and Policy classes
+    ├── cli             # Command line utilities
+    ├── distributions   # Extendend and additional PyTorch distributions
     ├── envs            # Gym environments
     ├── logger          # Tune loggers
+    ├── modules         # Additional PyTorch neural network modules
     ├── policy          # Extensions and customizations of ray.rllib.policy submodules
     ├── utils           # miscellaneous utilities
     └── viskit          # visualization tools based on rllab
     
 ## Running experiments
-One can run Tune experiments locally using `scripts/tune_experiment.py`.
+One can run Tune experiments locally using `raylab experiment`.
 ```bash
-python scripts/tune_experiment.py --help
+raylab experiment --help
 ```
 An example is included in `examples/naf_exploration_experiment.py`.
 
@@ -40,3 +43,8 @@ installed alongside `raylab`.
 ```bash
 viskit --help
 ```
+
+## Algorithms
+* [NAF](http://proceedings.mlr.press/v48/gu16.html)
+* [SVG(inf) and SVG(1)](http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients)
+* [SAC](http://proceedings.mlr.press/v80/haarnoja18b.html)
