@@ -14,3 +14,4 @@ from raylab.modules.diag_multivariate_normal_ops import (
 )
 from raylab.modules.lambd import Lambda
 from raylab.modules.action_value_function import ActionValueFunction
+from raylab.modules.tanh_squash import TanhSquash
