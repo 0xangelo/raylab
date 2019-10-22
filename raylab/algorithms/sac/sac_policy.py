@@ -9,7 +9,6 @@ from ray.rllib.utils.annotations import override
 import raylab.modules as mods
 import raylab.utils.pytorch as torch_util
 from raylab.policy import TorchPolicy, PureExplorationMixin
-from raylab.algorithms.sac.sac_module import ActionValueFunction
 
 
 OptimizerCollection = collections.namedtuple(
@@ -82,7 +81,7 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
     @staticmethod
     def _make_critic(obs_space, action_space, config):
         critic_config = config["module"]["critic"]
-        logits_module = mods.StateActionEncoder(
+        return mods.ActionValueFunction.from_scratch(
             obs_dim=obs_space.shape[0],
             action_dim=action_space.shape[0],
             delay_action=critic_config["delay_action"],
@@ -90,8 +89,6 @@ class SACTorchPolicy(PureExplorationMixin, TorchPolicy):
             activation=critic_config["activation"],
             **critic_config["initializer_options"]
         )
-        value_module = mods.ValueFunction(logits_module.out_features)
-        return ActionValueFunction(logits_module, value_module)
 
     @override(TorchPolicy)
     def optimizer(self):

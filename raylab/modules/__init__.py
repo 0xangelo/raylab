@@ -13,3 +13,4 @@ from raylab.modules.diag_multivariate_normal_ops import (
     DiagMultivariateNormalReproduce,
 )
 from raylab.modules.lambd import Lambda
+from raylab.modules.action_value_function import ActionValueFunction
