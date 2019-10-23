@@ -55,6 +55,8 @@ DEFAULT_CONFIG = with_common_config(
         },
         # === Rollout Worker ===
         "num_workers": 0,
+        "sample_batch_size": 1,
+        "batch_mode": "complete_episodes",
         # === Exploration ===
         # Whether to sample only the mean action, mostly for evaluation purposes
         "mean_action_only": False,
@@ -116,3 +118,9 @@ class SACTrainer(ExplorationPhaseMixin, Trainer):
     @staticmethod
     def _validate_config(config):
         assert config["num_workers"] == 0, "No point in using additional workers."
+        assert (
+            config["sample_batch_size"] >= 1
+        ), "At least one sample must be collected."
+        assert (
+            config["batch_mode"] == "complete_episodes"
+        ), "Must sample complete episodes."

@@ -48,6 +48,8 @@ DEFAULT_CONFIG = with_common_config(
         },
         # === Rollout Worker ===
         "num_workers": 0,
+        "sample_batch_size": 1,
+        "batch_mode": "complete_episodes",
         # === Exploration ===
         # Whether to add i.i.d. Gaussian noise to the policy network's output when
         # interacting with the environment
