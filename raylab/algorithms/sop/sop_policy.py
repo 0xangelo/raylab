@@ -63,15 +63,14 @@ class SOPTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         )
         modules = {}
         modules["policy"] = nn.Sequential(logits_module, mu_module, squashing_module)
-        if config["sampler_noise"]:
-            modules["sampler"] = nn.Sequential(
-                logits_module,
-                mu_module,
-                mods.GaussianNoise(config["exploration_gaussian_sigma"]),
-                squashing_module,
-            )
-        else:
-            modules["sampler"] = modules["policy"]
+        modules["sampler"] = nn.Sequential(
+            logits_module,
+            mu_module,
+            mods.GaussianNoise(
+                config["exploration_gaussian_sigma"] if config["sampler_noise"] else 0
+            ),
+            squashing_module,
+        )
         if config["target_policy_smoothing"]:
             modules["target_action"] = nn.Sequential(
                 logits_module,
