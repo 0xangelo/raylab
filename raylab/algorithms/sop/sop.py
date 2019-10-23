@@ -6,6 +6,9 @@ from .sop_policy import SOPTorchPolicy
 
 DEFAULT_CONFIG = with_common_config(
     {
+        # === SQUASHING EXPLORATION PROBLEM ===
+        # Maximum l1 norm of the policy's output vector before the squashing function
+        "beta": 1.2,
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning: use the minimun of two target Q functions
         # as the next action-value in the target for fitted Q iteration
@@ -46,11 +49,11 @@ DEFAULT_CONFIG = with_common_config(
         # === Rollout Worker ===
         "num_workers": 0,
         # === Exploration ===
-        # Additive Gaussian i.i.d. noise to add to actions before squashing
-        "exploration_gaussian_sigma": 0.3,
         # Whether to add i.i.d. Gaussian noise to the policy network's output when
         # interacting with the environment
         "sampler_noise": True,
+        # Additive Gaussian i.i.d. noise to add to actions before squashing
+        "exploration_gaussian_sigma": 0.3,
         # Until this many timesteps have elapsed, the agent's policy will be
         # ignored & it will instead take uniform random actions. Can be used in
         # conjunction with learning_starts (which controls when the first
