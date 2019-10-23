@@ -47,9 +47,6 @@ def get_config():
         # === Trainer ===
         "train_batch_size": 256,
         "timesteps_per_iteration": 1000,
-        # === RolloutWorker ===
-        "sample_batch_size": 1,
-        "batch_mode": "complete_episodes",
         # === Exploration ===
         # Until this many timesteps have elapsed, the agent's policy will be
         # ignored & it will instead take uniform random actions. Can be used in

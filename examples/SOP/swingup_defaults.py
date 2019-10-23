@@ -64,9 +64,6 @@ def get_config():
         # optimization on initial policy parameters. Note that this will be
         # disabled when the action noise scale is set to 0 (e.g during evaluation).
         "pure_exploration_steps": 5000,
-        # === RolloutWorker ===
-        "sample_batch_size": 1,
-        "batch_mode": "complete_episodes",
         # === Trainer ===
         "train_batch_size": 128,
         "timesteps_per_iteration": 1000,
