@@ -1,5 +1,8 @@
 """Trainer and configuration for SOP."""
+from ray.rllib.utils.annotations import override
+
 from raylab.algorithms import with_common_config
+from raylab.algorithms.mixins import ParameterNoiseMixin
 from raylab.algorithms.sac.sac import SACTrainer
 from .sop_policy import SOPTorchPolicy
 
@@ -51,9 +54,20 @@ DEFAULT_CONFIG = with_common_config(
         "sample_batch_size": 1,
         "batch_mode": "complete_episodes",
         # === Exploration ===
-        # Whether to add i.i.d. Gaussian noise to the policy network's output when
-        # interacting with the environment
-        "sampler_noise": True,
+        # Which type of exploration to use. Possible types include
+        # None: use the greedy policy to act
+        # parameter_noise: use parameter space noise
+        # gaussian: use i.i.d gaussian action space noise independently for each
+        #     action dimension
+        "exploration": None,
+        # Options for parameter noise exploration
+        "param_noise_spec": {
+            "initial_stddev": 0.1,
+            "desired_action_stddev": 0.2,
+            "adaptation_coeff": 1.01,
+        },
+        # Whether to act greedly or exploratory, mostly for evaluation purposes
+        "greedy": False,
         # Additive Gaussian i.i.d. noise to add to actions before squashing
         "exploration_gaussian_sigma": 0.3,
         # Until this many timesteps have elapsed, the agent's policy will be
@@ -67,12 +81,12 @@ DEFAULT_CONFIG = with_common_config(
         # Extra arguments to pass to evaluation workers.
         # Typical usage is to pass extra args to evaluation env creator
         # and to disable exploration by computing deterministic actions
-        "evaluation_config": {"sampler_noise": False, "pure_exploration_steps": 0},
+        "evaluation_config": {"greedy": True, "pure_exploration_steps": 0},
     }
 )
 
 
-class SOPTrainer(SACTrainer):
+class SOPTrainer(ParameterNoiseMixin, SACTrainer):
     """Single agent trainer for Streamlined Off-Policy Algorithm."""
 
     # pylint: disable=attribute-defined-outside-init
@@ -80,3 +94,8 @@ class SOPTrainer(SACTrainer):
     _name = "SOP"
     _default_config = DEFAULT_CONFIG
     _policy = SOPTorchPolicy
+
+    @override(SACTrainer)
+    def _init(self, config, env_creator):
+        self._set_parameter_noise_callbacks(config)
+        super()._init(config, env_creator)

@@ -4,8 +4,8 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 
 
-@pytest.fixture(params=(True, False))
-def sampler_noise(request):
+@pytest.fixture(params=(0.3, 0.0))
+def exploration_gaussian_sigma(request):
     return request.param
 
 
@@ -15,8 +15,12 @@ def beta(request):
 
 
 @pytest.fixture
-def config(sampler_noise, beta):
-    return {"sampler_noise": sampler_noise, "beta": beta}
+def config(exploration_gaussian_sigma, beta):
+    return {
+        "exploration_gaussian_sigma": exploration_gaussian_sigma,
+        "beta": beta,
+        "exploration": "gaussian",
+    }
 
 
 @pytest.fixture
@@ -41,4 +45,7 @@ def test_policy_sample(policy_and_batch):
     samples_ = policy.module.sampler(batch[SampleBatch.CUR_OBS])
     assert samples.shape[-1] == policy.action_space.shape[0]
     assert samples.dtype == torch.float32
-    assert not (policy.config["sampler_noise"] and torch.allclose(samples, samples_))
+    assert not (
+        policy.config["exploration_gaussian_sigma"] != 0
+        and torch.allclose(samples, samples_)
+    )

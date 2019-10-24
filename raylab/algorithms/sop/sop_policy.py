@@ -8,18 +8,23 @@ from ray.rllib.utils.annotations import override
 
 import raylab.modules as mods
 import raylab.utils.pytorch as torch_util
-from raylab.policy import TorchPolicy, PureExplorationMixin, TargetNetworksMixin
+import raylab.policy as raypi
 
 OptimizerCollection = collections.namedtuple("OptimizerCollection", "policy critic")
 
 
-class SOPTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
+class SOPTorchPolicy(
+    raypi.AdaptiveParamNoiseMixin,
+    raypi.PureExplorationMixin,
+    raypi.TargetNetworksMixin,
+    raypi.TorchPolicy,
+):
     """Streamlined Off-Policy policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
 
     @staticmethod
-    @override(TorchPolicy)
+    @override(raypi.TorchPolicy)
     def get_default_config():
         """Return the default configuration for SOP."""
         # pylint: disable=cyclic-import
@@ -27,7 +32,7 @@ class SOPTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
 
         return DEFAULT_CONFIG
 
-    @override(TorchPolicy)
+    @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module = nn.ModuleDict()
         module.update(self._make_policy(obs_space, action_space, config))
@@ -46,31 +51,41 @@ class SOPTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
 
     def _make_policy(self, obs_space, action_space, config):
         policy_config = config["module"]["policy"]
-        logits_module = mods.FullyConnected(
-            in_features=obs_space.shape[0],
-            units=policy_config["units"],
-            activation=policy_config["activation"],
-            **policy_config["initializer_options"]
-        )
-        mu_module = mods.NormalizedLinear(
-            in_features=logits_module.out_features,
-            out_features=action_space.shape[0],
-            beta=config["beta"],
-        )
-        squashing_module = mods.TanhSquash(
-            self.convert_to_tensor(action_space.low),
-            self.convert_to_tensor(action_space.high),
-        )
+
+        def _make_modules():
+            logits = mods.FullyConnected(
+                in_features=obs_space.shape[0],
+                units=policy_config["units"],
+                activation=policy_config["activation"],
+                layer_norm=(config["exploration"] == "parameter_noise"),
+                **policy_config["initializer_options"]
+            )
+            mu_ = mods.NormalizedLinear(
+                in_features=logits.out_features,
+                out_features=action_space.shape[0],
+                beta=config["beta"],
+            )
+            squash = mods.TanhSquash(
+                self.convert_to_tensor(action_space.low),
+                self.convert_to_tensor(action_space.high),
+            )
+            return logits, mu_, squash
+
+        logits_module, mu_module, squashing_module = _make_modules()
         modules = {}
         modules["policy"] = nn.Sequential(logits_module, mu_module, squashing_module)
-        modules["sampler"] = nn.Sequential(
-            logits_module,
-            mu_module,
-            mods.GaussianNoise(
-                config["exploration_gaussian_sigma"] if config["sampler_noise"] else 0
-            ),
-            squashing_module,
-        )
+
+        if config["exploration"] == "gaussian":
+            expl_noise = mods.GaussianNoise(config["exploration_gaussian_sigma"])
+            modules["sampler"] = nn.Sequential(
+                logits_module, mu_module, expl_noise, squashing_module
+            )
+        elif config["exploration"] == "parameter_noise":
+            modules["sampler"] = nn.Sequential(*_make_modules())
+            modules["target_policy"] = modules["sampler"]
+        else:
+            modules["sampler"] = modules["policy"]
+
         if config["target_policy_smoothing"]:
             modules["target_action"] = nn.Sequential(
                 logits_module,
@@ -94,7 +109,7 @@ class SOPTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
             **critic_config["initializer_options"]
         )
 
-    @override(TorchPolicy)
+    @override(raypi.TorchPolicy)
     def optimizer(self):
         pi_cls = torch_util.get_optimizer_class(self.config["policy_optimizer"]["name"])
         pi_optim = pi_cls(
@@ -110,8 +125,12 @@ class SOPTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
 
         return OptimizerCollection(policy=pi_optim, critic=qf_optim)
 
+    @override(raypi.AdaptiveParamNoiseMixin)
+    def _compute_noise_free_actions(self, obs_batch):
+        return self.module.target_policy(self.convert_to_tensor(obs_batch)).numpy()
+
     @torch.no_grad()
-    @override(TorchPolicy)
+    @override(raypi.TorchPolicy)
     def compute_actions(
         self,
         obs_batch,
@@ -127,12 +146,14 @@ class SOPTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
 
         if self.is_uniform_random:
             actions = self._uniform_random_actions(obs_batch)
+        elif self.config["greedy"]:
+            actions = self.module.policy(obs_batch)
         else:
             actions = self.module.sampler(obs_batch)
 
         return actions.cpu().numpy(), state_batches, {}
 
-    @override(TorchPolicy)
+    @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
 
@@ -216,6 +237,6 @@ class SOPTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
 
         stats = {
             "policy_loss": max_objective.neg().item(),
-            "qpi_mean": action_values.mean().item(),
+            "qpi_mean": max_objective.item(),
         }
         return max_objective.neg(), stats
