@@ -1,10 +1,14 @@
 # pylint: disable=missing-docstring
 # pylint: enable=missing-docstring
 from abc import abstractmethod
+
+import torch
 from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.utils.annotations import override
 
 from raylab.utils.pytorch import perturb_module_params
 from raylab.utils.param_noise import AdaptiveParamNoiseSpec, ddpg_distance_metric
+from .torch_policy import TorchPolicy
 
 
 class AdaptiveParamNoiseMixin:
@@ -33,6 +37,18 @@ class AdaptiveParamNoiseMixin:
             self.module["target_policy"],
             self._param_noise_spec.curr_stddev,
         )
+
+    @torch.no_grad()
+    @override(TorchPolicy)
+    def postprocess_trajectory(
+        self, sample_batch, other_agent_batches=None, episode=None
+    ):  # pylint: disable=missing-docstring
+        sample_batch = super().postprocess_trajectory(
+            sample_batch, other_agent_batches=other_agent_batches, episode=episode
+        )  # pylint: disable=no-member
+        if self.config["exploration"] == "parameter_noise":
+            self.update_parameter_noise(sample_batch)
+        return sample_batch
 
     @abstractmethod
     def _compute_noise_free_actions(self, obs_batch):

@@ -165,18 +165,6 @@ class NAFTorchPolicy(
     def _compute_noise_free_actions(self, obs_batch):
         return self.module.target_policy(self.convert_to_tensor(obs_batch)).numpy()
 
-    @torch.no_grad()
-    @override(raypi.TorchPolicy)
-    def postprocess_trajectory(
-        self, sample_batch, other_agent_batches=None, episode=None
-    ):
-        sample_batch = super().postprocess_trajectory(
-            sample_batch, other_agent_batches=other_agent_batches, episode=episode
-        )  # pylint: disable=no-member
-        if self.config["exploration"] == "parameter_noise":
-            self.update_parameter_noise(sample_batch)
-        return sample_batch
-
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
