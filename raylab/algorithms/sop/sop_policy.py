@@ -57,7 +57,9 @@ class SOPTorchPolicy(
                 in_features=obs_space.shape[0],
                 units=policy_config["units"],
                 activation=policy_config["activation"],
-                layer_norm=(config["exploration"] == "parameter_noise"),
+                layer_norm=policy_config.get(
+                    "layer_norm", (config["exploration"] == "parameter_noise")
+                ),
                 **policy_config["initializer_options"]
             )
             mu_ = mods.NormalizedLinear(
