@@ -52,9 +52,18 @@ def get_config():
             },
         },
         # === Exploration ===
-        # Whether to add i.i.d. Gaussian noise to the policy network's output when
-        # interacting with the environment
-        "sampler_noise": True,
+        # Which type of exploration to use. Possible types include
+        # None: use the greedy policy to act
+        # parameter_noise: use parameter space noise
+        # gaussian: use i.i.d gaussian action space noise independently for each
+        #     action dimension
+        "exploration": "parameter_noise",
+        # Options for parameter noise exploration
+        "param_noise_spec": {
+            "initial_stddev": 0.1,
+            "desired_action_stddev": 0.3,
+            "adaptation_coeff": 1.01,
+        },
         # Additive Gaussian i.i.d. noise to add to actions before squashing
         "exploration_gaussian_sigma": 0.3,
         # Until this many timesteps have elapsed, the agent's policy will be
