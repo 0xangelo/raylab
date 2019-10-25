@@ -83,20 +83,21 @@ class SOPTorchPolicy(
                 logits_module, mu_module, expl_noise, squashing_module
             )
         elif config["exploration"] == "parameter_noise":
-            modules["sampler"] = nn.Sequential(*_make_modules())
-            modules["target_policy"] = modules["sampler"]
+            modules["sampler"] = modules["perturbed_policy"] = nn.Sequential(
+                *_make_modules()
+            )
         else:
             modules["sampler"] = modules["policy"]
 
         if config["target_policy_smoothing"]:
-            modules["target_action"] = nn.Sequential(
+            modules["target_policy"] = nn.Sequential(
                 logits_module,
                 mu_module,
                 mods.GaussianNoise(config["target_gaussian_sigma"]),
                 squashing_module,
             )
         else:
-            modules["target_action"] = modules["policy"]
+            modules["target_policy"] = modules["policy"]
         return modules
 
     @staticmethod
@@ -127,9 +128,10 @@ class SOPTorchPolicy(
 
         return OptimizerCollection(policy=pi_optim, critic=qf_optim)
 
-    @override(raypi.AdaptiveParamNoiseMixin)
-    def _compute_noise_free_actions(self, obs_batch):
-        return self.module.target_policy(self.convert_to_tensor(obs_batch)).numpy()
+    # @override(raypi.AdaptiveParamNoiseMixin)
+    # def _compute_noise_free_actions(self, sample_batch):
+    #     obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
+    #     return self.module.target_policy(obs_tensors).numpy()
 
     @torch.no_grad()
     @override(raypi.TorchPolicy)
@@ -205,7 +207,7 @@ class SOPTorchPolicy(
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
         dones = batch_tensors[SampleBatch.DONES]
 
-        next_acts = module.target_action(next_obs)
+        next_acts = module.target_policy(next_obs)
         next_vals, _ = torch.cat(
             [m(next_obs, next_acts) for m in module.target_critics], dim=-1
         ).min(dim=-1)

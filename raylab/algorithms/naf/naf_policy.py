@@ -46,19 +46,18 @@ class NAFTorchPolicy(
             module.policy = mods.MultivariateGaussianPolicy(
                 module.logits, module.action, module.tril
             )
-        elif config["exploration"] == "parameter_noise":
-            logits_module = self._make_encoder(obs_space, config)
-            module.policy = nn.Sequential(
-                logits_module,
-                mods.ActionOutput(
-                    in_features=logits_module.out_features,
-                    action_low=self.convert_to_tensor(action_space.low),
-                    action_high=self.convert_to_tensor(action_space.high),
-                ),
-            )
-            module.target_policy = nn.Sequential(module.logits, module.action)
         else:
             module.policy = nn.Sequential(module.logits, module.action)
+            if config["exploration"] == "parameter_noise":
+                logits_module = self._make_encoder(obs_space, config)
+                module.perturbed_policy = nn.Sequential(
+                    logits_module,
+                    mods.ActionOutput(
+                        in_features=logits_module.out_features,
+                        action_low=self.convert_to_tensor(action_space.low),
+                        action_high=self.convert_to_tensor(action_space.high),
+                    ),
+                )
 
         return module
 
@@ -134,11 +133,7 @@ class NAFTorchPolicy(
 
     # === Action Sampling ===
     def _greedy_actions(self, obs_batch):
-        policy = self.module.policy
-        if "target_policy" in self.module:
-            policy = self.module.target_policy
-
-        out = policy(obs_batch)
+        out = self.module.policy(obs_batch)
         if isinstance(out, tuple):
             out, _ = out
         return out
@@ -162,8 +157,9 @@ class NAFTorchPolicy(
         return actions
 
     @override(raypi.AdaptiveParamNoiseMixin)
-    def _compute_noise_free_actions(self, obs_batch):
-        return self.module.target_policy(self.convert_to_tensor(obs_batch)).numpy()
+    def _compute_noise_free_actions(self, sample_batch):
+        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
+        return self._greedy_actions(obs_tensors).numpy()
 
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
