@@ -86,7 +86,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
             loss.backward()
             info.update(self.extra_grad_info(batch_tensors))
             self._optimizer.off_policy.step()
-            self.update_targets()
+            self.update_targets("value", "target_value")
         else:
             episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
             loss, info = self.compute_stochastic_value_gradient_loss(episodes)

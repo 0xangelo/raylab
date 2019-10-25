@@ -19,9 +19,6 @@ def get_config():
         "buffer_size": int(1e5),
         # === Exploration ===
         "pure_exploration_steps": 5000,
-        # === RolloutWorker ===
-        "sample_batch_size": 1,
-        "batch_mode": "complete_episodes",
         # === Network ===
         # Size and activation of the fully connected networks computing the logits
         # for the policy and action-value function. No layers means the component is

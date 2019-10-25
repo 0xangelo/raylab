@@ -13,3 +13,7 @@ from raylab.modules.diag_multivariate_normal_ops import (
     DiagMultivariateNormalReproduce,
 )
 from raylab.modules.lambd import Lambda
+from raylab.modules.action_value_function import ActionValueFunction
+from raylab.modules.tanh_squash import TanhSquash
+from raylab.modules.gaussian_noise import GaussianNoise
+from raylab.modules.normalized_linear import NormalizedLinear

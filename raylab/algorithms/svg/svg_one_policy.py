@@ -70,7 +70,7 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
 
         info.update(self.extra_grad_info(batch_tensors))
         self._optimizer.step()
-        self.update_targets()
+        self.update_targets("value", "target_value")
 
         return self._learner_stats(info)
 

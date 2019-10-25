@@ -68,7 +68,7 @@ def test_target_params_update(policy_and_batch):
     old_params = [p.clone() for p in policy.module.target_value.parameters()]
     for param in policy.module.value.parameters():
         param.data.add_(torch.ones_like(param))
-    policy.update_targets()
+    policy.update_targets("value", "target_value")
     assert all(
         not torch.allclose(p, p_)
         for p, p_ in zip(policy.module.target_value.parameters(), old_params)
