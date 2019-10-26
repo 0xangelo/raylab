@@ -12,6 +12,9 @@ from .naf_policy import NAFTorchPolicy
 
 DEFAULT_CONFIG = with_common_config(
     {
+        # === SQUASHING EXPLORATION PROBLEM ===
+        # Maximum l1 norm of the policy's output vector before the squashing function
+        "beta": 1.2,
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning
         "clipped_double_q": False,

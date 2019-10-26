@@ -11,11 +11,11 @@ from raylab.modules import FullyConnected, TrilMatrix, ActionOutput, ValueFuncti
 class NAF(nn.Module):
     """Neural network module implementing the Normalized Advantage Function (NAF)."""
 
-    def __init__(self, logits_module, value_module, advantage_module):
+    def __init__(self, logits_module, value_module, tril_module, action_module):
         super().__init__()
         self.logits_module = logits_module
         self.value_module = value_module
-        self.advantage_module = advantage_module
+        self.advantage_module = AdvantageFunction(tril_module, action_module)
 
     @override(nn.Module)
     def forward(self, obs, actions):  # pylint: disable=arguments-differ
@@ -25,21 +25,21 @@ class NAF(nn.Module):
         return advantage + best_value
 
 
-class MultivariateGaussianPolicy(nn.Module):
+class MultivariateNormalParams(nn.Module):
     """Neural network module implementing a multivariate gaussian policy."""
 
-    def __init__(self, logits_module, action_module, tril_module):
+    def __init__(self, logits_module, loc_module, scale_tril_module):
         super().__init__()
         self.logits_module = logits_module
-        self.action_module = action_module
-        self.tril_module = tril_module
+        self.loc_module = loc_module
+        self.scale_tril_module = scale_tril_module
 
     @override(nn.Module)
     def forward(self, obs):  # pylint: disable=arguments-differ
         logits = self.logits_module(obs)
-        loc = self.action_module(logits)
-        scale_tril = self.tril_module(logits)
-        return loc, scale_tril
+        loc = self.loc_module(logits)
+        scale_tril = self.scale_tril_module(logits)
+        return {"loc": loc, "scale_tril": scale_tril}
 
 
 class AdvantageFunction(nn.Module):
