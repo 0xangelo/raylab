@@ -138,8 +138,8 @@ class NAFTorchPolicy(
 
     @override(raypi.TorchPolicy)
     def optimizer(self):
-        cls = torch_util.get_optimizer_class(self.config["torch_optimizer"])
-        options = self.config["torch_optimizer_options"]
+        cls = torch_util.get_optimizer_class(self.config["torch_optimizer"]["name"])
+        options = self.config["torch_optimizer"]["options"]
         return cls(self.module.naf.parameters(), **options)
 
     @torch.no_grad()
@@ -161,22 +161,20 @@ class NAFTorchPolicy(
             actions = self.module.policy(obs_batch)
         elif self.is_uniform_random:
             actions = self._uniform_random_actions(obs_batch)
-        elif self.config["exploration"] == "full_gaussian":
-            actions = self._multivariate_gaussian_actions(obs_batch)
         else:
             actions = self.module.sampler(obs_batch)
 
         return actions.cpu().numpy(), state_batches, {}
 
-    # === Action Sampling ===
-    def _multivariate_gaussian_actions(self, obs_batch):
-        loc, scale_tril = self.module.sampler(obs_batch)
-        scale_coeff = self.config["scale_tril_coeff"]
-        dist = torch.distributions.MultivariateNormal(
-            loc=loc, scale_tril=scale_tril * scale_coeff
-        )
-        actions = dist.sample()
-        return actions
+    @override(raypi.AdaptiveParamNoiseMixin)
+    def _compute_noise_free_actions(self, sample_batch):
+        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
+        return self.module.policy[:-1](obs_tensors).numpy()
+
+    @override(raypi.AdaptiveParamNoiseMixin)
+    def _compute_noisy_actions(self, sample_batch):
+        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
+        return self.module.perturbed_policy[:-1](obs_tensors).numpy()
 
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
@@ -239,5 +237,6 @@ class NAFTorchPolicy(
         return {
             "grad_norm": nn.utils.clip_grad_norm_(
                 self.module.naf.parameters(), float("inf")
-            )
+            ),
+            "param_noise_stddev": self.curr_param_stddev,
         }
