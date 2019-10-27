@@ -7,6 +7,7 @@ from ray.rllib.utils.annotations import override
 from raylab.policy import TorchPolicy, AdaptiveKLCoeffMixin, TargetNetworksMixin
 import raylab.algorithms.svg.svg_module as svgm
 import raylab.modules as mods
+import raylab.distributions as dists
 
 
 class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy):
@@ -72,10 +73,10 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy)
         return {
             "model": model,
             "model_logp": svgm.ModelLogProb(
-                model, mods.DiagMultivariateNormalLogProb()
+                model, mods.DistLogProb(dists.DiagMultivariateNormal)
             ),
             "model_reproduce": svgm.ModelReproduce(
-                model, mods.DiagMultivariateNormalReproduce()
+                model, mods.DistReproduce(dists.DiagMultivariateNormal)
             ),
         }
 
@@ -106,21 +107,21 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy)
         )
         policy = nn.Sequential(logits_module, params_module)
         dist_params = dict(
-            mean_only=config.get("mean_action_only", False),
-            squashed=True,
-            action_low=self.convert_to_tensor(action_space.low),
-            action_high=self.convert_to_tensor(action_space.high),
+            dist_cls=dists.DiagMultivariateNormal,
+            low=self.convert_to_tensor(action_space.low),
+            high=self.convert_to_tensor(action_space.high),
         )
         return {
             "policy": policy,
             "sampler": nn.Sequential(
-                policy, mods.DiagMultivariateNormalRSample(**dist_params)
+                policy,
+                mods.DistMean(**dist_params)
+                if config.get("mean_action_only", False)
+                else mods.DistRSample(**dist_params),
             ),
-            "policy_logp": svgm.PolicyLogProb(
-                policy, mods.DiagMultivariateNormalLogProb(**dist_params)
-            ),
+            "policy_logp": svgm.PolicyLogProb(policy, mods.DistLogProb(**dist_params)),
             "policy_reproduce": svgm.PolicyReproduce(
-                policy, mods.DiagMultivariateNormalReproduce(**dist_params)
+                policy, mods.DistReproduce(**dist_params)
             ),
         }
 

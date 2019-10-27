@@ -1,36 +1,42 @@
 import pytest
 import torch
 
-from raylab.modules import DiagMultivariateNormalRSample
+from raylab.modules import DistRSample, DistMean
+from raylab.distributions import DiagMultivariateNormal
 
 
-@pytest.fixture(params=(True, False))
-def mean_only(request):
+@pytest.fixture(params=(DistRSample, DistMean))
+def module_cls(request):
     return request.param
 
 
+@pytest.fixture
+def dist_cls():
+    return DiagMultivariateNormal
+
+
 @pytest.fixture(params=(True, False))
-def squashed(request):
-    return request.param
+def squash(request):
+    request.param
 
 
 @pytest.fixture(params=((1,), (2,), (4,)))
 def action_bounds(request):
     shape = request.param
     action_high = torch.ones(*shape)
-    return dict(action_low=action_high.neg(), action_high=action_high)
+    return dict(low=action_high.neg(), high=action_high)
 
 
 @pytest.fixture
-def module_and_inputs_fn():
-    def func(mean_only, squashed, action_bounds):
+def module_and_inputs_fn(dist_cls, action_bounds, squash):
+    bounds = action_bounds if squash else dict(low=None, high=None)
+
+    def func(module_cls):
         return (
-            DiagMultivariateNormalRSample(
-                mean_only=mean_only, squashed=squashed, **action_bounds
-            ),
+            module_cls(dist_cls, **bounds),
             {
-                "loc": torch.randn((10,) + action_bounds["action_low"].shape),
-                "scale_diag": torch.randn((10,) + action_bounds["action_low"].shape),
+                "loc": torch.randn((10,) + action_bounds["low"].shape),
+                "scale_diag": torch.randn((10,) + action_bounds["low"].shape),
             },
         )
 
@@ -38,13 +44,13 @@ def module_and_inputs_fn():
 
 
 @pytest.fixture
-def module_and_inputs(module_and_inputs_fn, mean_only, squashed, action_bounds):
-    return module_and_inputs_fn(mean_only, squashed, action_bounds)
+def module_and_inputs(module_and_inputs_fn, module_cls):
+    return module_and_inputs_fn(module_cls)
 
 
 @pytest.fixture
-def mean_module_and_inputs(module_and_inputs_fn, squashed, action_bounds):
-    return module_and_inputs_fn(True, squashed, action_bounds)
+def mean_module_and_inputs(module_and_inputs_fn):
+    return module_and_inputs_fn(DistMean)
 
 
 def test_forward(module_and_inputs):

@@ -7,6 +7,7 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.modules as mods
+import raylab.distributions as dists
 import raylab.utils.pytorch as torch_util
 from raylab.policy import TorchPolicy, PureExplorationMixin, TargetNetworksMixin
 
@@ -67,14 +68,16 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
             input_dependent_scale=policy_config["input_dependent_scale"],
         )
         policy_module = nn.Sequential(logits_module, params_module)
+        dist_kwargs = dict(
+            dist_cls=dists.DiagMultivariateNormal,
+            low=self.convert_to_tensor(action_space.low),
+            high=self.convert_to_tensor(action_space.high),
+        )
         sampler_module = nn.Sequential(
             policy_module,
-            mods.DiagMultivariateNormalRSample(
-                mean_only=config["mean_action_only"],
-                squashed=True,
-                action_low=self.convert_to_tensor(action_space.low),
-                action_high=self.convert_to_tensor(action_space.high),
-            ),
+            mods.DistMean(**dist_kwargs)
+            if config["mean_action_only"]
+            else mods.DistRSample(**dist_kwargs),
         )
         return {"policy": policy_module, "sampler": sampler_module}
 

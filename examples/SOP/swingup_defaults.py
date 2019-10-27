@@ -57,7 +57,7 @@ def get_config():
         # parameter_noise: use parameter space noise
         # gaussian: use i.i.d gaussian action space noise independently for each
         #     action dimension
-        "exploration": "parameter_noise",
+        "exploration": "gaussian",
         # Options for parameter noise exploration
         "param_noise_spec": {
             "initial_stddev": 0.1,
