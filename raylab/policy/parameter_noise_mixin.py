@@ -14,10 +14,9 @@ class AdaptiveParamNoiseMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.config["exploration"] == "parameter_noise":
-            self._param_noise_spec = AdaptiveParamNoiseSpec(
-                **self.config["param_noise_spec"]
-            )
+        self._param_noise_spec = AdaptiveParamNoiseSpec(
+            **self.config["param_noise_spec"]
+        )
 
     def update_parameter_noise(self, sample_batch):
         """Update parameter noise stddev given a batch from the perturbed policy."""
