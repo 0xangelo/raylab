@@ -73,14 +73,14 @@ class SOPTorchPolicy(
             )
             return logits, mu_, squash
 
-        logits_module, mu_module, squashing_module = _make_modules()
+        logits_module, mu_module, squash_module = _make_modules()
         modules = {}
-        modules["policy"] = nn.Sequential(logits_module, mu_module, squashing_module)
+        modules["policy"] = nn.Sequential(logits_module, mu_module, squash_module)
 
         if config["exploration"] == "gaussian":
             expl_noise = mods.GaussianNoise(config["exploration_gaussian_sigma"])
             modules["sampler"] = nn.Sequential(
-                logits_module, mu_module, expl_noise, squashing_module
+                logits_module, mu_module, expl_noise, squash_module
             )
         elif config["exploration"] == "parameter_noise":
             modules["sampler"] = modules["perturbed_policy"] = nn.Sequential(
@@ -94,7 +94,7 @@ class SOPTorchPolicy(
                 logits_module,
                 mu_module,
                 mods.GaussianNoise(config["target_gaussian_sigma"]),
-                squashing_module,
+                squash_module,
             )
         else:
             modules["target_policy"] = modules["policy"]
@@ -128,10 +128,15 @@ class SOPTorchPolicy(
 
         return OptimizerCollection(policy=pi_optim, critic=qf_optim)
 
-    # @override(raypi.AdaptiveParamNoiseMixin)
-    # def _compute_noise_free_actions(self, sample_batch):
-    #     obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-    #     return self.module.target_policy(obs_tensors).numpy()
+    @override(raypi.AdaptiveParamNoiseMixin)
+    def _compute_noise_free_actions(self, sample_batch):
+        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
+        return self.module.policy[:-1](obs_tensors).numpy()
+
+    @override(raypi.AdaptiveParamNoiseMixin)
+    def _compute_noisy_actions(self, sample_batch):
+        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
+        return self.module.perturbed_policy[:-1](obs_tensors).numpy()
 
     @torch.no_grad()
     @override(raypi.TorchPolicy)
@@ -220,7 +225,8 @@ class SOPTorchPolicy(
         grad_stats = {
             "policy_grad_norm": nn.utils.clip_grad_norm_(
                 module.policy.parameters(), float("inf")
-            )
+            ),
+            "param_noise_stddev": self.curr_param_stddev,
         }
         info.update(grad_stats)
 
