@@ -12,6 +12,9 @@ from .naf_policy import NAFTorchPolicy
 
 DEFAULT_CONFIG = with_common_config(
     {
+        # === SQUASHING EXPLORATION PROBLEM ===
+        # Maximum l1 norm of the policy's output vector before the squashing function
+        "beta": 1.2,
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning
         "clipped_double_q": False,
@@ -34,10 +37,8 @@ DEFAULT_CONFIG = with_common_config(
         # script: module is converted using torch.jit.script
         "torch_script": None,
         # === Optimization ===
-        # Name of Pytorch optimizer class
-        "torch_optimizer": "Adam",
-        # Keyword arguments to be passed to the PyTorch optimizer
-        "torch_optimizer_options": {"lr": 1e-3},
+        # PyTorch optimizer and options to use
+        "torch_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
         # === Rollout Worker ===

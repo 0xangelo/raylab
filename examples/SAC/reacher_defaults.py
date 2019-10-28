@@ -15,9 +15,6 @@ def get_config():
         "buffer_size": int(2e4),
         # === Exploration ===
         "pure_exploration_steps": 500,
-        # === RolloutWorker ===
-        "sample_batch_size": 1,
-        "batch_mode": "complete_episodes",
         # === Trainer ===
         "train_batch_size": 128,
         "timesteps_per_iteration": 1000,
