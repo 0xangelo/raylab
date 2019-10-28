@@ -1,4 +1,4 @@
-"""Tune experiment configuration to test SAC in Hopper-v3."""
+"""Tune experiment configuration to test SAC in Walker2d-v3."""
 from ray import tune
 
 
