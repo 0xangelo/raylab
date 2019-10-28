@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="raylab",
-    version="0.2.0",
+    version="0.3.0",
     py_modules=["raylab"],
     install_requires=[
         "Click",
