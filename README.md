@@ -48,3 +48,4 @@ viskit --help
 * [NAF](http://proceedings.mlr.press/v48/gu16.html)
 * [SVG(inf) and SVG(1)](http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients)
 * [SAC](http://proceedings.mlr.press/v80/haarnoja18b.html)
+* [SOP](https://arxiv.org/abs/1910.02208)
