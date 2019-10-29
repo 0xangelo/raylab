@@ -12,7 +12,7 @@ setup(
         "pandas",
         "seaborn",
         "requests",
-        "ray",
+        "ray[rllib]",
         "gym",
     ],
     entry_points="""
