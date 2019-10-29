@@ -11,6 +11,7 @@ setup(
         "numpy",
         "pandas",
         "seaborn",
+        "requests",
         "ray",
         "gym",
     ],
