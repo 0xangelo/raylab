@@ -19,8 +19,7 @@ install:
   # Replace dep1 dep2 ... with your dependencies
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - conda activate test-environment
-  - conda install pytorch torchvision -c pytorch --yes
-  - conda install pytest --yes
+  - conda install pytest pytorch torchvision -c pytorch
   - pip install gym-cartpole-swingup
   - python setup.py install
 # command to run tests
