@@ -56,14 +56,7 @@ def cartpole_swingup_env(time_limited_env):
     )
 
 
-@pytest.fixture
-def reacher_env(time_limited_env):
-    return lambda _: time_limited_env(
-        {"env_id": "MujocoReacher", "time_aware": True, "max_episode_steps": 50}
-    )
-
-
-@pytest.fixture(params=range(3))
-def env_creator(request, cartpole_swingup_env, navigation_env, reacher_env):
-    creators = [cartpole_swingup_env, navigation_env, reacher_env]
+@pytest.fixture(params=range(2))
+def env_creator(request, cartpole_swingup_env, navigation_env):
+    creators = [cartpole_swingup_env, navigation_env]
     return creators[request.param]
