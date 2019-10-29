@@ -4,7 +4,7 @@ import ray
 
 
 def setup_module():
-    ray.init(object_store_memory=int(2e9))
+    ray.init()
 
 
 def teardown_module():
