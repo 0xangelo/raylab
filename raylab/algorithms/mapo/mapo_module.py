@@ -24,7 +24,7 @@ class DynamicsModel(nn.Module):
     @classmethod
     def from_scratch(cls, obs_dim, input_dependent_scale=True, **logits_kwargs):
         """Create a dynamics model with new logtis and params modules."""
-        logits_module = mods.StateActionEncoder(**logits_kwargs)
+        logits_module = mods.StateActionEncoder(obs_dim=obs_dim, **logits_kwargs)
         params_module = mods.DiagMultivariateNormalParams(
             logits_module.out_features,
             obs_dim,
@@ -50,3 +50,20 @@ class DynamicsModelRSample(nn.Module):
         params = self.dynamics_module(obs, actions)
         sample, logp = self.rsample_module(params, sample_shape=sample_shape)
         return sample, logp
+
+
+class DynamicsModelLogProb(nn.Module):
+    """
+    Neural network module producing log probs given state-action-next_state tuples.
+    """
+
+    def __init__(self, dynamics_module):
+        super().__init__()
+        self.dynamics_module = dynamics_module
+        self.logp_module = mods.DistLogProb(DiagMultivariateNormal)
+
+    @override(nn.Module)
+    def forward(self, obs, actions, next_obs):  # pylint: disable=arguments-differ
+        params = self.dynamics_module(obs, actions)
+        logp = self.logp_module(params, next_obs)
+        return logp

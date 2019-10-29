@@ -12,6 +12,13 @@ from .mapo_policy import MAPOTorchPolicy
 
 DEFAULT_CONFIG = with_common_config(
     {
+        # === MAPO model training ===
+        # Type of the used p-norm of the distance between gradients.
+        # Can be float('inf') for infinity norm.
+        "norm_type": 2,
+        # Number of next states to sample from the model when calculating the
+        # model-aware deterministic policy gradient
+        "num_model_samples": 4,
         # === SQUASHING EXPLORATION PROBLEM ===
         # Maximum l1 norm of the policy's output vector before the squashing function
         "beta": 1.2,
@@ -114,6 +121,11 @@ class MAPOTrainer(ExplorationPhaseMixin, ParameterNoiseMixin, Trainer):
 
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
+        )
+        self.workers.foreach_worker(
+            lambda w: w.foreach_trainable_policy(
+                lambda p, _: p.set_reward_fn(w.env.reward_fn)
+            )
         )
         # Dummy optimizer to log stats
         self.optimizer = PolicyOptimizer(self.workers)

@@ -1,8 +1,11 @@
 """Policy for MAPO using PyTorch."""
 import collections
 
+import torch
 import torch.nn as nn
+from torch._six import inf
 from ray.rllib.utils.annotations import override
+from ray.rllib.policy.sample_batch import SampleBatch
 
 import raylab.policy as raypi
 import raylab.modules as mods
@@ -11,7 +14,7 @@ import raylab.algorithms.mapo.mapo_module as mapom
 
 
 OptimizerCollection = collections.namedtuple(
-    "OptimizerCollection", "policy critic alpha"
+    "OptimizerCollection", "policy critic model"
 )
 
 
@@ -129,7 +132,12 @@ class MAPOTorchPolicy(
         )
 
         sampler_module = mapom.DynamicsModelRSample(model_module)
-        return {"model": model_module, "model_sampler": sampler_module}
+        logp_module = mapom.DynamicsModelLogProb(model_module)
+        return {
+            "model": model_module,
+            "model_sampler": sampler_module,
+            "model_logp": logp_module,
+        }
 
     @override(raypi.TorchPolicy)
     def optimizer(self):
@@ -147,7 +155,200 @@ class MAPOTorchPolicy(
 
         dm_cls = torch_util.get_optimizer_class(self.config["model_optimizer"]["name"])
         dm_optim = dm_cls(
-            [self.module.log_alpha], **self.config["model_optimizer"]["options"]
+            self.module.model.parameters(), **self.config["model_optimizer"]["options"]
         )
 
         return OptimizerCollection(policy=pi_optim, critic=qf_optim, model=dm_optim)
+
+    def set_reward_fn(self, reward_fn):
+        """Set the reward function to use when unrolling the policy and model."""
+        self.module.reward = mods.Lambda(reward_fn)
+
+    @override(raypi.AdaptiveParamNoiseMixin)
+    def _compute_noise_free_actions(self, sample_batch):
+        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
+        return self.module.policy[:-1](obs_tensors).numpy()
+
+    @override(raypi.AdaptiveParamNoiseMixin)
+    def _compute_noisy_actions(self, sample_batch):
+        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
+        return self.module.perturbed_policy[:-1](obs_tensors).numpy()
+
+    @torch.no_grad()
+    @override(raypi.TorchPolicy)
+    def compute_actions(
+        self,
+        obs_batch,
+        state_batches,
+        prev_action_batch=None,
+        prev_reward_batch=None,
+        info_batch=None,
+        episodes=None,
+        **kwargs
+    ):
+        # pylint: disable=too-many-arguments,unused-argument
+        obs_batch = self.convert_to_tensor(obs_batch)
+
+        if self.is_uniform_random:
+            actions = self._uniform_random_actions(obs_batch)
+        elif self.config["greedy"]:
+            actions = self.module.policy(obs_batch)
+        else:
+            actions = self.module.sampler(obs_batch)
+
+        return actions.cpu().numpy(), state_batches, {}
+
+    @override(raypi.TorchPolicy)
+    def learn_on_batch(self, samples):
+        batch_tensors = self._lazy_tensor_dict(samples)
+
+        info = {}
+        info.update(self._update_critic(batch_tensors, self.module, self.config))
+        info.update(self._update_model(batch_tensors, self.module, self.config))
+        info.update(self._update_policy(batch_tensors, self.module, self.config))
+
+        self.update_targets("critics", "target_critics")
+        return self._learner_stats(info)
+
+    def _update_critic(self, batch_tensors, module, config):
+        critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
+        critic_loss.backward()
+        grad_stats = {
+            "critic_grad_norm": nn.utils.clip_grad_norm_(
+                module.critics.parameters(), float("inf")
+            )
+        }
+        info.update(grad_stats)
+
+        self._optimizer.critic.step()
+        return info
+
+    def compute_critic_loss(self, batch_tensors, module, config):
+        """Compute loss for Q value function."""
+        obs = batch_tensors[SampleBatch.CUR_OBS]
+        actions = batch_tensors[SampleBatch.ACTIONS]
+
+        with torch.no_grad():
+            target_values = self._compute_critic_targets(batch_tensors, module, config)
+        loss_fn = nn.MSELoss()
+        values = torch.cat([m(obs, actions) for m in module.critics], dim=-1)
+        critic_loss = loss_fn(values, target_values.unsqueeze(-1).expand_as(values))
+
+        stats = {
+            "q_mean": values.mean().item(),
+            "q_max": values.max().item(),
+            "q_min": values.min().item(),
+            "td_error": critic_loss.item(),
+        }
+        return critic_loss, stats
+
+    @staticmethod
+    def _compute_critic_targets(batch_tensors, module, config):
+        rewards = batch_tensors[SampleBatch.REWARDS]
+        next_obs = batch_tensors[SampleBatch.NEXT_OBS]
+        dones = batch_tensors[SampleBatch.DONES]
+
+        next_acts = module.target_policy(next_obs)
+        next_vals, _ = torch.cat(
+            [m(next_obs, next_acts) for m in module.target_critics], dim=-1
+        ).min(dim=-1)
+        return torch.where(dones, rewards, rewards + config["gamma"] * next_vals)
+
+    def _update_model(self, batch_tensors, module, config):
+        model_loss, info = self.compute_model_loss(batch_tensors, module, config)
+        self._optimizer.model.zero_grad()
+        model_loss.backward()
+        grad_stats = {
+            "model_grad_norm": nn.utils.clip_grad_norm_(
+                module.model.parameters(), float("inf")
+            )
+        }
+        info.update(grad_stats)
+
+        self._optimizer.model.step()
+        return info
+
+    def compute_model_loss(
+        self, batch_tensors, module, config
+    ):  # pylint: disable=too-many-locals
+        """Compute policy gradient-aware (PGA) or MLE model loss."""
+        with self.freeze_nets("model"):
+            target_policy_loss, target_info = self.compute_target_policy_loss(
+                batch_tensors, module, config
+            )
+            target_policy_grads = torch.autograd.grad(
+                target_policy_loss, module.policy.parameters()
+            )
+        model_aware_loss, info = self.compute_model_aware_loss(
+            batch_tensors, module, config
+        )
+        model_aware_grads = torch.autograd.grad(
+            model_aware_loss, module.policy.parameters(), create_graph=True
+        )
+
+        norm_type = config["norm_type"]
+        if norm_type == inf:
+            total_norm = max(
+                (g - t).abs().max()
+                for g, t in zip(model_aware_grads, target_policy_grads)
+            )
+        else:
+            total_norm = 0
+            for grad, target in zip(model_aware_grads, target_policy_grads):
+                norm = (grad - target).norm(norm_type)
+                total_norm += norm ** norm_type
+            total_norm = total_norm ** (1.0 / norm_type)
+
+        info.update({"target_" + k: v for k, v in target_info.items()})
+        return total_norm, info
+
+    @staticmethod
+    def compute_target_policy_loss(batch_tensors, module, config):
+        """Compute loss for deterministic policy gradient."""
+        # pylint: disable=unused-argument
+        obs = batch_tensors[SampleBatch.CUR_OBS]
+
+        actions = module.policy(obs)
+        action_values, _ = torch.cat(
+            [m(obs, actions) for m in module.critics], dim=-1
+        ).min(dim=-1)
+        max_objective = torch.mean(action_values)
+
+        stats = {
+            "policy_loss": max_objective.neg().item(),
+            "qpi_mean": max_objective.item(),
+        }
+        return max_objective.neg(), stats
+
+    @staticmethod
+    def compute_model_aware_loss(batch_tensors, module, config):
+        """Compute loss for model-aware deterministic policy gradient."""
+        obs = batch_tensors[SampleBatch.CUR_OBS]
+        actions = module.policy(obs)
+        next_obs, logp = module.model_sampler(
+            obs, actions, torch.as_tensor([config["num_model_samples"]])
+        )
+        rewards = module.reward(obs, actions, next_obs)
+        with torch.no_grad():
+            next_acts = module.policy(next_obs)
+        next_vals, _ = torch.cat(
+            [m(next_obs, next_acts) for m in module.critics], dim=-1
+        ).min(dim=-1)
+
+        loss = torch.mean(logp * (rewards + config["gamma"] * next_vals), dim=0).mean()
+        return loss, {"model_aware_loss": loss.item()}
+
+    def _update_policy(self, batch_tensors, module, config):
+        policy_loss, info = self.compute_model_aware_loss(batch_tensors, module, config)
+        self._optimizer.policy.zero_grad()
+        policy_loss.backward()
+        grad_stats = {
+            "policy_grad_norm": nn.utils.clip_grad_norm_(
+                module.policy.parameters(), float("inf")
+            ),
+            "param_noise_stddev": self.curr_param_stddev,
+        }
+        info.update(grad_stats)
+
+        self._optimizer.policy.step()
+        return info
