@@ -2,18 +2,10 @@ import pytest
 import torch
 from ray.rllib.policy.sample_batch import SampleBatch
 
-from raylab.utils.debug import fake_batch
-
 
 @pytest.fixture
-def policy_and_batch(svg_policy, env_creator):
-    env = env_creator({})
-    policy = svg_policy(env.observation_space, env.action_space, {})
-    policy.set_reward_fn(env.reward_fn)
-    batch = policy._lazy_tensor_dict(
-        fake_batch(env.observation_space, env.action_space, batch_size=10)
-    )
-    return policy, batch
+def policy_and_batch(policy_and_batch_fn):
+    return policy_and_batch_fn({})
 
 
 def test_policy_reproduce(policy_and_batch):

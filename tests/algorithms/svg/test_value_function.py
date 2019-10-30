@@ -7,10 +7,8 @@ from raylab.utils.debug import fake_batch
 
 
 @pytest.fixture
-def policy_and_batch(svg_policy, obs_space, action_space):
-    policy = svg_policy(obs_space, action_space, {"polyak": 0.5})
-    batch = policy._lazy_tensor_dict(fake_batch(obs_space, action_space, batch_size=10))
-    return policy, batch
+def policy_and_batch(policy_and_batch_fn):
+    return policy_and_batch_fn({"polyak": 0.5})
 
 
 def test_target_value_output(policy_and_batch):

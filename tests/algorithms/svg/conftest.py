@@ -1,5 +1,4 @@
 import pytest
-import gym.spaces as spaces
 
 from raylab.algorithms.registry import ALGORITHMS as ALGS
 
@@ -34,21 +33,6 @@ def svg_inf_policy(svg_inf_trainer):
     return svg_inf_trainer._policy
 
 
-@pytest.fixture(params=((1,), (2,), (4,)))
-def shape(request):
-    return request.param
-
-
-@pytest.fixture
-def obs_space(shape):
-    return spaces.Box(-10, 10, shape=shape)
-
-
-@pytest.fixture
-def action_space(shape):
-    return spaces.Box(-1, 1, shape=shape)
-
-
 @pytest.fixture
 def cartpole_swingup_env(envs):
     return lambda _: envs["CartPoleSwingUp"](
@@ -60,3 +44,11 @@ def cartpole_swingup_env(envs):
 def env_creator(request, cartpole_swingup_env, navigation_env):
     creators = [cartpole_swingup_env, navigation_env]
     return creators[request.param]
+
+
+@pytest.fixture
+def policy_and_batch_fn(policy_and_batch_fn, svg_policy):
+    def make_policy_and_batch(config):
+        return policy_and_batch_fn(svg_policy, config)
+
+    return make_policy_and_batch
