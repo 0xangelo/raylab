@@ -3,8 +3,6 @@ import torch
 import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 
-from raylab.utils.debug import fake_batch
-
 
 @pytest.fixture
 def policy_and_batch(policy_and_batch_fn):

@@ -17,7 +17,7 @@ def dist_cls():
 
 @pytest.fixture(params=(True, False))
 def squash(request):
-    request.param
+    return request.param
 
 
 @pytest.fixture(params=((1,), (2,), (4,)))
