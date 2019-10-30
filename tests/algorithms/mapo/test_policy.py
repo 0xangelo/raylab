@@ -54,7 +54,7 @@ def test_policy_sample(policy_and_batch):
 def test_policy_loss(policy_and_batch):
     policy, batch = policy_and_batch
 
-    loss, info = policy.compute_model_aware_loss(batch, policy.module, policy.config)
+    loss, info = policy.compute_madpg_loss(batch, policy.module, policy.config)
     assert isinstance(info, dict)
     assert loss.shape == ()
     assert loss.dtype == torch.float32

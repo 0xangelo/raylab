@@ -268,42 +268,26 @@ class MAPOTorchPolicy(
         self._optimizer.model.step()
         return info
 
-    def compute_model_loss(
-        self, batch_tensors, module, config
-    ):  # pylint: disable=too-many-locals
+    def compute_model_loss(self, batch_tensors, module, config):
         """Compute policy gradient-aware (PGA) or MLE model loss."""
         with self.freeze_nets("model"):
-            target_policy_loss, target_info = self.compute_target_policy_loss(
-                batch_tensors, module, config
-            )
-            target_policy_grads = torch.autograd.grad(
-                target_policy_loss, module.policy.parameters()
-            )
-        model_aware_loss, info = self.compute_model_aware_loss(
-            batch_tensors, module, config
-        )
-        model_aware_grads = torch.autograd.grad(
-            model_aware_loss, module.policy.parameters(), create_graph=True
+            dpg_loss, dpg_info = self.compute_dpg_loss(batch_tensors, module, config)
+            dpg_grads = torch.autograd.grad(dpg_loss, module.policy.parameters())
+
+        madpg_loss, info = self.compute_madpg_loss(batch_tensors, module, config)
+        madpg_grads = torch.autograd.grad(
+            madpg_loss, module.policy.parameters(), create_graph=True
         )
 
-        norm_type = config["norm_type"]
-        if norm_type == inf:
-            total_norm = max(
-                (g - t).abs().max()
-                for g, t in zip(model_aware_grads, target_policy_grads)
-            )
-        else:
-            total_norm = 0
-            for grad, target in zip(model_aware_grads, target_policy_grads):
-                norm = (grad - target).norm(norm_type)
-                total_norm += norm ** norm_type
-            total_norm = total_norm ** (1.0 / norm_type)
+        total_norm = self.compute_total_diff_norm(
+            dpg_grads, madpg_grads, config["norm_type"]
+        )
 
-        info.update({"target_" + k: v for k, v in target_info.items()})
+        info.update({"target_" + k: v for k, v in dpg_info.items()})
         return total_norm, info
 
     @staticmethod
-    def compute_target_policy_loss(batch_tensors, module, config):
+    def compute_dpg_loss(batch_tensors, module, config):
         """Compute loss for deterministic policy gradient."""
         # pylint: disable=unused-argument
         obs = batch_tensors[SampleBatch.CUR_OBS]
@@ -321,7 +305,7 @@ class MAPOTorchPolicy(
         return max_objective.neg(), stats
 
     @staticmethod
-    def compute_model_aware_loss(batch_tensors, module, config):
+    def compute_madpg_loss(batch_tensors, module, config):
         """Compute loss for model-aware deterministic policy gradient."""
         obs = batch_tensors[SampleBatch.CUR_OBS]
         actions = module.policy(obs)
@@ -338,8 +322,21 @@ class MAPOTorchPolicy(
         loss = torch.mean(logp * (rewards + config["gamma"] * next_vals), dim=0).mean()
         return loss, {"model_aware_loss": loss.item()}
 
+    @staticmethod
+    def compute_total_diff_norm(atensors, btensors, norm_type):
+        """Compute the norm of the difference of tensors as a flattened vector."""
+        if norm_type == inf:
+            total_norm = max((a - b).abs().max() for a, b in zip(atensors, btensors))
+        else:
+            total_norm = 0
+            for atensor, btensor in zip(atensors, btensors):
+                norm = (atensor - btensor).norm(norm_type)
+                total_norm += norm ** norm_type
+            total_norm = total_norm ** (1.0 / norm_type)
+        return total_norm
+
     def _update_policy(self, batch_tensors, module, config):
-        policy_loss, info = self.compute_model_aware_loss(batch_tensors, module, config)
+        policy_loss, info = self.compute_madpg_loss(batch_tensors, module, config)
         self._optimizer.policy.zero_grad()
         policy_loss.backward()
         grad_stats = {
