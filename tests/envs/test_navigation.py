@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,protected-access,redefined-outer-name
+# pylint: disable=missing-docstring,redefined-outer-name,protected-access
 from functools import partial
 
 import pytest

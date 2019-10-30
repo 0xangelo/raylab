@@ -1,3 +1,4 @@
+# pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 
 from raylab.algorithms.registry import ALGORITHMS as ALGS
