@@ -283,7 +283,7 @@ class MAPOTorchPolicy(
             batch_tensors[SampleBatch.NEXT_OBS],
         ).mean()
         loss = avg_logp.neg()
-        info = {"mle_loss": loss}
+        info = {"mle_loss": loss.item()}
         return loss, info
 
     def compute_decision_aware_loss(self, batch_tensors, module, config):
@@ -339,7 +339,13 @@ class MAPOTorchPolicy(
 
         values = rewards + config["gamma"] * next_vals
         loss = torch.mean(logp * values, dim=0).mean().neg()
-        return loss, {"model_aware_loss": loss.item(), "mb_values": values}
+        return (
+            loss,
+            {
+                "model_aware_loss": loss.item(),
+                "mb_values": values.mean(dim=0).mean().item(),
+            },
+        )
 
     @staticmethod
     def compute_total_diff_norm(atensors, btensors, norm_type):
