@@ -13,6 +13,10 @@ from .mapo_policy import MAPOTorchPolicy
 DEFAULT_CONFIG = with_common_config(
     {
         # === MAPO model training ===
+        # Type of model-training to use. Possible types include
+        # decision_aware: policy gradient-aware model learning
+        # mle: maximum likelihood estimation
+        "model_loss": "decision_aware",
         # Type of the used p-norm of the distance between gradients.
         # Can be float('inf') for infinity norm.
         "norm_type": 2,

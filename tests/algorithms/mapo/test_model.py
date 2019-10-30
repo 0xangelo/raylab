@@ -44,10 +44,28 @@ def test_model_logp(policy_and_batch):
     assert torch.isfinite(logp).all()
 
 
-def test_model_loss(policy_and_batch):
+def test_decision_aware_loss(policy_and_batch):
     policy, batch = policy_and_batch
 
-    loss, info = policy.compute_model_loss(batch, policy.module, policy.config)
+    loss, info = policy.compute_decision_aware_loss(batch, policy.module, policy.config)
+    assert isinstance(info, dict)
+    assert loss.shape == ()
+    assert loss.dtype == torch.float32
+
+    policy.module.zero_grad()
+    loss.backward()
+    assert all(
+        p.grad is not None
+        and torch.isfinite(p.grad).all()
+        and not torch.isnan(p.grad).all()
+        for p in policy.module.model.parameters()
+    )
+
+
+def test_mle_loss(policy_and_batch):
+    policy, batch = policy_and_batch
+
+    loss, info = policy.compute_mle_loss(batch, policy.module)
     assert isinstance(info, dict)
     assert loss.shape == ()
     assert loss.dtype == torch.float32

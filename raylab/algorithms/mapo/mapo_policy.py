@@ -255,7 +255,13 @@ class MAPOTorchPolicy(
         return torch.where(dones, rewards, rewards + config["gamma"] * next_vals)
 
     def _update_model(self, batch_tensors, module, config):
-        model_loss, info = self.compute_model_loss(batch_tensors, module, config)
+        if config["model_loss"] == "decision_aware":
+            model_loss, info = self.compute_decision_aware_loss(
+                batch_tensors, module, config
+            )
+        elif config["model_loss"] == "mle":
+            model_loss, info = self.compute_mle_loss(batch_tensors, module)
+
         self._optimizer.model.zero_grad()
         model_loss.backward()
         grad_stats = {
@@ -268,8 +274,20 @@ class MAPOTorchPolicy(
         self._optimizer.model.step()
         return info
 
-    def compute_model_loss(self, batch_tensors, module, config):
-        """Compute policy gradient-aware (PGA) or MLE model loss."""
+    @staticmethod
+    def compute_mle_loss(batch_tensors, module):
+        """Compute Maximum Likelihood Estimation (MLE) model loss."""
+        avg_logp = module.model_logp(
+            batch_tensors[SampleBatch.CUR_OBS],
+            batch_tensors[SampleBatch.ACTIONS],
+            batch_tensors[SampleBatch.NEXT_OBS],
+        ).mean()
+        loss = avg_logp.neg()
+        info = {"mle_loss": loss}
+        return loss, info
+
+    def compute_decision_aware_loss(self, batch_tensors, module, config):
+        """Compute policy gradient-aware (PGA) model loss."""
         with self.freeze_nets("model"):
             dpg_loss, dpg_info = self.compute_dpg_loss(batch_tensors, module, config)
             dpg_grads = torch.autograd.grad(dpg_loss, module.policy.parameters())
@@ -315,12 +333,13 @@ class MAPOTorchPolicy(
         rewards = module.reward(obs, actions, next_obs)
         with torch.no_grad():
             next_acts = module.policy(next_obs)
-        next_vals, _ = torch.cat(
-            [m(next_obs, next_acts) for m in module.critics], dim=-1
-        ).min(dim=-1)
+            next_vals, _ = torch.cat(
+                [m(next_obs, next_acts) for m in module.critics], dim=-1
+            ).min(dim=-1)
 
-        loss = torch.mean(logp * (rewards + config["gamma"] * next_vals), dim=0).mean()
-        return loss, {"model_aware_loss": loss.item()}
+        values = rewards + config["gamma"] * next_vals
+        loss = torch.mean(logp * values, dim=0).mean().neg()
+        return loss, {"model_aware_loss": loss.item(), "mb_values": values}
 
     @staticmethod
     def compute_total_diff_norm(atensors, btensors, norm_type):
