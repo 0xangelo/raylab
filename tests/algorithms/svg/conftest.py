@@ -50,9 +50,9 @@ def action_space(shape):
 
 
 @pytest.fixture
-def cartpole_swingup_env(time_limited_env):
-    return lambda _: time_limited_env(
-        {"env_id": "CartPoleSwingUp", "time_aware": True, "max_episode_steps": 200}
+def cartpole_swingup_env(envs):
+    return lambda _: envs["CartPoleSwingUp"](
+        {"time_aware": True, "max_episode_steps": 200}
     )
 
 

@@ -5,13 +5,11 @@ import pytest
 import numpy as np
 
 from raylab.utils.pytorch import convert_to_tensor
-from raylab.envs.registry import ENVS
 
 
 @pytest.fixture
-def env():
-    env = ENVS["CartPoleSwingUp"]({})
-    return env
+def env(envs):
+    return envs["CartPoleSwingUp"]({})
 
 
 def test_reward_fn(env):

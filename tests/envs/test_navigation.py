@@ -5,14 +5,12 @@ import pytest
 import numpy as np
 import torch
 
-from raylab.envs.registry import ENVS
 from raylab.utils.pytorch import convert_to_tensor
 
 
 @pytest.fixture
-def env():
-    env = ENVS["Navigation"]({})
-    return env
+def env(navigation_env):
+    return navigation_env({})
 
 
 def test_reward_fn(env):

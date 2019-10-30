@@ -35,17 +35,8 @@ def navigation_env(envs):
     return envs["Navigation"]
 
 
-@pytest.fixture
-def time_limited_env(envs):
-    return envs["TimeLimitedEnv"]
-
-
 @pytest.fixture(params=(True, False))
-def cartpole_swingup_env(request, time_limited_env):
-    return lambda _: time_limited_env(
-        {
-            "env_id": "CartPoleSwingUp",
-            "time_aware": request.param,
-            "max_episode_steps": 200,
-        }
+def cartpole_swingup_env(request, envs):
+    return lambda _: envs["CartPoleSwingUp"](
+        {"time_aware": request.param, "max_episode_steps": 200}
     )

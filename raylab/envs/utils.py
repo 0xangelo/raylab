@@ -1,24 +1,28 @@
 """Env creation utilities."""
-import gym
+import functools
+
 from gym.wrappers import TimeLimit
-from ray.tune.registry import _global_registry, ENV_CREATOR
+
+from .time_aware_env import AddRelativeTimestep
 
 
-def env_maker(env_id):
-    """Return an environment maker function.
+def wrap_if_needed(env_creator):
+    """Wraps an env creator function to handle time limit configurations."""
 
-    By default, tries to fetch makers in Tune's global registry. If not present,
-    uses `gym.make`.
+    @functools.wraps(env_creator)
+    def wrapped(config):
+        time_aware = config.pop("time_aware", False)
+        max_episode_steps = config.pop("max_episode_steps", None)
+        assert not time_aware or max_episode_steps
 
-    Arguments:
-        env_id (str): name of the environment
+        env = env_creator(config)
+        if max_episode_steps:
+            env = add_time_limit(env, max_episode_steps)
+        if time_aware:
+            env = AddRelativeTimestep(env)
+        return env
 
-    Returns:
-        A callable with a single config argument
-    """
-    if _global_registry.contains(ENV_CREATOR, env_id):
-        return _global_registry.get(ENV_CREATOR, env_id)
-    return lambda _: gym.make(env_id)
+    return wrapped
 
 
 def add_time_limit(env, max_episode_steps):
