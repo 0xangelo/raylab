@@ -49,3 +49,21 @@ def test_policy_sample(policy_and_batch):
         policy.config["exploration_gaussian_sigma"] != 0
         and torch.allclose(samples, samples_)
     )
+
+
+def test_policy_loss(policy_and_batch):
+    policy, batch = policy_and_batch
+
+    loss, info = policy.compute_model_aware_loss(batch, policy.module, policy.config)
+    assert isinstance(info, dict)
+    assert loss.shape == ()
+    assert loss.dtype == torch.float32
+
+    policy.module.zero_grad()
+    loss.backward()
+    assert all(
+        p.grad is not None
+        and torch.isfinite(p.grad).all()
+        and not torch.isnan(p.grad).all()
+        for p in policy.module.policy.parameters()
+    )
