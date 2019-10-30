@@ -6,8 +6,8 @@ from ray.rllib.policy.sample_batch import SampleBatch
 
 
 @pytest.fixture
-def policy_and_batch(policy_and_batch_fn):
-    return policy_and_batch_fn({"polyak": 0.5})
+def policy_and_batch(policy_and_batch_fn, svg_policy):
+    return policy_and_batch_fn(svg_policy, {"polyak": 0.5})
 
 
 def test_target_value_output(policy_and_batch):

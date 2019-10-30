@@ -1,7 +1,6 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 import torch
-from ray.rllib import RolloutWorker
 from ray.rllib.policy.sample_batch import SampleBatch
 
 
@@ -11,47 +10,30 @@ def policy_config(request):
 
 
 @pytest.fixture
-def setup_worker(svg_inf_policy, env_creator, policy_config):
-    def setup():
-        worker = RolloutWorker(
-            env_creator=env_creator,
-            policy=svg_inf_policy,
-            policy_config=policy_config,
-            batch_steps=1,
-            batch_mode="complete_episodes",
-        )
-        policy = worker.get_policy()
-        policy.set_reward_fn(worker.env.reward_fn)
-        return worker, policy
-
-    return setup
+def policy_and_batch(policy_and_batch_fn, svg_inf_policy, policy_config):
+    return policy_and_batch_fn(svg_inf_policy, policy_config)
 
 
-def test_reproduce_rewards(setup_worker):
-    worker, policy = setup_worker()
+def test_reproduce_rewards(policy_and_batch):
+    policy, batch = policy_and_batch
 
-    traj = worker.sample()
-    tensors = policy._lazy_tensor_dict(traj)
     with torch.no_grad():
         rewards, _ = policy.module.rollout(
-            tensors[SampleBatch.ACTIONS],
-            tensors[SampleBatch.NEXT_OBS],
-            tensors[SampleBatch.CUR_OBS][0],
+            batch[SampleBatch.ACTIONS],
+            batch[SampleBatch.NEXT_OBS],
+            batch[SampleBatch.CUR_OBS][0],
         )
 
-    target = torch.Tensor(traj[SampleBatch.REWARDS])
-    assert torch.allclose(target, rewards, atol=1e-6)
+    assert torch.allclose(batch[SampleBatch.REWARDS], rewards, atol=1e-6)
 
 
-def test_propagates_gradients(setup_worker):
-    worker, policy = setup_worker()
+def test_propagates_gradients(policy_and_batch):
+    policy, batch = policy_and_batch
 
-    traj = worker.sample()
-    tensors = policy._lazy_tensor_dict(traj)
     rewards, _ = policy.module.rollout(
-        tensors[SampleBatch.ACTIONS],
-        tensors[SampleBatch.NEXT_OBS],
-        tensors[SampleBatch.CUR_OBS][0],
+        batch[SampleBatch.ACTIONS],
+        batch[SampleBatch.NEXT_OBS],
+        batch[SampleBatch.CUR_OBS][0],
     )
 
     rewards.sum().backward()

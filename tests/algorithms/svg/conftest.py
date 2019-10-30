@@ -1,5 +1,7 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
+import torch
+from ray.rllib.policy.sample_batch import SampleBatch
 
 from raylab.algorithms.registry import ALGORITHMS as ALGS
 
@@ -35,21 +37,25 @@ def svg_inf_policy(svg_inf_trainer):
 
 
 @pytest.fixture
-def cartpole_swingup_env(envs):
-    return lambda _: envs["CartPoleSwingUp"](
-        {"time_aware": True, "max_episode_steps": 200}
-    )
+def reward_fn():
+    def rew_fn(_, actions, next_obs):
+        reward_dist = -torch.norm(next_obs, dim=-1)
+        reward_ctrl = -torch.sum(actions ** 2, dim=-1)
+        return reward_dist + reward_ctrl
 
-
-@pytest.fixture(params=range(2))
-def env_creator(request, cartpole_swingup_env, navigation_env):
-    creators = [cartpole_swingup_env, navigation_env]
-    return creators[request.param]
+    return rew_fn
 
 
 @pytest.fixture
-def policy_and_batch_fn(policy_and_batch_fn, svg_policy):
-    def make_policy_and_batch(config):
-        return policy_and_batch_fn(svg_policy, config)
+def policy_and_batch_fn(policy_and_batch_fn, reward_fn):
+    def make_policy_and_batch(policy_cls, config):
+        policy, batch = policy_and_batch_fn(policy_cls, config)
+        policy.set_reward_fn(reward_fn)
+        batch[SampleBatch.REWARDS] = reward_fn(
+            batch[SampleBatch.CUR_OBS],
+            batch[SampleBatch.ACTIONS],
+            batch[SampleBatch.NEXT_OBS],
+        )
+        return policy, batch
 
     return make_policy_and_batch

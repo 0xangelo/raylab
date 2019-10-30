@@ -5,8 +5,8 @@ from ray.rllib.policy.sample_batch import SampleBatch
 
 
 @pytest.fixture
-def policy_and_batch(policy_and_batch_fn):
-    return policy_and_batch_fn({})
+def policy_and_batch(policy_and_batch_fn, svg_policy):
+    return policy_and_batch_fn(svg_policy, {})
 
 
 def test_policy_reproduce(policy_and_batch):
