@@ -274,18 +274,6 @@ class MAPOTorchPolicy(
         self._optimizer.model.step()
         return info
 
-    @staticmethod
-    def compute_mle_loss(batch_tensors, module):
-        """Compute Maximum Likelihood Estimation (MLE) model loss."""
-        avg_logp = module.model_logp(
-            batch_tensors[SampleBatch.CUR_OBS],
-            batch_tensors[SampleBatch.ACTIONS],
-            batch_tensors[SampleBatch.NEXT_OBS],
-        ).mean()
-        loss = avg_logp.neg()
-        info = {"mle_loss": loss.item()}
-        return loss, info
-
     def compute_decision_aware_loss(self, batch_tensors, module, config):
         """Compute policy gradient-aware (PGA) model loss."""
         with self.freeze_nets("model"):
@@ -359,6 +347,18 @@ class MAPOTorchPolicy(
                 total_norm += norm ** norm_type
             total_norm = total_norm ** (1.0 / norm_type)
         return total_norm
+
+    @staticmethod
+    def compute_mle_loss(batch_tensors, module):
+        """Compute Maximum Likelihood Estimation (MLE) model loss."""
+        avg_logp = module.model_logp(
+            batch_tensors[SampleBatch.CUR_OBS],
+            batch_tensors[SampleBatch.ACTIONS],
+            batch_tensors[SampleBatch.NEXT_OBS],
+        ).mean()
+        loss = avg_logp.neg()
+        info = {"mle_loss": loss.item()}
+        return loss, info
 
     def _update_policy(self, batch_tensors, module, config):
         policy_loss, info = self.compute_madpg_loss(batch_tensors, module, config)
