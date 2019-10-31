@@ -52,7 +52,8 @@ class MAPOTorchPolicy(
             module.target_critics.append(make_critic())
         module.target_critics.load_state_dict(module.critics.state_dict())
 
-        module.update(self._make_model(obs_space, action_space, config))
+        if not config["true_model"]:
+            module.update(self._make_model(obs_space, action_space, config))
         return module
 
     def _make_policy(self, obs_space, action_space, config):
@@ -153,16 +154,26 @@ class MAPOTorchPolicy(
             **self.config["critic_optimizer"]["options"]
         )
 
-        dm_cls = torch_util.get_optimizer_class(self.config["model_optimizer"]["name"])
-        dm_optim = dm_cls(
-            self.module.model.parameters(), **self.config["model_optimizer"]["options"]
-        )
+        if self.config["true_model"]:
+            dm_optim = None
+        else:
+            dm_cls = torch_util.get_optimizer_class(
+                self.config["model_optimizer"]["name"]
+            )
+            dm_optim = dm_cls(
+                self.module.model.parameters(),
+                **self.config["model_optimizer"]["options"]
+            )
 
         return OptimizerCollection(policy=pi_optim, critic=qf_optim, model=dm_optim)
 
     def set_reward_fn(self, reward_fn):
         """Set the reward function to use when unrolling the policy and model."""
         self.module.reward = mods.Lambda(reward_fn)
+
+    def set_transition_fn(self, transition_fn):
+        """Set the transition function to use when unrolling the policy and model."""
+        self.module.model_sampler = mods.Lambda(transition_fn)
 
     @override(raypi.AdaptiveParamNoiseMixin)
     def _compute_noise_free_actions(self, sample_batch):
@@ -204,7 +215,8 @@ class MAPOTorchPolicy(
 
         info = {}
         info.update(self._update_critic(batch_tensors, self.module, self.config))
-        info.update(self._update_model(batch_tensors, self.module, self.config))
+        if not self.config["true_model"]:
+            info.update(self._update_model(batch_tensors, self.module, self.config))
         info.update(self._update_policy(batch_tensors, self.module, self.config))
 
         self.update_targets("critics", "target_critics")

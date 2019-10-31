@@ -23,6 +23,8 @@ DEFAULT_CONFIG = with_common_config(
         # Number of next states to sample from the model when calculating the
         # model-aware deterministic policy gradient
         "num_model_samples": 4,
+        # Whether to use the environment's true model to sample states
+        "true_model": False,
         # === SQUASHING EXPLORATION PROBLEM ===
         # Maximum l1 norm of the policy's output vector before the squashing function
         "beta": 1.2,
@@ -128,7 +130,12 @@ class MAPOTrainer(ExplorationPhaseMixin, ParameterNoiseMixin, Trainer):
         )
         self.workers.foreach_worker(
             lambda w: w.foreach_trainable_policy(
-                lambda p, _: p.set_reward_fn(w.env.reward_fn)
+                lambda p, _: (
+                    p.set_reward_fn(w.env.reward_fn),
+                    p.set_transition_fn(w.env.transition_fn)
+                    if config["true_model"]
+                    else None,
+                )
             )
         )
         # Dummy optimizer to log stats
