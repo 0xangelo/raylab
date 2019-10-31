@@ -47,9 +47,9 @@ def reward_fn():
 
 
 @pytest.fixture
-def policy_and_batch_fn(policy_and_batch_fn, reward_fn):
+def policy_and_batch_fn(policy_and_batch_, reward_fn):
     def make_policy_and_batch(policy_cls, config):
-        policy, batch = policy_and_batch_fn(policy_cls, config)
+        policy, batch = policy_and_batch_(policy_cls, config)
         policy.set_reward_fn(reward_fn)
         batch[SampleBatch.REWARDS] = reward_fn(
             batch[SampleBatch.CUR_OBS],

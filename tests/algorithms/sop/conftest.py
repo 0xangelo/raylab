@@ -15,8 +15,8 @@ def sop_policy(sop_trainer):
 
 
 @pytest.fixture
-def policy_and_batch_fn(policy_and_batch_fn, sop_policy):
+def policy_and_batch_fn(policy_and_batch_, sop_policy):
     def make_policy_and_batch(config):
-        return policy_and_batch_fn(sop_policy, config)
+        return policy_and_batch_(sop_policy, config)
 
     return make_policy_and_batch

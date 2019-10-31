@@ -5,7 +5,7 @@ import gym.spaces as spaces
 from raylab.utils.debug import fake_batch
 
 
-@pytest.fixture(autouse=True, params=((1,), (2,), (4,)))
+@pytest.fixture(params=((1,), (2,), (4,)))
 def shape(request):
     return request.param
 
@@ -21,7 +21,7 @@ def action_space(shape):
 
 
 @pytest.fixture
-def policy_and_batch_fn(obs_space, action_space):
+def policy_and_batch_(obs_space, action_space):
     def make_policy_and_batch(policy_cls, config):
         policy = policy_cls(obs_space, action_space, config)
         batch = policy._lazy_tensor_dict(
