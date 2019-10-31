@@ -330,9 +330,9 @@ class MAPOTorchPolicy(
         next_obs, logp = module.model_sampler(
             obs, actions, torch.as_tensor([config["num_model_samples"]])
         )
-        rewards = module.reward(obs, actions, next_obs)
         with torch.no_grad():
             next_acts = module.policy(next_obs)
+            rewards = module.reward(obs, actions, next_obs)
             next_vals, _ = torch.cat(
                 [m(next_obs, next_acts) for m in module.critics], dim=-1
             ).min(dim=-1)
