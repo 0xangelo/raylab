@@ -23,7 +23,7 @@ class DynamicsModel(nn.Module):
 
     @classmethod
     def from_scratch(cls, obs_dim, input_dependent_scale=True, **logits_kwargs):
-        """Create a dynamics model with new logtis and params modules."""
+        """Create a dynamics model with new logits and params modules."""
         logits_module = mods.StateActionEncoder(obs_dim=obs_dim, **logits_kwargs)
         params_module = mods.DiagMultivariateNormalParams(
             logits_module.out_features,
