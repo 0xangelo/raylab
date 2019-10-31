@@ -6,12 +6,8 @@ from ray import tune
 def get_config():
     return {
         # === Environment ===
-        "env": "TimeLimitedEnv",
-        "env_config": {
-            "env_id": "MujocoHalfCheetah",
-            "max_episode_steps": 250,
-            "time_aware": False,
-        },
+        "env": "MujocoHalfCheetah",
+        "env_config": {"max_episode_steps": 250, "time_aware": False},
         # === Replay Buffer ===
         "buffer_size": int(2e5),
         # === Optimization ===

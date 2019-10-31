@@ -6,12 +6,8 @@ from ray import tune
 def get_config():
     return {
         # === Environment ===
-        "env": "TimeLimitedEnv",
-        "env_config": {
-            "env_id": "HalfCheetah-v3",
-            "max_episode_steps": 250,
-            "time_aware": False,
-        },
+        "env": "HalfCheetah-v3",
+        "env_config": {"max_episode_steps": 250, "time_aware": False},
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning
         "clipped_double_q": True,

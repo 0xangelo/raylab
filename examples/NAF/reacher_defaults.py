@@ -6,12 +6,8 @@ from ray import tune
 def get_config():
     return {
         # === Environment ===
-        "env": "TimeLimitedEnv",
-        "env_config": {
-            "env_id": "MujocoReacher",
-            "max_episode_steps": 50,
-            "time_aware": True,
-        },
+        "env": "MujocoReacher",
+        "env_config": {"max_episode_steps": 50, "time_aware": True},
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning
         "clipped_double_q": True,

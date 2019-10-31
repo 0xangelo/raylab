@@ -5,12 +5,8 @@ from ray import tune
 def get_config():
     return {
         # === Environment ===
-        "env": "TimeLimitedEnv",
-        "env_config": {
-            "env_id": "Walker2d-v3",
-            "max_episode_steps": 1000,
-            "time_aware": False,
-        },
+        "env": "Walker2d-v3",
+        "env_config": {"max_episode_steps": 1000, "time_aware": False},
         # === SQUASHING EXPLORATION PROBLEM ===
         # Maximum l1 norm of the policy's output vector before the squashing function
         "beta": 1.2,
