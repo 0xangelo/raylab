@@ -293,7 +293,7 @@ class MAPOTorchPolicy(
             dpg_loss, dpg_info = self.compute_dpg_loss(batch_tensors, module, config)
             dpg_grads = torch.autograd.grad(dpg_loss, module.policy.parameters())
 
-        madpg_loss, info = self.compute_madpg_loss(batch_tensors, module, config)
+        madpg_loss, _ = self.compute_madpg_loss(batch_tensors, module, config)
         madpg_grads = torch.autograd.grad(
             madpg_loss, module.policy.parameters(), create_graph=True
         )
@@ -302,6 +302,7 @@ class MAPOTorchPolicy(
             dpg_grads, madpg_grads, config["norm_type"]
         )
 
+        info = {"decision_aware_loss": total_norm.item()}
         info.update({"target_" + k: v for k, v in dpg_info.items()})
         return total_norm, info
 
