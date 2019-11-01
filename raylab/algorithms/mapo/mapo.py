@@ -23,6 +23,9 @@ DEFAULT_CONFIG = with_common_config(
         # Number of next states to sample from the model when calculating the
         # model-aware deterministic policy gradient
         "num_model_samples": 4,
+        # Gradient estimator for model-aware dpg. Possible types include:
+        # score_function, pathwise_derivative
+        "grad_estimator": "score_function",
         # Whether to use the environment's true model to sample states
         "true_model": False,
         # === SQUASHING EXPLORATION PROBLEM ===

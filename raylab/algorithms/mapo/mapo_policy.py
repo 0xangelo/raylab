@@ -331,15 +331,22 @@ class MAPOTorchPolicy(
         next_obs, logp = module.model_sampler(
             obs, actions, torch.as_tensor([config["num_model_samples"]])
         )
-        with torch.no_grad():
-            next_acts = module.policy(next_obs)
-            rewards = module.reward(obs, actions, next_obs)
-            next_vals, _ = torch.cat(
-                [m(next_obs, next_acts) for m in module.critics], dim=-1
-            ).min(dim=-1)
 
-        values = rewards + config["gamma"] * next_vals
-        loss = torch.mean(logp * values, dim=0).mean().neg()
+        def compute_values(next_obs_):
+            rewards = module.reward(obs, actions, next_obs_)
+            next_acts = module.policy(next_obs_)
+            next_vals, _ = torch.cat(
+                [m(next_obs_, next_acts) for m in module.critics], dim=-1
+            ).min(dim=-1)
+            return rewards + config["gamma"] * next_vals
+
+        if config["grad_estimator"] == "score_function":
+            with torch.no_grad():
+                values = compute_values(next_obs.detach())
+            loss = torch.mean(logp * values, dim=0).mean().neg()
+        elif config["grad_estimator"] == "pathwise_derivative":
+            values = compute_values(next_obs)
+            loss = torch.mean(values, dim=0).mean().neg()
         return (
             loss,
             {
