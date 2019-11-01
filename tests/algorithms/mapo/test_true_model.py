@@ -2,6 +2,8 @@
 import pytest
 import torch
 
+from raylab.utils.debug import fake_batch
+
 
 @pytest.fixture
 def policy_and_env(mapo_policy, navigation_env):
@@ -27,3 +29,25 @@ def test_model_output(policy_and_env):
     assert torch.allclose(logp, log_prob)
     assert sample.grad_fn is None
     assert logp.grad_fn is not None
+
+
+def test_madpg_loss(policy_and_env):
+    policy, _ = policy_and_env
+    batch = policy._lazy_tensor_dict(
+        fake_batch(policy.observation_space, policy.action_space, batch_size=10)
+    )
+
+    loss, info = policy.compute_madpg_loss(batch, policy.module, policy.config)
+    assert isinstance(info, dict)
+    assert loss.shape == ()
+    assert loss.dtype == torch.float32
+    assert loss.grad_fn is not None
+
+    policy.module.zero_grad()
+    loss.backward()
+    assert all(
+        p.grad is not None
+        and torch.isfinite(p.grad).all()
+        and not torch.isnan(p.grad).all()
+        for p in policy.module.policy.parameters()
+    )
