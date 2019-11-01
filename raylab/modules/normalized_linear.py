@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
+from raylab.utils.pytorch import initialize_
+
 
 class NormalizedLinear(nn.Linear):
     """Neural network module that enforces a norm constraint on outputs."""
@@ -12,6 +14,7 @@ class NormalizedLinear(nn.Linear):
     def __init__(self, *args, beta, **kwargs):
         super().__init__(*args, **kwargs)
         self.beta = beta
+        self.apply(initialize_("xavier_uniform", activation="tanh"))
 
     @override(nn.Linear)
     def forward(self, inputs):  # pylint: disable=arguments-differ
