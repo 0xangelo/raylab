@@ -42,7 +42,7 @@ class DistRSample(_DistributionBase):
     ):  # pylint: disable=arguments-differ
         dist = self.compute_dist(inputs)
         sample = dist.rsample(sample_shape=sample_shape)
-        return sample, dist.log_prob(sample)
+        return sample, dist.log_prob(sample.detach())
 
 
 class DistMean(_DistributionBase):
@@ -52,7 +52,7 @@ class DistMean(_DistributionBase):
     def forward(self, inputs):  # pylint: disable=arguments-differ
         dist = self.compute_dist(inputs)
         mean = dist.mean
-        return mean, dist.log_prob(mean)
+        return mean, dist.log_prob(mean.detach())
 
 
 class DistLogProb(_DistributionBase):
