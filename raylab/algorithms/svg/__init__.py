@@ -58,6 +58,9 @@ SVG_BASE_CONFIG = with_common_config(
                 "delay_action": True,
             },
         },
+        # === Debugging ===
+        # Whether to log detailed information about the actions selected in each episode
+        "debug": False,
     }
 )
 
@@ -90,33 +93,34 @@ class SVGBaseTrainer(Trainer):
     def _validate_config(config):
         assert config["num_workers"] == 0, "No point in using additional workers."
 
-        start_callback = config["callbacks"]["on_episode_start"]
+        if config["debug"]:
+            start_callback = config["callbacks"]["on_episode_start"]
 
-        def on_episode_start(info):
-            episode = info["episode"]
-            episode.user_data["actions"] = []
-            if start_callback:
-                start_callback(info)
+            def on_episode_start(info):
+                episode = info["episode"]
+                episode.user_data["actions"] = []
+                if start_callback:
+                    start_callback(info)
 
-        step_callback = config["callbacks"]["on_episode_step"]
+            step_callback = config["callbacks"]["on_episode_step"]
 
-        def on_episode_step(info):
-            episode = info["episode"]
-            if episode.length > 0:
-                episode.user_data["actions"].append(episode.last_action_for())
-            if step_callback:
-                step_callback(info)
+            def on_episode_step(info):
+                episode = info["episode"]
+                if episode.length > 0:
+                    episode.user_data["actions"].append(episode.last_action_for())
+                if step_callback:
+                    step_callback(info)
 
-        end_callback = config["callbacks"]["on_episode_end"]
+            end_callback = config["callbacks"]["on_episode_end"]
 
-        def on_episode_end(info):
-            eps = info["episode"]
-            mean_action = np.mean(eps.user_data["actions"], axis=0)
-            for idx, mean in enumerate(mean_action):
-                eps.custom_metrics[f"mean_action-{idx}"] = mean
-            if end_callback:
-                end_callback(info)
+            def on_episode_end(info):
+                eps = info["episode"]
+                mean_action = np.mean(eps.user_data["actions"], axis=0)
+                for idx, mean in enumerate(mean_action):
+                    eps.custom_metrics[f"mean_action-{idx}"] = mean
+                if end_callback:
+                    end_callback(info)
 
-        config["callbacks"]["on_episode_start"] = tune.function(on_episode_start)
-        config["callbacks"]["on_episode_step"] = tune.function(on_episode_step)
-        config["callbacks"]["on_episode_end"] = tune.function(on_episode_end)
+            config["callbacks"]["on_episode_start"] = tune.function(on_episode_start)
+            config["callbacks"]["on_episode_step"] = tune.function(on_episode_step)
+            config["callbacks"]["on_episode_end"] = tune.function(on_episode_end)
