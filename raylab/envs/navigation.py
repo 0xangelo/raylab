@@ -101,8 +101,8 @@ class NavigationEnv(gym.Env):
         loc = position + torch.as_tensor(self._noise["loc"])
         scale_tril = torch.as_tensor(self._noise["scale_tril"])
         dist = torch.distributions.MultivariateNormal(loc=loc, scale_tril=scale_tril)
-        sample = dist.sample(sample_shape=sample_shape)
-        return sample, dist.log_prob(sample)
+        sample = dist.rsample(sample_shape=sample_shape)
+        return sample, dist.log_prob(sample.detach())
 
     def reward_fn(self, state, action, next_state):
         # pylint: disable=unused-argument,missing-docstring

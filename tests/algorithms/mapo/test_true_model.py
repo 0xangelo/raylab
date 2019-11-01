@@ -27,7 +27,7 @@ def test_model_output(policy_and_env):
     next_obs, log_prob = env.transition_fn(obs, act)
     assert torch.allclose(sample, next_obs)
     assert torch.allclose(logp, log_prob)
-    assert sample.grad_fn is None
+    assert sample.grad_fn is not None
     assert logp.grad_fn is not None
 
 

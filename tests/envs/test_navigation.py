@@ -37,8 +37,8 @@ def test_transition_fn(env):
     torch.manual_seed(42)
     _obs_t, logp = env.transition_fn(obs_t, act_t)
 
-    assert _obs_t.grad_fn is None
-    assert np.allclose(_obs, _obs_t.numpy())
+    assert _obs_t.grad_fn is not None
+    assert np.allclose(_obs, _obs_t.detach().numpy())
     assert logp.shape == ()
     assert logp.dtype == torch.float32
     assert logp.grad_fn is not None
