@@ -224,6 +224,7 @@ class MAPOTorchPolicy(
 
     def _update_critic(self, batch_tensors, module, config):
         critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
+        self._optimizer.critic.zero_grad()
         critic_loss.backward()
         grad_stats = {
             "critic_grad_norm": nn.utils.clip_grad_norm_(
