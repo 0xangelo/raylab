@@ -11,6 +11,12 @@ def get_config():  # pylint: disable=missing-docstring
     return {
         # === Environment ===
         "env": "Navigation",
+        "env_config": tune.grid_search(
+            [
+                {"deceleration_zones": None},
+                {"deceleration_zones": {"center": [[0.0, 0.0]], "decay": [2.0]}},
+            ]
+        ),
         # === Replay Buffer ===
         "buffer_size": int(1e4),
         # === Optimization ===
