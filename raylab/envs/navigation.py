@@ -77,7 +77,7 @@ class NavigationEnv(gym.Env):
         self._state = next_state.numpy()
         return self._state, reward, self._terminal(), {}
 
-    def transition_fn(self, state, action):
+    def transition_fn(self, state, action, sample_shape=()):
         # pylint: disable=missing-docstring
         state, time = state[..., :2], state[..., 2:]
         deceleration = 1.0
@@ -85,8 +85,9 @@ class NavigationEnv(gym.Env):
             deceleration = self._deceleration(state)
 
         position = state + (deceleration * action)
-        next_state, logp = self._sample_noise(position)
+        next_state, logp = self._sample_noise(position, sample_shape)
         time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0).detach()
+        time = time.expand_as(next_state[..., -1:])
         return torch.cat([next_state, time], dim=-1), logp
 
     def _deceleration(self, state):
@@ -96,11 +97,11 @@ class NavigationEnv(gym.Env):
         deceleration = torch.prod(2 / (1.0 + torch.exp(-decay * distance)) - 1.0)
         return deceleration
 
-    def _sample_noise(self, position):
+    def _sample_noise(self, position, sample_shape):
         loc = position + torch.as_tensor(self._noise["loc"])
         scale_tril = torch.as_tensor(self._noise["scale_tril"])
         dist = torch.distributions.MultivariateNormal(loc=loc, scale_tril=scale_tril)
-        sample = dist.sample()
+        sample = dist.sample(sample_shape=sample_shape)
         return sample, dist.log_prob(sample)
 
     def reward_fn(self, state, action, next_state):
