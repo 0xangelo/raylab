@@ -26,8 +26,14 @@ DEFAULT_CONFIG = with_common_config(
         # Gradient estimator for model-aware dpg. Possible types include:
         # score_function, pathwise_derivative
         "grad_estimator": "score_function",
+        # === Debugging ===
         # Whether to use the environment's true model to sample states
         "true_model": False,
+        # Degrade the true model using a constant bias, i.e., by adding a constant
+        # vector to the model's output
+        "model_bias": None,
+        # Degrade the true model using zero-mean gaussian noise
+        "model_noise_sigma": None,
         # === SQUASHING EXPLORATION PROBLEM ===
         # Maximum l1 norm of the policy's output vector before the squashing function
         "beta": 1.2,

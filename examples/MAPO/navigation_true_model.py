@@ -28,6 +28,12 @@ def get_config():
         # Gradient estimator for model-aware dpg. Possible types include:
         # score_function, pathwise_derivative
         "grad_estimator": tune.grid_search(["score_function", "pathwise_derivative"]),
+        # === Debugging ===
         # Whether to use the environment's true model to sample states
         "true_model": True,
+        # Degrade the true model using a constant bias, i.e., by adding a constant
+        # vector to the model's output
+        "model_bias": None,
+        # Degrade the true model using zero-mean gaussian noise
+        "model_noise_sigma": None,
     }

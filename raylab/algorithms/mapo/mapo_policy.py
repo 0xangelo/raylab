@@ -173,7 +173,20 @@ class MAPOTorchPolicy(
 
     def set_transition_fn(self, transition_fn):
         """Set the transition function to use when unrolling the policy and model."""
-        self.module.model_sampler = mods.Lambda(transition_fn)
+        transform = nn.Sequential()
+        bias = self.config["model_bias"]
+        if bias is not None:
+            biast = torch.as_tensor(bias, dtype=torch.float32)
+            transform.add_module(str(len(transform)), mods.Lambda(lambda x: x + biast))
+        sigma = self.config["model_noise_sigma"]
+        if sigma:
+            transform.add_module(str(len(transform)), mods.GaussianNoise(sigma))
+
+        def sampler(*args):
+            samp, logp = transition_fn(*args)
+            return transform(samp), logp
+
+        self.module.model_sampler = mods.Lambda(sampler)
 
     @override(raypi.AdaptiveParamNoiseMixin)
     def _compute_noise_free_actions(self, sample_batch):
