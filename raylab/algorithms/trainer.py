@@ -34,4 +34,6 @@ class Trainer(_Trainer):
             timesteps_this_iter=timesteps,
             info=dict(learner=learner_stats, **res.get("info", {})),
         )
+        if self._iteration == 0:
+            res.update(self.evaluation_metrics)
         return res

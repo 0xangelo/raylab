@@ -69,24 +69,15 @@ class NavigationEnv(gym.Env):
         self._state = np.append(self._start, np.array(0.0, dtype=np.float32))
         return self._state
 
+    @torch.no_grad()
     def step(self, action):
         state, action = map(torch.as_tensor, (self._state, action))
-        next_state = self.transition_fn(state, action)
+        next_state, _ = self.transition_fn(state, action)
         reward = self.reward_fn(state, action, next_state).item()
         self._state = next_state.numpy()
         return self._state, reward, self._terminal(), {}
 
-    def _terminal(self):
-        pos, time = self._state[:2], self._state[2]
-        return np.allclose(pos, self._end, atol=1e-1) or np.allclose(time, 1.0)
-
-    def reward_fn(self, state, action, next_state):
-        # pylint: disable=unused-argument,missing-docstring
-        next_state = next_state[..., :2]
-        goal = torch.from_numpy(self._end)
-        return torch.norm(next_state - goal, dim=-1).neg()
-
-    def transition_fn(self, state, action):
+    def transition_fn(self, state, action, sample_shape=()):
         # pylint: disable=missing-docstring
         state, time = state[..., :2], state[..., 2:]
         deceleration = 1.0
@@ -94,15 +85,10 @@ class NavigationEnv(gym.Env):
             deceleration = self._deceleration(state)
 
         position = state + (deceleration * action)
-        next_state = self._sample_noise(position)
-        time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0)
-        return torch.cat([next_state, time], dim=-1)
-
-    def _sample_noise(self, position):
-        loc = position + torch.as_tensor(self._noise["loc"])
-        scale_tril = torch.as_tensor(self._noise["scale_tril"])
-        dist = torch.distributions.MultivariateNormal(loc=loc, scale_tril=scale_tril)
-        return dist.sample()
+        next_state, logp = self._sample_noise(position, sample_shape)
+        time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0).detach()
+        time = time.expand_as(next_state[..., -1:])
+        return torch.cat([next_state, time], dim=-1), logp
 
     def _deceleration(self, state):
         decay = torch.from_numpy(self._deceleration_decay)
@@ -110,6 +96,23 @@ class NavigationEnv(gym.Env):
         distance = torch.norm(state - center, dim=-1)
         deceleration = torch.prod(2 / (1.0 + torch.exp(-decay * distance)) - 1.0)
         return deceleration
+
+    def _sample_noise(self, position, sample_shape):
+        loc = position + torch.as_tensor(self._noise["loc"])
+        scale_tril = torch.as_tensor(self._noise["scale_tril"])
+        dist = torch.distributions.MultivariateNormal(loc=loc, scale_tril=scale_tril)
+        sample = dist.rsample(sample_shape=sample_shape)
+        return sample, dist.log_prob(sample.detach())
+
+    def reward_fn(self, state, action, next_state):
+        # pylint: disable=unused-argument,missing-docstring
+        next_state = next_state[..., :2]
+        goal = torch.from_numpy(self._end)
+        return torch.norm(next_state - goal, dim=-1).neg()
+
+    def _terminal(self):
+        pos, time = self._state[:2], self._state[2]
+        return np.allclose(pos, self._end, atol=1e-1) or np.allclose(time, 1.0)
 
     def render(self, mode="human"):
         pass

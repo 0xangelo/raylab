@@ -6,34 +6,14 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from raylab.algorithms.registry import ALGORITHMS as ALGS
 
 
-@pytest.fixture(params=[ALGS[k] for k in "SVG(1) SVG(inf)".split()])
-def svg_trainer(request):
-    return request.param()
+@pytest.fixture
+def mapo_trainer():
+    return ALGS["MAPO"]()
 
 
 @pytest.fixture
-def svg_policy(svg_trainer):
-    return svg_trainer._policy
-
-
-@pytest.fixture
-def svg_one_trainer():
-    return ALGS["SVG(1)"]()
-
-
-@pytest.fixture
-def svg_one_policy(svg_one_trainer):
-    return svg_one_trainer._policy
-
-
-@pytest.fixture
-def svg_inf_trainer():
-    return ALGS["SVG(inf)"]()
-
-
-@pytest.fixture
-def svg_inf_policy(svg_inf_trainer):
-    return svg_inf_trainer._policy
+def mapo_policy(mapo_trainer):
+    return mapo_trainer._policy
 
 
 @pytest.fixture
@@ -47,9 +27,9 @@ def reward_fn():
 
 
 @pytest.fixture
-def policy_and_batch_fn(policy_and_batch_, reward_fn):
-    def make_policy_and_batch(policy_cls, config):
-        policy, batch = policy_and_batch_(policy_cls, config)
+def policy_and_batch_fn(policy_and_batch_, mapo_policy, reward_fn):
+    def make_policy_and_batch(config):
+        policy, batch = policy_and_batch_(mapo_policy, config)
         policy.set_reward_fn(reward_fn)
         batch[SampleBatch.REWARDS] = reward_fn(
             batch[SampleBatch.CUR_OBS],

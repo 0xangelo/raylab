@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring
 # pylint: enable=missing-docstring
+import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
@@ -36,10 +37,12 @@ class DistRSample(_DistributionBase):
     """Module producing samples given a dict of distribution parameters."""
 
     @override(nn.Module)
-    def forward(self, inputs):  # pylint: disable=arguments-differ
+    def forward(
+        self, inputs, sample_shape=torch.Size([])
+    ):  # pylint: disable=arguments-differ
         dist = self.compute_dist(inputs)
-        sample = dist.rsample()
-        return sample, dist.log_prob(sample)
+        sample = dist.rsample(sample_shape=sample_shape)
+        return sample, dist.log_prob(sample.detach())
 
 
 class DistMean(_DistributionBase):
@@ -49,7 +52,7 @@ class DistMean(_DistributionBase):
     def forward(self, inputs):  # pylint: disable=arguments-differ
         dist = self.compute_dist(inputs)
         mean = dist.mean
-        return mean, dist.log_prob(mean)
+        return mean, dist.log_prob(mean.detach())
 
 
 class DistLogProb(_DistributionBase):

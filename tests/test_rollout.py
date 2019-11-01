@@ -1,24 +1,22 @@
-# pylint: disable=missing-docstring,redefined-outer-name
+# pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 from ray.rllib import RolloutWorker
-
-from raylab.algorithms.svg.svg_base_policy import SVGBaseTorchPolicy
 
 
 @pytest.fixture
 def worker_kwargs():
-    return {"batch_steps": 20, "batch_mode": "complete_episodes"}
+    return {"batch_steps": 1, "batch_mode": "complete_episodes"}
 
 
-def test_output_action_in_action_space(env_creator, policy_cls):
-    if issubclass(policy_cls, SVGBaseTorchPolicy):
-        pytest.skip("SVG policies don't squash actions to the action space.")
+def test_compute_single_action(env_creator, policy_cls):
     env = env_creator()
     policy = policy_cls(env.observation_space, env.action_space, {})
 
     obs = env.observation_space.sample()
-    action, _, _ = policy.compute_single_action(obs, [])
+    action, states, info = policy.compute_single_action(obs, [])
     assert action in env.observation_space
+    assert isinstance(states, list)
+    assert isinstance(info, dict)
 
 
 def test_policy_in_rollout_worker(env_creator, policy_cls, worker_kwargs):

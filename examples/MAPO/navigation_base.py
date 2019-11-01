@@ -1,9 +1,4 @@
-"""Tune experiment configuration for SVG(1) on Navigation.
-
-This can be run from the command line by executing
-`raylab experiment 'SVG(1)' --local-dir <experiment dir>
-    --config 'examples/SVG(1)/navigation_defaults.py' --stop timesteps_total 10000`
-"""
+"""Tune experiment configuration for MAPO on Navigation."""
 from ray import tune  # pylint: disable=unused-import
 
 
@@ -11,53 +6,48 @@ def get_config():  # pylint: disable=missing-docstring
     return {
         # === Environment ===
         "env": "Navigation",
-        "env_config": tune.grid_search(
-            [
-                {"deceleration_zones": None},
-                {"deceleration_zones": {"center": [[0.0, 0.0]], "decay": [2.0]}},
-            ]
-        ),
         # === Replay Buffer ===
         "buffer_size": int(1e4),
+        # === Twin Delayed DDPG (TD3) tricks ===
+        # Clipped Double Q-Learning: use the minimun of two target Q functions
+        # as the next action-value in the target for fitted Q iteration
+        "clipped_double_q": True,
+        # Add gaussian noise to the action when calculating the Deterministic
+        # Policy Gradient
+        "target_policy_smoothing": True,
+        # Additive Gaussian i.i.d. noise to add to actions inputs to target Q function
+        "target_gaussian_sigma": 0.3,
         # === Optimization ===
-        # Name of Pytorch optimizer class for paremetrized policy
-        "torch_optimizer": "Adam",
-        # Keyword arguments to be passed to the on-policy optimizer
-        "torch_optimizer_options": {
-            "model": {"lr": 3e-4},
-            "value": {"lr": 3e-4},
-            "policy": {"lr": 3e-4},
-        },
-        # Clip gradient norms by this value
-        "max_grad_norm": 1e3,
-        # === Regularization ===
-        "kl_schedule": {
-            "initial_coeff": 0.2,
-            "desired_kl": 0.01,
-            "adaptation_coeff": 1.01,
-            "threshold": 1.0,
-        },
+        # PyTorch optimizer to use for policy
+        "policy_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
+        # PyTorch optimizer to use for critic
+        "critic_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
+        # PyTorch optimizer to use for model
+        "model_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
+        # Interpolation factor in polyak averaging for target networks.
+        "polyak": 0.995,
         # === Network ===
         # Size and activation of the fully connected networks computing the logits
-        # for the policy, value function and model. No layers means the component is
+        # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
         "module": {
             "policy": {
-                "layers": (64, 64),
+                "units": (64, 64),
                 "activation": "ReLU",
-                "input_dependent_scale": True,
                 "initializer_options": {"name": "xavier_uniform"},
             },
-            "value": {
-                "layers": (64, 64),
+            "critic": {
+                "units": (64, 64),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
+                "delay_action": True,
             },
             "model": {
-                "layers": (64, 64),
+                "units": (64, 64),
                 "activation": "ReLU",
-                "delay_action": True,
                 "initializer_options": {"name": "xavier_uniform"},
+                "delay_action": True,
+                "input_dependent_scale": False,
             },
         },
         # === RolloutWorker ===
@@ -67,6 +57,14 @@ def get_config():  # pylint: disable=missing-docstring
         "train_batch_size": 32,
         "timesteps_per_iteration": 200,
         # === Exploration ===
+        # Which type of exploration to use. Possible types include
+        # None: use the greedy policy to act
+        # parameter_noise: use parameter space noise
+        # gaussian: use i.i.d gaussian action space noise independently for each
+        #     action dimension
+        "exploration": "gaussian",
+        # Additive Gaussian i.i.d. noise to add to actions before squashing
+        "exploration_gaussian_sigma": 0.3,
         # Until this many timesteps have elapsed, the agent's policy will be
         # ignored & it will instead take uniform random actions. Can be used in
         # conjunction with learning_starts (which controls when the first

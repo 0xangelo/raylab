@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,protected-access,redefined-outer-name
+# pylint: disable=missing-docstring,redefined-outer-name,protected-access
 from functools import partial
 
 import pytest
@@ -33,7 +33,12 @@ def test_transition_fn(env):
     _obs, _, _, _ = env.step(act)
 
     obs_t, act_t = map(partial(convert_to_tensor, device="cpu"), (obs, act))
+    obs_t, act_t = map(lambda x: x.requires_grad_(True), (obs_t, act_t))
     torch.manual_seed(42)
-    _obs_t = env.transition_fn(obs_t, act_t)
+    _obs_t, logp = env.transition_fn(obs_t, act_t)
 
-    assert np.allclose(_obs, _obs_t.numpy())
+    assert _obs_t.grad_fn is not None
+    assert np.allclose(_obs, _obs_t.detach().numpy())
+    assert logp.shape == ()
+    assert logp.dtype == torch.float32
+    assert logp.grad_fn is not None

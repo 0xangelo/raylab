@@ -31,11 +31,6 @@ DEFAULT_CONFIG = with_common_config(
             "activation": "ELU",
             "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
         },
-        # Which type of TorchScript to use with the module. Possible types include
-        # None: module is not converted to TorchScript
-        # trace: module is converted using torch.jit.trace
-        # script: module is converted using torch.jit.script
-        "torch_script": None,
         # === Optimization ===
         # PyTorch optimizer and options to use
         "torch_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
