@@ -8,12 +8,7 @@ def get_config():
     return {
         **base_config(),
         # === Environment ===
-        "env_config": tune.grid_search(
-            [
-                {"deceleration_zones": None},
-                {"deceleration_zones": {"center": [[0.0, 0.0]], "decay": [2.0]}},
-            ]
-        ),
+        "env_config": {"deceleration_zones": None},
         # === MAPO model training ===
         # Type of model-training to use. Possible types include
         # decision_aware: policy gradient-aware model learning
