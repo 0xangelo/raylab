@@ -10,7 +10,11 @@ def get_config():
         # === Environment ===
         "env_config": {
             "deceleration_zones": {"center": [[0.0, 0.0]], "decay": [2.0]},
-            "num_random_walks": tune.grid_search([8, 16]),
+            "random_walks": {
+                "num_walks": tune.grid_search([8, 16]),
+                "loc": 10.0,
+                "scale": 2.0,
+            },
         },
         # === MAPO model training ===
         # Type of model-training to use. Possible types include
@@ -30,7 +34,7 @@ def get_config():
         "true_model": False,
         # === Optimization ===
         # PyTorch optimizer to use for policy
-        "policy_optimizer": {"name": "Adam", "options": {"lr": 1e-3}},
+        "policy_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
         # PyTorch optimizer to use for model
         "model_optimizer": {
             "name": "Adam",
@@ -58,7 +62,7 @@ def get_config():
                 "delay_action": True,
             },
             "model": {
-                "units": (10,),
+                "units": (3,),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "delay_action": True,
