@@ -20,9 +20,11 @@ DEFAULT_CONFIG = with_common_config(
         # Type of the used p-norm of the distance between gradients.
         # Can be float('inf') for infinity norm.
         "norm_type": 2,
-        # Number of next states to sample from the model when calculating the
+        # Number of initial next states to sample from the model when calculating the
         # model-aware deterministic policy gradient
         "num_model_samples": 4,
+        # Length of the rollouts from each next state sampled
+        "model_rollout_len": 1,
         # Gradient estimator for model-aware dpg. Possible types include:
         # score_function, pathwise_derivative
         "grad_estimator": "score_function",

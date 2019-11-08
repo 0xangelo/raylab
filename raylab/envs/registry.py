@@ -17,6 +17,7 @@ def _cartpole_stateless_maker(_):
     return CartPoleStatelessWrapper(CartPoleEnv())
 
 
+@wrap_if_needed
 def _navigation_maker(config):
     from raylab.envs.navigation import NavigationEnv
 

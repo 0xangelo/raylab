@@ -4,6 +4,7 @@ import functools
 from gym.wrappers import TimeLimit
 
 from .time_aware_env import AddRelativeTimestep
+from .gaussian_random_walks import GaussianRandomWalks
 
 
 def wrap_if_needed(env_creator):
@@ -11,41 +12,60 @@ def wrap_if_needed(env_creator):
 
     @functools.wraps(env_creator)
     def wrapped(config):
-        time_aware = config.pop("time_aware", False)
-        max_episode_steps = config.pop("max_episode_steps", None)
-        assert not time_aware or max_episode_steps
-
         env = env_creator(config)
-        if max_episode_steps:
-            env = add_time_limit(env, max_episode_steps)
-        if time_aware:
-            env = AddRelativeTimestep(env)
+        env = wrap_time_limit(
+            env, config.get("time_aware"), config.get("max_episode_steps")
+        )
+        env = wrap_gaussian_random_walks(env, config.get("num_random_walks"))
         return env
 
     return wrapped
 
 
-def add_time_limit(env, max_episode_steps):
+def wrap_time_limit(env, time_aware, max_episode_steps):
     """Add or update an environment's time limit
 
     Arguments:
         env (gym.Env): a gym environment instance
+        time_aware (bool): whether to append the relative timestep to the observation.
         max_episode_steps (int): the maximum number of timesteps in a single episode
 
     Returns:
         A wrapped environment with the desired time limit
     """
-    _env, has_timelimit = env, False
-    while hasattr(_env, "env"):
-        if isinstance(_env, TimeLimit):
-            has_timelimit = True
-            break
-        _env = _env.env
+    assert not time_aware or max_episode_steps, "Time-aware envs must specify a horizon"
 
-    if has_timelimit:
-        # pylint: disable=protected-access
-        _env._max_episode_steps = max_episode_steps
-        # pylint: enable=protected-access
-    else:
-        env = TimeLimit(env, max_episode_steps=max_episode_steps)
+    if max_episode_steps:
+        env_, has_timelimit = env, False
+        while hasattr(env_, "env"):
+            if isinstance(env_, TimeLimit):
+                has_timelimit = True
+                break
+            env_ = env_.env
+
+        if has_timelimit:
+            # pylint: disable=protected-access
+            env_._max_episode_steps = max_episode_steps
+            # pylint: enable=protected-access
+        else:
+            env = TimeLimit(env, max_episode_steps=max_episode_steps)
+
+    if time_aware:
+        env = AddRelativeTimestep(env)
+
+    return env
+
+
+def wrap_gaussian_random_walks(env, num_random_walks):
+    """Add gaussian random walk variables to the observations, if specified.
+
+    Arguments:
+        env (gym.Env): a gym environment instance
+        num_random_walks (int): the number of random walks to append to the observation.
+
+    Returns:
+        A wrapped environment with the desired number of random walks
+    """
+    if num_random_walks:
+        env = GaussianRandomWalks(env, num_random_walks)
     return env

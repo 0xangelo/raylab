@@ -8,7 +8,7 @@ def get_config():
     return {
         **base_config(),
         # === Environment ===
-        "env_config": {"deceleration_zones": None},
+        "env_config": {"deceleration_zones": {"center": [[0.0, 0.0]], "decay": [2.0]}},
         # === MAPO model training ===
         # Type of model-training to use. Possible types include
         # decision_aware: policy gradient-aware model learning
@@ -25,4 +25,30 @@ def get_config():
         "grad_estimator": tune.grid_search(["score_function", "pathwise_derivative"]),
         # Whether to use the environment's true model to sample states
         "true_model": False,
+        # === Replay Buffer ===
+        "buffer_size": int(5e4),
+        # === Network ===
+        # Size and activation of the fully connected networks computing the logits
+        # for the policy and action-value function. No layers means the component is
+        # linear in states and/or actions.
+        "module": {
+            "policy": {
+                "units": (64,),
+                "activation": "ReLU",
+                "initializer_options": {"name": "xavier_uniform"},
+            },
+            "critic": {
+                "units": (64,),
+                "activation": "ReLU",
+                "initializer_options": {"name": "xavier_uniform"},
+                "delay_action": True,
+            },
+            "model": {
+                "units": (),
+                "activation": "ReLU",
+                "initializer_options": {"name": "xavier_uniform"},
+                "delay_action": True,
+                "input_dependent_scale": False,
+            },
+        },
     }
