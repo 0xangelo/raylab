@@ -16,7 +16,7 @@ def wrap_if_needed(env_creator):
         env = wrap_time_limit(
             env, config.get("time_aware"), config.get("max_episode_steps")
         )
-        env = wrap_gaussian_random_walks(env, config.get("num_random_walks"))
+        env = wrap_gaussian_random_walks(env, config.get("random_walks"))
         return env
 
     return wrapped
@@ -56,16 +56,16 @@ def wrap_time_limit(env, time_aware, max_episode_steps):
     return env
 
 
-def wrap_gaussian_random_walks(env, num_random_walks):
+def wrap_gaussian_random_walks(env, walks_kwargs):
     """Add gaussian random walk variables to the observations, if specified.
 
     Arguments:
         env (gym.Env): a gym environment instance
-        num_random_walks (int): the number of random walks to append to the observation.
+        walks_kwargs (dict): arguments to pass to GaussianRandomWalks wrapper.
 
     Returns:
         A wrapped environment with the desired number of random walks
     """
-    if num_random_walks:
-        env = GaussianRandomWalks(env, num_random_walks)
+    if walks_kwargs:
+        env = GaussianRandomWalks(env, **walks_kwargs)
     return env

@@ -10,12 +10,12 @@ from raylab.utils.pytorch import convert_to_tensor
 
 @pytest.fixture(params=(1, 2, 4))
 def env(request, env_creator):
-    return GaussianRandomWalks(env_creator({}), num_random_walks=request.param)
+    return GaussianRandomWalks(env_creator({}), num_walks=request.param)
 
 
 def test_spaces(env):
     base_env = env.env
-    walks = env._num_random_walks
+    walks = env._num_walks
 
     assert env.observation_space.shape[0] == base_env.observation_space.shape[0] + walks
     assert env.action_space.shape == base_env.action_space.shape
