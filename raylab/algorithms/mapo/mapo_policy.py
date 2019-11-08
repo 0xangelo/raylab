@@ -340,26 +340,29 @@ class MAPOTorchPolicy(
     @staticmethod
     def compute_madpg_loss(batch_tensors, module, config):
         """Compute loss for model-aware deterministic policy gradient."""
+        gamma = config["gamma"]
+        rollout_len = config["model_rollout_len"]
+
         obs = batch_tensors[SampleBatch.CUR_OBS]
         actions = module.policy(obs)
         next_obs, logp = module.model_sampler(
             obs, actions, torch.as_tensor([config["num_model_samples"]])
         )
+        rews = [module.reward(obs, actions, next_obs)]
 
-        def compute_values(next_obs_):
-            rewards = module.reward(obs, actions, next_obs_)
-            next_acts = module.policy(next_obs_)
-            next_vals, _ = torch.cat(
-                [m(next_obs_, next_acts) for m in module.critics], dim=-1
-            ).min(dim=-1)
-            return rewards + config["gamma"] * next_vals
+        for _ in range(config["model_rollout_len"] - 1):
+            obs = next_obs
+            actions = module.policy(obs)
+            next_obs, _ = module.model_sampler(obs, actions)
+            rews.append(module.reward(obs, actions, next_obs))
+
+        rews = (torch.stack(rews).T * gamma ** torch.arange(rollout_len).float()).T
+        critic = module.critics[0](next_obs, module.policy(next_obs)).squeeze(-1)
+        values = rews.sum(0) + gamma ** rollout_len * critic
 
         if config["grad_estimator"] == "score_function":
-            with torch.no_grad():
-                values = compute_values(next_obs.detach())
-            loss = torch.mean(logp * values, dim=0).mean().neg()
+            loss = torch.mean(logp * values.detach(), dim=0).mean().neg()
         elif config["grad_estimator"] == "pathwise_derivative":
-            values = compute_values(next_obs)
             loss = torch.mean(values, dim=0).mean().neg()
         return (
             loss,
