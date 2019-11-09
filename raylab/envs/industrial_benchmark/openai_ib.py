@@ -146,7 +146,7 @@ class IBEnv(gym.Env):
         )
 
         # reward is divided by 100 to improve learning
-        return self._get_obs(), return_reward / 100, False, self.markovianState()
+        return self._get_obs(), return_reward / 100, False, dict(self.markovianState())
 
     def _get_obs(self):
         # Values returned by the OpenAI environment placeholder
