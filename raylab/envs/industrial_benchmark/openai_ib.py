@@ -159,6 +159,8 @@ class IBEnv(gym.Env):
         )
 
     def reward_fn(self, state, action, next_state):
+        assert self.markovian, "reward_fn is only defined for markovian states"
+
         reward = -(self.IB.CRF * next_state[..., 4] + self.IB.CRC * next_state[..., 5])
         if self.reward_function == "delta":
             reward = reward + self.IB.CRF * state[..., 4] + self.IB.CRC * state[..., 5]
