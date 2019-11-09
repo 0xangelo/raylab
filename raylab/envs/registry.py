@@ -1,4 +1,6 @@
 """Registry of custom Gym environments."""
+import inspect
+
 from .utils import wrap_if_needed
 
 
@@ -43,10 +45,7 @@ def _industrial_benchmark_maker(config):
     from raylab.envs.industrial_benchmark.openai_ib import IBEnv
 
     return IBEnv(
-        setpoint=config.get("setpoint", 50),
-        reward_type=config.get("reward_type", "classic"),
-        action_type=config.get("action_type", "continuous"),
-        markovian=config.get("markovian", True),
+        **{k: config[k] for k in inspect.signature(IBEnv).parameters if k in config}
     )
 
 

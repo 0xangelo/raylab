@@ -37,7 +37,13 @@ logger = logging.getLogger(__name__)
 
 
 class IBEnv(gym.Env):
-    def __init__(self, setpoint, reward_type, action_type="continuous", markovian=True):
+    def __init__(
+        self,
+        setpoint=50,
+        reward_type="classic",
+        action_type="continuous",
+        markovian=True,
+    ):
         # Setting up the IB environment
         self.setpoint = setpoint
         self.IB = IDS(setpoint)
