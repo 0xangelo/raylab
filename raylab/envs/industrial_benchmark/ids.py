@@ -47,6 +47,8 @@ class IDS:
         stationary_p = False will make the setpoint vary over time. This
         will make the system more non-stationary.
         """
+        self._init_p = p
+        self.stationary_p = stationary_p
 
         self.set_seed()
 
@@ -63,7 +65,15 @@ class IDS:
         self.CRC = 1.0
         self.CRGS = 25.0
 
-        self.stationary_p = stationary_p
+        self.gsEnvironment = None
+        self.state = None
+        self.reset()
+
+    def set_seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
+
+    def reset(self):
         self.gsEnvironment = GoldstoneEnvironment(
             24, self.maxRequiredStep, self.maxRequiredStep / 2.0
         )
@@ -79,14 +89,12 @@ class IDS:
         self.state["he"] = 0.0  # hidden/ effective shift
 
         # goldstone variables
-        self.state[
-            "gs_domain"
-        ] = self.gsEnvironment._dynamics.Domain.positive.value  # miscalibration domain
+        # miscalibration domain
+        self.state["gs_domain"] = self.gsEnvironment._dynamics.Domain.positive.value
+        # miscalibration System Response
         self.state[
             "gs_sys_response"
-        ] = (
-            self.gsEnvironment._dynamics.System_Response.advantageous.value
-        )  # miscalibration System Response
+        ] = self.gsEnvironment._dynamics.System_Response.advantageous.value
         self.state["gs_phi_idx"] = 0  # miscalibration Phi_idx/ direction
         self.state["ge"] = 0.0  # effective action gain beta
         self.state["ve"] = 0.0  # effective action velocity alpha
@@ -94,7 +102,7 @@ class IDS:
 
         # observables
         self.observable_keys = ["p", "v", "g", "h", "f", "c", "cost", "reward"]
-        self.state["p"] = p  # SetPoint
+        self.state["p"] = self._init_p  # SetPoint
         self.state["v"] = 50.0  # Velocity
         self.state["g"] = 50.0  # Gain
         self.state["h"] = 50.0  # Shift
@@ -106,10 +114,6 @@ class IDS:
         self.init = True
         self.defineNewSequence()
         self.step(np.zeros(3))
-
-    def set_seed(self, seed=None):
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
 
     def visibleState(self):
         return np.concatenate(

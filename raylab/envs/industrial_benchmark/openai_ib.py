@@ -162,7 +162,7 @@ class IBEnv(gym.Env):
 
     def reset(self):
         # Resetting the entire environment
-        self.IB = IDS(self.setpoint)
+        self.IB.reset()
         self.reward = -self.IB.state["cost"]
         return self._get_obs()
 
