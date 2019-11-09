@@ -160,6 +160,12 @@ class IBEnv(gym.Env):
             else self.IB.visibleState()[1:-1].astype(np.float32)
         )
 
+    def reward_fn(self, state, action, next_state):
+        reward = -(self.IB.CRF * next_state[..., 4] + self.IB.CRC * next_state[..., 5])
+        if self.reward_function == "delta":
+            reward = reward + self.IB.CRF * state[..., 4] + self.IB.CRC * state[..., 5]
+        return reward / 100
+
     def reset(self):
         # Resetting the entire environment
         self.IB.reset()
