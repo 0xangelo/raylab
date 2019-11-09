@@ -38,10 +38,22 @@ def _mujoco_half_cheetah_maker(_):
     return HalfCheetahEnv()
 
 
+@wrap_if_needed
+def _industrial_benchmark_maker(config):
+    from raylab.envs.industrial_benchmark.openai_ib import IBEnv
+
+    return IBEnv(
+        setpoint=config.get("setpoint", 50),
+        reward_type=config.get("reward_type", "classic"),
+        action_type=config.get("action_type", "continuous"),
+    )
+
+
 ENVS = {
     "CartPoleSwingUp": _cartpole_swingup_maker,
     "CartPoleStateless": _cartpole_stateless_maker,
     "Navigation": _navigation_maker,
     "MujocoReacher": _mujoco_reacher_maker,
     "MujocoHalfCheetah": _mujoco_half_cheetah_maker,
+    "IndustrialBenchmark": _industrial_benchmark_maker,
 }
