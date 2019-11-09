@@ -46,6 +46,7 @@ def _industrial_benchmark_maker(config):
         setpoint=config.get("setpoint", 50),
         reward_type=config.get("reward_type", "classic"),
         action_type=config.get("action_type", "continuous"),
+        markovian=config.get("markovian", True),
     )
 
 

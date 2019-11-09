@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 class IBEnv(gym.Env):
-    def __init__(self, setpoint, reward_type, action_type="continuous"):
+    def __init__(self, setpoint, reward_type, action_type="continuous", markovian=True):
         # Setting up the IB environment
         self.setpoint = setpoint
         self.IB = IDS(setpoint)
@@ -45,20 +45,26 @@ class IBEnv(gym.Env):
         # in the cost function
         self.reward_function = reward_type
         self.action_type = action_type
+        self.markovian = markovian
+
+        if self.markovian:
+            # Observation bounds for markovian state
+            ob_low = np.array([0, 0, 0, 0, 0, 0] + [0] * 10 + [-np.inf] * 5)
+            ob_high = np.array(
+                [100, 100, 100, 100, 1000, 1000] + [1000] * 10 + [np.inf] * 5
+            )
+        else:
+            # Observation bounds for
+            # [velocity, gain, shift, fatigue, consumption, cost]
+            ob_low = np.array([0, 0, 0, 0, 0, 0])
+            ob_high = np.array([100, 100, 100, 1000, 1000, 1000])
+        self.observation_space = spaces.Box(low=ob_low, high=ob_high, dtype=np.float32)
 
         # Action space and the observation space
         if self.action_type == "discrete":
-
             # Discrete action space with three different values per steerings for the
             # three steerings ( 3^3 = 27)
             self.action_space = spaces.Discrete(27)
-
-            # Observation space for
-            # [setpoint, velocity, gain, shift, fatigue, consumption, cost]
-            self.observation_space = spaces.Box(
-                low=np.array([0, 0, 0, 0, 0, 0]),
-                high=np.array([100, 100, 100, 1000, 1000, 1000]),
-            )
 
             # A list of all possible actions discretized into [-1,0,1]
             # e.g. [[-1,-1,-1],[-1,-1,0],[-1,-1,1],[-1,0,-1],[-1,0,0], ... ]
@@ -69,25 +75,10 @@ class IBEnv(gym.Env):
                 for gain in [-1, 0, 1]:
                     for shift in [-1, 0, 1]:
                         self.env_action.append([vel, gain, shift])
-            self.observation_space = spaces.Box(
-                low=np.array([0, 0, 0, 0, 0, 0]),
-                high=np.array([100, 100, 100, 1000, 1000, 1000]),
-            )
-
         elif self.action_type == "continuous":
-
             # Continuous action space for each steering [-1,1]
-            self.action_space = spaces.Box(
-                np.array([-1, -1, -1]), np.array([+1, +1, +1])
-            )
-
-            # Observation space for
-            # [setpoint, velocity, gain, shift, fatigue, consumption, cost]
-            self.observation_space = spaces.Box(
-                low=np.array([0, 0, 0, 0, 0, 0]),
-                high=np.array([100, 100, 100, 1000, 1000, 1000]),
-            )
-
+            ac_low = np.array([-1, -1, -1])
+            self.action_space = spaces.Box(ac_low, -ac_low, dtype=np.float32)
         else:
             raise ValueError(
                 "Invalid action type {}. "
@@ -96,14 +87,7 @@ class IBEnv(gym.Env):
                 )
             )
 
-        # Values returned by the OpenAI environment placeholder
-        # IB.visibleState() returns
-        # [setpoint, velocity, gain, shift, fatigue, consumption, cost]
-        # Only [velocity, gain, shift, fatigue, consumption] are used as observation
-        self.observation = self.IB.visibleState()[1:-1]
         self.reward = -self.IB.state["cost"]
-        self.info = self.markovianState()
-
         # Alternative reward that returns the improvement or decrease in the cost
         # If the cost function improves/decreases, the reward is positiv
         # If the cost function deteriorates/increases, the reward is negative
@@ -124,8 +108,6 @@ class IBEnv(gym.Env):
             self.IB.step(self.env_action[action])
         elif self.action_type == "continuous":
             self.IB.step(action)
-
-        self.observation = self.IB.visibleState()[1:-1]
 
         # Calculating both the relative reward (improvement or decrease) and updating
         # the reward
@@ -157,17 +139,26 @@ class IBEnv(gym.Env):
             action=action,
         )
 
-        self.info = self.markovianState()
         # reward is divided by 100 to improve learning
-        return self.observation, return_reward / 100, False, self.info
+        return self._get_obs(), return_reward / 100, False, self.markovianState()
+
+    def _get_obs(self):
+        # Values returned by the OpenAI environment placeholder
+        # IB.visibleState() returns
+        # [setpoint, velocity, gain, shift, fatigue, consumption, cost]
+        # Only [velocity, gain, shift, fatigue, consumption] are used as observation
+        # if not markovian
+        return (
+            np.array([*self.markovianState().values()], dtype=np.float32)
+            if self.markovian
+            else self.IB.visibleState()[1:-1].astype(np.float32)
+        )
 
     def reset(self):
         # Resetting the entire environment
         self.IB = IDS(self.setpoint)
-        self.observation = self.IB.visibleState()[1:-1]
-        self.info = self.markovianState()
         self.reward = -self.IB.state["cost"]
-        return self.observation
+        return self._get_obs()
 
     def seed(self, seed=None):
         return self.IB.set_seed(seed)
