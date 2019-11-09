@@ -44,9 +44,6 @@ class IBEnv(gym.Env):
         # Used to determine whether to return the absolute value or the relative change
         # in the cost function
         self.reward_function = reward_type
-        # Used to set an arbitrary limit of how many time steps the environment can take
-        # before resetting. Could potentially be unlimited
-        self.reset_after_timesteps = 1000
         self.action_type = action_type
 
         # Action space and the observation space
@@ -105,7 +102,6 @@ class IBEnv(gym.Env):
         # Only [velocity, gain, shift, fatigue, consumption] are used as observation
         self.observation = self.IB.visibleState()[1:-1]
         self.reward = -self.IB.state["cost"]
-        self.done = False
         self.info = self.markovianState()
 
         # Alternative reward that returns the improvement or decrease in the cost
@@ -113,11 +109,6 @@ class IBEnv(gym.Env):
         # If the cost function deteriorates/increases, the reward is negative
         # e.g.: -400 -> -450 = delta_reward of -50
         self.delta_reward = 0
-
-        # env_steps is used for the self.done variable. If it's larger than e.g. 1000,
-        # the environment resets
-        # Can be an arbitrary high number
-        self.env_steps = 0
 
         # smoothed_cost is used as a smoother cost function for monitoring the agent
         # & environment with lower variance
@@ -145,12 +136,6 @@ class IBEnv(gym.Env):
         # follow visually
         self.smoothed_cost = int(0.9 * self.smoothed_cost + 0.1 * self.IB.state["cost"])
 
-        # Stopping condition
-        if self.env_steps >= self.reset_after_timesteps:
-            self.done = True
-
-        self.env_steps += 1
-
         # Two reward functions are available:
         # 'classic' which returns the original cost and
         # 'delta' which returns the change in the cost function w.r.t. the previous cost
@@ -174,7 +159,7 @@ class IBEnv(gym.Env):
 
         self.info = self.markovianState()
         # reward is divided by 100 to improve learning
-        return self.observation, return_reward / 100, self.done, self.info
+        return self.observation, return_reward / 100, False, self.info
 
     def reset(self):
         # Resetting the entire environment
@@ -182,8 +167,6 @@ class IBEnv(gym.Env):
         self.observation = self.IB.visibleState()[1:-1]
         self.info = self.markovianState()
         self.reward = -self.IB.state["cost"]
-        self.env_steps = 0
-        self.done = False
         return self.observation
 
     def seed(self, seed=None):
