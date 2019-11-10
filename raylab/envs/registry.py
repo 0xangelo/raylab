@@ -1,4 +1,6 @@
 """Registry of custom Gym environments."""
+import inspect
+
 from .utils import wrap_if_needed
 
 
@@ -38,10 +40,20 @@ def _mujoco_half_cheetah_maker(_):
     return HalfCheetahEnv()
 
 
+@wrap_if_needed
+def _industrial_benchmark_maker(config):
+    from raylab.envs.industrial_benchmark.openai_ib import IBEnv
+
+    return IBEnv(
+        **{k: config[k] for k in inspect.signature(IBEnv).parameters if k in config}
+    )
+
+
 ENVS = {
     "CartPoleSwingUp": _cartpole_swingup_maker,
     "CartPoleStateless": _cartpole_stateless_maker,
     "Navigation": _navigation_maker,
     "MujocoReacher": _mujoco_reacher_maker,
     "MujocoHalfCheetah": _mujoco_half_cheetah_maker,
+    "IndustrialBenchmark": _industrial_benchmark_maker,
 }
