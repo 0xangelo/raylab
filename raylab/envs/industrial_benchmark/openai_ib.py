@@ -55,8 +55,8 @@ class IBEnv(gym.Env):
 
         if self.markovian:
             # Observation bounds for markovian state
-            ob_low = np.array([0, 0, 0, 0, 0, 0] + [-np.inf] * 15)
-            ob_high = np.array([100, 100, 100, 100, 1000, 1000] + [np.inf] * 15)
+            ob_low = np.array([-np.inf] * 21)
+            ob_high = np.array([np.inf] * 21)
         else:
             # Observation bounds for
             # [velocity, gain, shift, fatigue, consumption, cost]
