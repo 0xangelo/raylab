@@ -1,16 +1,12 @@
-"""Tune experiment configuration to test SAC in CartPoleSwingUp.
-
-This can be run from the command line by executing
-`raylab experiment SAC --config examples/naf_exploration_experiment.py -s timesteps_total 100000`
-"""
-from ray import tune
+"""Tune experiment configuration to test SAC in CartPoleSwingUp."""
+from ray import tune  # pylint: disable=unused-import
 
 
-def get_config():
+def get_config():  # pylint: disable=missing-docstring
     return {
         # === Environment ===
         "env": "CartPoleSwingUp",
-        "env_config": {"max_episode_steps": 500, "time_aware": False},
+        "env_config": {"max_episode_steps": 200, "time_aware": False},
         # === Replay Buffer ===
         "buffer_size": int(1e5),
         # === Optimization ===
@@ -26,13 +22,13 @@ def get_config():
         # linear in states and/or actions.
         "module": {
             "policy": {
-                "units": (128, 128),
+                "units": (64,),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "input_dependent_scale": True,
             },
             "critic": {
-                "units": (128, 128),
+                "units": (64,),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "delay_action": True,
