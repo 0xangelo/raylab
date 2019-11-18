@@ -56,7 +56,7 @@ Q_LEARNING_CONFIG = {
 
 REPLAY_CONFIG = {
     # === Replay Buffer ===
-    "buffer_size": int(1e4)
+    "buffer_size": int(2e4)
 }
 
 EXPLORATION_CONFIG = {
