@@ -1,4 +1,6 @@
 import os.path as osp
+
+import click
 import matplotlib.pyplot as plt
 import seaborn as sns
 from raylab.viskit import core
@@ -23,7 +25,7 @@ def process_algorithm_name(exp_data):
     return exp_data
 
 
-def plot_grid(local_dir):
+def plot_navigation_grid(local_dir):
     """Plot experiment comparative grid."""
 
     path_fmt = osp.join(local_dir, "{}-Navigation-{}/")
@@ -59,7 +61,7 @@ def plot_grid(local_dir):
                 sns.lineplot(
                     ax=axes[i][j],
                     legend="full" if i == 2 and j == 2 else False,
-                    **plot_kwargs
+                    **plot_kwargs,
                 )
 
         # Just some formatting niceness:
@@ -92,3 +94,32 @@ def plot_grid(local_dir):
 
         fig.tight_layout()
         plt.show()
+
+
+@click.command()
+@click.option(
+    "--local-dir",
+    "-l",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    default="data/",
+    show_default=True,
+    help="",
+)
+@click.option(
+    "--alg-name",
+    "-a",
+    type=click.Choice(["Navigation", "Reservoir"]),
+    default="Navigation",
+    show_default=True,
+    help="Name of algorithm to plot results from.",
+)
+def cli(local_dir, alg_name):
+    """Plot grid of experiment comparisons."""
+    if alg_name == "Navigation":
+        plot_navigation_grid(local_dir)
+    else:
+        raise ValueError(f"Unrecognized algorithm name {alg_name}")
+
+
+if __name__ == "__main__":
+    cli()  # pylint: disable=no-value-for-parameter

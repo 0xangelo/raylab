@@ -7,7 +7,7 @@ from ray import tune
 
 import raylab
 from raylab.logger import DEFAULT_LOGGERS as CUSTOM_LOGGERS
-from plot_icaps_grid import plot_grid
+from plot_icaps_grid import plot_navigation_grid
 
 
 STOP_COND = {"timesteps_total": int(2e4)}
@@ -186,6 +186,28 @@ def experiment(**args):
     ray.init(object_store_memory=args["object_store_memory"])
     logging.getLogger("ray.tune").setLevel(args["tune_log_level"])
 
+    def run_mapo_vs_sop(mapo_config, sop_config, exp_suffix):
+        tune.run(
+            "MAPO",
+            name=f"MAPO-Navigation-{exp_suffix}",
+            local_dir=args["local_dir"],
+            stop=STOP_COND,
+            config=mapo_config,
+            checkpoint_freq=args["checkpoint_freq"],
+            checkpoint_at_end=args["checkpoint_at_end"],
+            loggers=CUSTOM_LOGGERS,
+        )
+        tune.run(
+            "SOP",
+            name=f"SOP-Navigation-{exp_suffix}",
+            local_dir=args["local_dir"],
+            stop=STOP_COND,
+            config=sop_config,
+            checkpoint_freq=args["checkpoint_freq"],
+            checkpoint_at_end=args["checkpoint_at_end"],
+            loggers=CUSTOM_LOGGERS,
+        )
+
     base_config = {
         **Q_LEARNING_CONFIG,
         **REPLAY_CONFIG,
@@ -204,6 +226,8 @@ def experiment(**args):
         },
     }
     mapo_config = {
+        **base_config,
+        **env_config,
         **MAPO_CONFIG,
         "module": {
             **ACTOR_CRITIC_CONFIG,
@@ -216,27 +240,8 @@ def experiment(**args):
             },
         },
     }
-
-    tune.run(
-        "MAPO",
-        name="MAPO-Navigation-Walks",
-        local_dir=args["local_dir"],
-        stop=STOP_COND,
-        config={**base_config, **env_config, **mapo_config},
-        checkpoint_freq=args["checkpoint_freq"],
-        checkpoint_at_end=args["checkpoint_at_end"],
-        loggers=CUSTOM_LOGGERS,
-    )
-    tune.run(
-        "SOP",
-        name="SOP-Navigation-Walks",
-        local_dir=args["local_dir"],
-        stop=STOP_COND,
-        config={**base_config, **env_config, **SOP_CONFIG},
-        checkpoint_freq=args["checkpoint_freq"],
-        checkpoint_at_end=args["checkpoint_at_end"],
-        loggers=CUSTOM_LOGGERS,
-    )
+    sop_config = {**base_config, **env_config, **SOP_CONFIG}
+    run_mapo_vs_sop(mapo_config, sop_config, "Walks")
 
     # === Non-Diag Covariance Experiments ===
     env_config = {
@@ -247,6 +252,8 @@ def experiment(**args):
         },
     }
     mapo_config = {
+        **base_config,
+        **env_config,
         **MAPO_CONFIG,
         "module": {
             **ACTOR_CRITIC_CONFIG,
@@ -259,27 +266,8 @@ def experiment(**args):
             },
         },
     }
-
-    tune.run(
-        "MAPO",
-        name="MAPO-Navigation-NonDiagCov",
-        local_dir=args["local_dir"],
-        stop=STOP_COND,
-        config={**base_config, **env_config, **mapo_config},
-        checkpoint_freq=args["checkpoint_freq"],
-        checkpoint_at_end=args["checkpoint_at_end"],
-        loggers=CUSTOM_LOGGERS,
-    )
-    tune.run(
-        "SOP",
-        name="SOP-Navigation-NonDiagCov",
-        local_dir=args["local_dir"],
-        stop=STOP_COND,
-        config={**base_config, **env_config, **SOP_CONFIG},
-        checkpoint_freq=args["checkpoint_freq"],
-        checkpoint_at_end=args["checkpoint_at_end"],
-        loggers=CUSTOM_LOGGERS,
-    )
+    sop_config = {**base_config, **env_config, **SOP_CONFIG}
+    run_mapo_vs_sop(mapo_config, sop_config, "NonDiagCov")
 
     # === Linear Model Experiments ===
     env_config = {
@@ -288,6 +276,8 @@ def experiment(**args):
         "env_config": {"deceleration_zones": DECELERATION_ZONES},
     }
     mapo_config = {
+        **base_config,
+        **env_config,
         **MAPO_CONFIG,
         "module": {
             **ACTOR_CRITIC_CONFIG,
@@ -300,29 +290,10 @@ def experiment(**args):
             },
         },
     }
+    sop_config = {**base_config, **env_config, **SOP_CONFIG}
+    run_mapo_vs_sop(mapo_config, sop_config, "LinearModel")
 
-    tune.run(
-        "MAPO",
-        name="MAPO-Navigation-LinearModel",
-        local_dir=args["local_dir"],
-        stop=STOP_COND,
-        config={**base_config, **env_config, **mapo_config},
-        checkpoint_freq=args["checkpoint_freq"],
-        checkpoint_at_end=args["checkpoint_at_end"],
-        loggers=CUSTOM_LOGGERS,
-    )
-    tune.run(
-        "SOP",
-        name="SOP-Navigation-LinearModel",
-        local_dir=args["local_dir"],
-        stop=STOP_COND,
-        config={**base_config, **env_config, **SOP_CONFIG},
-        checkpoint_freq=args["checkpoint_freq"],
-        checkpoint_at_end=args["checkpoint_at_end"],
-        loggers=CUSTOM_LOGGERS,
-    )
-
-    plot_grid(args["local_dir"])
+    plot_navigation_grid(args["local_dir"])
 
 
 if __name__ == "__main__":
