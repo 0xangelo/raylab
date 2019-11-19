@@ -35,6 +35,16 @@ def navigation_env(envs):
     return envs["Navigation"]
 
 
+@pytest.fixture
+def reservoir_env(envs):
+    return envs["Reservoir"]
+
+
+@pytest.fixture
+def hvac_env(envs):
+    return envs["HVAC"]
+
+
 @pytest.fixture(params=(True, False))
 def cartpole_swingup_env(request, envs):
     return lambda _: envs["CartPoleSwingUp"](
