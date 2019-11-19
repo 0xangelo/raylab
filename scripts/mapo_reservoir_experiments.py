@@ -2,6 +2,7 @@
 import logging
 
 import click
+import numpy as np
 import ray
 from ray import tune
 
@@ -11,18 +12,18 @@ from raylab.envs.reservoir import DEFAULT_CONFIG as ENV_CONFIG
 from plot_icaps_grid import plot_reservoir_grid
 
 
-STOP_COND = {"timesteps_total": int(2e4)}
+STOP_COND = {"timesteps_total": int(1e4)}
 
 ACTOR_CRITIC_CONFIG = {
     "policy": {
-        "units": (64,),
-        "activation": "ReLU",
-        "initializer_options": {"name": "xavier_uniform"},
+        "units": (128, 128),
+        "activation": "ELU",
+        "initializer_options": {"name": "xavier_uniform", "gain": np.sqrt(2)},
     },
     "critic": {
-        "units": (64,),
-        "activation": "ReLU",
-        "initializer_options": {"name": "xavier_uniform"},
+        "units": (128, 128),
+        "activation": "ELU",
+        "initializer_options": {"name": "xavier_uniform", "gain": np.sqrt(2)},
         "delay_action": True,
     },
 }
@@ -46,7 +47,7 @@ Q_LEARNING_CONFIG = {
 
 REPLAY_CONFIG = {
     # === Replay Buffer ===
-    "buffer_size": int(2e4)
+    "buffer_size": int(1e4)
 }
 
 EXPLORATION_CONFIG = {
@@ -104,7 +105,7 @@ MAPO_CONFIG = {
     "norm_type": 2,
     # Number of next states to sample from the model when calculating the
     # model-aware deterministic policy gradient
-    "num_model_samples": 4,
+    "num_model_samples": 8,
     # === Optimization ===
     # PyTorch optimizer to use for policy
     "policy_optimizer": {"name": "RMSprop", "options": {"lr": 1e-4}},
@@ -204,7 +205,7 @@ def experiment(**args):
         **EXPLORATION_CONFIG,
         **EVALUATION_CONFIG,
         **TRAINER_CONFIG,
-        "seed": tune.grid_search(list(range(10))),
+        "seed": tune.grid_search(list(range(6))),
     }
 
     # === Random Walk Experiments ===
@@ -212,7 +213,7 @@ def experiment(**args):
         "env": "Reservoir",
         "env_config": {
             **ENV_CONFIG,
-            "random_walks": {"num_walks": 8, "loc": 10.0, "scale": 2.0},
+            "random_walks": {"num_walks": 16, "loc": 10.0, "scale": 2.0},
         },
     }
     mapo_config = {
@@ -225,7 +226,7 @@ def experiment(**args):
                 "units": (len(env_config["env_config"]["SINK_RES"]),),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
-                "delay_action": True,
+                "delay_action": False,
                 "input_dependent_scale": False,
             },
         },
@@ -242,9 +243,9 @@ def experiment(**args):
         "module": {
             **ACTOR_CRITIC_CONFIG,
             "model": {
-                "units": (64,),
-                "activation": "ReLU",
-                "initializer_options": {"name": "xavier_uniform"},
+                "units": (128, 128),
+                "activation": "ELU",
+                "initializer_options": {"name": "xavier_uniform", "gain": np.sqrt(2)},
                 "delay_action": True,
                 "input_dependent_scale": False,
             },
@@ -265,7 +266,7 @@ def experiment(**args):
                 "units": (),
                 "activation": None,
                 "initializer_options": {"name": "xavier_uniform"},
-                "delay_action": True,
+                "delay_action": False,
                 "input_dependent_scale": False,
             },
         },
