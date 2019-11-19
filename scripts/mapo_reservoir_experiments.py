@@ -216,7 +216,8 @@ def experiment(**args):
         },
     }
     mapo_config = {
-        **base_config ** env_config,
+        **base_config,
+        **env_config,
         **MAPO_CONFIG,
         "module": {
             **ACTOR_CRITIC_CONFIG,
