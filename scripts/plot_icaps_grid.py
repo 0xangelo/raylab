@@ -16,12 +16,20 @@ def process_deceleration_zones(exp_data):
 def process_algorithm_name(exp_data):
     if "model_loss" in exp_data.params:
         model_loss = "MLE" if exp_data.params["model_loss"] == "mle" else "MAPO"
-        grad_estimator = (
-            "SF" if exp_data.params["grad_estimator"] == "score_function" else "PD"
-        )
-        exp_data.flat_params["algorithm"] = model_loss + " " + grad_estimator
+        exp_data.flat_params["algorithm"] = model_loss
     else:
         exp_data.flat_params["algorithm"] = "SOP"
+    return exp_data
+
+
+def process_grad_estimator(exp_data):
+    if "grad_estimator" in exp_data.params:
+        grad_estimator = exp_data.params["grad_estimator"]
+        exp_data.flat_params["grad_estimator"] = (
+            "SF" if grad_estimator == "score_function" else "PD"
+        )
+    else:
+        exp_data.flat_params["grad_estimator"] = ""
     return exp_data
 
 
@@ -33,10 +41,17 @@ def plot_navigation_grid(local_dir):
         x="timesteps_total",
         y="evaluation/episode_reward_mean",
         hue="algorithm",
+        style="grad_estimator",
         units=None,
         estimator="mean",
         err_style="band",
     )
+
+    def process_params(exp_data):
+        exp_data = process_deceleration_zones(exp_data)
+        exp_data = process_algorithm_name(exp_data)
+        exp_data = process_grad_estimator(exp_data)
+        return exp_data
 
     cols = "Walks NonDiagCov LinearModel".split()
     rows = ["{} Zones".format(col) for col in (1, 2, 4)]
@@ -48,10 +63,8 @@ def plot_navigation_grid(local_dir):
             exps_data = core.load_exps_data(
                 path_fmt.format("MAPO", col)
             ) + core.load_exps_data(path_fmt.format("SOP", col))
-            exps_data = list(
-                map(process_deceleration_zones, map(process_algorithm_name, exps_data))
-            )
-            core.insert_params_dataframe(exps_data, "algorithm")
+            exps_data = list(map(process_params, exps_data))
+            core.insert_params_dataframe(exps_data, "algorithm", "grad_estimator")
             selectors, titles = core.filter_and_split_experiments(
                 exps_data, split="num_zones"
             )
@@ -61,6 +74,7 @@ def plot_navigation_grid(local_dir):
                 sns.lineplot(
                     ax=axes[i][j],
                     legend="full" if i == 2 and j == 2 else False,
+                    palette=["#1f77b4", "#ff7f0e", "grey"],
                     **plot_kwargs,
                 )
 
@@ -112,7 +126,7 @@ def plot_reservoir_grid(local_dir):
     cols = "Walks NonDiagCov LinearModel".split()
 
     with sns.plotting_context("paper"):
-        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(4, 8))
+        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(8, 4))
 
         for j, col in enumerate(cols):
             exps_data = core.load_exps_data(
