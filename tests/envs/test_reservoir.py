@@ -6,9 +6,24 @@ import numpy as np
 import torch
 
 
+BATCH_SIZE = 32
+
+
 @pytest.fixture
 def env(reservoir_env):
     return reservoir_env({})
+
+
+def get_batch_states(env):
+    return torch.as_tensor(
+        np.stack([env.observation_space.sample() for _ in range(BATCH_SIZE)])
+    )
+
+
+def get_batch_actions(env):
+    return torch.as_tensor(
+        np.stack([env.action_space.sample() for _ in range(BATCH_SIZE)])
+    )
 
 
 def test_observation_space(env):
@@ -31,7 +46,7 @@ def test_action_space(env):
     assert action_space.low.shape == (env._num_reservoirs,)
     assert action_space.high.shape == (env._num_reservoirs,)
     assert np.allclose(action_space.low, 0.0)
-    assert np.allclose(action_space.high, env._state[:-1])
+    assert np.allclose(action_space.high, 1.0)
 
     action = action_space.sample()
     assert action is not None
@@ -95,13 +110,10 @@ def test_transition_fn(env):
 
 
 def test_reward_fn(env):
-    state = env.observation_space.sample()
-    action = env.action_space.sample()
-    next_state, _ = env.transition_fn(state, action)
-
-    reward = env.reward_fn(state, action, next_state)
-    assert reward.shape == ()
-    assert reward <= 0.0
+    next_state = get_batch_states(env)
+    reward = env.reward_fn(None, None, next_state)
+    assert reward.shape == (BATCH_SIZE,)
+    assert (reward <= 0.0).all()
 
 
 def test_step(env):
