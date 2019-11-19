@@ -94,7 +94,7 @@ class ReservoirEnv(gym.Env):
     def _evaporated(self):
         EVAP_PER_TIME_UNIT = self._config["MAX_WATER_EVAP_FRAC_PER_TIME_UNIT"]
         MAX_RES_CAP = torch.as_tensor(self._config["MAX_RES_CAP"])
-        return EVAP_PER_TIME_UNIT * (self.rlevel ** 3) / (MAX_RES_CAP ** 2)
+        return EVAP_PER_TIME_UNIT * torch.log(1.0 + self.rlevel) * (self.rlevel ** 2) / (MAX_RES_CAP ** 2)
 
     def _overflow(self, action):
         MIN_RES_CAP = torch.zeros(self._num_reservoirs)
