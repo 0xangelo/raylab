@@ -41,27 +41,20 @@ class ReservoirEnv(gym.Env):
 
         self._num_reservoirs = len(self._config["init"]["rlevel"])
 
-        self._state = None
-        self.reset()
+        self.action_space = gym.spaces.Box(
+            low=np.array([0.0] * self._num_reservoirs, dtype=np.float32),
+            high=np.array([1.0] * self._num_reservoirs, dtype=np.float32),
+        )
 
-        self.observation_space = None
-        self.action_space = None
-        self._set_observation_space()
-        self._set_action_space()
-
-        self._horizon = self._config["horizon"]
-
-    def _set_observation_space(self):
         self.observation_space = gym.spaces.Box(
             low=np.array([0.0] * (self._num_reservoirs + 1) , dtype=np.float32),
             high=np.array(self._config["MAX_RES_CAP"] + [1.0], dtype=np.float32),
         )
 
-    def _set_action_space(self):
-        self.action_space = gym.spaces.Box(
-            low=np.array([0.0] * self._num_reservoirs, dtype=np.float32),
-            high=np.array(self._state[:-1], dtype=np.float32),
-        )
+        self._state = None
+        self.reset()
+
+        self._horizon = self._config["horizon"]
 
     def reset(self):
         self._state = np.array(self._config["init"]["rlevel"] + [0.0])
@@ -78,13 +71,13 @@ class ReservoirEnv(gym.Env):
         next_state, _ = self.transition_fn(state, action)
         reward = self.reward_fn(state, action, next_state).item()
         self._state = next_state.numpy()
-        self._set_action_space()
         return self._state, reward, self._terminal(), {}
 
     def transition_fn(self, state, action, sample_shape=()):
         # pylint: disable=missing-docstring
         state, time = self._unpack_state(state)
         rain, logp = self._rainfall(sample_shape)
+        action = torch.as_tensor(action) * state
         next_state = self._rlevel(action, rain)
         time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0).detach()
         time = time.expand_as(next_state[..., -1:])
@@ -143,7 +136,7 @@ class ReservoirEnv(gym.Env):
             )
         )
 
-        return penalty.sum()
+        return penalty.sum(dim=-1)
 
     def _terminal(self):
         _, time = self._unpack_state(self._state)
