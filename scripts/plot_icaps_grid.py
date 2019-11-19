@@ -118,23 +118,19 @@ def plot_reservoir_grid(local_dir):
             exps_data = core.load_exps_data(
                 path_fmt.format("MAPO", col)
             ) + core.load_exps_data(path_fmt.format("SOP", col))
-            exps_data = list(
-                map(process_deceleration_zones, map(process_algorithm_name, exps_data))
-            )
+            exps_data = list(map(process_algorithm_name, exps_data))
             core.insert_params_dataframe(exps_data, "algorithm")
             selectors, titles = core.filter_and_split_experiments(exps_data)
             plot_inst = core.lineplot_instructions(selectors, titles, **args)[0]
             plot_kwargs = plot_inst["lineplot_kwargs"]
-            sns.lineplot(
-                ax=axes[1][j], legend="full" if j == 2 else False, **plot_kwargs
-            )
+            sns.lineplot(ax=axes[j], legend="full" if j == 2 else False, **plot_kwargs)
 
         # Just some formatting niceness:
         # x-axis scale in scientific notation if max x is large
         plt.ticklabel_format(style="sci", axis="x", scilimits=(0, 0))
 
         pad = 5  # in points
-        for ax, col in zip(axes[0], cols):
+        for ax, col in zip(axes, cols):
             ax.annotate(
                 col,
                 xy=(0.5, 1),
