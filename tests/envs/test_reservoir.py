@@ -32,7 +32,7 @@ def test_observation_space(env):
     assert obs_space.low.shape == (env._num_reservoirs + 1,)
     assert obs_space.high.shape == (env._num_reservoirs + 1,)
     assert np.allclose(obs_space.low, 0.0)
-    assert np.allclose(obs_space.high[:-1], np.array(env._config["MAX_RES_CAP"]))
+    assert np.allclose(obs_space.high[:-1], np.inf)
     assert np.allclose(obs_space.high[-1], 1.0)
 
     obs = obs_space.sample()
