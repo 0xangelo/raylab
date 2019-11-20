@@ -129,7 +129,7 @@ def plot_reservoir_grid(local_dir):
         exp_data = process_grad_estimator(exp_data)
         return exp_data
 
-    cols = "Walks NonDiagCov LinearModel".split()
+    cols = "Walks FullModel LinearModel".split()
 
     with sns.plotting_context("paper"):
         fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(8, 4))

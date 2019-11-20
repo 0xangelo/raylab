@@ -234,7 +234,7 @@ def experiment(**args):
     sop_config = {**base_config, **env_config, **SOP_CONFIG}
     run_mapo_vs_sop(mapo_config, sop_config, "Walks")
 
-    # === Non-Diag Covariance Experiments ===
+    # === Full Model Experiments ===
     env_config = {"env": "Reservoir"}
     mapo_config = {
         **base_config,
@@ -252,7 +252,7 @@ def experiment(**args):
         },
     }
     sop_config = {**base_config, **env_config, **SOP_CONFIG}
-    run_mapo_vs_sop(mapo_config, sop_config, "NonDiagCov")
+    run_mapo_vs_sop(mapo_config, sop_config, "FullModel")
 
     # === Linear Model Experiments ===
     env_config = {"env": "Reservoir"}
