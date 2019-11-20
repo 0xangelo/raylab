@@ -51,19 +51,25 @@ def plot_navigation_grid(local_dir):
     with sns.plotting_context("paper"):
         fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(15, 10))
 
-        for j, col in enumerate(cols):
+        for ax, col in zip(axes, cols):
             exps_data = core.load_exps_data(
                 path_fmt.format("MAPO", col)
             ) + core.load_exps_data(path_fmt.format("SOP", col))
             exps_data = list(map(process_params, exps_data))
+            if not exps_data:
+                continue
+
             core.insert_params_dataframe(exps_data, "algorithm", "grad_estimator")
             selectors, titles = core.filter_and_split_experiments(exps_data)
             inst = core.lineplot_instructions(selectors, titles, **args)[0]
             plot_kwargs = inst["lineplot_kwargs"]
             sns.lineplot(
-                ax=axes[j],
-                legend="full" if j == 2 else False,
-                palette=["#1f77b4", "#ff7f0e", "grey"],
+                ax=ax,
+                legend="full",
+                palette=sns.color_palette(
+                    ["#1f77b4", "#ff7f0e", "grey"],
+                    n_colors=len(plot_kwargs["hue_order"]),
+                ),
                 **plot_kwargs,
             )
 
@@ -117,6 +123,9 @@ def plot_reservoir_grid(local_dir):
                 path_fmt.format("MAPO", col)
             ) + core.load_exps_data(path_fmt.format("SOP", col))
             exps_data = list(map(process_params, exps_data))
+            if not exps_data:
+                continue
+
             core.insert_params_dataframe(exps_data, "algorithm", "grad_estimator")
             selectors, titles = core.filter_and_split_experiments(exps_data)
             plot_inst = core.lineplot_instructions(selectors, titles, **args)[0]
@@ -124,7 +133,10 @@ def plot_reservoir_grid(local_dir):
             sns.lineplot(
                 ax=axes[j],
                 legend="full" if j == 2 else False,
-                palette=["#1f77b4", "#ff7f0e", "grey"],
+                palette=sns.color_palette(
+                    ["#1f77b4", "#ff7f0e", "grey"],
+                    n_colors=len(plot_kwargs["hue_order"]),
+                ),
                 **plot_kwargs,
             )
 
@@ -179,6 +191,9 @@ def plot_hvac_grid(local_dir):
                 path_fmt.format("MAPO", col)
             ) + core.load_exps_data(path_fmt.format("SOP", col))
             exps_data = list(map(process_params, exps_data))
+            if not exps_data:
+                continue
+
             core.insert_params_dataframe(exps_data, "algorithm", "grad_estimator")
             selectors, titles = core.filter_and_split_experiments(exps_data)
             inst = core.lineplot_instructions(selectors, titles, **args)[0]
@@ -186,7 +201,10 @@ def plot_hvac_grid(local_dir):
             sns.lineplot(
                 ax=axes[j],
                 legend="full" if j == 2 else False,
-                palette=["#1f77b4", "#ff7f0e", "grey"],
+                palette=sns.color_palette(
+                    ["#1f77b4", "#ff7f0e", "grey"],
+                    n_colors=len(plot_kwargs["hue_order"]),
+                ),
                 **plot_kwargs,
             )
 
