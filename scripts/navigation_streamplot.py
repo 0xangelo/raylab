@@ -1,5 +1,6 @@
 import itertools
 
+import click
 import matplotlib.pyplot as plt
 import torch
 import numpy as np
@@ -67,37 +68,41 @@ def _render_path(ax, x, y, deltas):
 
 #######################################################################################
 
-ray.init()
-raylab.register_all_agents()
-raylab.register_all_environments()
 
-agent = get_agent(
-    # "data/test_policy/checkpoint_100/checkpoint-100", "MAPO", "Navigation"
-    # "data/20191119/test6/MAPO-Navigation-Walks/MAPO_Navigation_13_grad_estimator=pathwise_derivative,model_loss=decision_aware,seed=3_2019-11-19_22-47-521vi8s2kw/checkpoint_100/checkpoint-100", "MAPO", "Navigation"
-    "data/20191119/test6/SOP-Navigation-Walks/MaryWalks/checkpoint_100/checkpoint-100", "SOP", "Navigation"
-)
-env = agent.workers.local_worker().env
-env_original = env.env
+@click.command()
+@click.argument("checkpoint")
+@click.option("--algo", default=None, help="Name of the trainable class to run.")
+@click.pass_context
+def make_streamplot(ctx, checkpoint, algo):
+    """Simulate an agent from a given checkpoint in the desired environment."""
+    if not algo:
+        click.echo("No algorithm name provided, exiting...")
+        ctx.exit()
 
-policy = agent.get_policy()
-print(env.observation_space.shape)
+    ray.init()
+    raylab.register_all_agents()
+    raylab.register_all_environments()
 
-x = np.linspace(env_original._start[0] - 1, env_original._end[0] + 1, 25)
-y = np.linspace(env_original._start[1] - 1, env_original._end[1] + 1, 25)
+    agent = get_agent(checkpoint, algo, "Navigation")
+    env = agent.workers.local_worker().env
+    policy = agent.get_policy()
 
-print(x.shape)
-print(y.shape)
+    x = np.linspace(env._start[0] - 1, env._end[0] + 1, 25)
+    y = np.linspace(env._start[1] - 1, env._end[1] + 1, 25)
 
-obs = torch.Tensor(np.stack(list(itertools.product(x, y))))
-obs = torch.cat([obs, 0.2 + torch.zeros((625, 17)) ], dim=-1)
+    obs = torch.Tensor(np.stack(list(itertools.product(x, y))))
+    obs = torch.cat([obs, torch.zeros_like(obs[..., :1])], dim=-1)
+
+    acts, _, _ = policy.compute_actions(obs, [])
+
+    fig, ax = _create_fig()
+    _render_start_and_goal_positions(ax, env._start, env._end)
+    _render_deceleration_zones(
+        ax, env._start, env._end, zip(env._deceleration_center, env._deceleration_decay)
+    )
+    _render_path(ax, x, y, acts)
+    plt.show()
 
 
-acts, _, _ = policy.compute_actions(obs, [])
-
-fig, ax = _create_fig()
-_render_start_and_goal_positions(ax, env_original._start, env_original._end)
-_render_deceleration_zones(
-    ax, env_original._start, env_original._end, zip(env_original._deceleration_center, env_original._deceleration_decay)
-)
-_render_path(ax, x, y, acts)
-plt.show()
+if __name__ == "__main__":
+    make_streamplot()  # pylint: disable=no-value-for-parameter
