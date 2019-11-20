@@ -6,8 +6,8 @@ import numpy as np
 
 
 DEFAULT_CONFIG = {
-    "start": [-10.0, -10.0],
-    "end": [10.0, 10.0],
+    "start": [0.0, 1.0],
+    "end": [8.0, 9.0],
     "action_lower_bound": [-1.0, -1.0],
     "action_upper_bound": [1.0, 1.0],
     "deceleration_zones": {"center": [[0.0, 0.0]], "decay": [2.0]},
