@@ -6,13 +6,6 @@ import seaborn as sns
 from raylab.viskit import core
 
 
-def process_deceleration_zones(exp_data):
-    exp_data.flat_params["num_zones"] = len(
-        exp_data.flat_params["env_config/deceleration_zones/decay"]
-    )
-    return exp_data
-
-
 def process_algorithm_name(exp_data):
     if "model_loss" in exp_data.params:
         model_loss = "MLE" if exp_data.params["model_loss"] == "mle" else "MAPO"
@@ -38,7 +31,8 @@ def plot_navigation_grid(local_dir):
 
     path_fmt = osp.join(local_dir, "{}-Navigation-{}/")
     args = dict(
-        x="timesteps_total",
+        # x="timesteps_total",
+        x="iterations_since_restore",
         y="evaluation/episode_reward_mean",
         hue="algorithm",
         style="grad_estimator",
@@ -48,16 +42,14 @@ def plot_navigation_grid(local_dir):
     )
 
     def process_params(exp_data):
-        exp_data = process_deceleration_zones(exp_data)
         exp_data = process_algorithm_name(exp_data)
         exp_data = process_grad_estimator(exp_data)
         return exp_data
 
     cols = "Walks NonDiagCov LinearModel".split()
-    rows = ["{} Zones".format(col) for col in (1, 2, 4)]
 
     with sns.plotting_context("paper"):
-        fig, axes = plt.subplots(3, 3, sharex=True, sharey=True, figsize=(8, 8))
+        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(15, 10))
 
         for j, col in enumerate(cols):
             exps_data = core.load_exps_data(
@@ -66,24 +58,23 @@ def plot_navigation_grid(local_dir):
             exps_data = list(map(process_params, exps_data))
             core.insert_params_dataframe(exps_data, "algorithm", "grad_estimator")
             selectors, titles = core.filter_and_split_experiments(
-                exps_data, split="num_zones"
+                exps_data
             )
-            plot_insts = core.lineplot_instructions(selectors, titles, **args)
-            for i, inst in enumerate(plot_insts):
-                plot_kwargs = inst["lineplot_kwargs"]
-                sns.lineplot(
-                    ax=axes[i][j],
-                    legend="full" if i == 2 and j == 2 else False,
-                    palette=["#1f77b4", "#ff7f0e", "grey"],
-                    **plot_kwargs,
-                )
+            inst = core.lineplot_instructions(selectors, titles, **args)[0]
+            plot_kwargs = inst["lineplot_kwargs"]
+            sns.lineplot(
+                ax=axes[j],
+                legend="full" if j == 2 else False,
+                palette=["#1f77b4", "#ff7f0e", "grey"],
+                **plot_kwargs,
+            )
 
         # Just some formatting niceness:
         # x-axis scale in scientific notation if max x is large
         plt.ticklabel_format(style="sci", axis="x", scilimits=(0, 0))
 
         pad = 5  # in points
-        for ax, col in zip(axes[0], cols):
+        for ax, col in zip(axes, cols):
             ax.annotate(
                 col,
                 xy=(0.5, 1),
@@ -93,17 +84,6 @@ def plot_navigation_grid(local_dir):
                 size="large",
                 ha="center",
                 va="baseline",
-            )
-        for ax, row in zip(axes[:, 0], rows):
-            ax.annotate(
-                row,
-                xy=(0, 0.5),
-                xytext=(-ax.yaxis.labelpad - pad, 0),
-                xycoords=ax.yaxis.label,
-                textcoords="offset points",
-                size="large",
-                ha="right",
-                va="center",
             )
 
         fig.tight_layout()
@@ -132,7 +112,7 @@ def plot_reservoir_grid(local_dir):
     cols = "Walks FullModel LinearModel".split()
 
     with sns.plotting_context("paper"):
-        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(8, 4))
+        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(15, 4))
 
         for j, col in enumerate(cols):
             exps_data = core.load_exps_data(

@@ -4,35 +4,30 @@ import logging
 import click
 import ray
 from ray import tune
+import numpy as np
 
 import raylab
 from raylab.logger import DEFAULT_LOGGERS as CUSTOM_LOGGERS
 from plot_icaps_grid import plot_navigation_grid
 
 
+
+SEEDS = 6
+
 STOP_COND = {"timesteps_total": int(2e4)}
 
-DECELERATION_ZONES = tune.grid_search(
-    [
-        {"center": [[0.0, 0.0]], "decay": [2.0]},
-        {"center": [[-2.0, 0.0], [2.0, 0.0]], "decay": [2.0, 2.0]},
-        {
-            "center": [[-2.0, -2.0], [-2.0, 2.0], [2.0, -2.0], [2.0, 2.0]],
-            "decay": [2.0, 2.0, 2.0, 2.0],
-        },
-    ]
-)
+DECELERATION_ZONES = {"center": [[5.0, 4.5], [1.5, 3.0]], "decay": [1.15, 1.2]}
 
 ACTOR_CRITIC_CONFIG = {
     "policy": {
-        "units": (64,),
-        "activation": "ReLU",
-        "initializer_options": {"name": "xavier_uniform"},
+        "units": (128, 128),
+        "activation": "ELU",
+        "initializer_options": {"name": "xavier_uniform", "gain": np.sqrt(2)},
     },
     "critic": {
-        "units": (64,),
-        "activation": "ReLU",
-        "initializer_options": {"name": "xavier_uniform"},
+        "units": (128, 128),
+        "activation": "ELU",
+        "initializer_options": {"name": "xavier_uniform", "gain": np.sqrt(2)},
         "delay_action": True,
     },
 }
@@ -114,22 +109,22 @@ MAPO_CONFIG = {
     "norm_type": 2,
     # Number of next states to sample from the model when calculating the
     # model-aware deterministic policy gradient
-    "num_model_samples": 4,
+    "num_model_samples": 16,
     # === Optimization ===
     # PyTorch optimizer to use for policy
-    "policy_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
+    "policy_optimizer": {"name": "RMSprop", "options": {"lr": 1e-4}},
     # PyTorch optimizer to use for critic
-    "critic_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
+    "critic_optimizer": {"name": "RMSprop", "options": {"lr": 1e-4}},
     # PyTorch optimizer to use for model
-    "model_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
+    "model_optimizer": {"name": "RMSprop", "options": {"lr": 1e-4}},
 }
 
 SOP_CONFIG = {
     # === Optimization ===
     # PyTorch optimizer to use for policy
-    "policy_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
+    "policy_optimizer": {"name": "RMSprop", "options": {"lr": 1e-4}},
     # PyTorch optimizer to use for critic
-    "critic_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
+    "critic_optimizer": {"name": "RMSprop", "options": {"lr": 1e-4}},
     # === Network ===
     # Size and activation of the fully connected networks computing the logits
     # for the policy and action-value function. No layers means the component is
@@ -214,7 +209,7 @@ def experiment(**args):
         **EXPLORATION_CONFIG,
         **EVALUATION_CONFIG,
         **TRAINER_CONFIG,
-        "seed": tune.grid_search(list(range(10))),
+        "seed": tune.grid_search(list(range(SEEDS))),
     }
 
     # === Random Walk Experiments ===
@@ -222,7 +217,7 @@ def experiment(**args):
         "env": "Navigation",
         "env_config": {
             "deceleration_zones": DECELERATION_ZONES,
-            "random_walks": {"num_walks": 8, "loc": 10.0, "scale": 2.0},
+            "random_walks": {"num_walks": 16, "loc": 10.0, "scale": 2.0},
         },
     }
     mapo_config = {
@@ -233,9 +228,9 @@ def experiment(**args):
             **ACTOR_CRITIC_CONFIG,
             "model": {
                 "units": (3,),
-                "activation": "ReLU",
+                "activation": None,
                 "initializer_options": {"name": "xavier_uniform"},
-                "delay_action": True,
+                "delay_action": False,
                 "input_dependent_scale": False,
             },
         },
@@ -258,7 +253,7 @@ def experiment(**args):
         "module": {
             **ACTOR_CRITIC_CONFIG,
             "model": {
-                "units": (64,),
+                "units": (128, 128),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "delay_action": True,
