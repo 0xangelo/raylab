@@ -135,7 +135,7 @@ SOP_CONFIG = {
 @click.option(
     "--local-dir",
     "-l",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    type=click.Path(exists=False, file_okay=False, dir_okay=True, resolve_path=True),
     default="data/",
     show_default=True,
     help="",
