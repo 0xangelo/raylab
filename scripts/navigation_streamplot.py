@@ -38,12 +38,14 @@ def _render_deceleration_zones(ax, start, goal, zones, npoints=1000):
         np.linspace(lower[0], upper[0], npoints),
         np.linspace(lower[1], upper[1], npoints),
     )
+
     Lambda = 1.0
     for (xcenter, ycenter), decay in zones:
         x_diff = np.abs(X - xcenter)
         y_diff = np.abs(Y - ycenter)
         D = np.sqrt(x_diff ** 2 + y_diff ** 2)
-        Lambda = 2 / (1 + np.exp(-decay * D)) - 1.00
+        Lambda *= 2 / (1 + np.exp(-decay * D)) - 1.00
+
     ticks = np.arange(0.0, 1.01, 0.10)
     cp = ax.contourf(X, Y, Lambda, ticks, cmap=plt.cm.bone)
     plt.colorbar(cp, ticks=ticks)
@@ -70,23 +72,32 @@ raylab.register_all_agents()
 raylab.register_all_environments()
 
 agent = get_agent(
-    "data/test_policy/checkpoint_100/checkpoint-100", "MAPO", "Navigation"
+    # "data/test_policy/checkpoint_100/checkpoint-100", "MAPO", "Navigation"
+    # "data/20191119/test6/MAPO-Navigation-Walks/MAPO_Navigation_13_grad_estimator=pathwise_derivative,model_loss=decision_aware,seed=3_2019-11-19_22-47-521vi8s2kw/checkpoint_100/checkpoint-100", "MAPO", "Navigation"
+    "data/20191119/test6/SOP-Navigation-Walks/MaryWalks/checkpoint_100/checkpoint-100", "SOP", "Navigation"
 )
 env = agent.workers.local_worker().env
-policy = agent.get_policy()
+env_original = env.env
 
-x = np.linspace(env._start[0] - 1, env._end[0] + 1, 25)
-y = np.linspace(env._start[1] - 1, env._end[1] + 1, 25)
+policy = agent.get_policy()
+print(env.observation_space.shape)
+
+x = np.linspace(env_original._start[0] - 1, env_original._end[0] + 1, 25)
+y = np.linspace(env_original._start[1] - 1, env_original._end[1] + 1, 25)
+
+print(x.shape)
+print(y.shape)
 
 obs = torch.Tensor(np.stack(list(itertools.product(x, y))))
-obs = torch.cat([obs, torch.zeros_like(obs[..., :1])], dim=-1)
+obs = torch.cat([obs, 0.2 + torch.zeros((625, 17)) ], dim=-1)
+
 
 acts, _, _ = policy.compute_actions(obs, [])
 
 fig, ax = _create_fig()
-_render_start_and_goal_positions(ax, env._start, env._end)
+_render_start_and_goal_positions(ax, env_original._start, env_original._end)
 _render_deceleration_zones(
-    ax, env._start, env._end, zip(env._deceleration_center, env._deceleration_decay)
+    ax, env_original._start, env_original._end, zip(env_original._deceleration_center, env_original._deceleration_decay)
 )
 _render_path(ax, x, y, acts)
 plt.show()
