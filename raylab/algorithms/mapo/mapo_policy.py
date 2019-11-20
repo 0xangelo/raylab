@@ -362,7 +362,7 @@ class MAPOTorchPolicy(
         values = rews.sum(0) + gamma ** rollout_len * critic
 
         if config["grad_estimator"] == "score_function":
-            baseline = (module.critics[0](obs, actions) - rews) / gamma
+            baseline = (module.critics[0](obs, actions).squeeze(-1) - rews) / gamma
             loss = torch.mean(logp * (values - baseline).detach(), dim=0).mean().neg()
         elif config["grad_estimator"] == "pathwise_derivative":
             loss = torch.mean(values, dim=0).mean().neg()
