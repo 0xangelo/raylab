@@ -1,4 +1,6 @@
 """CLI for launching Tune experiments."""
+import os
+import os.path as osp
 import logging
 
 import ray
@@ -15,7 +17,7 @@ from raylab.utils.dynamic_import import import_module_from_path
 @click.option(
     "--local-dir",
     "-l",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    type=click.Path(exists=False, file_okay=False, dir_okay=True, resolve_path=True),
     default="data/",
     show_default=True,
     help="",
@@ -88,6 +90,12 @@ from raylab.utils.dynamic_import import import_module_from_path
 )
 def experiment(**args):
     """Launch a Tune experiment from a config file."""
+    if not osp.exists(args["local_dir"]) and click.confirm(
+        "Provided `local_dir` does not exist. Create it?"
+    ):
+        os.makedirs(args["local_dir"])
+        click.echo("Created directory {}".format(args["local_dir"]))
+
     if args["config"] is None:
         config = {}
     else:
