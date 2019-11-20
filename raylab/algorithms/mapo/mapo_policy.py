@@ -340,6 +340,7 @@ class MAPOTorchPolicy(
     @staticmethod
     def compute_madpg_loss(batch_tensors, module, config):
         """Compute loss for model-aware deterministic policy gradient."""
+        # pylint: disable=too-many-locals
         gamma = config["gamma"]
         rollout_len = config["model_rollout_len"]
 
@@ -361,7 +362,8 @@ class MAPOTorchPolicy(
         values = rews.sum(0) + gamma ** rollout_len * critic
 
         if config["grad_estimator"] == "score_function":
-            loss = torch.mean(logp * values.detach(), dim=0).mean().neg()
+            baseline = (module.critics[0](obs, actions) - rews) / gamma
+            loss = torch.mean(logp * (values - baseline).detach(), dim=0).mean().neg()
         elif config["grad_estimator"] == "pathwise_derivative":
             loss = torch.mean(values, dim=0).mean().neg()
         return (
