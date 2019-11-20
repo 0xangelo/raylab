@@ -57,9 +57,7 @@ def plot_navigation_grid(local_dir):
             ) + core.load_exps_data(path_fmt.format("SOP", col))
             exps_data = list(map(process_params, exps_data))
             core.insert_params_dataframe(exps_data, "algorithm", "grad_estimator")
-            selectors, titles = core.filter_and_split_experiments(
-                exps_data
-            )
+            selectors, titles = core.filter_and_split_experiments(exps_data)
             inst = core.lineplot_instructions(selectors, titles, **args)[0]
             plot_kwargs = inst["lineplot_kwargs"]
             sns.lineplot(
