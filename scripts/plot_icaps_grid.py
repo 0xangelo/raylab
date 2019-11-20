@@ -223,7 +223,7 @@ def plot_hvac_grid(local_dir):
 @click.option(
     "--alg-name",
     "-a",
-    type=click.Choice(["Navigation", "Reservoir"]),
+    type=click.Choice(["Navigation", "Reservoir", "HVAC"]),
     default="Navigation",
     show_default=True,
     help="Name of algorithm to plot results from.",
