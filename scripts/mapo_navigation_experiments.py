@@ -1,4 +1,6 @@
 """Script for launching Tune experiments for MAPO."""
+import os
+import os.path as osp
 import logging
 
 import click
@@ -9,7 +11,6 @@ import numpy as np
 import raylab
 from raylab.logger import DEFAULT_LOGGERS as CUSTOM_LOGGERS
 from plot_icaps_grid import plot_navigation_grid
-
 
 
 SEEDS = 6
@@ -137,7 +138,7 @@ SOP_CONFIG = {
 @click.option(
     "--local-dir",
     "-l",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    type=click.Path(exists=False, file_okay=False, dir_okay=True, resolve_path=True),
     default="data/",
     show_default=True,
     help="",
@@ -176,6 +177,12 @@ SOP_CONFIG = {
 )
 def experiment(**args):
     """Launch a Tune experiment for MAPO on Navigation."""
+    if not osp.exists(args["local_dir"]) and click.confirm(
+        "Provided `local_dir` does not exist. Create it?"
+    ):
+        os.makedirs(args["local_dir"])
+        click.echo("Created directory {}".format(args["local_dir"]))
+
     raylab.register_all_agents()
     raylab.register_all_environments()
     ray.init(object_store_memory=args["object_store_memory"])

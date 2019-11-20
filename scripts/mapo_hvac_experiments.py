@@ -1,4 +1,6 @@
 """Script for launching Tune experiments for MAPO."""
+import os
+import os.path as osp
 import logging
 
 import click
@@ -174,6 +176,12 @@ SOP_CONFIG = {
 )
 def experiment(**args):
     """Launch a Tune experiment for MAPO on HVAC."""
+    if not osp.exists(args["local_dir"]) and click.confirm(
+        "Provided `local_dir` does not exist. Create it?"
+    ):
+        os.makedirs(args["local_dir"])
+        click.echo("Created directory {}".format(args["local_dir"]))
+
     raylab.register_all_agents()
     raylab.register_all_environments()
     ray.init(object_store_memory=args["object_store_memory"])
