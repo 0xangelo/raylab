@@ -223,7 +223,7 @@ def experiment(**args):
         "module": {
             **ACTOR_CRITIC_CONFIG,
             "model": {
-                "units": (len(env_config["env_config"]["SINK_RES"]),),
+                "units": (len(env_config["env_config"]["SINK_RES"]) + 1,),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "delay_action": False,
