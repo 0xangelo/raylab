@@ -27,6 +27,20 @@ def _navigation_maker(config):
 
 
 @wrap_if_needed
+def _reservoir_maker(config):
+    from raylab.envs.reservoir import ReservoirEnv
+
+    return ReservoirEnv(config)
+
+
+@wrap_if_needed
+def _hvac_maker(config):
+    from raylab.envs.hvac import HVACEnv
+
+    return HVACEnv(config)
+
+
+@wrap_if_needed
 def _mujoco_reacher_maker(_):
     from raylab.envs.reacher import ReacherEnv
 
@@ -53,6 +67,8 @@ ENVS = {
     "CartPoleSwingUp": _cartpole_swingup_maker,
     "CartPoleStateless": _cartpole_stateless_maker,
     "Navigation": _navigation_maker,
+    "Reservoir": _reservoir_maker,
+    "HVAC": _hvac_maker,
     "MujocoReacher": _mujoco_reacher_maker,
     "MujocoHalfCheetah": _mujoco_half_cheetah_maker,
     "IndustrialBenchmark": _industrial_benchmark_maker,

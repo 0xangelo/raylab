@@ -6,13 +6,14 @@ import numpy as np
 
 
 DEFAULT_CONFIG = {
-    "start": [-10.0, -10.0],
-    "end": [10.0, 10.0],
+    "start": [0.0, 1.0],
+    "end": [8.0, 9.0],
     "action_lower_bound": [-1.0, -1.0],
     "action_upper_bound": [1.0, 1.0],
     "deceleration_zones": {"center": [[0.0, 0.0]], "decay": [2.0]},
     "noise": {"loc": [0.0, 0.0], "scale_tril": [[0.3, 0.0], [0.0, 0.3]]},
     "horizon": 20,
+    "init_dist": True,
 }
 
 
@@ -43,6 +44,11 @@ class NavigationEnv(gym.Env):
         self._start = np.array(self._config["start"], dtype=np.float32)
         self._end = np.array(self._config["end"], dtype=np.float32)
 
+        self._min_x = self._start[0] - 1.0
+        self._max_x = self._end[0] + 1.0
+        self._min_y = self._start[1] - 1.0
+        self._max_y = self._end[1] + 1.0
+
         self.observation_space = gym.spaces.Box(
             low=np.array([-np.inf, -np.inf, 0.0], dtype=np.float32),
             high=np.array([np.inf, np.inf, 1.0], dtype=np.float32),
@@ -66,7 +72,14 @@ class NavigationEnv(gym.Env):
         self._state = None
 
     def reset(self):
-        self._state = np.append(self._start, np.array(0.0, dtype=np.float32))
+        if self._config["init_dist"]:
+            x = np.random.uniform(self._min_x, self._max_x)
+            y = np.random.uniform(self._min_y, self._max_y)
+            time = 0.0
+            self._state = np.array([x, y, time], dtype=np.float32)
+        else:
+            self._state = np.append(self._start, np.array(0.0, dtype=np.float32))
+
         return self._state
 
     @torch.no_grad()
