@@ -1,6 +1,4 @@
-# pylint: disable=missing-docstring,redefined-outer-name,protected-access
-from functools import partial
-
+# pylint: disable=missing-docstring,redefined-outer-name,protected-access,invalid-name
 import pytest
 import numpy as np
 import torch
@@ -114,19 +112,19 @@ def test_step(env):
     state = env.reset()
     assert state in env.observation_space
 
-    for t in range(env._horizon - 1):
+    for _ in range(env._horizon - 1):
         action = env.action_space.sample()
         assert action in env.action_space
 
         state, reward, done, info = env.step(action)
         assert state in env.observation_space
         assert reward <= 0.0
-        assert done == False
+        assert not done
         assert info == {}
 
     action = env.action_space.sample()
     _, _, done, _ = env.step(action)
-    assert done == True
+    assert done
 
 
 def test_unpack_state(env):
