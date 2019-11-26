@@ -113,8 +113,7 @@ class IDS:
         # observables
         # Table I of the Appendix mentions only setpoint, velocity, gain, shift,
         # consumption, and fatigue as the observable variables
-        # self.observable_keys = ["p", "v", "g", "h", "f", "c"]
-        self.observable_keys = ["p", "v", "g", "h", "f", "c", "cost", "reward"]
+        self.observable_keys = ["p", "v", "g", "h", "f", "c"]
         self.state["p"] = self._init_p  # SetPoint
         self.state["v"] = 50.0  # Velocity
         self.state["g"] = 50.0  # Gain
@@ -129,14 +128,28 @@ class IDS:
         self.step(np.zeros(3))
 
     def visibleState(self):
+        """Return the observable state as in Table I of the Appendix."""
         return np.concatenate(
             [np.array(self.state[k]).ravel() for k in self.observable_keys]
         )
 
-    def markovState(self):
+    def fullState(self):
+        """Return all current state variables."""
+        hid_vars = [k for k in self.state.keys() if k not in set(self.observable_keys)]
         return np.concatenate(
-            [np.array(self.state[k]).ravel() for k in self.state.keys()]
+            [self.visibleState()] + [np.array(self.state[k]).ravel() for k in hid_vars]
         )
+
+    def minimalMarkovState(self):
+        """Return the minimal Markovian state as in Table I of the Appendix."""
+        obs_vars = [np.array(self.state[k]).ravel() for k in self.observable_keys]
+        op_costs = [self.state["o"][1:]]
+        miscalibration = [
+            np.array(self.state[k]).ravel()
+            for k in ["gs_domain", "gs_sys_response", "gs_phi_idx"]
+        ]
+        fatigue = [np.array(self.state[k]).ravel() for k in ["hv", "hg"]]
+        return np.concatenate(obs_vars + op_costs + miscalibration + fatigue)
 
     def step(self, delta):
         self.updateSetPoint()

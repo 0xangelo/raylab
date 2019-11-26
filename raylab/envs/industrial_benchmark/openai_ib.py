@@ -24,7 +24,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import logging
-from collections import OrderedDict
 
 import numpy as np
 import gym
@@ -37,31 +36,41 @@ logger = logging.getLogger(__name__)
 
 
 class IBEnv(gym.Env):
+    """OpenAI Gym wrapper for Industrial Benchmark.
+
+    Currently only supports a fixed setpoint.
+    """
+
+    # pylint: disable=missing-docstring,too-many-instance-attributes
+
     def __init__(
         self,
         setpoint=50,
         reward_type="classic",
         action_type="continuous",
-        markovian=True,
+        observation="visible",
     ):
         # Setting up the IB environment
         self.setpoint = setpoint
-        self.IB = IDS(setpoint)
+        self._ib = IDS(setpoint)
         # Used to determine whether to return the absolute value or the relative change
         # in the cost function
         self.reward_function = reward_type
         self.action_type = action_type
-        self.markovian = markovian
+        self.observation = observation
 
-        if self.markovian:
-            # Observation bounds for markovian state
-            ob_low = np.array([-np.inf] * 21)
-            ob_high = np.array([np.inf] * 21)
-        else:
-            # Observation bounds for
-            # [velocity, gain, shift, fatigue, consumption, cost]
-            ob_low = np.array([0, 0, 0, 0, 0, 0])
-            ob_high = np.array([100, 100, 100, 1000, 1000, 1000])
+        # Observation bounds for visible state
+        # [setpoint, velocity, gain, shift, fatigue, consumption]
+        ob_low = np.array([0, 0, 0, 0, -np.inf, -np.inf])
+        ob_high = np.array([100, 100, 100, 100, np.inf, np.inf])
+        if self.observation == "markovian":
+            # Observation bounds for minimal markovian state
+            ob_low = np.concatenate([ob_low, np.array([-np.inf] * 14)])
+            ob_high = np.concatenate([ob_high, np.array([np.inf] * 14)])
+        elif self.observation == "full":
+            # Observation bounds for full state
+            ob_low = np.concatenate([ob_low, np.array([-np.inf] * 24)])
+            ob_high = np.concatenate([ob_high, np.array([np.inf] * 24)])
         self.observation_space = spaces.Box(low=ob_low, high=ob_high, dtype=np.float32)
 
         # Action space and the observation space
@@ -91,7 +100,7 @@ class IBEnv(gym.Env):
                 )
             )
 
-        self.reward = -self.IB.state["cost"]
+        self.reward = -self._ib.state["cost"]
         # Alternative reward that returns the improvement or decrease in the cost
         # If the cost function improves/decreases, the reward is positiv
         # If the cost function deteriorates/increases, the reward is negative
@@ -102,31 +111,33 @@ class IBEnv(gym.Env):
         # & environment with lower variance
         # Updates itself with 0.95*old_cost + 0.05*new_cost or any other linear
         # combination
-        self.smoothed_cost = self.IB.state["cost"]
+        self.smoothed_cost = self._ib.state["cost"]
 
         self.seed()
 
     def step(self, action):
         # Executing the action and saving the observation
         if self.action_type == "discrete":
-            self.IB.step(self.env_action[action])
+            self._ib.step(self.env_action[action])
         elif self.action_type == "continuous":
-            self.IB.step(action)
+            self._ib.step(action)
 
         # Calculating both the relative reward (improvement or decrease) and updating
         # the reward
-        self.delta_reward = self.reward - self.IB.state["cost"]
-        self.reward = self.IB.state["cost"]
+        self.delta_reward = self.reward - self._ib.state["cost"]
+        self.reward = self._ib.state["cost"]
 
         # Due to the very high stochasticity a smoothed cost function is easier to
         # follow visually
-        self.smoothed_cost = int(0.9 * self.smoothed_cost + 0.1 * self.IB.state["cost"])
+        self.smoothed_cost = int(
+            0.9 * self.smoothed_cost + 0.1 * self._ib.state["cost"]
+        )
 
         # Two reward functions are available:
         # 'classic' which returns the original cost and
         # 'delta' which returns the change in the cost function w.r.t. the previous cost
         if self.reward_function == "classic":
-            return_reward = -self.IB.state["cost"]
+            return_reward = -self._ib.state["cost"]
         elif self.reward_function == "delta":
             return_reward = self.delta_reward
         else:
@@ -139,54 +150,50 @@ class IBEnv(gym.Env):
         logger.info(
             "Cost smoothed: %(cost)s, State (v, g, s): %(state)s, Action: %(action)s",
             cost=-self.smoothed_cost,
-            state=np.around(self.IB.visibleState()[1:4], 0),
+            state=np.around(self._ib.visibleState()[1:4], 0),
             action=action,
         )
 
         # reward is divided by 100 to improve learning
-        return self._get_obs(), return_reward / 100, False, dict(self.markovianState())
+        return self._get_obs(), return_reward / 100, False, self.minimal_markov_state()
 
     def _get_obs(self):
-        # Values returned by the OpenAI environment placeholder
-        # IB.visibleState() returns
-        # [setpoint, velocity, gain, shift, fatigue, consumption, cost]
-        # Only [velocity, gain, shift, fatigue, consumption] are used as observation
-        # if not markovian
-        return (
-            np.array([*self.markovianState().values()], dtype=np.float32)
-            if self.markovian
-            else self.IB.visibleState()[1:-1].astype(np.float32)
-        )
+        if self.observation == "visible":
+            obs = self._ib.visibleState()
+        elif self.observation == "markovian":
+            obs = self._ib.minimalMarkovState()
+        elif self.observation == "full":
+            obs = self._ib.fullState()
+        return obs.astype(np.float32)
 
-    def reward_fn(self, state, action, next_state):
-        assert self.markovian, "reward_fn is only defined for markovian states"
-
-        reward = -(self.IB.CRF * next_state[..., 4] + self.IB.CRC * next_state[..., 5])
+    def reward_fn(self, state, action, next_state):  # pylint: disable=unused-argument
+        """Compute the current reward according to equation (5) of the paper."""
+        fat_coeff, con_coeff = self._ib.CRF, self._ib.CRC
+        reward = -(fat_coeff * next_state[..., 4] + con_coeff * next_state[..., 5])
         if self.reward_function == "delta":
-            reward = reward + self.IB.CRF * state[..., 4] + self.IB.CRC * state[..., 5]
+            reward = reward + fat_coeff * state[..., 4] + con_coeff * state[..., 5]
         return reward / 100
 
     def reset(self):
         # Resetting the entire environment
-        self.IB.reset()
-        self.reward = -self.IB.state["cost"]
+        self._ib.reset()
+        self.reward = -self._ib.state["cost"]
         return self._get_obs()
 
     def seed(self, seed=None):
-        return self.IB.set_seed(seed)
+        return self._ib.set_seed(seed)
 
     def render(self, mode="human"):
         pass
 
-    def markovianState(self):
-        markovian_states_variables = [
+    def minimal_markov_state(self):
+        markovian_state_variables = [
             "setpoint",
             "velocity",
             "gain",
             "shift",
             "fatigue",
             "consumption",
-            "op_cost_t0",
             "op_cost_t1",
             "op_cost_t2",
             "op_cost_t3",
@@ -202,30 +209,4 @@ class IBEnv(gym.Env):
             "hv",
             "hg",
         ]
-
-        markovian_states_values = [
-            self.IB.state["p"],
-            self.IB.state["v"],
-            self.IB.state["g"],
-            self.IB.state["h"],
-            self.IB.state["f"],
-            self.IB.state["c"],
-            self.IB.state["o"][0],
-            self.IB.state["o"][1],
-            self.IB.state["o"][2],
-            self.IB.state["o"][3],
-            self.IB.state["o"][4],
-            self.IB.state["o"][5],
-            self.IB.state["o"][6],
-            self.IB.state["o"][7],
-            self.IB.state["o"][8],
-            self.IB.state["o"][9],
-            self.IB.state["gs_domain"],
-            self.IB.state["gs_sys_response"],
-            self.IB.state["gs_phi_idx"],
-            self.IB.state["hv"],
-            self.IB.state["hg"],
-        ]
-
-        info = OrderedDict(zip(markovian_states_variables, markovian_states_values))
-        return info
+        return dict(zip(markovian_state_variables, self._ib.minimalMarkovState()))
