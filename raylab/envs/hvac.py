@@ -6,20 +6,12 @@ import numpy as np
 
 
 DEFAULT_CONFIG = {
-    "ADJ": [
-        [False, True,  True],
-        [False, False, True],
-        [False, False, False],
-    ],
+    "ADJ": [[False, True, True], [False, False, True], [False, False, False]],
     "ADJ_OUTSIDE": [True, True, False],
     "ADJ_HALL": [True, False, True],
     "R_OUTSIDE": [4.0, 4.0, 4.0],
     "R_HALL": [2.0, 2.0, 2.0],
-    "R_WALL": [
-        [1.5, 1.5, 1.5],
-        [1.5, 1.5, 1.5],
-        [1.5, 1.5, 1.5]
-    ],
+    "R_WALL": [[1.5, 1.5, 1.5], [1.5, 1.5, 1.5], [1.5, 1.5, 1.5]],
     "IS_ROOM": [True, True, True],
     "CAP": [80.0, 80.0, 80.0],
     "CAP_AIR": 1.006,
@@ -34,9 +26,7 @@ DEFAULT_CONFIG = {
     "TEMP_OUTSIDE_VARIANCE": [1.0, 1.0, 1.0],
     "TEMP_HALL_MEAN": [10.0, 10.0, 10.0],
     "TEMP_HALL_VARIANCE": [1.0, 1.0, 1.0],
-    "init": {
-        "temp": [10.0, 10.0, 10.0],
-    },
+    "init": {"temp": [10.0, 10.0, 10.0]},
     "horizon": 40,
 }
 
@@ -112,11 +102,12 @@ class HVACEnv(gym.Env):
         TEMP_UP = torch.as_tensor(self._config["TEMP_UP"])
         PENALTY = torch.as_tensor(self._config["PENALTY"])
 
-        reward = - (
-            IS_ROOM * (
-                air * COST_AIR +
-                ((temp < TEMP_LOW) | (temp > TEMP_UP)) * PENALTY +
-                10.0 * torch.abs((TEMP_UP + TEMP_LOW) / 2.0 - temp)
+        reward = -(
+            IS_ROOM
+            * (
+                air * COST_AIR
+                + ((temp < TEMP_LOW) | (temp > TEMP_UP)) * PENALTY
+                + 10.0 * torch.abs((TEMP_UP + TEMP_LOW) / 2.0 - temp)
             )
         ).sum(dim=-1)
 
@@ -131,7 +122,6 @@ class HVACEnv(gym.Env):
         sample = dist.rsample(sample_shape)
         logp = dist.log_prob(sample.detach())
         return sample, logp
-
 
     def _temp_hall(self, sample_shape=()):
         TEMP_HALL_MEAN = torch.as_tensor(self._config["TEMP_HALL_MEAN"])
@@ -163,16 +153,14 @@ class HVACEnv(gym.Env):
         R_WALL = torch.as_tensor(self._config["R_WALL"])
 
         temp = self.temp
-        temp_ = temp + TIME_DELTA / CAP * \
-            (
-                air * CAP_AIR * (TEMP_AIR - temp) * IS_ROOM +
-                (
-                    (ADJ | ADJ.T) *
-                    (temp[np.newaxis] - temp[np.newaxis].T) / R_WALL
-                ).sum(dim=-1)
-                + ADJ_OUTSIDE * (temp_outside - temp) / R_OUTSIDE
-                + ADJ_HALL * (temp_hall - temp) / R_HALL
+        temp_ = temp + TIME_DELTA / CAP * (
+            air * CAP_AIR * (TEMP_AIR - temp) * IS_ROOM
+            + ((ADJ | ADJ.T) * (temp[np.newaxis] - temp[np.newaxis].T) / R_WALL).sum(
+                dim=-1
             )
+            + ADJ_OUTSIDE * (temp_outside - temp) / R_OUTSIDE
+            + ADJ_HALL * (temp_hall - temp) / R_HALL
+        )
 
         return temp_
 

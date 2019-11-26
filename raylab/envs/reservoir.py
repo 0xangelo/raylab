@@ -12,22 +12,20 @@ DEFAULT_CONFIG = {
     "RAIN_SHAPE": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
     "RAIN_SCALE": [5.0, 3.0, 9.0, 7.0, 15.0, 13.0, 25.0, 30.0],
     "DOWNSTREAM": [
-        [False, False, False, False, False, True,  False, False],
-        [False, False, True , False, False, False, False, False],
-        [False, False, False, False, True,  False, False, False],
-        [False, False, False, False, False, False, False, True ],
-        [False, False, False, False, False, False, True,  False],
-        [False, False, False, False, False, False, True,  False],
+        [False, False, False, False, False, True, False, False],
+        [False, False, True, False, False, False, False, False],
+        [False, False, False, False, True, False, False, False],
         [False, False, False, False, False, False, False, True],
-        [False, False, False, False, False, False, False, False]
+        [False, False, False, False, False, False, True, False],
+        [False, False, False, False, False, False, True, False],
+        [False, False, False, False, False, False, False, True],
+        [False, False, False, False, False, False, False, False],
     ],
     "SINK_RES": [False, False, False, False, False, False, False, True],
     "MAX_WATER_EVAP_FRAC_PER_TIME_UNIT": 0.05,
     "LOW_PENALTY": [-5.0, -5.0, -5.0, -5.0, -5.0, -5.0, -5.0, -5.0],
     "HIGH_PENALTY": [-10.0, -10.0, -10.0, -10.0, -10.0, -10.0, -10.0, -10.0],
-    "init": {
-        "rlevel": [75.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],
-    },
+    "init": {"rlevel": [75.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0]},
     "horizon": 40,
 }
 
@@ -47,7 +45,7 @@ class ReservoirEnv(gym.Env):
         )
 
         self.observation_space = gym.spaces.Box(
-            low=np.array([0.0] * (self._num_reservoirs + 1) , dtype=np.float32),
+            low=np.array([0.0] * (self._num_reservoirs + 1), dtype=np.float32),
             high=np.array(self._config["MAX_RES_CAP"] + [1.0], dtype=np.float32),
         )
 
@@ -85,7 +83,7 @@ class ReservoirEnv(gym.Env):
 
     def _rainfall(self, sample_shape=()):
         concentration = torch.as_tensor(self._config["RAIN_SHAPE"])
-        rate = 1. / torch.as_tensor(self._config["RAIN_SCALE"])
+        rate = 1.0 / torch.as_tensor(self._config["RAIN_SCALE"])
         dist = torch.distributions.Gamma(concentration, rate)
         sample = dist.rsample(sample_shape)
         logp = dist.log_prob(sample.detach())
@@ -94,7 +92,12 @@ class ReservoirEnv(gym.Env):
     def _evaporated(self):
         EVAP_PER_TIME_UNIT = self._config["MAX_WATER_EVAP_FRAC_PER_TIME_UNIT"]
         MAX_RES_CAP = torch.as_tensor(self._config["MAX_RES_CAP"])
-        return EVAP_PER_TIME_UNIT * torch.log(1.0 + self.rlevel) * (self.rlevel ** 2) / (MAX_RES_CAP ** 2)
+        return (
+            EVAP_PER_TIME_UNIT
+            * torch.log(1.0 + self.rlevel)
+            * (self.rlevel ** 2)
+            / (MAX_RES_CAP ** 2)
+        )
 
     def _overflow(self, action):
         MIN_RES_CAP = torch.zeros(self._num_reservoirs)
@@ -132,8 +135,8 @@ class ReservoirEnv(gym.Env):
             torch.where(
                 rlevel < LOWER_BOUND,
                 LOW_PENALTY * (LOWER_BOUND - rlevel),
-                HIGH_PENALTY * (rlevel - UPPER_BOUND)
-            )
+                HIGH_PENALTY * (rlevel - UPPER_BOUND),
+            ),
         )
 
         return penalty.sum(dim=-1)
