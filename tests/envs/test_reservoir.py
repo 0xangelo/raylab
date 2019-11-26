@@ -1,6 +1,4 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
-from functools import partial
-
 import pytest
 import numpy as np
 import torch
@@ -64,11 +62,11 @@ def test_rainfall(env):
     assert rain1.shape == (env._num_reservoirs,)
     assert logp1.shape == (env._num_reservoirs,)
 
-    SAMPLE_SHAPE = 128
-    rain2, logp2 = env._rainfall(sample_shape=(SAMPLE_SHAPE,))
+    sample_shape = 128
+    rain2, logp2 = env._rainfall(sample_shape=(sample_shape,))
     assert torch.all(rain2 >= 0.0)
-    assert rain2.shape == (SAMPLE_SHAPE, env._num_reservoirs)
-    assert logp2.shape == (SAMPLE_SHAPE, env._num_reservoirs,)
+    assert rain2.shape == (sample_shape, env._num_reservoirs)
+    assert logp2.shape == (sample_shape, env._num_reservoirs)
 
 
 def test_evaporated(env):
@@ -91,13 +89,13 @@ def test_inflow(env):
 
 
 def test_rlevel(env):
-    MAX_RES_CAP = torch.as_tensor(env._config["MAX_RES_CAP"])
+    max_res_cap = torch.as_tensor(env._config["MAX_RES_CAP"])
     action = env.action_space.sample()
     rain, _ = env._rainfall()
     rlevel = env._rlevel(action, rain)
     assert rlevel.shape == (env._num_reservoirs,)
     assert torch.all(rlevel >= 0.0)
-    assert torch.all(rlevel <= MAX_RES_CAP)
+    assert torch.all(rlevel <= max_res_cap)
 
 
 def test_transition_fn(env):
@@ -120,19 +118,19 @@ def test_step(env):
     state = env.reset()
     assert state in env.observation_space
 
-    for t in range(env._horizon - 1):
+    for _ in range(env._horizon - 1):
         action = env.action_space.sample()
         assert action in env.action_space
 
         state, reward, done, info = env.step(action)
         assert state in env.observation_space
         assert reward <= 0.0
-        assert done == False
+        assert not done
         assert info == {}
 
     action = env.action_space.sample()
     _, _, done, _ = env.step(action)
-    assert done == True
+    assert done
 
 
 def test_unpack_state(env):
