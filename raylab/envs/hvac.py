@@ -1,5 +1,4 @@
-# pylint: disable=missing-docstring
-# pylint: enable=missing-docstring
+# pylint: disable=missing-docstring,invalid-name
 import gym
 import torch
 import numpy as np
@@ -133,7 +132,7 @@ class HVACEnv(gym.Env):
         logp = dist.log_prob(sample.detach())
         return sample, logp
 
-    def _temp(self, action, temp_outside, temp_hall):
+    def _temp(self, action, temp_outside, temp_hall):  # pylint: disable=too-many-locals
         air = action
 
         TIME_DELTA = torch.as_tensor(self._config["TIME_DELTA"])
@@ -171,7 +170,8 @@ class HVACEnv(gym.Env):
     def render(self, mode="human"):
         pass
 
-    def _unpack_state(self, state):
+    @staticmethod
+    def _unpack_state(state):
         obs = torch.as_tensor(state[..., :-1], dtype=torch.float32)
         time = torch.as_tensor(state[..., -1], dtype=torch.float32)
         return obs, time

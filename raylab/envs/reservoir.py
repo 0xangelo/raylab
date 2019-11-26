@@ -1,5 +1,4 @@
-# pylint: disable=missing-docstring
-# pylint: enable=missing-docstring
+# pylint: disable=missing-docstring,invalid-name
 import gym
 import torch
 import numpy as np
@@ -148,7 +147,8 @@ class ReservoirEnv(gym.Env):
     def render(self, mode="human"):
         pass
 
-    def _unpack_state(self, state):
+    @staticmethod
+    def _unpack_state(state):
         obs = torch.as_tensor(state[..., :-1], dtype=torch.float32)
         time = torch.as_tensor(state[..., -1], dtype=torch.float32)
         return obs, time
