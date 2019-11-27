@@ -70,6 +70,7 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         policy_module = nn.Sequential(logits_module, params_module)
         dist_kwargs = dict(
             dist_cls=dists.DiagMultivariateNormal,
+            detach_logp=False,
             low=self.convert_to_tensor(action_space.low),
             high=self.convert_to_tensor(action_space.high),
         )
