@@ -3,7 +3,7 @@ from ray.rllib.utils.annotations import override
 
 from raylab.algorithms import with_common_config
 from raylab.algorithms.mixins import ParameterNoiseMixin
-from raylab.algorithms.sac import GenericOffPolicyTrainer
+from raylab.algorithms.off_policy import GenericOffPolicyTrainer
 from .sop_policy import SOPTorchPolicy
 
 
@@ -91,7 +91,7 @@ class SOPTrainer(ParameterNoiseMixin, GenericOffPolicyTrainer):
 
     # pylint: disable=attribute-defined-outside-init
 
-    _name = "SOP"
+    _name = "SAC"
     _default_config = DEFAULT_CONFIG
     _policy = SOPTorchPolicy
 

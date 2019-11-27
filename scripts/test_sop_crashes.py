@@ -64,8 +64,8 @@ def main(**args):
     ray.init(object_store_memory=args["object_store_memory"])
 
     tune.run(
-        "BSAC",
-        name="BSAC-Navigation-TestTrials",
+        "SAC",
+        name="SAC-Navigation-TestTrials",
         local_dir=args["local_dir"],
         num_samples=5,
         stop={"timesteps_total": 40},

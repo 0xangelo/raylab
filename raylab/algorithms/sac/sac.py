@@ -5,7 +5,7 @@ with a Stochastic Actor.
 from ray.rllib.utils.annotations import override
 
 from raylab.algorithms import with_common_config
-from raylab.algorithms.sac import GenericOffPolicyTrainer
+from raylab.algorithms.off_policy import GenericOffPolicyTrainer
 from .sac_policy import SACTorchPolicy
 
 
@@ -79,7 +79,3 @@ class SACTrainer(GenericOffPolicyTrainer):
     _name = "SAC"
     _default_config = DEFAULT_CONFIG
     _policy = SACTorchPolicy
-
-    @override(GenericOffPolicyTrainer)
-    def _init(self, config, env_creator):
-        super()._init(config, env_creator)
