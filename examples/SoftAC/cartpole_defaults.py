@@ -1,12 +1,8 @@
-"""Tune experiment configuration to test SAC in CartPoleSwingUp.
-
-This can be run from the command line by executing
-`raylab experiment SAC --config examples/naf_exploration_experiment.py -s timesteps_total 100000`
-"""
-from ray import tune
+"""Tune experiment configuration to test SAC in CartPoleSwingUp."""
+from ray import tune  # pylint: disable=unused-import
 
 
-def get_config():
+def get_config():  # pylint: disable=missing-docstring
     return {
         # === Environment ===
         "env": "CartPoleSwingUp",

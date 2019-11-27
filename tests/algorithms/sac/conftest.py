@@ -6,7 +6,7 @@ from raylab.algorithms.registry import ALGORITHMS as ALGS
 
 @pytest.fixture
 def sac_trainer():
-    return ALGS["SAC"]()
+    return ALGS["SoftAC"]()
 
 
 @pytest.fixture
