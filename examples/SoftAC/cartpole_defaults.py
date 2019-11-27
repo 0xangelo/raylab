@@ -6,7 +6,7 @@ def get_config():  # pylint: disable=missing-docstring
     return {
         # === Environment ===
         "env": "CartPoleSwingUp",
-        "env_config": {"max_episode_steps": 200, "time_aware": False},
+        "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === Replay Buffer ===
         "buffer_size": int(1e5),
         # === Optimization ===
@@ -22,13 +22,13 @@ def get_config():  # pylint: disable=missing-docstring
         # linear in states and/or actions.
         "module": {
             "policy": {
-                "units": (64,),
+                "units": (128, 128),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "input_dependent_scale": True,
             },
             "critic": {
-                "units": (64,),
+                "units": (128, 128),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "delay_action": True,
