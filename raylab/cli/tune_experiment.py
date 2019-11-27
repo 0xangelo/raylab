@@ -13,7 +13,7 @@ from raylab.utils.dynamic_import import import_module_from_path
 
 @click.command()
 @click.argument("run", type=str)
-@click.option("--name", "-n", default=None, help="Name of experiment")
+@click.option("--name", default=None, help="Name of experiment")
 @click.option(
     "--local-dir",
     "-l",
@@ -88,13 +88,20 @@ from raylab.utils.dynamic_import import import_module_from_path
     help="Logging level for the trial executor process. This is independent from each "
     "trainer's logging level.",
 )
-def experiment(**args):
+@click.pass_context
+def experiment(ctx, **args):
     """Launch a Tune experiment from a config file."""
     if not osp.exists(args["local_dir"]) and click.confirm(
         "Provided `local_dir` does not exist. Create it?"
     ):
         os.makedirs(args["local_dir"])
         click.echo("Created directory {}".format(args["local_dir"]))
+
+    exp_dir = osp.join(args["local_dir"], args["name"])
+    if osp.exists(exp_dir) and not click.confirm(
+        f"Experiment directory {exp_dir} already exists. Proceed anyway?"
+    ):
+        ctx.exit()
 
     if args["config"] is None:
         config = {}
