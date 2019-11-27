@@ -1,8 +1,7 @@
 """Tune experiment configuration to test SOP in the Industrial Benchmark."""
-from ray import tune
 
 
-def get_config():
+def get_config():  # pylint: disable=missing-docstring
     return {
         # === Environment ===
         "env": "IndustrialBenchmark",
