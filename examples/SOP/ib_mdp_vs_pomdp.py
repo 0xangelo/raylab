@@ -11,7 +11,7 @@ def get_config():  # pylint: disable=missing-docstring
         "env_config": {
             "reward_type": "classic",
             "action_type": "continuous",
-            "markovian": tune.grid_search([True, False]),
+            "observation": tune.grid_search(["visible", "markovian"]),
             "max_episode_steps": 500,
             "time_aware": True,
         },
