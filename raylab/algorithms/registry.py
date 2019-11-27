@@ -19,6 +19,12 @@ def _import_svg_one():
     return SVGOneTrainer
 
 
+def _import_sac():
+    from raylab.algorithms.sac.sac import SACTrainer
+
+    return SACTrainer
+
+
 def _import_sop():
     from raylab.algorithms.sop.sop import SOPTrainer
 
@@ -31,17 +37,11 @@ def _import_mapo():
     return MAPOTrainer
 
 
-def _import_sac():
-    from raylab.algorithms.soft_actor_critic.sac import SACTrainer
-
-    return SACTrainer
-
-
 ALGORITHMS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
     "SVG(1)": _import_svg_one,
-    "SAC": _import_sop,
+    "SoftAC": _import_sac,
+    "SOP": _import_sop,
     "MAPO": _import_mapo,
-    "BSAC": _import_sac,
 }

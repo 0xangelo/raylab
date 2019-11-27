@@ -2,8 +2,6 @@
 Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning
 with a Stochastic Actor.
 """
-from ray.rllib.utils.annotations import override
-
 from raylab.algorithms import with_common_config
 from raylab.algorithms.off_policy import GenericOffPolicyTrainer
 from .sac_policy import SACTorchPolicy
@@ -76,6 +74,6 @@ DEFAULT_CONFIG = with_common_config(
 class SACTrainer(GenericOffPolicyTrainer):
     """Single agent trainer for SAC."""
 
-    _name = "SAC"
+    _name = "SoftAC"
     _default_config = DEFAULT_CONFIG
     _policy = SACTorchPolicy
