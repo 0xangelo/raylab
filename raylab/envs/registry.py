@@ -41,20 +41,6 @@ def _hvac_maker(config):
 
 
 @wrap_if_needed
-def _mujoco_reacher_maker(_):
-    from raylab.envs.reacher import ReacherEnv
-
-    return ReacherEnv()
-
-
-@wrap_if_needed
-def _mujoco_half_cheetah_maker(_):
-    from raylab.envs.half_cheetah import HalfCheetahEnv
-
-    return HalfCheetahEnv()
-
-
-@wrap_if_needed
 def _industrial_benchmark_maker(config):
     from raylab.envs.industrial_benchmark.openai_ib import IBEnv
 
@@ -69,7 +55,32 @@ ENVS = {
     "Navigation": _navigation_maker,
     "Reservoir": _reservoir_maker,
     "HVAC": _hvac_maker,
-    "MujocoReacher": _mujoco_reacher_maker,
-    "MujocoHalfCheetah": _mujoco_half_cheetah_maker,
     "IndustrialBenchmark": _industrial_benchmark_maker,
 }
+
+
+@wrap_if_needed
+def _mujoco_reacher_maker(_):
+    from raylab.envs.reacher import ReacherEnv
+
+    return ReacherEnv()
+
+
+@wrap_if_needed
+def _mujoco_half_cheetah_maker(_):
+    from raylab.envs.half_cheetah import HalfCheetahEnv
+
+    return HalfCheetahEnv()
+
+
+try:
+    import mujoco_py  # pylint: disable=unused-import
+
+    ENVS.update(
+        {
+            "MujocoReacher": _mujoco_reacher_maker,
+            "MujocoHalfCheetah": _mujoco_half_cheetah_maker,
+        }
+    )
+except Exception:  # pylint: disable=broad-except
+    pass
