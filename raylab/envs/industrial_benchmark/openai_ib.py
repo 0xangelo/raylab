@@ -26,10 +26,12 @@ SOFTWARE.
 import logging
 
 import numpy as np
+import torch
 import gym
 from gym import spaces
 
 from .ids import IDS
+from .effective_action import EffectiveAction
 
 
 logger = logging.getLogger(__name__)
@@ -166,14 +168,6 @@ class IBEnv(gym.Env):
             obs = self._ib.fullState()
         return obs.astype(np.float32)
 
-    def reward_fn(self, state, action, next_state):  # pylint: disable=unused-argument
-        """Compute the current reward according to equation (5) of the paper."""
-        fat_coeff, con_coeff = self._ib.CRF, self._ib.CRC
-        reward = -(fat_coeff * next_state[..., 4] + con_coeff * next_state[..., 5])
-        if self.reward_function == "delta":
-            reward = reward + fat_coeff * state[..., 4] + con_coeff * state[..., 5]
-        return reward / 100
-
     def reset(self):
         # Resetting the entire environment
         self._ib.reset()
@@ -210,3 +204,122 @@ class IBEnv(gym.Env):
             "hg",
         ]
         return dict(zip(markovian_state_variables, self._ib.minimalMarkovState()))
+
+    def reward_fn(self, state, action, next_state):  # pylint: disable=unused-argument
+        """Compute the current reward according to equation (5) of the paper."""
+        fat_coeff, con_coeff = self._ib.CRF, self._ib.CRC
+        reward = -(fat_coeff * next_state[..., 4] + con_coeff * next_state[..., 5])
+        if self.reward_function == "delta":
+            reward = reward + fat_coeff * state[..., 4] + con_coeff * state[..., 5]
+        return reward / 100
+
+    def transition_fn(self, state, action, sample_shape=()):
+        """Compute the next state and its log-probability."""
+
+        # addAction
+        next_state, _he = self._add_action(state, action)
+        # updateFatigue
+        next_state = self._update_fatigue(next_state, sample_shape)
+
+    def _add_action(self, state, action):
+        next_v = torch.clamp(state[..., 1] + action[..., 0], 0.0, 100.0)
+        next_g = torch.clamp(state[..., 2] + action[..., 1], 0.0, 100.0)
+        next_h = torch.clamp(
+            state[..., 3]
+            + ((self._ib.maxRequiredStep / 0.9) * 100.0 / self._ib.gsScale)
+            * action[..., 2],
+            0.0,
+            100.0,
+        )
+        next_he = torch.clamp(
+            self._ib.gsScale * next_h[..., 3] / 100.0
+            - self._ib.gsSetPointDependency * state[..., 0]
+            - self._ib.gsBound,
+            -self._ib.gsBound,
+            self._ib.gsBound,
+        )
+        next_state = torch.cat(
+            [state[..., 0], next_v, next_g, next_h, state[..., 4:]], dim=-1
+        )
+        return next_state, next_he
+
+    def _update_fatigue(self, next_state, sample_shape):
+        # pylint: disable=invalid-name
+        expLambda = torch.empty_like(next_state).fill_(0.1)
+        actionTolerance = 0.05
+        fatigueAmplification = 1.1
+        fatigueAmplificationMax = 5.0
+        fatigueAmplificationStart = 1.2
+
+        velocity = next_state[..., 1]
+        gain = next_state[..., 2]
+        setpoint = next_state[..., 0]
+
+        hidden_gain = next_state[..., 19]
+        hidden_velocity = next_state[..., 18]
+
+        effAct = EffectiveAction(velocity, gain, setpoint)
+        effAct_velocity = effAct.getEffectiveVelocity()
+        effAct_gain = effAct.getEffectiveGain()
+
+        # self.state["ge"] = effAct_gain
+        # self.state["ve"] = effAct_velocity
+
+        # noise_e_g = self._ib.np_random.exponential(expLambda)
+        # noise_e_v = self._ib.np_random.exponential(expLambda)
+        # noise_u_g = self._ib.np_random.rand()
+        # noise_u_v = self._ib.np_random.rand()
+        noise_e_g = torch.distributions.Exponential(expLambda).sample(
+            sample_shape=sample_shape
+        )
+        noise_e_v = torch.distributions.Exponential(expLambda).sample(
+            sample_shape=sample_shape
+        )
+        noise_u_g = torch.distributions.Uniform(
+            torch.zeros_like(next_state), torch.ones_like(next_state)
+        ).sample(sample_shape=sample_shape)
+        noise_u_v = torch.distributions.Uniform(
+            torch.zeros_like(next_state), torch.ones_like(next_state)
+        ).sample(sample_shape=sample_shape)
+
+        noise_b_g = np.float(
+            self._ib.np_random.binomial(1, np.clip(effAct_gain, 0.001, 0.999))
+        )
+        noise_b_v = np.float(
+            self._ib.np_random.binomial(1, np.clip(effAct_velocity, 0.001, 0.999))
+        )
+
+        noise_gain = 2.0 * (1.0 / (1.0 + np.exp(-noise_e_g)) - 0.5)
+        noise_velocity = 2.0 * (1.0 / (1.0 + np.exp(-noise_e_v)) - 0.5)
+
+        noise_gain += (1 - noise_gain) * noise_u_g * noise_b_g * effAct_gain
+        noise_velocity += (1 - noise_velocity) * noise_u_v * noise_b_v * effAct_velocity
+
+        if effAct_gain <= actionTolerance:
+            hidden_gain = effAct_gain
+        elif hidden_gain >= fatigueAmplificationStart:
+            hidden_gain = np.minimum(
+                fatigueAmplificationMax, fatigueAmplification * hidden_gain
+            )
+        else:
+            hidden_gain = 0.9 * hidden_gain + noise_gain / 3.0
+
+        if effAct_velocity <= actionTolerance:
+            hidden_velocity = effAct_velocity
+        elif hidden_velocity >= fatigueAmplificationStart:
+            hidden_velocity = np.minimum(
+                fatigueAmplificationMax, fatigueAmplification * hidden_velocity
+            )
+        else:
+            hidden_velocity = 0.9 * hidden_velocity + noise_velocity / 3.0
+
+        if np.maximum(hidden_velocity, hidden_gain) == fatigueAmplificationMax:
+            alpha = 1.0 / (1.0 + np.exp(-self._ib.np_random.normal(2.4, 0.4)))
+        else:
+            alpha = np.maximum(noise_velocity, noise_gain)
+
+        fb = np.maximum(0, ((30000.0 / ((5 * velocity) + 100)) - 0.01 * (gain ** 2)))
+        self._ib.state["hv"] = hidden_velocity
+        self._ib.state["hg"] = hidden_gain
+        self._ib.state["f"] = (fb * (1 + 2 * alpha)) / 3.0
+        self._ib.state["fb"] = fb
