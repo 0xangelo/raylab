@@ -40,7 +40,7 @@ class CartPoleSwingUpEnv(_CartPoleSwingUpEnv):
         next_state = torch.stack(
             [new_x, new_xdot, new_costheta, new_sintheta, new_thetadot], dim=-1
         )
-        return next_state.expand(sample_shape + state.shape), None
+        return next_state.expand(torch.Size(sample_shape) + state.shape), None
 
     def _calculate_xdot_update(self, state, action):
         # pylint: disable=no-member
