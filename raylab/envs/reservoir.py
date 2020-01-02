@@ -76,8 +76,7 @@ class ReservoirEnv(gym.Env):
         rain, logp = self._rainfall(sample_shape)
         action = torch.as_tensor(action) * state
         next_state = self._rlevel(action, rain)
-        time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0).detach()
-        time = time.expand_as(next_state[..., -1:])
+        time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0)  # .detach()
         return torch.cat([next_state, time], dim=-1), logp
 
     def _rainfall(self, sample_shape=()):
@@ -150,5 +149,5 @@ class ReservoirEnv(gym.Env):
     @staticmethod
     def _unpack_state(state):
         obs = torch.as_tensor(state[..., :-1], dtype=torch.float32)
-        time = torch.as_tensor(state[..., -1], dtype=torch.float32)
+        time = torch.as_tensor(state[..., -1:], dtype=torch.float32)
         return obs, time

@@ -98,9 +98,17 @@ def test_rlevel(env):
     assert torch.all(rlevel <= max_res_cap)
 
 
-def test_transition_fn(env):
+@pytest.fixture(params=(True, False))
+def tensorfy(request):
+    return request.param
+
+
+def test_transition_fn(env, tensorfy):
     state = env.observation_space.sample()
     action = env.action_space.sample()
+    if tensorfy:
+        state, action = map(torch.as_tensor, (state, action))
+
     next_state, logp = env.transition_fn(state, action)
     assert next_state.numpy() in env.observation_space
     assert next_state.shape == (env._num_reservoirs + 1,)
@@ -137,4 +145,4 @@ def test_unpack_state(env):
     obs = env.observation_space.sample()
     state, time = env._unpack_state(obs)
     assert state.shape == (env._num_reservoirs,)
-    assert time.shape == ()
+    assert time.shape == (1,)
