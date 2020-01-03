@@ -4,7 +4,7 @@ from ray import tune
 from raylab.envs.reservoir import DEFAULT_CONFIG as DEFAULT_ENV_CONFIG
 
 
-ENV_CONFIG = {"env": "Reservoir", **DEFAULT_ENV_CONFIG}
+ENV_CONFIG = {"env": "Reservoir", "env_config": DEFAULT_ENV_CONFIG}
 
 ACTOR_CRITIC_CONFIG = {
     "policy": {
@@ -88,7 +88,7 @@ MAPO_CONFIG = {
     # Type of model-training to use. Possible types include
     # decision_aware: policy gradient-aware model learning
     # mle: maximum likelihood estimation
-    "model_loss": tune.grid_search(["decision_aware", "mle"]),
+    "model_loss": "decision_aware",
     # Gradient estimator for model-aware dpg. Possible types include:
     # score_function, pathwise_derivative
     "grad_estimator": tune.grid_search(["score_function", "pathwise_derivative"]),
@@ -98,6 +98,7 @@ MAPO_CONFIG = {
     # Number of next states to sample from the model when calculating the
     # model-aware deterministic policy gradient
     "num_model_samples": 8,
+    "true_model": True,
     # === Optimization ===
     # PyTorch optimizer to use for policy
     "policy_optimizer": {"name": "RMSprop", "options": {"lr": 1e-4}},
