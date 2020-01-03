@@ -45,7 +45,7 @@ class ReservoirEnv(gym.Env):
 
         self.observation_space = gym.spaces.Box(
             low=np.array([0.0] * (self._num_reservoirs + 1), dtype=np.float32),
-            high=np.array(self._config["MAX_RES_CAP"] + [1.0], dtype=np.float32),
+            high=np.array([np.inf] * (self._num_reservoirs) + [1.0], dtype=np.float32),
         )
 
         self._state = None
@@ -90,58 +90,60 @@ class ReservoirEnv(gym.Env):
     def transition_fn(self, state, action, sample_shape=()):
         # pylint: disable=missing-docstring
         state, time = self._unpack_state(state)
-        rain, logp = self._rainfall(sample_shape)
+        rain, logp = self._rainfall(state, sample_shape)
         action = torch.as_tensor(action) * state
-        next_state = self._rlevel(action, rain)
+        next_state = self._rlevel(state, action, rain)
         time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0)  # .detach()
+        time = time.expand_as(next_state[..., -1:])
         return torch.cat([next_state, time], dim=-1), logp
 
     def reset(self):
         self._state = np.array(self._config["init"]["rlevel"] + [0.0])
         return self._state
 
-    def _rlevel(self, action, rain):
+    def _rlevel(self, rlevel, action, rain):
         MIN_RES_CAP = torch.zeros(self._num_reservoirs)
         outflow = torch.as_tensor(action)
-        rlevel = self.rlevel
-        rlevel += rain - self._evaporated()
-        rlevel += self._inflow(action) - outflow - self._overflow(action)
+        rlevel = rlevel + rain - self._evaporated(rlevel)
+        rlevel = (
+            rlevel
+            + self._inflow(rlevel, action)
+            - outflow
+            - self._overflow(rlevel, action)
+        )
         return torch.max(MIN_RES_CAP, rlevel)
 
-    def _rainfall(self, sample_shape=()):
-        concentration = torch.as_tensor(self._config["RAIN_SHAPE"])
-        rate = 1.0 / torch.as_tensor(self._config["RAIN_SCALE"])
-        dist = torch.distributions.Gamma(concentration, rate)
+    def _rainfall(self, rlevel, sample_shape=()):
+        concentration = torch.as_tensor(self._config["RAIN_SHAPE"]).expand_as(rlevel)
+        rate = 1.0 / torch.as_tensor(self._config["RAIN_SCALE"]).expand_as(rlevel)
+        dist = torch.distributions.Independent(
+            torch.distributions.Gamma(concentration, rate), reinterpreted_batch_ndims=1
+        )
         sample = dist.rsample(sample_shape)
         logp = dist.log_prob(sample.detach())
         return sample, logp
 
-    def _inflow(self, action):
+    def _inflow(self, rlevel, action):
         DOWNSTREAM = torch.as_tensor(self._config["DOWNSTREAM"], dtype=torch.float32)
-        overflow = self._overflow(action)
-        outflow = torch.as_tensor(action)
-        return torch.matmul(DOWNSTREAM.T, overflow + outflow)
+        overflow = self._overflow(rlevel, action)
+        outflow = action
+        return (overflow + outflow).matmul(DOWNSTREAM.t())
 
-    def _overflow(self, action):
+    def _overflow(self, rlevel, action):
         MIN_RES_CAP = torch.zeros(self._num_reservoirs)
         MAX_RES_CAP = torch.as_tensor(self._config["MAX_RES_CAP"])
         outflow = torch.as_tensor(action)
-        return torch.max(MIN_RES_CAP, self.rlevel - outflow - MAX_RES_CAP)
+        return torch.max(MIN_RES_CAP, rlevel - outflow - MAX_RES_CAP)
 
-    def _evaporated(self):
+    def _evaporated(self, rlevel):
         EVAP_PER_TIME_UNIT = self._config["MAX_WATER_EVAP_FRAC_PER_TIME_UNIT"]
         MAX_RES_CAP = torch.as_tensor(self._config["MAX_RES_CAP"])
         return (
             EVAP_PER_TIME_UNIT
-            * torch.log(1.0 + self.rlevel)
-            * (self.rlevel ** 2)
+            * torch.log(1.0 + rlevel)
+            * (rlevel ** 2)
             / (MAX_RES_CAP ** 2)
         )
-
-    @property
-    def rlevel(self):
-        obs, _ = self._unpack_state(self._state)
-        return torch.as_tensor(obs, dtype=torch.float32)
 
     def render(self, mode="human"):
         pass
