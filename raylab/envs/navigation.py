@@ -73,10 +73,10 @@ class NavigationEnv(gym.Env):
 
     def reset(self):
         if self._config["init_dist"]:
-            x = np.random.uniform(self._min_x, self._max_x)
-            y = np.random.uniform(self._min_y, self._max_y)
+            xpos = np.random.uniform(self._min_x, self._max_x)
+            ypos = np.random.uniform(self._min_y, self._max_y)
             time = 0.0
-            self._state = np.array([x, y, time], dtype=np.float32)
+            self._state = np.array([xpos, ypos, time], dtype=np.float32)
         else:
             self._state = np.append(self._start, np.array(0.0, dtype=np.float32))
 
@@ -106,8 +106,15 @@ class NavigationEnv(gym.Env):
     def _deceleration(self, state):
         decay = torch.from_numpy(self._deceleration_decay)
         center = torch.from_numpy(self._deceleration_center)
-        distance = torch.norm(state - center, dim=-1)
-        deceleration = torch.prod(2 / (1.0 + torch.exp(-decay * distance)) - 1.0)
+        # Consider states as row vectors
+        # Resulting difference is matrix with diff vectors as rows
+        # Calculate the norm of each row
+        distance = torch.norm(state.unsqueeze(-2) - center, dim=-1)
+        # distance is a vector with distances to each center
+        # Calculate the product of all corresponding decelerations
+        deceleration = torch.prod(
+            2 / (1.0 + torch.exp(-decay * distance)) - 1.0, dim=-1, keepdim=True
+        )
         return deceleration
 
     def _sample_noise(self, position, sample_shape):
