@@ -1,6 +1,4 @@
 """SVG(inf) policy class using PyTorch."""
-import contextlib
-
 import torch
 import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
@@ -132,14 +130,3 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
             "curr_kl_coeff": self.curr_kl_coeff,
         }
         return fetches
-
-    @contextlib.contextmanager
-    def freeze_nets(self, *names):
-        """Disable gradient requirements for the desired modules in this context."""
-        try:
-            for name in names:
-                self.module[name].requires_grad_(False)
-            yield
-        finally:
-            for name in names:
-                self.module[name].requires_grad_(True)

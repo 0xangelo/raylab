@@ -1,3 +1,4 @@
+# pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 import numpy as np
 import torch
@@ -5,7 +6,7 @@ import torch
 from raylab.envs.registry import ENVS
 
 
-@pytest.fixture(params=[v for k, v in ENVS.items() if k != "TimeLimitedEnv"])
+@pytest.fixture(params=list(ENVS.values()))
 def env(request):
     return request.param({})
 

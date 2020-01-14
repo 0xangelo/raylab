@@ -1,6 +1,7 @@
 # pylint: disable=missing-docstring
 # pylint: enable=missing-docstring
 import os
+import contextlib
 from abc import ABC, abstractmethod
 
 import torch
@@ -81,6 +82,17 @@ class TorchPolicy(ABC, Policy):
     @staticmethod
     def _learner_stats(info):
         return {LEARNER_STATS_KEY: info}
+
+    @contextlib.contextmanager
+    def freeze_nets(self, *names):
+        """Disable gradient requirements for the desired modules in this context."""
+        try:
+            for name in names:
+                self.module[name].requires_grad_(False)
+            yield
+        finally:
+            for name in names:
+                self.module[name].requires_grad_(True)
 
     def __repr__(self):
         args = ["{name}(", "{observation_space}, ", "{action_space}, ", "{config}", ")"]

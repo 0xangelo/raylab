@@ -9,12 +9,8 @@ from ray import tune
 def get_config():
     return {
         # === Environment ===
-        "env": "TimeLimitedEnv",
-        "env_config": {
-            "env_id": "CartPoleSwingUp",
-            "max_episode_steps": 500,
-            "time_aware": False,
-        },
+        "env": "CartPoleSwingUp",
+        "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === SQUASHING EXPLORATION PROBLEM ===
         # Maximum l1 norm of the policy's output vector before the squashing function
         "beta": 1.2,

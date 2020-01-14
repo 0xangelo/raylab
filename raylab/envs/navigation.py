@@ -6,13 +6,14 @@ import numpy as np
 
 
 DEFAULT_CONFIG = {
-    "start": [-10.0, -10.0],
-    "end": [10.0, 10.0],
+    "start": [0.0, 1.0],
+    "end": [8.0, 9.0],
     "action_lower_bound": [-1.0, -1.0],
     "action_upper_bound": [1.0, 1.0],
     "deceleration_zones": {"center": [[0.0, 0.0]], "decay": [2.0]},
     "noise": {"loc": [0.0, 0.0], "scale_tril": [[0.3, 0.0], [0.0, 0.3]]},
     "horizon": 20,
+    "init_dist": True,
 }
 
 
@@ -43,6 +44,11 @@ class NavigationEnv(gym.Env):
         self._start = np.array(self._config["start"], dtype=np.float32)
         self._end = np.array(self._config["end"], dtype=np.float32)
 
+        self._min_x = self._start[0] - 1.0
+        self._max_x = self._end[0] + 1.0
+        self._min_y = self._start[1] - 1.0
+        self._max_y = self._end[1] + 1.0
+
         self.observation_space = gym.spaces.Box(
             low=np.array([-np.inf, -np.inf, 0.0], dtype=np.float32),
             high=np.array([np.inf, np.inf, 1.0], dtype=np.float32),
@@ -66,27 +72,25 @@ class NavigationEnv(gym.Env):
         self._state = None
 
     def reset(self):
-        self._state = np.append(self._start, np.array(0.0, dtype=np.float32))
+        if self._config["init_dist"]:
+            xpos = np.random.uniform(self._min_x, self._max_x)
+            ypos = np.random.uniform(self._min_y, self._max_y)
+            time = 0.0
+            self._state = np.array([xpos, ypos, time], dtype=np.float32)
+        else:
+            self._state = np.append(self._start, np.array(0.0, dtype=np.float32))
+
         return self._state
 
+    @torch.no_grad()
     def step(self, action):
         state, action = map(torch.as_tensor, (self._state, action))
-        next_state = self.transition_fn(state, action)
+        next_state, _ = self.transition_fn(state, action)
         reward = self.reward_fn(state, action, next_state).item()
         self._state = next_state.numpy()
         return self._state, reward, self._terminal(), {}
 
-    def _terminal(self):
-        pos, time = self._state[:2], self._state[2]
-        return np.allclose(pos, self._end, atol=1e-1) or np.allclose(time, 1.0)
-
-    def reward_fn(self, state, action, next_state):
-        # pylint: disable=unused-argument,missing-docstring
-        next_state = next_state[..., :2]
-        goal = torch.from_numpy(self._end)
-        return torch.norm(next_state - goal, dim=-1).neg()
-
-    def transition_fn(self, state, action):
+    def transition_fn(self, state, action, sample_shape=()):
         # pylint: disable=missing-docstring
         state, time = state[..., :2], state[..., 2:]
         deceleration = 1.0
@@ -94,22 +98,41 @@ class NavigationEnv(gym.Env):
             deceleration = self._deceleration(state)
 
         position = state + (deceleration * action)
-        next_state = self._sample_noise(position)
-        time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0)
-        return torch.cat([next_state, time], dim=-1)
-
-    def _sample_noise(self, position):
-        loc = position + torch.as_tensor(self._noise["loc"])
-        scale_tril = torch.as_tensor(self._noise["scale_tril"])
-        dist = torch.distributions.MultivariateNormal(loc=loc, scale_tril=scale_tril)
-        return dist.sample()
+        next_state, logp = self._sample_noise(position, sample_shape)
+        time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0).detach()
+        time = time.expand_as(next_state[..., -1:])
+        return torch.cat([next_state, time], dim=-1), logp
 
     def _deceleration(self, state):
         decay = torch.from_numpy(self._deceleration_decay)
         center = torch.from_numpy(self._deceleration_center)
-        distance = torch.norm(state - center, dim=-1)
-        deceleration = torch.prod(2 / (1.0 + torch.exp(-decay * distance)) - 1.0)
+        # Consider states as row vectors
+        # Resulting difference is matrix with diff vectors as rows
+        # Calculate the norm of each row
+        distance = torch.norm(state.unsqueeze(-2) - center, dim=-1)
+        # distance is a vector with distances to each center
+        # Calculate the product of all corresponding decelerations
+        deceleration = torch.prod(
+            2 / (1.0 + torch.exp(-decay * distance)) - 1.0, dim=-1, keepdim=True
+        )
         return deceleration
+
+    def _sample_noise(self, position, sample_shape):
+        loc = position + torch.as_tensor(self._noise["loc"])
+        scale_tril = torch.as_tensor(self._noise["scale_tril"])
+        dist = torch.distributions.MultivariateNormal(loc=loc, scale_tril=scale_tril)
+        sample = dist.rsample(sample_shape=sample_shape)
+        return sample, dist.log_prob(sample.detach())
+
+    def reward_fn(self, state, action, next_state):
+        # pylint: disable=unused-argument,missing-docstring
+        next_state = next_state[..., :2]
+        goal = torch.from_numpy(self._end)
+        return torch.norm(next_state - goal, dim=-1).neg()
+
+    def _terminal(self):
+        pos, time = self._state[:2], self._state[2]
+        return np.allclose(pos, self._end, atol=1e-1) or np.allclose(time, 1.0)
 
     def render(self, mode="human"):
         pass

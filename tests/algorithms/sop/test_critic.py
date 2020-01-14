@@ -1,3 +1,4 @@
+# pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 import torch
 import torch.nn as nn
@@ -21,8 +22,8 @@ def policy_and_batch(policy_and_batch_fn, config):
 
 def test_target_value_output(policy_and_batch):
     policy, batch = policy_and_batch
-    for m in policy.module.target_critics:
-        val = m(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
+    for mod in policy.module.target_critics:
+        val = mod(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
         assert val.shape == (10, 1)
         assert val.dtype == torch.float32
 

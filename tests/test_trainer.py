@@ -1,10 +1,10 @@
-# pylint: disable=missing-docstring,redefined-outer-name
+# pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 import ray
 
 
 def setup_module():
-    ray.init(object_store_memory=int(2e9))
+    ray.init()
 
 
 def teardown_module():

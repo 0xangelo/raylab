@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring
 # pylint: enable=missing-docstring
+import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
@@ -35,21 +36,33 @@ class _DistributionBase(nn.Module):
 class DistRSample(_DistributionBase):
     """Module producing samples given a dict of distribution parameters."""
 
+    def __init__(self, *args, detach_logp=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.detach_logp = detach_logp
+
     @override(nn.Module)
-    def forward(self, inputs):  # pylint: disable=arguments-differ
+    def forward(
+        self, inputs, sample_shape=torch.Size([])
+    ):  # pylint: disable=arguments-differ
         dist = self.compute_dist(inputs)
-        sample = dist.rsample()
-        return sample, dist.log_prob(sample)
+        sample = dist.rsample(sample_shape=sample_shape)
+        logp = dist.log_prob(sample.detach() if self.detach_logp else sample)
+        return sample, logp
 
 
 class DistMean(_DistributionBase):
     """Module producing a distribution's mean given a dict of its parameters."""
 
+    def __init__(self, *args, detach_logp=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.detach_logp = detach_logp
+
     @override(nn.Module)
     def forward(self, inputs):  # pylint: disable=arguments-differ
         dist = self.compute_dist(inputs)
         mean = dist.mean
-        return mean, dist.log_prob(mean)
+        logp = dist.log_prob(mean.detach() if self.detach_logp else mean)
+        return mean, logp
 
 
 class DistLogProb(_DistributionBase):

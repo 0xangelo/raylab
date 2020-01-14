@@ -3,7 +3,7 @@ from ray.rllib.utils.annotations import override
 
 from raylab.algorithms import with_common_config
 from raylab.algorithms.mixins import ParameterNoiseMixin
-from raylab.algorithms.sac.sac import SACTrainer
+from raylab.algorithms.off_policy import GenericOffPolicyTrainer
 from .sop_policy import SOPTorchPolicy
 
 
@@ -86,16 +86,16 @@ DEFAULT_CONFIG = with_common_config(
 )
 
 
-class SOPTrainer(ParameterNoiseMixin, SACTrainer):
+class SOPTrainer(ParameterNoiseMixin, GenericOffPolicyTrainer):
     """Single agent trainer for Streamlined Off-Policy Algorithm."""
 
     # pylint: disable=attribute-defined-outside-init
 
-    _name = "SOP"
+    _name = "SAC"
     _default_config = DEFAULT_CONFIG
     _policy = SOPTorchPolicy
 
-    @override(SACTrainer)
+    @override(GenericOffPolicyTrainer)
     def _init(self, config, env_creator):
         self._set_parameter_noise_callbacks(config)
         super()._init(config, env_creator)

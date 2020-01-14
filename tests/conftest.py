@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,redefined-outer-name
+# pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 
 import raylab
@@ -36,16 +36,17 @@ def navigation_env(envs):
 
 
 @pytest.fixture
-def time_limited_env(envs):
-    return envs["TimeLimitedEnv"]
+def reservoir_env(envs):
+    return envs["Reservoir"]
+
+
+@pytest.fixture
+def hvac_env(envs):
+    return envs["HVAC"]
 
 
 @pytest.fixture(params=(True, False))
-def cartpole_swingup_env(request, time_limited_env):
-    return lambda _: time_limited_env(
-        {
-            "env_id": "CartPoleSwingUp",
-            "time_aware": request.param,
-            "max_episode_steps": 200,
-        }
+def cartpole_swingup_env(request, envs):
+    return lambda _: envs["CartPoleSwingUp"](
+        {"time_aware": request.param, "max_episode_steps": 200}
     )

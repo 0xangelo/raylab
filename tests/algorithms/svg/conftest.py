@@ -1,5 +1,7 @@
+# pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
-import gym.spaces as spaces
+import torch
+from ray.rllib.policy.sample_batch import SampleBatch
 
 from raylab.algorithms.registry import ALGORITHMS as ALGS
 
@@ -34,36 +36,26 @@ def svg_inf_policy(svg_inf_trainer):
     return svg_inf_trainer._policy
 
 
-@pytest.fixture(params=((1,), (2,), (4,)))
-def shape(request):
-    return request.param
+@pytest.fixture
+def reward_fn():
+    def rew_fn(_, actions, next_obs):
+        reward_dist = -torch.norm(next_obs, dim=-1)
+        reward_ctrl = -torch.sum(actions ** 2, dim=-1)
+        return reward_dist + reward_ctrl
+
+    return rew_fn
 
 
 @pytest.fixture
-def obs_space(shape):
-    return spaces.Box(-10, 10, shape=shape)
+def policy_and_batch_fn(policy_and_batch_, reward_fn):
+    def make_policy_and_batch(policy_cls, config):
+        policy, batch = policy_and_batch_(policy_cls, config)
+        policy.set_reward_fn(reward_fn)
+        batch[SampleBatch.REWARDS] = reward_fn(
+            batch[SampleBatch.CUR_OBS],
+            batch[SampleBatch.ACTIONS],
+            batch[SampleBatch.NEXT_OBS],
+        )
+        return policy, batch
 
-
-@pytest.fixture
-def action_space(shape):
-    return spaces.Box(-1, 1, shape=shape)
-
-
-@pytest.fixture
-def cartpole_swingup_env(time_limited_env):
-    return lambda _: time_limited_env(
-        {"env_id": "CartPoleSwingUp", "time_aware": True, "max_episode_steps": 200}
-    )
-
-
-@pytest.fixture
-def reacher_env(time_limited_env):
-    return lambda _: time_limited_env(
-        {"env_id": "MujocoReacher", "time_aware": True, "max_episode_steps": 50}
-    )
-
-
-@pytest.fixture(params=range(3))
-def env_creator(request, cartpole_swingup_env, navigation_env, reacher_env):
-    creators = [cartpole_swingup_env, navigation_env, reacher_env]
-    return creators[request.param]
+    return make_policy_and_batch

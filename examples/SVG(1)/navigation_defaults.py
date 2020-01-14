@@ -1,10 +1,9 @@
 """Tune experiment configuration for SVG(1) on Navigation.
 
 This can be run from the command line by executing
-`python scripts/tune_experiment.py 'SVG(1)' --local-dir <experiment dir>
-    --config examples/svg_one_navigation_defaults.py --stop timesteps_total 10000`
+`raylab experiment 'SVG(1)' --local-dir <experiment dir>
+    --config 'examples/SVG(1)/navigation_defaults.py' --stop timesteps_total 10000`
 """
-import numpy as np
 from ray import tune  # pylint: disable=unused-import
 
 
@@ -12,6 +11,12 @@ def get_config():  # pylint: disable=missing-docstring
     return {
         # === Environment ===
         "env": "Navigation",
+        "env_config": tune.grid_search(
+            [
+                {"deceleration_zones": None},
+                {"deceleration_zones": {"center": [[0.0, 0.0]], "decay": [2.0]}},
+            ]
+        ),
         # === Replay Buffer ===
         "buffer_size": int(1e4),
         # === Optimization ===
@@ -19,9 +24,9 @@ def get_config():  # pylint: disable=missing-docstring
         "torch_optimizer": "Adam",
         # Keyword arguments to be passed to the on-policy optimizer
         "torch_optimizer_options": {
-            "model": {"lr": 1e-3},
-            "value": {"lr": 1e-3},
-            "policy": {"lr": 1e-3},
+            "model": {"lr": 3e-4},
+            "value": {"lr": 3e-4},
+            "policy": {"lr": 3e-4},
         },
         # Clip gradient norms by this value
         "max_grad_norm": 1e3,
@@ -38,34 +43,40 @@ def get_config():  # pylint: disable=missing-docstring
         # linear in states and/or actions.
         "module": {
             "policy": {
-                "layers": (100, 100),
-                "activation": "Tanh",
+                "layers": (64, 64),
+                "activation": "ReLU",
                 "input_dependent_scale": True,
-                "initializer_options": {"name": "orthogonal"},
+                "initializer_options": {"name": "xavier_uniform"},
             },
             "value": {
-                "layers": (200, 100),
-                "activation": "ELU",
-                "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
+                "layers": (64, 64),
+                "activation": "ReLU",
+                "initializer_options": {"name": "xavier_uniform"},
             },
             "model": {
-                "layers": (20, 20),
-                "activation": "Tanh",
+                "layers": (64, 64),
+                "activation": "ReLU",
                 "delay_action": True,
-                "initializer_options": {"name": "orthogonal"},
+                "initializer_options": {"name": "xavier_uniform"},
             },
         },
         # === RolloutWorker ===
         "sample_batch_size": 1,
         "batch_mode": "complete_episodes",
         # === Trainer ===
-        "train_batch_size": 128,
+        "train_batch_size": 32,
+        "timesteps_per_iteration": 200,
+        # === Exploration ===
+        # Until this many timesteps have elapsed, the agent's policy will be
+        # ignored & it will instead take uniform random actions. Can be used in
+        # conjunction with learning_starts (which controls when the first
+        # optimization step happens) to decrease dependence of exploration &
+        # optimization on initial policy parameters. Note that this will be
+        # disabled when the action noise scale is set to 0 (e.g during evaluation).
+        "pure_exploration_steps": 200,
         # === Evaluation ===
-        "evaluation_interval": 1,
-        # Extra arguments to pass to evaluation workers.
-        # Typical usage is to pass extra args to evaluation env creator
-        # and to disable exploration by computing deterministic actions
-        "evaluation_config": {"mean_action_only": True, "pure_exploration_steps": 0},
+        "evaluation_interval": 5,
+        "evaluation_num_episodes": 5,
         # === Debugging ===
         # Set the ray.rllib.* log level for the agent process and its workers.
         # Should be one of DEBUG, INFO, WARN, or ERROR. The DEBUG level will also

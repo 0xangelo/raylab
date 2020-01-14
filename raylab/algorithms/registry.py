@@ -31,10 +31,17 @@ def _import_sop():
     return SOPTrainer
 
 
+def _import_mapo():
+    from raylab.algorithms.mapo.mapo import MAPOTrainer
+
+    return MAPOTrainer
+
+
 ALGORITHMS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
     "SVG(1)": _import_svg_one,
-    "SAC": _import_sac,
+    "SoftAC": _import_sac,
     "SOP": _import_sop,
+    "MAPO": _import_mapo,
 }

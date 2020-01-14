@@ -1,16 +1,12 @@
-"""Tune experiment configuration to test SAC in Hopper-v3."""
+"""Tune experiment configuration to test SAC in Walker2d-v3."""
 from ray import tune
 
 
 def get_config():
     return {
         # === Environment ===
-        "env": "TimeLimitedEnv",
-        "env_config": {
-            "env_id": "Hopper-v3",
-            "max_episode_steps": 1000,
-            "time_aware": False,
-        },
+        "env": "Walker2d-v3",
+        "env_config": {"max_episode_steps": 1000, "time_aware": False},
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning: use the minimun of two target Q functions
         # as the next action-value in the target for fitted Q iteration
@@ -24,6 +20,8 @@ def get_config():
         "policy_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
         # PyTorch optimizer to use for critic
         "critic_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
+        # PyTorch optimizer to use for entropy coefficient
+        "alpha_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
         # === Network ===
@@ -44,9 +42,6 @@ def get_config():
                 "delay_action": True,
             },
         },
-        # === Trainer ===
-        "train_batch_size": 256,
-        "timesteps_per_iteration": 1000,
         # === Exploration ===
         # Until this many timesteps have elapsed, the agent's policy will be
         # ignored & it will instead take uniform random actions. Can be used in
@@ -54,7 +49,10 @@ def get_config():
         # optimization step happens) to decrease dependence of exploration &
         # optimization on initial policy parameters. Note that this will be
         # disabled when the action noise scale is set to 0 (e.g during evaluation).
-        "pure_exploration_steps": tune.grid_search([0, 5000]),
+        "pure_exploration_steps": 10000,
+        # === Trainer ===
+        "train_batch_size": 256,
+        "timesteps_per_iteration": 1000,
         # === Evaluation ===
         # Evaluate with every `evaluation_interval` training iterations.
         # The evaluation stats will be reported under the "evaluation" metric key.
