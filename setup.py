@@ -18,6 +18,5 @@ setup(
     entry_points="""
         [console_scripts]
         raylab=raylab.cli:cli
-        viskit=raylab.viskit.plot:cli
     """,
 )
