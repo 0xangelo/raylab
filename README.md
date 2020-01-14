@@ -19,10 +19,10 @@ The project is structured as follows
     ├── modules         # Additional PyTorch neural network modules
     ├── policy          # Extensions and customizations of ray.rllib.policy submodules
     ├── utils           # miscellaneous utilities
-    
+
 ## Examples
 
-Raylab provides algorithms and environments to be used with a normal RLlib/Tune setup. 
+Raylab provides algorithms and environments to be used with a normal RLlib/Tune setup.
 ```python=
 import ray
 from ray import tune
@@ -62,7 +62,7 @@ raylab experiment --help
 ```
 An example is included in `examples/naf_exploration_experiment.py`.
 
-One can also use `scripts/train.py`, which wraps 
+One can also use `scripts/train.py`, which wraps
 [`rllib train`](https://ray.readthedocs.io/en/latest/rllib-training.html#rllib-training-apis)
 so as to register custom algorithms and environments beforehand.
 
@@ -72,7 +72,7 @@ To load a checkopoint and simulate an agent, use
 raylab rollout
 ```
 
-If one prefers rllib's interface, it is recommended to use `scripts/rollout.py`, which wraps 
+If one prefers rllib's interface, it is recommended to use `scripts/rollout.py`, which wraps
 [`rllib rollout`](https://ray.readthedocs.io/en/latest/rllib-training.html#evaluating-trained-policies)
 so as to register custom algorithms and environments beforehand.
 
@@ -86,7 +86,7 @@ These use [seaborn](https://seaborn.pydata.org/generated/seaborn.lineplot.html)'
 
 ## Algorithms
 
-* [NAF](http://proceedings.mlr.press/v48/gu16.html) 
+* [NAF](http://proceedings.mlr.press/v48/gu16.html)
 * [SVG(inf) and SVG(1)](http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients)
 * [SAC](http://proceedings.mlr.press/v80/haarnoja18b.html)
 * [SOP](https://arxiv.org/abs/1910.02208)
