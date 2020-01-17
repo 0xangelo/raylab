@@ -54,6 +54,7 @@ class MAPOTorchPolicy(
 
         if not config["true_model"]:
             module.update(self._make_model(obs_space, action_space, config))
+            self.check_model(module.model_sampler)
         return module
 
     def _make_policy(self, obs_space, action_space, config):
@@ -187,6 +188,29 @@ class MAPOTorchPolicy(
             return transform(samp), logp
 
         self.module.model_sampler = mods.Lambda(sampler)
+        # self.check_model(self.module.model_sampler)
+
+    def check_model(self, sampler):
+        """Verify that the transition model is appropriate for the desired estimator."""
+        if self.config["grad_estimator"] == "score_function":
+            obs = self.convert_to_tensor(self.observation_space.sample())
+            act = self.convert_to_tensor(self.action_space.sample()).requires_grad_()
+            _, logp = sampler(obs, act)
+            assert logp is not None
+            logp.mean().backward()
+            assert (
+                act.grad is not None
+            ), "Transition grad log_prob must exist for SF estimator"
+        if self.config["grad_estimator"] == "pathwise_derivative":
+            obs = self.convert_to_tensor(
+                self.observation_space.sample()
+            ).requires_grad_()
+            act = self.convert_to_tensor(self.action_space.sample()).requires_grad_()
+            samp, _ = sampler(obs, act)
+            samp.mean().backward()
+            assert (
+                obs.grad is not None and act.grad is not None
+            ), "Transition grad w.r.t. state and action must exist for PD estimator"
 
     @override(raypi.AdaptiveParamNoiseMixin)
     def _compute_noise_free_actions(self, sample_batch):
