@@ -224,12 +224,14 @@ class IBEnv(gym.Env):
     def transition_fn(self, state, action, sample_shape=()):
         """Compute the next state and its log-probability."""
 
+        # Expand state
+        state = state.expand(torch.Size(sample_shape) + state.shape)
         # Get operational cost ommitted from the cost history
         coc = op_cost.current_operational_cost(state)
         # addAction
         next_state, effective_shift = self._add_action(state, action)
         # update fatigue
-        next_state = self._update_fatigue(next_state, sample_shape)
+        next_state = self._update_fatigue(next_state)
         # update consumption
         next_state = self._update_operational_cost(next_state, coc, effective_shift)
         return next_state, None
@@ -259,7 +261,7 @@ class IBEnv(gym.Env):
         return next_state, effective_shift
 
     @staticmethod
-    def _update_fatigue(state, sample_shape):
+    def _update_fatigue(state):
         """
         The sub-dynamics of fatigue are influenced by the same
         variables as the sub-dynamics of operational cost, i.e., setpoint p, velocity v,
@@ -277,7 +279,7 @@ class IBEnv(gym.Env):
 
         # Equations (28, 29)
         noise_velocity, noise_gain = fatigue.sample_noise_variables(
-            eff_velocity, eff_gain, sample_shape=sample_shape
+            eff_velocity, eff_gain
         )
 
         # Equation (30)

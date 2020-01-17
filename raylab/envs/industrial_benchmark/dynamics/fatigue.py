@@ -35,24 +35,22 @@ def unscaled_eff_gain(gain, setpoint):
     return 1.0 / (gain + setpoint + 1)
 
 
-def sample_noise_variables(eff_velocity, eff_gain, sample_shape=()):
+def sample_noise_variables(eff_velocity, eff_gain):
     """Equations 28, 29."""
     # Noise variables described after equation (27)
     eta_e_dist = dists.Exponential(torch.empty_like(eff_gain).fill_(0.1))
-    eta_ge = eta_e_dist.rsample(sample_shape)
-    eta_ve = eta_e_dist.rsample(sample_shape)
+    eta_ge = eta_e_dist.rsample()
+    eta_ve = eta_e_dist.rsample()
     # Apply the logistic fuction to exponential variables
     eta_ge = 2.0 * (1.0 / (1.0 + torch.exp(-eta_ge)) - 0.5)
     eta_ve = 2.0 * (1.0 / (1.0 + torch.exp(-eta_ve)) - 0.5)
 
     eta_u_dist = dists.Uniform(torch.zeros_like(eff_gain), torch.ones_like(eff_gain))
-    eta_gu = eta_u_dist.rsample(sample_shape)
-    eta_vu = eta_u_dist.rsample(sample_shape)
+    eta_gu = eta_u_dist.rsample()
+    eta_vu = eta_u_dist.rsample()
 
-    eta_gb = dists.Bernoulli(torch.clamp(eff_gain, 0.001, 0.999)).sample(sample_shape)
-    eta_vb = dists.Bernoulli(torch.clamp(eff_velocity, 0.001, 0.999)).sample(
-        sample_shape
-    )
+    eta_gb = dists.Bernoulli(torch.clamp(eff_gain, 0.001, 0.999)).sample()
+    eta_vb = dists.Bernoulli(torch.clamp(eff_velocity, 0.001, 0.999)).sample()
 
     # Equations (28, 29)
     noise_velocity = eta_ve + (1 - eta_ve) * eta_vu * eta_vb * eff_velocity
