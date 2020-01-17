@@ -112,7 +112,7 @@ class IDS:
 
         # observables
         # Table I of the Appendix mentions only setpoint, velocity, gain, shift,
-        # consumption, and fatigue as the observable variables
+        # fatigue, and comsuption as the observable variables
         self.observable_keys = ["p", "v", "g", "h", "f", "c"]
         self.state["p"] = self._init_p  # SetPoint
         self.state["v"] = 50.0  # Velocity
@@ -302,13 +302,13 @@ class IDS:
             self.state["o"] += o
             self.init = False
         else:
-            self.state["o"][:-1] = self.state["o"][1:]
-            self.state["o"][-1] = o
+            self.state["o"][1:] = self.state["o"][:-1]
+            self.state["o"][0] = o
 
     def updateOperationalCostConvolution(self):
         """Calculate the convoluted cost according to equation (7) of the paper."""
         ConvArray = np.array(
-            [0.11111, 0.22222, 0.33333, 0.22222, 0.11111, 0.0, 0.0, 0.0, 0.0, 0.0]
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.11111, 0.22222, 0.33333, 0.22222, 0.11111]
         )
         self.state["oc"] = np.dot(self.state["o"], ConvArray)
 
