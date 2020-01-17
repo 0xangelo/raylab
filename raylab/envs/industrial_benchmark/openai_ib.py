@@ -26,11 +26,13 @@ SOFTWARE.
 import logging
 
 import numpy as np
+import torch
 import gym
 from gym import spaces
 
 from .ids import IDS
-
+from .dynamics import fatigue, op_cost
+from .goldstone.torch.environment import TorchGSEnvironment
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +55,7 @@ class IBEnv(gym.Env):
         # Setting up the IB environment
         self.setpoint = setpoint
         self._ib = IDS(setpoint)
+        self.gs_env = None
         # Used to determine whether to return the absolute value or the relative change
         # in the cost function
         self.reward_function = reward_type
@@ -166,17 +169,12 @@ class IBEnv(gym.Env):
             obs = self._ib.fullState()
         return obs.astype(np.float32)
 
-    def reward_fn(self, state, action, next_state):  # pylint: disable=unused-argument
-        """Compute the current reward according to equation (5) of the paper."""
-        fat_coeff, con_coeff = self._ib.CRF, self._ib.CRC
-        reward = -(fat_coeff * next_state[..., 4] + con_coeff * next_state[..., 5])
-        if self.reward_function == "delta":
-            reward = reward + fat_coeff * state[..., 4] + con_coeff * state[..., 5]
-        return reward / 100
-
     def reset(self):
         # Resetting the entire environment
         self._ib.reset()
+        self.gs_env = TorchGSEnvironment(
+            24, self._ib.maxRequiredStep, self._ib.maxRequiredStep / 2.0
+        )
         self.reward = -self._ib.state["cost"]
         return self._get_obs()
 
@@ -210,3 +208,113 @@ class IBEnv(gym.Env):
             "hg",
         ]
         return dict(zip(markovian_state_variables, self._ib.minimalMarkovState()))
+
+    def reward_fn(self, state, _, next_state):
+        """Compute the current reward according to equation (5) of the paper."""
+        fat_coeff, con_coeff = self._ib.CRF, self._ib.CRC
+        fatigue_ = next_state[..., 4]
+        consumption = next_state[..., 5]
+        reward = -(fat_coeff * fatigue_ + con_coeff * consumption)
+        if self.reward_function == "delta":
+            old_fat = state[..., 4]
+            old_con = state[..., 5]
+            reward = reward + fat_coeff * old_fat + con_coeff * old_con
+        return reward / 100
+
+    def transition_fn(self, state, action, sample_shape=()):
+        """Compute the next state and its log-probability."""
+
+        # Expand state
+        state = state.expand(torch.Size(sample_shape) + state.shape)
+        # Get operational cost ommitted from the cost history
+        coc = op_cost.current_operational_cost(state)
+        # addAction
+        next_state, effective_shift = self._add_action(state, action)
+        # update fatigue
+        next_state = self._update_fatigue(next_state)
+        # update consumption
+        next_state = self._update_operational_cost(next_state, coc, effective_shift)
+        return next_state, None
+
+    def _add_action(self, state, action):
+        setpoint, velocity, gain, shift = state[..., :4].chunk(4, dim=-1)
+
+        velocity = torch.clamp(velocity + action[..., 0], 0.0, 100.0)
+        gain = torch.clamp(gain + 10 * action[..., 1], 0.0, 100.0)
+        shift = torch.clamp(
+            shift
+            + ((self._ib.maxRequiredStep / 0.9) * 100.0 / self._ib.gsScale)
+            * action[..., 2],
+            0.0,
+            100.0,
+        )
+        effective_shift = torch.clamp(
+            self._ib.gsScale * shift / 100.0
+            - self._ib.gsSetPointDependency * setpoint
+            - self._ib.gsBound,
+            -self._ib.gsBound,
+            self._ib.gsBound,
+        )
+        next_state = torch.cat(
+            [setpoint, velocity, gain, shift, state[..., 4:]], dim=-1
+        )
+        return next_state, effective_shift
+
+    @staticmethod
+    def _update_fatigue(state):
+        """
+        The sub-dynamics of fatigue are influenced by the same
+        variables as the sub-dynamics of operational cost, i.e., setpoint p, velocity v,
+        and gain g. The IB is designed in such a way that, when changing the steerings
+        velocity v and gain g as to reduce the operational cost, fatigue will be
+        increased, leading to the desired multi-criterial task, with two reward
+        components showing opposite dependencies on the actions.
+        """
+        setpoint, velocity, gain = state[..., :3].chunk(3, dim=-1)
+        hidden_velocity, hidden_gain = state[..., -2:].chunk(2, dim=-1)
+
+        # Equations (26, 27)
+        eff_velocity = fatigue.effective_velocity(velocity, gain, setpoint)
+        eff_gain = fatigue.effective_gain(gain, setpoint)
+
+        # Equations (28, 29)
+        noise_velocity, noise_gain = fatigue.sample_noise_variables(
+            eff_velocity, eff_gain
+        )
+
+        # Equation (30)
+        hidden_velocity = fatigue.update_hidden_velocity(
+            hidden_velocity, eff_velocity, noise_velocity
+        )
+        # Equation (31)
+        hidden_gain = fatigue.update_hidden_gain(hidden_gain, eff_gain, noise_gain)
+
+        # Equation (23)
+        alpha = fatigue.sample_alpha(
+            hidden_velocity, noise_velocity, hidden_gain, noise_gain
+        )
+        # Equations (21, 22)
+        new_fatigue = fatigue.fatigue(fatigue.basic_fatigue(velocity, gain), alpha)
+
+        return torch.cat(
+            [
+                state[..., :4],
+                new_fatigue,
+                state[..., 5:-2],
+                hidden_velocity,
+                hidden_gain,
+            ],
+            dim=-1,
+        )
+
+    def _update_operational_cost(self, next_state, coc, effective_shift):
+        """Dynamics of operational cost."""
+        next_state = op_cost.update_operational_cost_history(next_state, coc)
+        conv_cost = op_cost.convoluted_operational_cost(next_state)
+        next_state, miscalibration = op_cost.update_goldstone(
+            next_state, self.gs_env, effective_shift
+        )
+        next_state = op_cost.update_operational_costs(
+            next_state, conv_cost, miscalibration, self._ib.CRGS
+        )
+        return next_state
