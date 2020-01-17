@@ -44,7 +44,7 @@ class TorchRewardFunction:
 
     @staticmethod
     def _compute_optimal_radius(phi, max_required_step):
-        phi = phi % 2 * np.pi
+        phi = phi % (2 * np.pi)
 
         opt = torch.max(phi.sign().abs(), torch.as_tensor(max_required_step))
         opt = torch.where(phi >= np.pi, opt.neg(), opt)
@@ -60,7 +60,7 @@ class TorchRewardFunction:
         """
         nlgp = TorchNLGP()
         # use 2-pi-symmetry to move phi in domain [0,2pi]
-        phi = phi % 2 * np.pi
+        phi = phi % (2 * np.pi)
         # the desired radius at which we want the global optimim to be:
         opt_rad = self._compute_optimal_radius(phi, torch.as_tensor(max_required_step))
         #
