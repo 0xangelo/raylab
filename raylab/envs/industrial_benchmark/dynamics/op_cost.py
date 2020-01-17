@@ -31,7 +31,7 @@ def convoluted_operational_cost(state):
     conv = torch.as_tensor(
         [0.0, 0.0, 0.0, 0.0, 0.11111, 0.22222, 0.33333, 0.22222, 0.11111]
     )
-    return state[..., 6:15].matmul(conv)
+    return state[..., 6:15].matmul(conv).unsqueeze(-1)
 
 
 def update_goldstone(state, gs_env, effective_shift):
