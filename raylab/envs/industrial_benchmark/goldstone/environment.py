@@ -30,11 +30,11 @@ class environment:
     def __init__(self, number_steps, max_required_step, safe_zone):
         self._dynamics = dynamics(number_steps, max_required_step, safe_zone)
 
-    def reward(self, phi_idx, position):
-        return self._dynamics.reward(phi_idx, position)
+    def reward(self, phi_idx, effective_shift):
+        return self._dynamics.reward(phi_idx, effective_shift)
 
-    def state_transition(self, domain, phi_idx, system_response, position):
+    def state_transition(self, domain, phi_idx, system_response, effective_shift):
         domain, phi_idx, system_response = self._dynamics.state_transition(
-            domain, phi_idx, system_response, position
+            domain, phi_idx, system_response, effective_shift
         )
-        return self.reward(phi_idx, position), domain, phi_idx, system_response
+        return self.reward(phi_idx, effective_shift), domain, phi_idx, system_response

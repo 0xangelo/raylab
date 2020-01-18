@@ -19,10 +19,10 @@ class TorchNLGP:
         self._qh_b = -np.sqrt(1 / 27.0)
 
     def polar_nlgp(self, radius, phi):
-        """
+        """Apply Equation (17)
         Function value of normalized, linearly biased Goldstone Potential
         in polar coordinates:
-          * r in R
+          * radius in R
           * angle in Radians
         """
         rsq = radius ** 2
