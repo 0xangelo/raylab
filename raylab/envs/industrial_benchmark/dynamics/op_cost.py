@@ -32,33 +32,3 @@ def convoluted_operational_cost(state):
         [0.0, 0.0, 0.0, 0.0, 0.11111, 0.22222, 0.33333, 0.22222, 0.11111]
     )
     return state[..., 6:15].matmul(conv).unsqueeze(-1)
-
-
-def update_goldstone(state, gs_env, effective_shift):
-    """Calculate the domain, response, direction, and MisCalibration.
-
-    Computes equations (9), (10), (11), and (12) of the paper under the
-    'Dynamics of mis-calibration' section.
-    """
-    domain, system_response, phi_idx = state[..., -5:-2].chunk(3, dim=-1)
-
-    reward, domain, phi_idx, system_response = gs_env.state_transition(
-        domain.sign(), phi_idx, system_response.sign(), effective_shift
-    )
-    next_state = torch.cat(
-        [state[..., :-5], domain, system_response, phi_idx, state[..., -2:]], dim=-1
-    )
-    miscalibration = -reward
-    return next_state, miscalibration
-
-
-def update_operational_costs(state, conv_cost, miscalibration, crgs):
-    """Calculate the consumption according to equations (19) and (20)."""
-    # This seems to correspond to equation (19),
-    # although the minus sign is mysterious.
-    hidden_cost = conv_cost - (crgs * (miscalibration - 1.0))
-    # This corresponds to equation (20), although the constant 0.005 is
-    # different from the 0.02 written in the paper. This might result in
-    # very low observational noise
-    cost = hidden_cost - torch.randn_like(hidden_cost) * (1 + 0.005 * hidden_cost)
-    return torch.cat([state[..., :5], cost, state[..., 6:]], dim=-1)

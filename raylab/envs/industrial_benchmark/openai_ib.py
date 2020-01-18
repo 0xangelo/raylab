@@ -55,7 +55,6 @@ class IBEnv(gym.Env):
         # Setting up the IB environment
         self.setpoint = setpoint
         self._ib = IDS(setpoint)
-        self.gs_env = None
         # Used to determine whether to return the absolute value or the relative change
         # in the cost function
         self.reward_function = reward_type
@@ -172,9 +171,6 @@ class IBEnv(gym.Env):
     def reset(self):
         # Resetting the entire environment
         self._ib.reset()
-        self.gs_env = TorchGSEnvironment(
-            24, self._ib.maxRequiredStep, self._ib.maxRequiredStep / 2.0
-        )
         self.reward = -self._ib.state["cost"]
         return self._get_obs()
 
@@ -233,7 +229,7 @@ class IBEnv(gym.Env):
         # update fatigue
         next_state = self._update_fatigue(next_state)
         # update consumption
-        next_state = self._update_operational_cost(next_state, coc, effective_shift)
+        next_state = self._update_consumption(next_state, coc, effective_shift)
         return next_state, None
 
     def _add_action(self, state, action):
@@ -307,14 +303,46 @@ class IBEnv(gym.Env):
             dim=-1,
         )
 
-    def _update_operational_cost(self, next_state, coc, effective_shift):
+    def _update_consumption(self, state, coc, effective_shift):
         """Dynamics of operational cost."""
-        next_state = op_cost.update_operational_cost_history(next_state, coc)
-        conv_cost = op_cost.convoluted_operational_cost(next_state)
-        next_state, miscalibration = op_cost.update_goldstone(
-            next_state, self.gs_env, effective_shift
+        state, conv_cost = self._update_operational_cost(state, coc)
+        state, miscalibration = self._update_miscalibration(state, effective_shift)
+
+        # This seems to correspond to equation (19),
+        # although the minus sign is mysterious.
+        ct_hat = conv_cost - (self._ib.CRGS * (miscalibration - 1.0))
+        # This corresponds to equation (20), although the constant 0.005 is
+        # different from the 0.02 written in the paper. This might result in
+        # very low observational noise
+        consumption = ct_hat - torch.randn_like(ct_hat) * (1 + 0.005 * ct_hat)
+        return torch.cat([state[..., :5], consumption, state[..., 6:]], dim=-1)
+
+    @staticmethod
+    def _update_operational_cost(state, coc):
+        """
+        The sub-dynamics of operational cost are influenced by the external driver
+        setpoint p and two of the three steerings, velocity v and gain g.
+        """
+        state = op_cost.update_operational_cost_history(state, coc)
+        conv_cost = op_cost.convoluted_operational_cost(state)
+        return state, conv_cost
+
+    def _update_miscalibration(self, state, effective_shift):
+        """Calculate the domain, response, direction, and MisCalibration.
+
+        Computes equations (9), (10), (11), and (12) of the paper under the
+        'Dynamics of mis-calibration' section.
+        """
+        domain, system_response, phi_idx = state[..., -5:-2].chunk(3, dim=-1)
+        gs_env = TorchGSEnvironment(
+            24, self._ib.maxRequiredStep, self._ib.maxRequiredStep / 2.0
         )
-        next_state = op_cost.update_operational_costs(
-            next_state, conv_cost, miscalibration, self._ib.CRGS
+
+        reward, domain, phi_idx, system_response = gs_env.state_transition(
+            domain.sign(), phi_idx, system_response.sign(), effective_shift
         )
-        return next_state
+        next_state = torch.cat(
+            [state[..., :-5], domain, system_response, phi_idx, state[..., -2:]], dim=-1
+        )
+        miscalibration = -reward
+        return next_state, miscalibration
