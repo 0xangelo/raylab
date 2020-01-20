@@ -21,6 +21,6 @@ install:
   - conda activate test-environment
   - conda install pytest pytorch torchvision -c pytorch
   - pip install gym-cartpole-swingup
-  - python setup.py install
+  - pip install .
 # command to run tests
 script: travis_wait pytest
