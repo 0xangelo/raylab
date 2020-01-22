@@ -1,9 +1,11 @@
 import os.path as osp
 
+import numpy as np
 import click
 import matplotlib.pyplot as plt
 import seaborn as sns
 from raylab.viskit import core
+from raylab.viskit.plot import latexify
 
 
 def process_algorithm_name(exp_data):
@@ -11,7 +13,7 @@ def process_algorithm_name(exp_data):
         model_loss = "MLE" if exp_data.params["model_loss"] == "mle" else "MAPO"
         exp_data.flat_params["algorithm"] = model_loss
     else:
-        exp_data.flat_params["algorithm"] = "SOP"
+        exp_data.flat_params["algorithm"] = "DDPG"
     return exp_data
 
 
@@ -31,8 +33,7 @@ def plot_navigation_grid(local_dir):
 
     path_fmt = osp.join(local_dir, "{}-Navigation-{}/")
     args = dict(
-        # x="timesteps_total",
-        x="iterations_since_restore",
+        x="timesteps_total",
         y="evaluation/episode_reward_mean",
         hue="algorithm",
         style="grad_estimator",
@@ -48,10 +49,13 @@ def plot_navigation_grid(local_dir):
 
     cols = "Walks NonDiagCov LinearModel".split()
 
-    with sns.plotting_context("paper"):
-        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(15, 10))
+    with sns.plotting_context("paper"), latexify(
+        columns=2, fig_width=8, fig_height=((np.sqrt(5) - 1.0) / 2.0) * 4
+    ):
+        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True)
 
-        for ax, col in zip(axes, cols):
+        titles = "Random Walks", "Non Diagonal Covariance", "Linear Model"
+        for idx, (ax, col, title) in enumerate(zip(axes, cols, titles)):
             exps_data = core.load_exps_data(
                 path_fmt.format("MAPO", col)
             ) + core.load_exps_data(path_fmt.format("SOP", col))
@@ -63,6 +67,7 @@ def plot_navigation_grid(local_dir):
             selectors, titles = core.filter_and_split_experiments(exps_data)
             inst = core.lineplot_instructions(selectors, titles, **args)[0]
             plot_kwargs = inst["lineplot_kwargs"]
+            plot_kwargs["hue_order"] = ["MAPO", "MLE", "DDPG"]
             sns.lineplot(
                 ax=ax,
                 legend="full",
@@ -72,26 +77,19 @@ def plot_navigation_grid(local_dir):
                 ),
                 **plot_kwargs,
             )
+            ax.set_xlabel("Timesteps")
+            ax.set_title(title)
+            if idx == 0:
+                ax.set_ylabel("Episode Reward Mean")
+            if idx != 2:
+                ax.get_legend().remove()
 
         # Just some formatting niceness:
         # x-axis scale in scientific notation if max x is large
         plt.ticklabel_format(style="sci", axis="x", scilimits=(0, 0))
 
-        pad = 5  # in points
-        for ax, col in zip(axes, cols):
-            ax.annotate(
-                col,
-                xy=(0.5, 1),
-                xytext=(0, pad),
-                xycoords="axes fraction",
-                textcoords="offset points",
-                size="large",
-                ha="center",
-                va="baseline",
-            )
-
         fig.tight_layout()
-        plt.show()
+        plt.savefig("navigation.pdf")
 
 
 def plot_reservoir_grid(local_dir):
@@ -115,10 +113,13 @@ def plot_reservoir_grid(local_dir):
 
     cols = "Walks FullModel LinearModel".split()
 
-    with sns.plotting_context("paper"):
-        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(15, 4))
+    with sns.plotting_context("paper"), latexify(
+        columns=2, fig_width=8, fig_height=((np.sqrt(5) - 1.0) / 2.0) * 4
+    ):
+        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True)
 
-        for j, col in enumerate(cols):
+        titles = "Random Walks", "Original", "Linear Model"
+        for j, (col, title) in enumerate(zip(cols, titles)):
             exps_data = core.load_exps_data(
                 path_fmt.format("MAPO", col)
             ) + core.load_exps_data(path_fmt.format("SOP", col))
@@ -130,6 +131,7 @@ def plot_reservoir_grid(local_dir):
             selectors, titles = core.filter_and_split_experiments(exps_data)
             plot_inst = core.lineplot_instructions(selectors, titles, **args)[0]
             plot_kwargs = plot_inst["lineplot_kwargs"]
+            plot_kwargs["hue_order"] = ["MAPO", "MLE", "DDPG"]
             sns.lineplot(
                 ax=axes[j],
                 legend="full" if j == 2 else False,
@@ -140,25 +142,17 @@ def plot_reservoir_grid(local_dir):
                 **plot_kwargs,
             )
 
+            axes[j].set_xlabel("Timesteps")
+            axes[j].set_title(title)
+            if j == 0:
+                axes[j].set_ylabel("Episode Reward Mean")
+
         # Just some formatting niceness:
         # x-axis scale in scientific notation if max x is large
         plt.ticklabel_format(style="sci", axis="x", scilimits=(0, 0))
 
-        pad = 5  # in points
-        for ax, col in zip(axes, cols):
-            ax.annotate(
-                col,
-                xy=(0.5, 1),
-                xytext=(0, pad),
-                xycoords="axes fraction",
-                textcoords="offset points",
-                size="large",
-                ha="center",
-                va="baseline",
-            )
-
         fig.tight_layout()
-        plt.show()
+        plt.savefig("reservoir.pdf")
 
 
 def plot_hvac_grid(local_dir):

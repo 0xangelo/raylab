@@ -45,11 +45,13 @@ def latexify(fig_width=None, fig_height=None, columns=1, max_height_inches=8.0):
         fig_height = max_height_inches
 
     new_params = {
-        "axes.labelsize": 8,  # fontsize for x and y labels (was 10)
-        "axes.titlesize": 8,
-        "legend.fontsize": 8,  # was 10
-        "xtick.labelsize": 8,
-        "ytick.labelsize": 8,
+        "axes.grid": True,
+        "grid.color": ".85",
+        "axes.labelsize": 6,  # fontsize for x and y labels (was 10)
+        "axes.titlesize": 6,
+        "legend.fontsize": 6,  # was 10
+        "xtick.labelsize": 6,
+        "ytick.labelsize": 6,
         "figure.figsize": [fig_width, fig_height],
         "font.family": ["serif"],
     }
