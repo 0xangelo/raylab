@@ -42,7 +42,6 @@ def test_affine_constant(model, inputs):
         assert model.scale.grad is not None
     latent.sum().backward()
     assert inputs.grad is not None
-    assert latent.grad is None
 
     latent = latent.detach().requires_grad_()
     model.eval()
