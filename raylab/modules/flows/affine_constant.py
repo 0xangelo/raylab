@@ -15,23 +15,25 @@ class AffineConstantFlow(NormalizingFlow):
 
     def __init__(self, dim, scale=True, shift=True):
         super().__init__()
-        self.scale = nn.Parameter(torch.randn(dim)) if scale else None
-        self.loc = nn.Parameter(torch.randn(dim)) if shift else None
+        if scale:
+            self.scale = nn.Parameter(torch.randn(dim))
+        else:
+            self.register_buffer("scale", torch.zeros(dim))
+        if shift:
+            self.loc = nn.Parameter(torch.randn(dim))
+        else:
+            self.register_buffer("loc", torch.zeros(dim))
 
     @override(NormalizingFlow)
     def _encode(self, inputs):
-        scale = self.scale or torch.zeros_like(inputs)
-        loc = self.loc or torch.zeros_like(inputs)
-        out = inputs * torch.exp(scale) + loc
-        log_det = torch.sum(scale, dim=-1)
+        out = inputs * torch.exp(self.scale) + self.loc
+        log_det = torch.sum(self.scale, dim=-1)
         return out, log_det
 
     @override(NormalizingFlow)
     def _decode(self, inputs):
-        scale = self.scale or torch.zeros_like(inputs)
-        loc = self.loc or torch.zeros_like(inputs)
-        out = (inputs - loc) * torch.exp(-scale)
-        log_det = torch.sum(-scale, dim=1)
+        out = (inputs - self.loc) * torch.exp(-self.scale)
+        log_det = torch.sum(-self.scale, dim=-1)
         return out, log_det
 
 
@@ -44,14 +46,16 @@ class ActNorm(AffineConstantFlow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.data_dep_init_done = False
+        self.data_dep_init_done = not (
+            isinstance(self.scale, nn.Parameter) and isinstance(self.loc, nn.Parameter)
+        )
 
     @override(AffineConstantFlow)
     def _encode(self, inputs):
         # first batch is used for init
         if not self.data_dep_init_done:
-            assert self.scale is not None and self.loc is not None  # for now
-            self.scale.data = torch.log(inputs.std(dim=0, keepdim=True)).neg().detach()
+            stats = inputs.std(dim=0, keepdim=True).log().neg().detach()
+            self.scale.data = torch.where(torch.isnan(stats), self.scale.data, stats)
             self.loc.data = (
                 (inputs * self.scale.exp()).mean(dim=0, keepdim=True).neg().detach()
             )
