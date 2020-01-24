@@ -220,8 +220,9 @@ class IBEnv(gym.Env):
     def transition_fn(self, state, action, sample_shape=()):
         """Compute the next state and its log-probability."""
 
-        # Expand state
+        # Expand state, action
         state = state.expand(torch.Size(sample_shape) + state.shape)
+        action = action.expand(torch.Size(sample_shape) + action.shape)
         # Get operational cost ommitted from the cost history
         coc = op_cost.current_operational_cost(state)
         # addAction
@@ -234,13 +235,13 @@ class IBEnv(gym.Env):
 
     def _add_action(self, state, action):
         setpoint, velocity, gain, shift = state[..., :4].chunk(4, dim=-1)
+        delta_v, delta_g, delta_h = action.chunk(3, dim=-1)
 
-        velocity = torch.clamp(velocity + action[..., 0], 0.0, 100.0)
-        gain = torch.clamp(gain + 10 * action[..., 1], 0.0, 100.0)
+        velocity = torch.clamp(velocity + delta_v, 0.0, 100.0)
+        gain = torch.clamp(gain + 10 * delta_g, 0.0, 100.0)
         shift = torch.clamp(
             shift
-            + ((self._ib.maxRequiredStep / 0.9) * 100.0 / self._ib.gsScale)
-            * action[..., 2],
+            + ((self._ib.maxRequiredStep / 0.9) * 100.0 / self._ib.gsScale) * delta_h,
             0.0,
             100.0,
         )
