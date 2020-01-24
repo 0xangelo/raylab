@@ -18,11 +18,11 @@ class CondAffineHalfFlow(NormalizingFlow):
         super().__init__()
         self.parity = parity
         if scale_module is None:
-            self.s_cond = Lambda(lambda xy: torch.zeros_like(xy[0]))
+            self.s_cond = Lambda(lambda _: torch.zeros([]))
         else:
             self.s_cond = scale_module
         if shift_module is None:
-            self.t_cond = Lambda(lambda xy: torch.zeros_like(xy[0]))
+            self.t_cond = Lambda(lambda _: torch.zeros([]))
         else:
             self.t_cond = shift_module
 
@@ -45,7 +45,7 @@ class CondAffineHalfFlow(NormalizingFlow):
     @override(NormalizingFlow)
     def _decode(self, inputs):
         var, cond = inputs
-        z_0, z_1 = var[..., ::2], var[..., 1::2]
+        z_0, z_1 = torch.chunk(var, 2, dim=-1)
         if self.parity:
             z_0, z_1 = z_1, z_0
         scale = self.s_cond([z_0, cond])
@@ -54,6 +54,11 @@ class CondAffineHalfFlow(NormalizingFlow):
         x_1 = (z_1 - shift) * torch.exp(-scale)
         if self.parity:
             x_0, x_1 = x_1, x_0
-        out = torch.cat([x_0, x_1], dim=-1)
+        mask0 = torch.zeros_like(var).bool()
+        mask0[..., ::2] = True
+        mask1 = ~mask0
+        out = torch.empty_like(var)
+        out[mask0] = x_0.flatten()
+        out[mask1] = x_1.flatten()
         log_det = torch.sum(-scale, dim=-1)
         return out, log_det
