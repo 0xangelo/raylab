@@ -50,7 +50,7 @@ def get_activation(activation):
 
     if isinstance(activation, dict):
         name = activation["name"]
-        options = activation["options"]
+        options = activation.get("options", {})
     else:
         name = activation
         options = {}
@@ -115,7 +115,7 @@ def initialize_(name, activation=None, **options):
 
     if isinstance(activation, dict):
         activation = activation["name"]
-        options.update(activation["options"])
+        options.update(activation.get("options", {}))
 
     if (
         activation in NONLINEARITY_MAP
