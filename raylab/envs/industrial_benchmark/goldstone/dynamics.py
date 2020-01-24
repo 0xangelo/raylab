@@ -57,23 +57,25 @@ class dynamics:
     def reset(self):
         return self.Domain.positive, 0, self.System_Response.advantageous
 
-    def reward(self, Phi_idx, position):
-        return self.get_penalty_function(Phi_idx).reward(position)
+    def reward(self, Phi_idx, effective_shift):
+        return self.get_penalty_function(Phi_idx).reward(effective_shift)
 
-    def state_transition(self, domain, phi_idx, system_response, position):
+    def state_transition(self, domain, phi_idx, system_response, effective_shift):
 
         old_domain = domain
 
         # (0) compute new domain
-        domain = self._compute_domain(old_domain, position)
+        domain = self._compute_domain(old_domain, effective_shift)
 
         # (1) if domain change: system_response <- advantageous
+        # Apply Equation (10)
         if domain != old_domain:
             system_response = self.System_Response.advantageous
 
         # (2) compute & apply turn direction
+        # Apply Equation (11)
         phi_idx += self._compute_angular_step(
-            domain, phi_idx, system_response, position
+            domain, phi_idx, system_response, effective_shift
         )
 
         # (3) Update system response if necessary
@@ -83,34 +85,54 @@ class dynamics:
         phi_idx = self._apply_symmetry(phi_idx)
 
         # (5) if self._Phi_idx == 0: reset internal state
-        if (phi_idx == 0) and (abs(position) <= self._safe_zone):
+        # Apply Equations (15, 16)
+        if (phi_idx == 0) and (abs(effective_shift) <= self._safe_zone):
             domain, phi_idx, system_response = self.reset()
 
         return domain, phi_idx, system_response
 
-    def _compute_domain(self, domain, position):
+    def _compute_domain(self, domain, effective_shift):
+        """Apply Equation (9)"""
         # compute the new domain of control action
-        if abs(position) <= self._safe_zone:
+        if abs(effective_shift) <= self._safe_zone:
             return domain
 
-        return self.Domain(sign(position))
+        return self.Domain(sign(effective_shift))
 
-    def _compute_angular_step(self, domain, phi_idx, system_response, position):
-        # cool down: when position close to zero
-        if abs(position) <= self._safe_zone:  # cool down
+    def _compute_angular_step(self, domain, phi_idx, system_response, effective_shift):
+        """Apply Equation (12).
+
+        Compute the change in phi. Recall that phi moves in discrete unit steps."""
+        # cool down: when effective_shift close to zero
+        if abs(effective_shift) <= self._safe_zone:  # cool down
             return -sign(phi_idx)
 
+        # If phi reaches the left or right limit for positive or negative domain
+        # respectively, remain constant
         if phi_idx == -domain.value * self._strongest_penality_abs_idx:
             return 0
-        return system_response.value * sign(position)
+        # If phi is in the middle range, move according to system response and domain
+        return system_response.value * sign(effective_shift)
 
     def _updated_system_response(self, phi_idx, system_response):
+        """Apply Equation (13).
+
+        If the absolute value of direction index phi reaches or exceeds the predefined
+        maximum index of 6 (upper right and lower left area in Figure 2), response
+        enters state disadvantageous and index phi is turned towards 0.
+        """
         if abs(phi_idx) >= self._strongest_penality_abs_idx:
             return self.System_Response.disadvantageous
 
         return system_response
 
     def _apply_symmetry(self, phi_idx):
+        """Apply Equation (14).
+
+        If the absolute value of direction index phi reaches or exceeds the predefined
+        maximum index of 6 (upper right and lower left area in Figure 2), response
+        enters state disadvantageous and index phi is turned towards 0.
+        """
         if abs(phi_idx) < self._strongest_penality_abs_idx:
             return phi_idx
 
@@ -121,13 +143,20 @@ class dynamics:
         return phi_idx
 
     def get_penalty_function(self, phi_idx):
+        """Return the reward function for a specific phi."""
         idx = int(self._strongest_penality_abs_idx + phi_idx)
         if idx < 0:
             idx = idx + len(self._penalty_functions_array)
         return self._penalty_functions_array[idx]
 
     def _define_reward_functions(self, number_steps, max_required_step):
+        """Generate the reward functions for each value of phi.
+
+        Calculate the angles (values to be passed to the sine function in Equation (18))
+        and cache the reward functions for each value.
+        """
         k = self._strongest_penality_abs_idx
+        # Value inside parenthesis in Equation (18)
         angle_gid = np.arange(-k, k + 1) * 2 * pi / number_steps
         reward_functions = [
             reward_function.reward_function(Phi, max_required_step) for Phi in angle_gid
@@ -137,6 +166,10 @@ class dynamics:
         return self._penalty_functions_array
 
     def compute_strongest_penalty_absIdx(self, number_steps):
+        """Compute the maximum absolute value of phi.
+
+        Using the defaults, this implies that phi is in {-6, ..., 6}.
+        """
         if (number_steps < 1) or (number_steps % 4 != 0):
             raise ValueError("number_steps must be positive and integer multiple of 4")
 

@@ -12,27 +12,7 @@ def get_config():  # pylint: disable=missing-docstring
             "reward_type": "classic",
             "action_type": "continuous",
             "observation": tune.grid_search(["visible", "markovian"]),
-            "max_episode_steps": 500,
+            "max_episode_steps": 1000,
             "time_aware": True,
         },
-        # === Network ===
-        # Size and activation of the fully connected networks computing the logits
-        # for the policy and action-value function. No layers means the component is
-        # linear in states and/or actions.
-        "module": {
-            "policy": {
-                "units": (64,),
-                "activation": "ReLU",
-                "initializer_options": {"name": "xavier_uniform"},
-            },
-            "critic": {
-                "units": (64,),
-                "activation": "ReLU",
-                "initializer_options": {"name": "xavier_uniform"},
-                "delay_action": True,
-            },
-        },
-        # === Trainer ===
-        "train_batch_size": 32,
-        "timesteps_per_iteration": 1000,
     }

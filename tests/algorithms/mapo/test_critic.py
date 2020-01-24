@@ -25,7 +25,10 @@ def config(clipped_double_q, target_policy_smoothing):
 
 @pytest.fixture
 def policy_and_batch(policy_and_batch_fn, config):
-    return policy_and_batch_fn(config)
+    policy, batch = policy_and_batch_fn(config)
+    for par in policy.module.parameters():
+        par.grad = None
+    return policy, batch
 
 
 def test_target_value_output(policy_and_batch):

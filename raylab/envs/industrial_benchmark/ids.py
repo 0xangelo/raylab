@@ -112,7 +112,7 @@ class IDS:
 
         # observables
         # Table I of the Appendix mentions only setpoint, velocity, gain, shift,
-        # consumption, and fatigue as the observable variables
+        # fatigue, and comsuption as the observable variables
         self.observable_keys = ["p", "v", "g", "h", "f", "c"]
         self.state["p"] = self._init_p  # SetPoint
         self.state["v"] = 50.0  # Velocity
@@ -236,6 +236,9 @@ class IDS:
 
         noise_e_g = self.np_random.exponential(expLambda)
         noise_e_v = self.np_random.exponential(expLambda)
+        noise_e_g = 2.0 * (1.0 / (1.0 + np.exp(-noise_e_g)) - 0.5)
+        noise_e_v = 2.0 * (1.0 / (1.0 + np.exp(-noise_e_v)) - 0.5)
+
         noise_u_g = self.np_random.rand()
         noise_u_v = self.np_random.rand()
 
@@ -246,11 +249,10 @@ class IDS:
             self.np_random.binomial(1, np.clip(effAct_velocity, 0.001, 0.999))
         )
 
-        noise_gain = 2.0 * (1.0 / (1.0 + np.exp(-noise_e_g)) - 0.5)
-        noise_velocity = 2.0 * (1.0 / (1.0 + np.exp(-noise_e_v)) - 0.5)
-
-        noise_gain += (1 - noise_gain) * noise_u_g * noise_b_g * effAct_gain
-        noise_velocity += (1 - noise_velocity) * noise_u_v * noise_b_v * effAct_velocity
+        noise_gain = noise_e_g + (1 - noise_e_g) * noise_u_g * noise_b_g * effAct_gain
+        noise_velocity = (
+            noise_e_v + (1 - noise_e_v) * noise_u_v * noise_b_v * effAct_velocity
+        )
 
         if effAct_gain <= actionTolerance:
             hidden_gain = effAct_gain
@@ -270,7 +272,7 @@ class IDS:
         else:
             hidden_velocity = 0.9 * hidden_velocity + noise_velocity / 3.0
 
-        if np.maximum(hidden_velocity, hidden_gain) == fatigueAmplificationMax:
+        if np.maximum(hidden_velocity, hidden_gain) >= fatigueAmplificationMax:
             alpha = 1.0 / (1.0 + np.exp(-self.np_random.normal(2.4, 0.4)))
         else:
             alpha = np.maximum(noise_velocity, noise_gain)
@@ -302,13 +304,13 @@ class IDS:
             self.state["o"] += o
             self.init = False
         else:
-            self.state["o"][:-1] = self.state["o"][1:]
-            self.state["o"][-1] = o
+            self.state["o"][1:] = self.state["o"][:-1]
+            self.state["o"][0] = o
 
     def updateOperationalCostConvolution(self):
         """Calculate the convoluted cost according to equation (7) of the paper."""
         ConvArray = np.array(
-            [0.11111, 0.22222, 0.33333, 0.22222, 0.11111, 0.0, 0.0, 0.0, 0.0, 0.0]
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.11111, 0.22222, 0.33333, 0.22222, 0.11111]
         )
         self.state["oc"] = np.dot(self.state["o"], ConvArray)
 

@@ -8,8 +8,8 @@ def get_config():  # pylint: disable=missing-docstring
         "env_config": {
             "reward_type": "classic",
             "action_type": "continuous",
-            "markovian": True,
-            "max_episode_steps": 200,
+            "observation": "markovian",
+            "max_episode_steps": 1000,
             "time_aware": True,
         },
         # === SQUASHING EXPLORATION PROBLEM ===
@@ -41,12 +41,12 @@ def get_config():  # pylint: disable=missing-docstring
         # linear in states and/or actions.
         "module": {
             "policy": {
-                "units": (128, 128),
+                "units": (256, 256),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
             },
             "critic": {
-                "units": (128, 128),
+                "units": (256, 256),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "delay_action": True,
@@ -69,7 +69,7 @@ def get_config():  # pylint: disable=missing-docstring
         # disabled when the action noise scale is set to 0 (e.g during evaluation).
         "pure_exploration_steps": 2000,
         # === Trainer ===
-        "train_batch_size": 128,
+        "train_batch_size": 256,
         "timesteps_per_iteration": 1000,
         # === Evaluation ===
         # Evaluate with every `evaluation_interval` training iterations.

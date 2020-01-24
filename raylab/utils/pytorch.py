@@ -39,19 +39,26 @@ def get_optimizer_class(name):
     raise ValueError(f"Couldn't find optimizer with name '{name}'")
 
 
-def get_activation(name):
+def get_activation(activation):
     """Return activation module type from string.
 
     Arguments:
-        name (str or None): the activation function's name
+        activation (str, dict or None): the activation function's description
     """
-    if name is None:
+    if activation is None:
         return None
+
+    if isinstance(activation, dict):
+        name = activation["name"]
+        options = activation.get("options", {})
+    else:
+        name = activation
+        options = {}
 
     if name in dir(nn.modules.activation):
         cls = getattr(nn.modules.activation, name)
         if issubclass(cls, nn.Module):
-            return cls
+            return functools.partial(cls, **options)
     raise ValueError(f"Couldn't find activation with name '{name}'")
 
 
@@ -81,6 +88,14 @@ def update_polyak(from_module, to_module, polyak):
         target.data.mul_(polyak).add_(1 - polyak, source.data)
 
 
+NONLINEARITY_MAP = {
+    "Sigmoid": "sigmoid",
+    "Tanh": "tanh",
+    "ReLU": "relu",
+    "LeakyReLU": "leaky_relu",
+}
+
+
 def initialize_(name, activation=None, **options):
     """Return a callable to apply an initializer with the given name and options.
 
@@ -89,7 +104,7 @@ def initialize_(name, activation=None, **options):
 
     Arguments:
         name (str): name of initializer function
-        activation (str): name of activation function following linear layer, optional
+        activation (str, dict): activation function following linear layer, optional
         **options: keyword arguments to be passed to the initializer
 
     Returns:
@@ -97,13 +112,18 @@ def initialize_(name, activation=None, **options):
     """
 
     initializer = get_initializer(name)
+
+    if isinstance(activation, dict):
+        activation = activation["name"]
+        options.update(activation.get("options", {}))
+
     if (
-        activation
+        activation in NONLINEARITY_MAP
         and "gain" not in options
         and "gain" in inspect.signature(initializer).parameters
     ):
         recommended_gain = nn.init.calculate_gain(
-            activation.lower(), param=options.get("negative_slope")
+            NONLINEARITY_MAP[activation], param=options.get("negative_slope")
         )
         options["gain"] = recommended_gain
     func_ = functools.partial(initializer, **options)

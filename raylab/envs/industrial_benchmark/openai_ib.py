@@ -26,11 +26,13 @@ SOFTWARE.
 import logging
 
 import numpy as np
+import torch
 import gym
 from gym import spaces
 
 from .ids import IDS
-
+from .dynamics import fatigue, op_cost
+from .goldstone.torch.environment import TorchGSEnvironment
 
 logger = logging.getLogger(__name__)
 
@@ -166,14 +168,6 @@ class IBEnv(gym.Env):
             obs = self._ib.fullState()
         return obs.astype(np.float32)
 
-    def reward_fn(self, state, action, next_state):  # pylint: disable=unused-argument
-        """Compute the current reward according to equation (5) of the paper."""
-        fat_coeff, con_coeff = self._ib.CRF, self._ib.CRC
-        reward = -(fat_coeff * next_state[..., 4] + con_coeff * next_state[..., 5])
-        if self.reward_function == "delta":
-            reward = reward + fat_coeff * state[..., 4] + con_coeff * state[..., 5]
-        return reward / 100
-
     def reset(self):
         # Resetting the entire environment
         self._ib.reset()
@@ -210,3 +204,145 @@ class IBEnv(gym.Env):
             "hg",
         ]
         return dict(zip(markovian_state_variables, self._ib.minimalMarkovState()))
+
+    def reward_fn(self, state, _, next_state):
+        """Compute the current reward according to equation (5) of the paper."""
+        fat_coeff, con_coeff = self._ib.CRF, self._ib.CRC
+        fatigue_ = next_state[..., 4]
+        consumption = next_state[..., 5]
+        reward = -(fat_coeff * fatigue_ + con_coeff * consumption)
+        if self.reward_function == "delta":
+            old_fat = state[..., 4]
+            old_con = state[..., 5]
+            reward = reward + fat_coeff * old_fat + con_coeff * old_con
+        return reward / 100
+
+    def transition_fn(self, state, action, sample_shape=()):
+        """Compute the next state and its log-probability."""
+
+        # Expand state
+        state = state.expand(torch.Size(sample_shape) + state.shape)
+        # Get operational cost ommitted from the cost history
+        coc = op_cost.current_operational_cost(state)
+        # addAction
+        next_state, effective_shift = self._add_action(state, action)
+        # update fatigue
+        next_state = self._update_fatigue(next_state)
+        # update consumption
+        next_state = self._update_consumption(next_state, coc, effective_shift)
+        return next_state, None
+
+    def _add_action(self, state, action):
+        setpoint, velocity, gain, shift = state[..., :4].chunk(4, dim=-1)
+
+        velocity = torch.clamp(velocity + action[..., 0], 0.0, 100.0)
+        gain = torch.clamp(gain + 10 * action[..., 1], 0.0, 100.0)
+        shift = torch.clamp(
+            shift
+            + ((self._ib.maxRequiredStep / 0.9) * 100.0 / self._ib.gsScale)
+            * action[..., 2],
+            0.0,
+            100.0,
+        )
+        effective_shift = torch.clamp(
+            self._ib.gsScale * shift / 100.0
+            - self._ib.gsSetPointDependency * setpoint
+            - self._ib.gsBound,
+            -self._ib.gsBound,
+            self._ib.gsBound,
+        )
+        next_state = torch.cat(
+            [setpoint, velocity, gain, shift, state[..., 4:]], dim=-1
+        )
+        return next_state, effective_shift
+
+    @staticmethod
+    def _update_fatigue(state):
+        """
+        The sub-dynamics of fatigue are influenced by the same
+        variables as the sub-dynamics of operational cost, i.e., setpoint p, velocity v,
+        and gain g. The IB is designed in such a way that, when changing the steerings
+        velocity v and gain g as to reduce the operational cost, fatigue will be
+        increased, leading to the desired multi-criterial task, with two reward
+        components showing opposite dependencies on the actions.
+        """
+        setpoint, velocity, gain = state[..., :3].chunk(3, dim=-1)
+        hidden_velocity, hidden_gain = state[..., -2:].chunk(2, dim=-1)
+
+        # Equations (26, 27)
+        eff_velocity = fatigue.effective_velocity(velocity, gain, setpoint)
+        eff_gain = fatigue.effective_gain(gain, setpoint)
+
+        # Equations (28, 29)
+        noise_velocity, noise_gain = fatigue.sample_noise_variables(
+            eff_velocity, eff_gain
+        )
+
+        # Equation (30)
+        hidden_velocity = fatigue.update_hidden_velocity(
+            hidden_velocity, eff_velocity, noise_velocity
+        )
+        # Equation (31)
+        hidden_gain = fatigue.update_hidden_gain(hidden_gain, eff_gain, noise_gain)
+
+        # Equation (23)
+        alpha = fatigue.sample_alpha(
+            hidden_velocity, noise_velocity, hidden_gain, noise_gain
+        )
+        # Equations (21, 22)
+        new_fatigue = fatigue.fatigue(fatigue.basic_fatigue(velocity, gain), alpha)
+
+        return torch.cat(
+            [
+                state[..., :4],
+                new_fatigue,
+                state[..., 5:-2],
+                hidden_velocity,
+                hidden_gain,
+            ],
+            dim=-1,
+        )
+
+    def _update_consumption(self, state, coc, effective_shift):
+        """Dynamics of operational cost."""
+        state, conv_cost = self._update_operational_cost(state, coc)
+        state, miscalibration = self._update_miscalibration(state, effective_shift)
+
+        # This seems to correspond to equation (19),
+        # although the minus sign is mysterious.
+        ct_hat = conv_cost - (self._ib.CRGS * (miscalibration - 1.0))
+        # This corresponds to equation (20), although the constant 0.005 is
+        # different from the 0.02 written in the paper. This might result in
+        # very low observational noise
+        consumption = ct_hat - torch.randn_like(ct_hat) * (1 + 0.005 * ct_hat)
+        return torch.cat([state[..., :5], consumption, state[..., 6:]], dim=-1)
+
+    @staticmethod
+    def _update_operational_cost(state, coc):
+        """
+        The sub-dynamics of operational cost are influenced by the external driver
+        setpoint p and two of the three steerings, velocity v and gain g.
+        """
+        state = op_cost.update_operational_cost_history(state, coc)
+        conv_cost = op_cost.convoluted_operational_cost(state)
+        return state, conv_cost
+
+    def _update_miscalibration(self, state, effective_shift):
+        """Calculate the domain, response, direction, and MisCalibration.
+
+        Computes equations (9), (10), (11), and (12) of the paper under the
+        'Dynamics of mis-calibration' section.
+        """
+        domain, system_response, phi_idx = state[..., -5:-2].chunk(3, dim=-1)
+        gs_env = TorchGSEnvironment(
+            24, self._ib.maxRequiredStep, self._ib.maxRequiredStep / 2.0
+        )
+
+        reward, domain, phi_idx, system_response = gs_env.state_transition(
+            domain.sign(), phi_idx, system_response.sign(), effective_shift
+        )
+        next_state = torch.cat(
+            [state[..., :-5], domain, system_response, phi_idx, state[..., -2:]], dim=-1
+        )
+        miscalibration = -reward
+        return next_state, miscalibration
