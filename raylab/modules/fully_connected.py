@@ -18,7 +18,7 @@ class FullyConnected(nn.Sequential):
         **initializer_options
     ):
         self.in_features = in_features
-        activ = get_activation(activation) if activation else None
+        activ = get_activation(activation)
         units = (self.in_features,) + tuple(units)
         modules = []
         for in_dim, out_dim in zip(units[:-1], units[1:]):
