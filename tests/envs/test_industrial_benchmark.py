@@ -9,6 +9,11 @@ def sample_shape(request):
     return request.param
 
 
+@pytest.fixture(params=((), (1,), (2,)))
+def batch_shape(request):
+    return request.param
+
+
 @pytest.fixture
 def markovian_ib(envs):
     return envs["IndustrialBenchmark"]({"observation": "markovian"})
@@ -38,18 +43,19 @@ def test_reward_type(classic_reward_ib, delta_reward_ib):
     assert np.allclose(rew2 - rew, rew_)
 
 
-def test_transition_fn(markovian_ib, sample_shape):
+def test_transition_fn(markovian_ib, batch_shape, sample_shape):
     env = markovian_ib
     obs = torch.as_tensor(env.reset())
+    obs = obs.expand(batch_shape + obs.shape)
     act = torch.as_tensor(env.action_space.sample())
+    act = act.expand(batch_shape + act.shape)
     act.requires_grad_()
 
     next_obs, logp = env.transition_fn(obs, act, sample_shape=sample_shape)
     assert logp is None
     assert next_obs.shape == sample_shape + obs.shape
-    if sample_shape:
-        assert next_obs[0].detach().numpy() in env.observation_space
-    else:
-        assert next_obs.detach().numpy() in env.observation_space
+    # hack to get single observation regardless of batch or sample size
+    single_obs = next_obs[tuple(0 for _ in next_obs.shape[:-1])]
+    assert single_obs.detach().numpy() in env.observation_space
 
     assert next_obs.grad_fn is not None
