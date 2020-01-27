@@ -188,7 +188,7 @@ class MAPOTorchPolicy(
             return transform(samp), logp
 
         self.module.model_sampler = mods.Lambda(sampler)
-        # self.check_model(self.module.model_sampler)
+        self.check_model(self.module.model_sampler)
 
     def check_model(self, sampler):
         """Verify that the transition model is appropriate for the desired estimator."""
@@ -371,7 +371,7 @@ class MAPOTorchPolicy(
         obs = batch_tensors[SampleBatch.CUR_OBS]
         actions = module.policy(obs)
         next_obs, logp = module.model_sampler(
-            obs, actions, torch.as_tensor([config["num_model_samples"]])
+            obs, actions, [config["num_model_samples"]]
         )
         rews = [module.reward(obs, actions, next_obs)]
 
