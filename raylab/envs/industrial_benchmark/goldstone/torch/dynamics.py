@@ -5,7 +5,6 @@ import torch
 from ray.rllib.utils.annotations import override
 
 from ..dynamics import dynamics
-from .reward_function import TorchRewardFunction
 
 
 class TorchDynamics(dynamics):
@@ -15,19 +14,77 @@ class TorchDynamics(dynamics):
         super().__init__(number_steps, max_required_step, safe_zone)
         self.number_steps = number_steps
         self.max_required_step = max_required_step
+        self.alpha = 0.5849
+        self.beta = 0.2924
+        self.kappa = -0.6367
 
     @override(dynamics)
     def reward(self, phi_idx, effective_shift):  # pylint: disable=arguments-differ
-        idx = torch.round(self._strongest_penality_abs_idx + phi_idx)
-        idx = torch.where(idx < 0, idx + 2 * self._strongest_penality_abs_idx, idx)
-        phi = (
-            (-self._strongest_penality_abs_idx + idx) * 2 * math.pi / self.number_steps
+        rho_s = torch.sin(math.pi * phi_idx / 12)
+        omega = self.omega(rho_s, effective_shift)
+
+        return (
+            -self.alpha * omega ** 2
+            + self.beta * omega ** 4
+            + self.kappa * rho_s * omega
         )
-        return TorchRewardFunction(phi, self.max_required_step).reward(effective_shift)
+
+    def omega(self, rho_s, effective_shift):
+        """Compute omega as given by Equation (40)."""
+        # pylint:disable=invalid-name
+        varrho = rho_s.sign()
+        r_opt = varrho * torch.max(rho_s.abs(), torch.as_tensor(2 * self._safe_zone))
+        q = self.kappa * rho_s.abs() / (8 * self.beta)
+
+        mask = q < -math.sqrt(1 / 27)
+        r_min = torch.empty_like(r_opt)
+        r_min[mask] = self._compute_r_min1(q[mask], varrho[mask])
+        r_min[~mask] = self._compute_r_min2(q[~mask], varrho[~mask])
+
+        mask = effective_shift.abs() <= r_opt.abs()
+        omega = torch.empty_like(effective_shift)
+        omega[mask] = self._compute_omega1(
+            r_min[mask], r_opt[mask], effective_shift[mask]
+        )
+        omega[~mask] = self._compute_omega2(
+            r_min[~mask], r_opt[~mask], effective_shift[~mask]
+        )
+        return omega
+
+    @staticmethod
+    def _compute_r_min1(q, varrho):
+        """Compute r_min resulting from the first branch of Equation (44)."""
+        # pylint:disable=invalid-name
+        u = (-varrho * q + torch.sqrt(q ** 2 - (1 / 27))) ** (1 / 3)
+        return (u + 1) / (3 * u)
+
+    @staticmethod
+    def _compute_r_min2(q, varrho):
+        """Compute r_min resulting from the second branch of Equation (44)."""
+        # pylint:disable=invalid-name
+        return (
+            varrho
+            * math.sqrt(4 / 3)
+            * torch.cos(1 / 3 * torch.acos(-q * math.sqrt(27)))
+        )
+
+    @staticmethod
+    def _compute_omega1(r_min, r_opt, effective_shift):
+        """Compute omega resulting from the first branch of Equation (40)."""
+        return effective_shift * r_min.abs() / r_opt.abs()
+
+    @staticmethod
+    def _compute_omega2(r_min, r_opt, effective_shift):
+        """Compute omega resulting from the second branch of Equation (40)."""
+        omega_hat_hat = (2 - r_opt.abs()) / (2 - r_min.abs())
+        ratio_ = (effective_shift.abs() - r_opt.abs()) / (2 - r_opt.abs())
+        ratio_to_omega_hat_hat = ratio_ ** omega_hat_hat
+        omega_hat = r_min.abs() + (2 - r_min.abs()) * ratio_to_omega_hat_hat
+        omega2 = effective_shift.sign() * omega_hat
+        return omega2
 
     @override(dynamics)
     def state_transition(self, domain, phi_idx, system_response, effective_shift):
-
         old_domain = domain
 
         # (0) compute new domain
