@@ -51,21 +51,30 @@ class reward_function:
         return self.__reward_function(r)
 
     def __rad_transformation_factory(self, opt_rad, min_rad):
-        def tsf(x):
-            if abs(x) <= abs(opt_rad):
-                return x * abs(min_rad) / abs(opt_rad)
+        """Compute Equation (40) for given optimal and minimum radii."""
 
-            exponent = (2 - abs(opt_rad)) / (2 - abs(min_rad))
-            scaling = (2 - abs(min_rad)) / (2 - abs(opt_rad)) ** exponent
-            return np.sign(x) * (
-                abs(min_rad) + scaling * (abs(x) - abs(opt_rad)) ** exponent
+        def tsf(effective_shift):
+            # This also ensures that we don't get an imaginary number when
+            # exponentiating (abs(effective_shift) - abs(opt_rad))
+            if abs(effective_shift) <= abs(opt_rad):
+                return effective_shift * abs(min_rad) / abs(opt_rad)
+
+            omega_hat_hat = (2 - abs(opt_rad)) / (2 - abs(min_rad))  # Equation (42)
+            scaling = (2 - abs(min_rad)) / (2 - abs(opt_rad)) ** omega_hat_hat
+            # Equation (41)
+            omega_hat = (
+                abs(min_rad)
+                + scaling * (abs(effective_shift) - abs(opt_rad)) ** omega_hat_hat
             )
+            return np.sign(effective_shift) * omega_hat
 
         return tsf
 
     def __compute_optimal_radius(self, phi, max_required_step):
+        """Compute Equation (43)."""
         phi = np.mod(phi, 2 * np.pi)
 
+        # max_required_step = 2 * safe_zone
         opt = max(abs(np.sin(phi)), max_required_step)
         if phi >= np.pi:
             opt *= -1

@@ -82,7 +82,7 @@ class IDS:
 
     def reset(self):
         self.gsEnvironment = GoldstoneEnvironment(
-            24, self.maxRequiredStep, self.maxRequiredStep / 2.0
+            24, self.maxRequiredStep, self.maxRequiredStep / 2.0  # safe zone
         )
 
         self.state = OrderedDict()
