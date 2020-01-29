@@ -23,7 +23,7 @@ def get_config():  # pylint: disable=missing-docstring
         # Policy Gradient
         "target_policy_smoothing": True,
         # Additive Gaussian i.i.d. noise to add to actions inputs to target Q function
-        "target_gaussian_sigma": 0.2,
+        "target_gaussian_sigma": 0.3,
         # === Replay buffer ===
         # Size of the replay buffer. Note that if async_updates is set, then
         # each worker will have a replay buffer of this size.
@@ -74,7 +74,7 @@ def get_config():  # pylint: disable=missing-docstring
         # === Evaluation ===
         # Evaluate with every `evaluation_interval` training iterations.
         # The evaluation stats will be reported under the "evaluation" metric key.
-        "evaluation_interval": 5,
+        "evaluation_interval": 1,
         # Number of episodes to run per evaluation period.
         "evaluation_num_episodes": 5,
         # === Debugging ===
