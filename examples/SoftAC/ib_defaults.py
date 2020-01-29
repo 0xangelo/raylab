@@ -1,5 +1,4 @@
-"""Tune experiment configuration to test SAC in IndustrialBenchmark."""
-from ray import tune
+# pylint: disable=missing-docstring
 
 
 def get_config():
@@ -9,8 +8,8 @@ def get_config():
         "env_config": {
             "reward_type": "classic",
             "action_type": "continuous",
-            "markovian": True,
-            "max_episode_steps": 200,
+            "observation": "markovian",
+            "max_episode_steps": 1000,
             "time_aware": True,
         },
         # === Replay Buffer ===
@@ -28,13 +27,13 @@ def get_config():
         # linear in states and/or actions.
         "module": {
             "policy": {
-                "units": (128, 128),
+                "units": (256, 256),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "input_dependent_scale": True,
             },
             "critic": {
-                "units": (128, 128),
+                "units": (256, 256),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "delay_action": True,
@@ -43,12 +42,12 @@ def get_config():
         # === Exploration ===
         "pure_exploration_steps": 2000,
         # === Trainer ===
-        "train_batch_size": 128,
+        "train_batch_size": 256,
         "timesteps_per_iteration": 1000,
         # === Evaluation ===
         # Evaluate with every `evaluation_interval` training iterations.
         # The evaluation stats will be reported under the "evaluation" metric key.
-        "evaluation_interval": 5,
+        "evaluation_interval": 1,
         # Number of episodes to run per evaluation period.
         "evaluation_num_episodes": 5,
         # === Debugging ===
