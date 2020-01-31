@@ -1,5 +1,7 @@
 """Collection of invertible transform functions, or Flows."""
+import math
 import torch
+import torch.nn.functional as F
 from torch.distributions import constraints
 from torch.distributions.transforms import Transform
 
@@ -25,5 +27,5 @@ class TanhTransform(Transform):
         return (torch.log(to_log1) - torch.log(to_log2)) / 2
 
     def log_abs_det_jacobian(self, x, y):
-        to_log = torch.max(1 - y.pow(2), torch.as_tensor(self.eps))
-        return torch.log(to_log)
+        # Taken from spinningup's implementation of SAC
+        return 2 * (math.log(2) - x - F.softplus(-2 * x))
