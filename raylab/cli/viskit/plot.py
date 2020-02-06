@@ -1,6 +1,6 @@
 # pylint: disable=missing-docstring
 import functools
-from math import sqrt
+import math
 from contextlib import nullcontext
 
 import click
@@ -30,7 +30,7 @@ def latexify(fig_width=None, fig_height=None, columns=1, max_height_inches=8.0):
         fig_width = 3.39 if columns == 1 else 6.9  # width in inches
 
     if fig_height is None:
-        golden_mean = (sqrt(5) - 1.0) / 2.0  # Aesthetic ratio
+        golden_mean = (math.sqrt(5) - 1.0) / 2.0  # Aesthetic ratio
         fig_height = fig_width * golden_mean  # height in inches
 
     if fig_height > max_height_inches:
@@ -65,16 +65,21 @@ def plot_figures(plot_instructions):
         print("Dataframe head for figure {}:".format(idx))
         print(plot_inst["lineplot_kwargs"]["data"].head())
 
-        plt.figure()
-        plt.title(plot_inst["title"])
+    fig, axes = plt.subplots(
+        grid_size, grid_size, sharex=True, sharey=True, figsize=(16, 16)
+    )
+    axes = axes.flatten()
+    for ax, plot_inst in zip(axes, plot_instructions):
+        ax.set_title(plot_inst["title"])
         lineplot_kwargs = plot_inst["lineplot_kwargs"]
-        sns.lineplot(**lineplot_kwargs)
+        sns.lineplot(ax=ax, **lineplot_kwargs)
 
         if lineplot_kwargs["data"][lineplot_kwargs["x"]].max() > 5e3:
             # Just some formatting niceness:
             # x-axis scale in scientific notation if max x is large
             plt.ticklabel_format(style="sci", axis="x", scilimits=(0, 0))
-        plt.tight_layout(pad=0.5)
+        # plt.tight_layout(pad=0.5)
+        plt.tight_layout()
 
 
 def decorate_lineplot_kwargs(func):
