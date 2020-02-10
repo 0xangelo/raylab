@@ -1,14 +1,12 @@
 """CLI for finding the best checkpoint of an experiment."""
-import logging
-import os.path as osp
-from glob import glob
-
 import click
-from ray.tune.analysis import ExperimentAnalysis
 
 
 def get_last_checkpoint_path(logdir):
     """Retrieve the path of the last checkpoint given a Trial logdir."""
+    import os.path as osp
+    from glob import glob
+
     last_checkpoint_basedir = sorted(
         glob(osp.join(logdir, "checkpoint_*")), key=lambda p: p.split("_")[-1]
     )[-1]
@@ -39,6 +37,10 @@ def get_last_checkpoint_path(logdir):
 )
 def find_best(logdir, metric, mode):
     """Find the best experiment checkpoint as measured by a metric."""
+    import logging
+
+    from ray.tune.analysis import ExperimentAnalysis
+
     logging.getLogger("ray.tune").setLevel("ERROR")
 
     analysis = ExperimentAnalysis(logdir)

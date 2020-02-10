@@ -1,16 +1,14 @@
 """CLI for rolling out trained policies."""
-import os
-import pickle
-from contextlib import suppress
-
 import click
-import ray
-from ray.tune.registry import TRAINABLE_CLASS, _global_registry
-from ray.rllib.utils import merge_dicts
 
 
 def get_agent(checkpoint, algo, env):
     """Instatiate and restore agent class from checkpoint."""
+    import os
+    import pickle
+    from ray.tune.registry import TRAINABLE_CLASS, _global_registry
+    from ray.rllib.utils import merge_dicts
+
     config = {}
     # Load configuration from file
     config_dir = os.path.dirname(checkpoint)
@@ -44,6 +42,10 @@ def get_agent(checkpoint, algo, env):
 @click.pass_context
 def rollout(ctx, checkpoint, algo, env):
     """Simulate an agent from a given checkpoint in the desired environment."""
+    from contextlib import suppress
+
+    import ray
+
     if not algo:
         ctx.exit()
 

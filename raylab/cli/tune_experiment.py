@@ -1,14 +1,5 @@
 """CLI for launching Tune experiments."""
-import os
-import os.path as osp
-import logging
-
-import ray
-from ray import tune
 import click
-
-from raylab.logger import DEFAULT_LOGGERS as CUSTOM_LOGGERS
-from raylab.utils.dynamic_import import import_module_from_path
 
 
 @click.command()
@@ -91,6 +82,16 @@ from raylab.utils.dynamic_import import import_module_from_path
 @click.pass_context
 def experiment(ctx, **args):
     """Launch a Tune experiment from a config file."""
+    import os
+    import os.path as osp
+    import logging
+
+    import ray
+    from ray import tune
+
+    from raylab.logger import DEFAULT_LOGGERS as CUSTOM_LOGGERS
+    from raylab.utils.dynamic_import import import_module_from_path
+
     if not osp.exists(args["local_dir"]) and click.confirm(
         "Provided `local_dir` does not exist. Create it?"
     ):
