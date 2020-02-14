@@ -1,6 +1,8 @@
 """CLI for rolling out trained policies."""
 import click
 
+from .utils import initialize_raylab
+
 
 def get_agent(checkpoint, algo, env):
     """Instatiate and restore agent class from checkpoint."""
@@ -40,6 +42,7 @@ def get_agent(checkpoint, algo, env):
     "--env", default=None, help="Name of the environment to interact with, optional."
 )
 @click.pass_context
+@initialize_raylab
 def rollout(ctx, checkpoint, algo, env):
     """Simulate an agent from a given checkpoint in the desired environment."""
     from contextlib import suppress
@@ -62,5 +65,6 @@ def rollout(ctx, checkpoint, algo, env):
             time += 1
             env.render()
             if done or time >= horizon:
+                print("episode length:", time)
                 print("cummulative_reward:", cummulative_reward)
                 obs, done, cummulative_reward, time = env.reset(), False, 0, 0

@@ -4,11 +4,8 @@ from math import sqrt
 from contextlib import nullcontext
 
 import click
-import matplotlib
-import matplotlib.pyplot as plt
-import seaborn as sns
 
-import raylab.cli.viskit.core as core
+from ..utils import initialize_raylab
 
 
 def latexify(fig_width=None, fig_height=None, columns=1, max_height_inches=8.0):
@@ -25,6 +22,7 @@ def latexify(fig_width=None, fig_height=None, columns=1, max_height_inches=8.0):
 
     # Width and max height in inches for IEEE journals taken from
     # computer.org/cms/Computer.org/Journal%20templates/transactions_art_guide.pdf
+    import matplotlib
 
     assert columns in [1, 2]
 
@@ -58,6 +56,9 @@ def latexify(fig_width=None, fig_height=None, columns=1, max_height_inches=8.0):
 
 
 def plot_figures(plot_instructions):
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
     for idx, plot_inst in enumerate(plot_instructions):
         print("Dataframe columns for figure {}:".format(idx))
         print(*plot_inst["lineplot_kwargs"]["data"].columns)
@@ -227,6 +228,8 @@ def decorate_lineplot_kwargs(func):
 
 def load_and_create_instructions(**args):
     """CLI to draw Seaborn's lineplot from experiment data."""
+    import raylab.cli.viskit.core as core
+
     exps_data = core.load_exps_data(
         args["logdir"], progress_prefix=args["progress"], config_prefix=args["params"]
     )
@@ -273,8 +276,12 @@ def load_and_create_instructions(**args):
     help="This affects things like the color of the axes, whether a grid is "
     "enabled by default, and other aesthetic elements.",
 )
+@initialize_raylab
 def plot(**args):
     """Draw lineplots of the relevant variables and display them on screen."""
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
     plot_instructions = load_and_create_instructions(**args)
 
     plotting_context = sns.plotting_context(args["context"])
@@ -305,10 +312,15 @@ def plot(**args):
     help="http://latexcolor.com",
 )
 @click.option("--out", "-o", required=True, help="file to save the output image to.")
+@initialize_raylab
 def plot_export(**args):
     """Draw lineplots of the relevant variables and save them as files."""
     plot_instructions = load_and_create_instructions(**args)
+    import matplotlib.pyplot as plt
+
     if args["latex"]:
+        import matplotlib
+
         matplotlib.rcParams.update(
             {
                 "backend": "ps",

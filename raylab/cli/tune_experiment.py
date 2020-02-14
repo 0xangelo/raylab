@@ -1,6 +1,8 @@
 """CLI for launching Tune experiments."""
 import click
 
+from .utils import initialize_raylab
+
 
 @click.command()
 @click.argument("run", type=str)
@@ -80,6 +82,7 @@ import click
     "trainer's logging level.",
 )
 @click.pass_context
+@initialize_raylab
 def experiment(ctx, **args):
     """Launch a Tune experiment from a config file."""
     import os

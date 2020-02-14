@@ -1,6 +1,8 @@
 """CLI for finding the best checkpoint of an experiment."""
 import click
 
+from .utils import initialize_raylab
+
 
 def get_last_checkpoint_path(logdir):
     """Retrieve the path of the last checkpoint given a Trial logdir."""
@@ -35,6 +37,7 @@ def get_last_checkpoint_path(logdir):
     show_default=True,
     help="Criterion to order trials by.",
 )
+@initialize_raylab
 def find_best(logdir, metric, mode):
     """Find the best experiment checkpoint as measured by a metric."""
     import logging
