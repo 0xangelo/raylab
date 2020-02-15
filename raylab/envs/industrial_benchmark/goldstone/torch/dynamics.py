@@ -19,8 +19,8 @@ class TorchDynamics(dynamics):
         self.kappa = -0.6367
 
     @override(dynamics)
-    def reward(self, phi_idx, effective_shift):  # pylint: disable=arguments-differ
-        rho_s = torch.sin(math.pi * phi_idx / 12)
+    def reward(self, phi, effective_shift):  # pylint: disable=arguments-differ
+        rho_s = self._compute_rhos(phi)
         omega = self.omega(rho_s, effective_shift)
 
         return (
@@ -29,17 +29,16 @@ class TorchDynamics(dynamics):
             + self.kappa * rho_s * omega
         )
 
+    @staticmethod
+    def _compute_rhos(phi):
+        """Compute \rho^s as given by Equation (18)."""
+        return torch.sin(math.pi * phi / 12)
+
     def omega(self, rho_s, effective_shift):
         """Compute omega as given by Equation (40)."""
         # pylint:disable=invalid-name
-        varrho = rho_s.sign()
-        r_opt = varrho * torch.max(rho_s.abs(), torch.as_tensor(2 * self._safe_zone))
-        q = self.kappa * rho_s.abs() / (8 * self.beta)
-
-        mask = q < -math.sqrt(1 / 27)
-        r_min = torch.empty_like(r_opt)
-        r_min[mask] = self._compute_r_min1(q[mask], varrho[mask])
-        r_min[~mask] = self._compute_r_min2(q[~mask], varrho[~mask])
+        r_opt = self._compute_ropt(rho_s)
+        r_min = self._compute_rmin(rho_s)
 
         mask = effective_shift.abs() <= r_opt.abs()
         omega = torch.empty_like(effective_shift)
@@ -51,12 +50,39 @@ class TorchDynamics(dynamics):
         )
         return omega
 
-    @staticmethod
-    def _compute_r_min1(q, varrho):
+    def _compute_ropt(self, rho_s):
+        """Compute r_opt resulting from Equation (43)."""
+        varrho = rho_s.sign()
+        return varrho * torch.max(rho_s.abs(), torch.as_tensor(2 * self._safe_zone))
+
+    def _compute_rmin(self, rho_s):
+        """Compute r_min resulting from Equation (44)."""
+        # pylint:disable=invalid-name
+        varrho = rho_s.sign()
+        q = self._compute_q(rho_s)
+
+        mask = q < -math.sqrt(1 / 27)
+        r_min = torch.empty_like(rho_s)
+        r_min[mask] = self._compute_r_min1(q[mask], varrho[mask])
+        r_min[~mask] = self._compute_r_min2(q[~mask], varrho[~mask])
+        return r_min
+
+    def _compute_q(self, rho_s):
+        """Compute q resulting from Equation (46)."""
+        return self.kappa * rho_s.abs() / (8 * self.beta)
+
+    def _compute_r_min1(self, q, varrho):
         """Compute r_min resulting from the first branch of Equation (44)."""
         # pylint:disable=invalid-name
-        u = (-varrho * q + torch.sqrt(q ** 2 - (1 / 27))) ** (1 / 3)
+        u = self._compute_u(q, varrho)
         return (u + 1) / (3 * u)
+
+    @staticmethod
+    def _compute_u(q, varrho):
+        """Compute q resulting from Equation (45)."""
+        # pylint:disable=invalid-name
+        base = -varrho * q + torch.sqrt(q ** 2 - (1 / 27))
+        return base.sign() * base.abs().pow(1 / 3)
 
     @staticmethod
     def _compute_r_min2(q, varrho):
