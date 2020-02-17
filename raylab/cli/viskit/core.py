@@ -53,6 +53,10 @@ def first_that(criterion, lis):
     return next((x for x in lis if criterion(x)), None)
 
 
+def unique(lis):
+    return list(set(lis))
+
+
 def get_exp_folders(directories, isprogress):
     return list(
         map(  # Folders with at least one progress file
@@ -137,7 +141,9 @@ def extract_distinct_params(exps_data, excluded_params=("seed", "log_dir")):
     filtered = [
         (k, v)
         for (k, v) in proposals
-        if v and all(k != excluded_param for excluded_param in excluded_params)
+        if v
+        and all(k != excluded_param for excluded_param in excluded_params)
+        and len(v) > 1
     ]
     return filtered
 
