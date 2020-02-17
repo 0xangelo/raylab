@@ -42,7 +42,7 @@ class IDS:
 
     # pylint: disable=too-many-instance-attributes,missing-docstring,protected-access
 
-    def __init__(self, p=50, stationary_p=True):
+    def __init__(self, p=50, stationary_p=True, miscalibration=True):
         """
         p sets the setpoint hyperparameter (between 1-100) which will
         affect the dynamics and stochasticity.
@@ -52,6 +52,7 @@ class IDS:
         """
         self._init_p = p
         self.stationary_p = stationary_p
+        self._miscalibration = miscalibration
 
         self.set_seed()
 
@@ -202,16 +203,19 @@ class IDS:
             0.0,
             100.0,
         )
-        # Update effective shift through equation (8)
-        # The scaling factor for the shift is effectively 1 / 20
-        # The scaling factor for the setpoint is effectively 1 / 50
-        self.state["he"] = np.clip(
-            self.gsScale * self.state["h"] / 100.0
-            - self.gsSetPointDependency * self.state["p"]
-            - self.gsBound,
-            -self.gsBound,
-            self.gsBound,
-        )
+        if self._miscalibration:
+            # Update effective shift through equation (8)
+            # The scaling factor for the shift is effectively 1 / 20
+            # The scaling factor for the setpoint is effectively 1 / 50
+            self.state["he"] = np.clip(
+                self.gsScale * self.state["h"] / 100.0
+                - self.gsSetPointDependency * self.state["p"]
+                - self.gsBound,
+                -self.gsBound,
+                self.gsBound,
+            )
+        else:
+            self.state["he"] = np.sin(np.pi * self.state["gs_phi_idx"] / 12)
 
     def updateFatigue(self):  # pylint: disable=too-many-locals
         expLambda = 0.1
