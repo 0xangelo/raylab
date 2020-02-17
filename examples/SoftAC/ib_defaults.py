@@ -1,4 +1,5 @@
 # pylint: disable=missing-docstring
+from ray import tune
 
 
 def get_config():
@@ -6,9 +7,11 @@ def get_config():
         # === Environment ===
         "env": "IndustrialBenchmark",
         "env_config": {
+            "setpoint": 50,
             "reward_type": "classic",
             "action_type": "continuous",
             "observation": "markovian",
+            "miscalibration": tune.grid_search([True, False]),
             "max_episode_steps": 1000,
             "time_aware": True,
         },
