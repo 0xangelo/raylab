@@ -346,13 +346,15 @@ class IDS:
         rGS = self.state["MC"]
         # This seems to correspond to equation (19),
         # although the minus sign is mysterious.
-        eNewHidden = self.state["oc"] - (self.CRGS * (rGS - 1.0))
+        # eNewHidden = self.state["oc"] - (self.CRGS * (rGS - 1.0))
+        eNewHidden = self.state["oc"] + self.CRGS * rGS
         # This corresponds to equation (20), although the constant 0.005 is
         # different from the 0.02 written in the paper. This might result in
         # very low observational noise
-        operationalcosts = eNewHidden - self.np_random.randn() * (
-            1 + 0.005 * eNewHidden
-        )
+        # operationalcosts = eNewHidden - self.np_random.randn() * (
+        #     1 + 0.005 * eNewHidden
+        # )
+        operationalcosts = eNewHidden + self.np_random.randn() * (1 + 0.02 * eNewHidden)
         self.state["c"] = operationalcosts
 
     def updateCost(self):

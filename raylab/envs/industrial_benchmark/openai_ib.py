@@ -320,11 +320,13 @@ class IBEnv(gym.Env):
 
         # This seems to correspond to equation (19),
         # although the minus sign is mysterious.
-        ct_hat = conv_cost - (self._ib.CRGS * (miscalibration - 1.0))
+        # ct_hat = conv_cost - (self._ib.CRGS * (miscalibration - 1.0))
+        ct_hat = conv_cost + self._ib.CRGS * miscalibration
         # This corresponds to equation (20), although the constant 0.005 is
         # different from the 0.02 written in the paper. This might result in
         # very low observational noise
-        consumption = ct_hat - torch.randn_like(ct_hat) * (1 + 0.005 * ct_hat)
+        # consumption = ct_hat - torch.randn_like(ct_hat) * (1 + 0.005 * ct_hat)
+        consumption = ct_hat + torch.randn_like(ct_hat) * (1 + 0.02 * ct_hat)
         return torch.cat([state[..., :5], consumption, state[..., 6:]], dim=-1)
 
     @staticmethod
