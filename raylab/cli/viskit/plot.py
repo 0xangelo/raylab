@@ -228,15 +228,16 @@ def decorate_lineplot_kwargs(func):
 
 def load_and_create_instructions(**args):
     """CLI to draw Seaborn's lineplot from experiment data."""
-    import raylab.cli.viskit.core as core
+    import raylab.utils.exp_data as exp_util
+    from . import core
 
-    exps_data = core.load_exps_data(
+    exps_data = exp_util.load_exps_data(
         args["logdir"], progress_prefix=args["progress"], config_prefix=args["params"]
     )
     core.rename_params(exps_data, args["subskey"], args["subsval"])
     core.insert_params_dataframe(exps_data, args["hue"], args["size"], args["style"])
 
-    selectors, titles = core.filter_and_split_experiments(
+    selectors, titles = exp_util.filter_and_split_experiments(
         exps_data, split=args["split"], include=args["include"], exclude=args["exclude"]
     )
 
