@@ -17,7 +17,7 @@ def rollout(checkpoint, algo, env):
     """Simulate an agent from a given checkpoint in the desired environment."""
     from contextlib import suppress
     import ray
-    from raylab.utils.experiments import get_agent
+    from raylab.utils.checkpoints import get_agent
 
     ray.init()
     agent = get_agent(checkpoint, algo, env)
