@@ -10,6 +10,7 @@ import torch
 import numpy as np
 import pandas as pd
 import bokeh
+import bokeh.palettes
 from bokeh.plotting import figure, show
 from bokeh.models import ColumnDataSource, Span
 from raylab.cli.viskit import core
@@ -63,7 +64,14 @@ def goldstone_dynamics_landscape(p=None):
     X, Y = torch.meshgrid(phi, effective_shift)
     Z = dynamics.reward(X, Y)
 
-    p.image(image=[Z.T.numpy()], x=-6, y=-1.5, dw=12, dh=3, palette="Spectral11")
+    p.image(
+        image=[Z.T.numpy()],
+        x=-6,
+        y=-1.5,
+        dw=12,
+        dh=3,
+        palette=bokeh.palettes.viridis(256),
+    )
     return p
 
 
@@ -80,6 +88,19 @@ def goldstone_rmin_and_ropt(p=None):
     r_opt = dynamics._compute_ropt(rho_s)
     p.line(phi.numpy(), r_min.numpy(), legend_label="r_min", color="red")
     p.line(phi.numpy(), r_opt.numpy(), legend_label="r_opt", color="blue")
+    return p
+
+
+@default_goldstone_figure
+def goldstone_rhos(p=None):
+    dynamics = TorchDynamics(
+        number_steps=24,
+        max_required_step=np.sin(15.0 / 180.0 * np.pi),
+        safe_zone=np.sin(15.0 / 180.0 * np.pi) / 2,
+    )
+    phi = torch.linspace(-6, 6, steps=1000)
+    rho_s = dynamics._compute_rhos(phi)
+    p.line(phi.numpy(), rho_s.numpy(), legend_label="rho_s", color="black")
     return p
 
 
@@ -175,10 +196,11 @@ def goldstone_dynamics_3d():
 #     return pd.read_csv(path)
 
 p = goldstone_dynamics_landscape()
-p = goldstone_q_threshold(p=p)
-p = goldstone_rmin_and_ropt(p=p)
-p = goldstone_q(p=p)
-p = goldstone_u(p=p)
+p = goldstone_rhos(p=p)
+# p = goldstone_q_threshold(p=p)
+# p = goldstone_rmin_and_ropt(p=p)
+# p = goldstone_q(p=p)
+# p = goldstone_u(p=p)
 
 df = None
 path = st.file_uploader("Choose a CSV file", type="csv")
