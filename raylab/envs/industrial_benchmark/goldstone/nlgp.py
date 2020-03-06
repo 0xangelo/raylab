@@ -29,16 +29,16 @@ from scipy.special import cbrt
 
 class nlgp:
     def __init__(self):
-        u0 = cbrt(1 + np.sqrt(2)) / np.sqrt(3)
-        r0 = u0 + 1 / (3 * u0)
+        u0 = cbrt(1 + np.sqrt(2)) / np.sqrt(3)  # Equation (34)
+        r0 = u0 + 1 / (3 * u0)  # Equation (35)
 
-        lmbd = 2 * r0 ** 2 - r0 ** 4 + 8 * np.sqrt(2 / 27.0) * r0
+        lmbd = 2 * r0 ** 2 - r0 ** 4 + 8 * np.sqrt(2 / 27.0) * r0  # Equation (36)
 
-        self.__norm_alpha = 2 / lmbd
-        self.__norm_beta = 1 / lmbd
-        self.__norm_kappa = -8 * np.sqrt(2 / 27.0) / lmbd
-        self.__phi_b = np.pi / 4.0
-        self.__qh_b = -np.sqrt(1 / 27.0)
+        self.__norm_alpha = 2 / lmbd  # Equation (37)
+        self.__norm_beta = 1 / lmbd  # Equation (38)
+        self.__norm_kappa = -8 * np.sqrt(2 / 27.0) / lmbd  # Equation (39)
+        self.__phi_b = np.pi / 4.0  # Unused
+        self.__qh_b = -np.sqrt(1 / 27.0)  # Threshold for equation (44)
 
     def polar_nlgp(self, omega, phi):
         """Apply Equation (17)
@@ -64,17 +64,19 @@ class nlgp:
         return f(phi)
 
     def __global_minimum_radius(self, phi):
+        # Equation (46)
         qh = self.__norm_kappa * abs(np.sin(phi)) / (8 * self.__norm_beta)
-
+        # Equation (47)
         signum_phi = np.sign(np.sin(phi))
 
         if signum_phi == 0:
             signum_phi = 1
 
         if qh <= self.__qh_b:
-            u = cbrt(-signum_phi * qh + np.sqrt(qh * qh - 1 / 27))
-            r0 = u + 1 / (3 * u)
+            u = cbrt(-signum_phi * qh + np.sqrt(qh * qh - 1 / 27))  # Equation (45)
+            r0 = u + 1 / (3 * u)  # First case of Equation (44)
         else:
+            # Second case of Equation (44)
             r0 = (
                 signum_phi
                 * np.sqrt(4 / 3)

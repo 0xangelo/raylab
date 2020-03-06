@@ -42,7 +42,7 @@ class IDS:
 
     # pylint: disable=too-many-instance-attributes,missing-docstring,protected-access
 
-    def __init__(self, p=50, stationary_p=True):
+    def __init__(self, p=50, stationary_p=True, miscalibration=True):
         """
         p sets the setpoint hyperparameter (between 1-100) which will
         affect the dynamics and stochasticity.
@@ -52,6 +52,7 @@ class IDS:
         """
         self._init_p = p
         self.stationary_p = stationary_p
+        self._miscalibration = miscalibration
 
         self.set_seed()
 
@@ -82,7 +83,7 @@ class IDS:
 
     def reset(self):
         self.gsEnvironment = GoldstoneEnvironment(
-            24, self.maxRequiredStep, self.maxRequiredStep / 2.0
+            24, self.maxRequiredStep, self.maxRequiredStep / 2.0  # safe zone
         )
 
         self.state = OrderedDict()
@@ -202,16 +203,19 @@ class IDS:
             0.0,
             100.0,
         )
-        # Update effective shift through equation (8)
-        # The scaling factor for the shift is effectively 1 / 20
-        # The scaling factor for the setpoint is effectively 1 / 50
-        self.state["he"] = np.clip(
-            self.gsScale * self.state["h"] / 100.0
-            - self.gsSetPointDependency * self.state["p"]
-            - self.gsBound,
-            -self.gsBound,
-            self.gsBound,
-        )
+        if self._miscalibration:
+            # Update effective shift through equation (8)
+            # The scaling factor for the shift is effectively 1 / 20
+            # The scaling factor for the setpoint is effectively 1 / 50
+            self.state["he"] = np.clip(
+                self.gsScale * self.state["h"] / 100.0
+                - self.gsSetPointDependency * self.state["p"]
+                - self.gsBound,
+                -self.gsBound,
+                self.gsBound,
+            )
+        else:
+            self.state["he"] = np.sin(np.pi * self.state["gs_phi_idx"] / 12)
 
     def updateFatigue(self):  # pylint: disable=too-many-locals
         expLambda = 0.1
@@ -342,13 +346,15 @@ class IDS:
         rGS = self.state["MC"]
         # This seems to correspond to equation (19),
         # although the minus sign is mysterious.
-        eNewHidden = self.state["oc"] - (self.CRGS * (rGS - 1.0))
+        # eNewHidden = self.state["oc"] - (self.CRGS * (rGS - 1.0))
+        eNewHidden = self.state["oc"] + self.CRGS * rGS
         # This corresponds to equation (20), although the constant 0.005 is
         # different from the 0.02 written in the paper. This might result in
         # very low observational noise
-        operationalcosts = eNewHidden - self.np_random.randn() * (
-            1 + 0.005 * eNewHidden
-        )
+        # operationalcosts = eNewHidden - self.np_random.randn() * (
+        #     1 + 0.005 * eNewHidden
+        # )
+        operationalcosts = eNewHidden + self.np_random.randn() * (1 + 0.02 * eNewHidden)
         self.state["c"] = operationalcosts
 
     def updateCost(self):

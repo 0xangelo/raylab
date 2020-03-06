@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="raylab",
-    version="0.4.2",
+    version="0.5.0",
     py_modules=["raylab"],
     install_requires=[
         "Click",
@@ -12,7 +12,7 @@ setup(
         "pandas",
         "seaborn",
         "requests",
-        "ray[rllib]",
+        "ray[rllib]==0.8.1",
         "gym",
     ],
     entry_points="""

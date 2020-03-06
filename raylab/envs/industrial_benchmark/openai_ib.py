@@ -51,10 +51,12 @@ class IBEnv(gym.Env):
         reward_type="classic",
         action_type="continuous",
         observation="visible",
+        miscalibration=True,
     ):
+        # pylint:disable=too-many-arguments
         # Setting up the IB environment
         self.setpoint = setpoint
-        self._ib = IDS(setpoint)
+        self._ib = IDS(setpoint, miscalibration=miscalibration)
         # Used to determine whether to return the absolute value or the relative change
         # in the cost function
         self.reward_function = reward_type
@@ -234,6 +236,7 @@ class IBEnv(gym.Env):
         return next_state, None
 
     def _add_action(self, state, action):
+        # pylint:disable=protected-access
         setpoint, velocity, gain, shift = state[..., :4].chunk(4, dim=-1)
         delta_v, delta_g, delta_h = action.chunk(3, dim=-1)
 
@@ -245,13 +248,19 @@ class IBEnv(gym.Env):
             0.0,
             100.0,
         )
-        effective_shift = torch.clamp(
-            self._ib.gsScale * shift / 100.0
-            - self._ib.gsSetPointDependency * setpoint
-            - self._ib.gsBound,
-            -self._ib.gsBound,
-            self._ib.gsBound,
-        )
+
+        if self._ib._miscalibration:
+            effective_shift = torch.clamp(
+                self._ib.gsScale * shift / 100.0
+                - self._ib.gsSetPointDependency * setpoint
+                - self._ib.gsBound,
+                -self._ib.gsBound,
+                self._ib.gsBound,
+            )
+        else:
+            phi = state[..., -3:-2]
+            effective_shift = torch.sin(np.pi * phi / 12)
+
         next_state = torch.cat(
             [setpoint, velocity, gain, shift, state[..., 4:]], dim=-1
         )
@@ -311,11 +320,13 @@ class IBEnv(gym.Env):
 
         # This seems to correspond to equation (19),
         # although the minus sign is mysterious.
-        ct_hat = conv_cost - (self._ib.CRGS * (miscalibration - 1.0))
+        # ct_hat = conv_cost - (self._ib.CRGS * (miscalibration - 1.0))
+        ct_hat = conv_cost + self._ib.CRGS * miscalibration
         # This corresponds to equation (20), although the constant 0.005 is
         # different from the 0.02 written in the paper. This might result in
         # very low observational noise
-        consumption = ct_hat - torch.randn_like(ct_hat) * (1 + 0.005 * ct_hat)
+        # consumption = ct_hat - torch.randn_like(ct_hat) * (1 + 0.005 * ct_hat)
+        consumption = ct_hat + torch.randn_like(ct_hat) * (1 + 0.02 * ct_hat)
         return torch.cat([state[..., :5], consumption, state[..., 6:]], dim=-1)
 
     @staticmethod

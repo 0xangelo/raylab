@@ -1,20 +1,12 @@
 # pylint: disable=missing-docstring
-from ray import tune
+from ray import tune  # pylint: disable=unused-import
 
 
 def get_config():
     return {
         # === Environment ===
-        "env": "IndustrialBenchmark",
-        "env_config": {
-            "setpoint": 50,
-            "reward_type": "classic",
-            "action_type": "continuous",
-            "observation": "markovian",
-            "miscalibration": tune.grid_search([True, False]),
-            "max_episode_steps": 1000,
-            "time_aware": True,
-        },
+        "env": "MountainCarContinuous-v0",
+        "env_config": {"max_episode_steps": 1000, "time_aware": True},
         # === Replay Buffer ===
         "buffer_size": int(1e5),
         # === Optimization ===
@@ -30,27 +22,27 @@ def get_config():
         # linear in states and/or actions.
         "module": {
             "policy": {
-                "units": (256, 256),
+                "units": (128, 128),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "input_dependent_scale": True,
             },
             "critic": {
-                "units": (256, 256),
+                "units": (128, 128),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "delay_action": True,
             },
         },
         # === Exploration ===
-        "pure_exploration_steps": 2000,
+        "pure_exploration_steps": 5000,
         # === Trainer ===
-        "train_batch_size": 256,
+        "train_batch_size": 128,
         "timesteps_per_iteration": 1000,
         # === Evaluation ===
         # Evaluate with every `evaluation_interval` training iterations.
         # The evaluation stats will be reported under the "evaluation" metric key.
-        "evaluation_interval": 1,
+        "evaluation_interval": 5,
         # Number of episodes to run per evaluation period.
         "evaluation_num_episodes": 5,
         # === Debugging ===

@@ -1,7 +1,7 @@
 """Custom CSV logger to use with Tune."""
 import csv
 
-from ray.tune.util import flatten_dict
+from ray.tune.utils.util import flatten_dict
 from ray.tune.logger import CSVLogger as _CSVLogger
 from ray.tune.result import TRAINING_ITERATION, TIME_TOTAL_S
 from ray.rllib.utils.annotations import override

@@ -5,7 +5,7 @@ import torch.distributions as dists
 
 class DiagMultivariateNormal(dists.Independent):
     """
-    Creates a multivariate normal (also called Gaussian) distribution
+    Creates a multivariate Normal (also called Gaussian) distribution
     parameterized by a mean vector and a diagonal covariance matrix.
     """
 
