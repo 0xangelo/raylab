@@ -225,7 +225,13 @@ class IDS:
                 self.gs_bound,
             )
         else:
-            self.state["he"] = np.sin(np.pi * self.state["gs_phi_idx"] / 12)
+            rho_s = np.sin(np.pi * self.state["gs_phi_idx"] / 12)
+            safe_zone = self.gs_env.safe_zone
+            self.state["he"] = (
+                rho_s
+                if np.abs(rho_s) >= safe_zone
+                else np.random.choice((safe_zone, -safe_zone))
+            )
 
     def update_fatigue(self):  # pylint: disable=too-many-locals
         velocity = self.state["v"]
