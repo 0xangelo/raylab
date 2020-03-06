@@ -29,7 +29,7 @@ from collections import OrderedDict
 import numpy as np
 from gym.utils import seeding
 
-from .goldstone.environment import environment as GoldstoneEnvironment
+from .goldstone.environment import GoldstoneEnvironment
 from .effective_action import EffectiveAction
 
 
@@ -104,7 +104,7 @@ class IDS:
         # Miscalibration System Response. Denoted psi in the paper and starts at +1.
         self.state[
             "gs_sys_response"
-        ] = self.gsEnvironment._dynamics.System_Response.advantageous.value
+        ] = self.gsEnvironment._dynamics.SystemResponse.advantageous.value
         # Miscalibration direction. Denoted phi
         self.state["gs_phi_idx"] = 0
         self.state["ge"] = 0.0  # effective action gain beta
@@ -333,7 +333,7 @@ class IDS:
         reward, domain, phi_idx, system_response = self.gsEnvironment.state_transition(
             self.gsEnvironment._dynamics.Domain(domain),
             phi_idx,
-            self.gsEnvironment._dynamics.System_Response(system_response),
+            self.gsEnvironment._dynamics.SystemResponse(system_response),
             effective_shift,
         )
         self.state["MC"] = -reward
