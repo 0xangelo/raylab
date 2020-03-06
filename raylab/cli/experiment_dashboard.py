@@ -100,8 +100,7 @@ def time_series(x_key, y_key, groups, labels):
     p = figure(title="Plot")
     p.xaxis.axis_label = x_key
     p.yaxis.axis_label = y_key
-    palette = bokeh.palettes.Spectral11
-    step = len(palette) // (len(labels) or 1)
+    palette = bokeh.palettes.cividis(len(labels))
     for idx, (label, group) in enumerate(zip(labels, groups)):
         data = group.extract()
         all_xs = np.unique(
@@ -117,14 +116,14 @@ def time_series(x_key, y_key, groups, labels):
         std_ys = np.nanstd(progresses, axis=0)
         lower = mean_ys - std_ys
         upper = mean_ys + std_ys
-        p.line(all_xs, mean_ys, legend_label=label, color=palette[idx * step])
+        p.line(all_xs, mean_ys, legend_label=label, color=palette[idx])
         p.varea(
             all_xs,
             y1=lower,
             y2=upper,
             fill_alpha=0.25,
             legend_label=label,
-            color=palette[idx * step],
+            color=palette[idx],
         )
         p.legend.location = "bottom_left"
         p.legend.click_policy = "hide"
@@ -136,7 +135,9 @@ def main():
 
     directories = tuple(sys.argv[1:])
     root_exp_folders = [f.path for f in get_exp_root_folders(directories)]
-    folders = st.sidebar.multiselect("Filter experiments:", root_exp_folders)
+    folders = st.sidebar.multiselect(
+        "Filter experiments:", root_exp_folders, default=root_exp_folders
+    )
 
     if folders:
         exps_data = load_data(tuple(folders))
