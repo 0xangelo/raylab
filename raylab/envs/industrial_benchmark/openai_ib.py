@@ -154,7 +154,7 @@ class IBEnv(gym.Env):
         logger.info(
             "Cost smoothed: %(cost)s, State (v, g, s): %(state)s, Action: %(action)s",
             cost=-self.smoothed_cost,
-            state=np.around(self._ib.visibleState()[1:4], 0),
+            state=np.around(self._ib.visible_state()[1:4], 0),
             action=action,
         )
 
@@ -163,11 +163,11 @@ class IBEnv(gym.Env):
 
     def _get_obs(self):
         if self.observation == "visible":
-            obs = self._ib.visibleState()
+            obs = self._ib.visible_state()
         elif self.observation == "markovian":
-            obs = self._ib.minimalMarkovState()
+            obs = self._ib.minimal_markov_state()
         elif self.observation == "full":
-            obs = self._ib.fullState()
+            obs = self._ib.full_state()
         return obs.astype(np.float32)
 
     def reset(self):
@@ -205,7 +205,7 @@ class IBEnv(gym.Env):
             "hv",
             "hg",
         ]
-        return dict(zip(markovian_state_variables, self._ib.minimalMarkovState()))
+        return dict(zip(markovian_state_variables, self._ib.minimal_markov_state()))
 
     def reward_fn(self, state, _, next_state):
         """Compute the current reward according to equation (5) of the paper."""
@@ -244,18 +244,19 @@ class IBEnv(gym.Env):
         gain = torch.clamp(gain + 10 * delta_g, 0.0, 100.0)
         shift = torch.clamp(
             shift
-            + ((self._ib.maxRequiredStep / 0.9) * 100.0 / self._ib.gsScale) * delta_h,
+            + ((self._ib.max_required_step / 0.9) * 100.0 / self._ib.gs_scale)
+            * delta_h,
             0.0,
             100.0,
         )
 
         if self._ib._miscalibration:
             effective_shift = torch.clamp(
-                self._ib.gsScale * shift / 100.0
-                - self._ib.gsSetPointDependency * setpoint
-                - self._ib.gsBound,
-                -self._ib.gsBound,
-                self._ib.gsBound,
+                self._ib.gs_scale * shift / 100.0
+                - self._ib.gs_setpoint_dependency * setpoint
+                - self._ib.gs_bound,
+                -self._ib.gs_bound,
+                self._ib.gs_bound,
             )
         else:
             phi = state[..., -3:-2]
@@ -347,7 +348,7 @@ class IBEnv(gym.Env):
         """
         domain, system_response, phi_idx = state[..., -5:-2].chunk(3, dim=-1)
         gs_env = TorchGSEnvironment(
-            24, self._ib.maxRequiredStep, self._ib.maxRequiredStep / 2.0
+            24, self._ib.max_required_step, self._ib.max_required_step / 2.0
         )
 
         reward, domain, phi_idx, system_response = gs_env.state_transition(

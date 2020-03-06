@@ -51,15 +51,19 @@ class Dynamics:
         self._strongest_penality_abs_idx = self.compute_strongest_penalty_abs_idx(
             number_steps
         )
-        # self._penalty_functions_array = self._define_reward_functions(
-        #     number_steps, max_required_step
-        # )
+        self._penalty_functions_array = self._define_reward_functions(
+            number_steps, max_required_step
+        )
 
     @staticmethod
     def _check_safe_zone(safe_zone):
         if safe_zone < 0:
             raise ValueError("safe_zone must be non-negative")
         return safe_zone
+
+    @property
+    def safe_zone(self):
+        return self._safe_zone
 
     def reset(self):
         return self.Domain.positive, 0, self.SystemResponse.advantageous

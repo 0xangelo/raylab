@@ -32,6 +32,10 @@ class GoldstoneEnvironment:
     def __init__(self, number_steps, max_required_step, safe_zone):
         self._dynamics = Dynamics(number_steps, max_required_step, safe_zone)
 
+    @property
+    def safe_zone(self):
+        return self._dynamics.safe_zone
+
     def reward(self, phi_idx, effective_shift):
         return self._dynamics.reward(phi_idx, effective_shift)
 
