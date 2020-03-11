@@ -2,6 +2,7 @@
 """
 Industrial Benchmark inspection
 """
+import sys
 import math
 import functools
 
@@ -19,22 +20,17 @@ from raylab.envs.industrial_benchmark.goldstone.torch.dynamics import TorchDynam
 from bokeh_surface3d import Surface3d
 
 
-# st.sidebar.header("Sidebar")
-# st.slider("slider", min_value=0.0, max_value=10.0)
-# st.sidebar.slider
-# with st.echo():
-#     for i in range(5):
-#         print(f"Iteration {i}")
-
-
 """
 # Plot Industrial Benchmark
 """
 
 
 def effective_shift_vs_time(dataframe):
-    p = figure(title="MyFigure")
-    p.line(df["time"], df["he"])
+    p = figure(title="Effective Shift vs Time")
+    p.xaxis.axis_label = "time"
+    p.yaxis.axis_label = "effective shift"
+    grouped = df.groupby("time").mean()
+    p.line(grouped.index, grouped["he"])
     return p
 
 
@@ -64,13 +60,14 @@ def goldstone_dynamics_landscape(p=None):
     X, Y = torch.meshgrid(phi, effective_shift)
     Z = dynamics.reward(X, Y)
 
+    palette_size = st.slider("palette size", min_value=3, max_value=256, value=256)
     p.image(
         image=[Z.T.numpy()],
         x=-6,
         y=-1.5,
         dw=12,
         dh=3,
-        palette=bokeh.palettes.viridis(256),
+        palette=bokeh.palettes.viridis(palette_size),
     )
     return p
 
@@ -160,7 +157,7 @@ def goldstone_u(p=None):
 
 @default_goldstone_figure
 def scatter_effective_shift(dataframe, p=None):
-    p.scatter(x=df["gs_phi_idx"], y=df["he"])
+    p.scatter(x=df["gs_phi_idx"], y=df["he"], color="red")
     return p
 
 
@@ -188,28 +185,24 @@ def goldstone_dynamics_3d():
     return surface
 
 
-# @st.cache
-# def get_data():
-#     # path = "/Users/angelolovatto/Repositories/personal/raylab/data/MAPO/20200127"
-#     path = "/Users/angelolovatto/Repositories/personal/raylab/data/episodes.csv"
-#     path = "/Users/angelolovatto/Repositories/personal/raylab/data/SoftAC/20200215/episodes.csv"
-#     return pd.read_csv(path)
+df = None
+if len(sys.argv) > 1:
+    path = sys.argv[1]
+else:
+    path = st.file_uploader("Choose a CSV file", type="csv")
 
 p = goldstone_dynamics_landscape()
-p = goldstone_rhos(p=p)
+# p = goldstone_rhos(p=p)
 # p = goldstone_q_threshold(p=p)
-# p = goldstone_rmin_and_ropt(p=p)
+if st.checkbox("Display r_min and r_opt"):
+    p = goldstone_rmin_and_ropt(p=p)
 # p = goldstone_q(p=p)
 # p = goldstone_u(p=p)
 
-df = None
-path = st.file_uploader("Choose a CSV file", type="csv")
 if path is not None:
     df = pd.read_csv(path)
     p = scatter_effective_shift(df, p=p)
-    # st.write(df.head())
-    # st.bokeh_chart(effective_shift_vs_time(df))
-    # st.bokeh_chart(goldstone_dynamics_3d())
+    st.bokeh_chart(effective_shift_vs_time(df))
 
 st.bokeh_chart(p)
 # show(goldstone_dynamics_3d())
