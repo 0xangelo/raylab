@@ -23,13 +23,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-from collections import OrderedDict
+from collections import namedtuple, OrderedDict
 
 import numpy as np
 from gym.utils import seeding
 
 from .goldstone.environment import GoldstoneEnvironment
 from .effective_action import EffectiveAction
+
+
+SystemsConf = namedtuple("SystemsConf", "operational_cost miscalibration fatigue")
 
 
 class IDS:
@@ -57,7 +60,16 @@ class IDS:
     cost_velocity = 4.0
     cost_gain = 2.5
 
-    def __init__(self, p=50, stationary_p=True, miscalibration=True):
+    def __init__(
+        self,
+        p=50,
+        stationary_p=True,
+        operational_cost=True,
+        miscalibration=True,
+        fatigue=True,
+        auto_he=False,
+    ):
+        # pylint:disable=too-many-arguments
         """
         p sets the setpoint hyperparameter (between 1-100) which will
         affect the dynamics and stochasticity.
@@ -67,7 +79,12 @@ class IDS:
         """
         self._init_p = p
         self.stationary_p = stationary_p
-        self._miscalibration = miscalibration
+        self.systems = SystemsConf(
+            operational_cost=operational_cost,
+            miscalibration=miscalibration,
+            fatigue=fatigue,
+        )
+        self._auto_he = auto_he
 
         self.set_seed()
 
@@ -213,7 +230,18 @@ class IDS:
             0.0,
             100.0,
         )
-        if self._miscalibration:
+        if self._auto_he:
+            rho_s = self.gs_env._dynamics._compute_rhos(self.state["gs_phi_idx"])
+            r_opt = self.gs_env._dynamics._compute_ropt(rho_s)
+            self.state["he"] = r_opt
+            # rho_s = np.sin(np.pi * self.state["gs_phi_idx"] / 12)
+            # safe_zone = self.gs_env.safe_zone
+            # self.state["he"] = (
+            #     rho_s
+            #     if np.abs(rho_s) >= safe_zone
+            #     else np.random.choice((safe_zone + 1e-6, -safe_zone - 1e-6))
+            # )
+        else:
             # Update effective shift through equation (8)
             # The scaling factor for the shift is effectively 1 / 20
             # The scaling factor for the setpoint is effectively 1 / 50
@@ -223,14 +251,6 @@ class IDS:
                 - self.gs_bound,
                 -self.gs_bound,
                 self.gs_bound,
-            )
-        else:
-            rho_s = np.sin(np.pi * self.state["gs_phi_idx"] / 12)
-            safe_zone = self.gs_env.safe_zone
-            self.state["he"] = (
-                rho_s
-                if np.abs(rho_s) >= safe_zone
-                else np.random.choice((safe_zone, -safe_zone))
             )
 
     def update_fatigue(self):  # pylint: disable=too-many-locals
@@ -355,11 +375,12 @@ class IDS:
 
     def update_operational_costs(self):
         """Calculate the consumption according to equations (19) and (20)."""
-        rgs = self.state["MC"]
+        goldstone_cost = self.state["MC"] if self.systems.miscalibration else 0
+        operational_cost = self.state["oc"] if self.systems.operational_cost else 0
         # This seems to correspond to equation (19),
         # although the minus sign is mysterious.
         # hidden_cost = self.state["oc"] - (self.CRGS * (rgs - 1.0))
-        hidden_cost = self.state["oc"] + self.CRGS * rgs
+        hidden_cost = operational_cost + self.CRGS * goldstone_cost
         # This corresponds to equation (20), although the constant 0.005 is
         # different from the 0.02 written in the paper. This might result in
         # very low observational noise
@@ -373,7 +394,7 @@ class IDS:
 
     def update_cost(self):
         """Calculate cost according to equation (5) of the paper."""
-        fatigue = self.state["f"]
+        fatigue = self.state["f"] if self.systems.fatigue else 0
         consumption = self.state["c"]
         cost = self.CRF * fatigue + self.CRC * consumption
 

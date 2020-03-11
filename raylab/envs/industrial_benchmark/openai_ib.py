@@ -51,12 +51,12 @@ class IBEnv(gym.Env):
         reward_type="classic",
         action_type="continuous",
         observation="visible",
-        miscalibration=True,
+        **ids_kwargs,
     ):
         # pylint:disable=too-many-arguments
         # Setting up the IB environment
         self.setpoint = setpoint
-        self._ib = IDS(setpoint, miscalibration=miscalibration)
+        self._ib = IDS(setpoint, **ids_kwargs)
         # Used to determine whether to return the absolute value or the relative change
         # in the cost function
         self.reward_function = reward_type
@@ -249,8 +249,24 @@ class IBEnv(gym.Env):
             0.0,
             100.0,
         )
+        effective_shift = self._calculate_effective_shift(state, setpoint, shift)
 
-        if self._ib._miscalibration:
+        next_state = torch.cat(
+            [setpoint, velocity, gain, shift, state[..., 4:]], dim=-1
+        )
+        return next_state, effective_shift
+
+    def _calculate_effective_shift(self, state, setpoint, shift):
+        # pylint:disable=protected-access
+        if self._ib._auto_he:
+            gs_dynamics = TorchGSEnvironment(
+                24, self._ib.max_required_step, self._ib.max_required_step / 2.0
+            )._dynamics
+            phi = state[..., -3:-2]
+            rho_s = gs_dynamics._compute_rhos(phi)
+            r_opt = gs_dynamics._compute_ropt(rho_s)
+            effective_shift = r_opt
+        else:
             effective_shift = torch.clamp(
                 self._ib.gs_scale * shift / 100.0
                 - self._ib.gs_setpoint_dependency * setpoint
@@ -258,17 +274,9 @@ class IBEnv(gym.Env):
                 -self._ib.gs_bound,
                 self._ib.gs_bound,
             )
-        else:
-            phi = state[..., -3:-2]
-            effective_shift = torch.sin(np.pi * phi / 12)
+        return effective_shift
 
-        next_state = torch.cat(
-            [setpoint, velocity, gain, shift, state[..., 4:]], dim=-1
-        )
-        return next_state, effective_shift
-
-    @staticmethod
-    def _update_fatigue(state):
+    def _update_fatigue(self, state):
         """
         The sub-dynamics of fatigue are influenced by the same
         variables as the sub-dynamics of operational cost, i.e., setpoint p, velocity v,
@@ -302,6 +310,8 @@ class IBEnv(gym.Env):
         )
         # Equations (21, 22)
         new_fatigue = fatigue.fatigue(fatigue.basic_fatigue(velocity, gain), alpha)
+        if not self._ib.systems.fatigue:
+            new_fatigue = torch.zeros_like(new_fatigue)
 
         return torch.cat(
             [
@@ -319,6 +329,10 @@ class IBEnv(gym.Env):
         state, conv_cost = self._update_operational_cost(state, coc)
         state, miscalibration = self._update_miscalibration(state, effective_shift)
 
+        if not self._ib.systems.operational_cost:
+            conv_cost = torch.zeros_like(conv_cost)
+        if not self._ib.systems.miscalibration:
+            miscalibration = torch.zeros_like(miscalibration)
         # This seems to correspond to equation (19),
         # although the minus sign is mysterious.
         # ct_hat = conv_cost - (self._ib.CRGS * (miscalibration - 1.0))
