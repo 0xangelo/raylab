@@ -11,12 +11,15 @@ def get_config():
             "reward_type": "classic",
             "action_type": "continuous",
             "observation": "markovian",
-            "miscalibration": tune.grid_search([True, False]),
-            "max_episode_steps": 1000,
+            "operational_cost": False,
+            "miscalibration": True,
+            "fatigue": False,
+            "auto_he": tune.grid_search([True, False]),
+            "max_episode_steps": 500,
             "time_aware": True,
         },
         # === Replay Buffer ===
-        "buffer_size": int(1e5),
+        "buffer_size": int(1e4),
         # === Optimization ===
         # PyTorch optimizer to use for policy
         "policy_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
@@ -30,13 +33,13 @@ def get_config():
         # linear in states and/or actions.
         "module": {
             "policy": {
-                "units": (256, 256),
+                "units": (128, 128),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "input_dependent_scale": True,
             },
             "critic": {
-                "units": (256, 256),
+                "units": (128, 128),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
                 "delay_action": True,
@@ -45,7 +48,7 @@ def get_config():
         # === Exploration ===
         "pure_exploration_steps": 2000,
         # === Trainer ===
-        "train_batch_size": 256,
+        "train_batch_size": 128,
         "timesteps_per_iteration": 1000,
         # === Evaluation ===
         # Evaluate with every `evaluation_interval` training iterations.
