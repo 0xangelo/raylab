@@ -6,6 +6,7 @@ from raylab.cli.utils import initialize_raylab
 
 class IBEpisodeLogger:
     # pylint:disable=too-few-public-methods
+
     def __init__(self, env, logdir):
         # pylint:disable=protected-access
         import csv
@@ -15,14 +16,14 @@ class IBEpisodeLogger:
         import numpy as np
 
         self._ib = env.unwrapped._ib
-        fieldnames = [
+        self.fieldnames = [
             k for k in self._ib.state.keys() if np.isscalar(self._ib.state[k])
         ]
         if not osp.exists(logdir):
             os.makedirs(logdir)
         self.writer = csv.DictWriter(
             open(osp.join(logdir, "episodes.csv"), "a"),
-            fieldnames=fieldnames + ["episode", "time"],
+            fieldnames=self.fieldnames + ["episode", "time"],
         )
         self.writer.writeheader()
 
@@ -31,7 +32,7 @@ class IBEpisodeLogger:
         self.writer.writerow(row)
 
     def _row_dict(self, episode, rew, time):
-        state_dict = {k: self._ib.state[k] for k in self.writer.fieldnames}
+        state_dict = {k: self._ib.state[k] for k in self.fieldnames}
         return {"episode": episode, "reward": rew, "time": time, **state_dict}
 
 
@@ -61,7 +62,7 @@ def main(checkpoint, logdir, num_episodes, algo):
     # pylint:disable=too-many-locals
     import ray
 
-    from raylab.utils.experiments import get_agent
+    from raylab.utils.checkpoints import get_agent
 
     ray.init()
     agent = get_agent(checkpoint, algo, "IndustrialBenchmark")
