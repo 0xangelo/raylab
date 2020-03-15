@@ -7,6 +7,11 @@ import torch
 import torch.nn as nn
 
 
+def flat_grad(*args, **kwargs):
+    """Compute gradients and return a flattened array."""
+    return torch.cat([g.reshape((-1,)) for g in torch.autograd.grad(*args, **kwargs)])
+
+
 def convert_to_tensor(arr, device):
     """Convert array-like object to tensor and cast it to appropriate device.
 
