@@ -1,13 +1,11 @@
 """NAF policy class using PyTorch."""
 import torch
 import torch.nn as nn
-import torch.distributions as dists
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-import raylab.modules as mods
+from raylab.modules.catalog import get_module
 import raylab.utils.pytorch as torch_util
-import raylab.algorithms.naf.naf_module as nafm
 import raylab.policy as raypi
 
 
@@ -32,109 +30,13 @@ class NAFTorchPolicy(
 
     @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
-        module = nn.ModuleDict()
-        module.update(self._make_naf(obs_space, action_space, config))
+        module_config = config["module"]
+        for key in ("exploration", "clipped_double_q", "diag_gaussian_stddev"):
+            module_config[key] = config[key]
 
-        def make_value(obs_space, config):
-            logits = self._make_encoder(obs_space, config)
-            return nn.Sequential(logits, mods.ValueFunction(logits.out_features))
-
-        module.target_value = nn.ModuleList(
-            [make_value(obs_space, config) for _ in module.value]
-        )
-        module.target_value.load_state_dict(module.value.state_dict())
-
-        module.policy = nn.Sequential(module.logits, module.mu, module.squash)
-        # Configure sampler module based on exploration strategy
-        if config["exploration"] == "full_gaussian":
-            params_module = nafm.MultivariateNormalParams(
-                module.logits, module.mu, module.tril
-            )
-            rsample_module = mods.DistRSample(
-                dists.MultivariateNormal,
-                low=self.convert_to_tensor(action_space.low),
-                high=self.convert_to_tensor(action_space.high),
-            )
-            module.sampler = nn.Sequential(params_module, rsample_module)
-        elif config["exploration"] == "diag_gaussian":
-            expl_noise = mods.GaussianNoise(config["diag_gaussian_stddev"])
-            module.sampler = nn.Sequential(
-                module.logits, module.mu, expl_noise, module.squash
-            )
-        elif config["exploration"] == "parameter_noise":
-            logits_module = self._make_encoder(obs_space, config)
-            module.perturbed_policy = module.sampler = nn.Sequential(
-                logits_module,
-                mods.NormalizedLinear(
-                    in_features=logits_module.out_features,
-                    out_features=action_space.shape[0],
-                    beta=config["beta"],
-                ),
-                mods.TanhSquash(
-                    self.convert_to_tensor(action_space.low),
-                    self.convert_to_tensor(action_space.high),
-                ),
-            )
-        else:
-            module.sampler = module.policy
-
-        return module
-
-    def _make_naf(self, obs_space, action_space, config):
-        modules = self._make_components(obs_space, action_space, config)
-        naf_module = nafm.NAF(
-            modules["logits"],
-            modules["value"],
-            modules["tril"],
-            nn.Sequential(modules["mu"], modules["squash"]),
-        )
-        modules["naf"] = nn.ModuleList([naf_module])
-        modules["value"] = nn.ModuleList(
-            [nn.Sequential(modules["logits"], modules["value"])]
-        )
-        if config["clipped_double_q"]:
-            twin_modules = self._make_components(obs_space, action_space, config)
-            twin_naf = nafm.NAF(
-                twin_modules["logits"],
-                twin_modules["value"],
-                twin_modules["tril"],
-                nn.Sequential(twin_modules["mu"], twin_modules["squash"]),
-            )
-            modules["naf"].append(twin_naf)
-            modules["value"].append(
-                nn.Sequential(twin_modules["logits"], twin_modules["value"])
-            )
-
-        return modules
-
-    def _make_components(self, obs_space, action_space, config):
-        logits = self._make_encoder(obs_space, config)
-        return {
-            "logits": logits,
-            "value": mods.ValueFunction(logits.out_features),
-            "mu": mods.NormalizedLinear(
-                in_features=logits.out_features,
-                out_features=action_space.shape[0],
-                beta=config["beta"],
-            ),
-            "squash": mods.TanhSquash(
-                self.convert_to_tensor(action_space.low),
-                self.convert_to_tensor(action_space.high),
-            ),
-            "tril": mods.TrilMatrix(logits.out_features, action_space.shape[0]),
-        }
-
-    @staticmethod
-    def _make_encoder(obs_space, config):
-        return mods.FullyConnected(
-            in_features=obs_space.shape[0],
-            units=config["module"]["units"],
-            activation=config["module"]["activation"],
-            layer_norm=config["module"].get(
-                "layer_norm", config["exploration"] == "parameter_noise"
-            ),
-            **config["module"]["initializer_options"],
-        )
+        module_name = module_config["name"]
+        assert module_name == "NAFModule", "Incompatible module type f{module_name}"
+        return get_module(module_name, obs_space, action_space, module_config)
 
     @override(raypi.TorchPolicy)
     def optimizer(self):
