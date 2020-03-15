@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from raylab.modules import NormalizedLinear
+from raylab.modules.basic import NormalizedLinear
 
 
 @pytest.fixture(params=(1, 2, 4))

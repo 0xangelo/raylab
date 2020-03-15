@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from raylab.modules import TanhSquash
+from raylab.modules.basic import TanhSquash
 
 
 @pytest.fixture(params=(1, 2, 4))

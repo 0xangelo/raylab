@@ -3,7 +3,7 @@
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
-from .state_action_encoder import StateActionEncoder
+from .basic import StateActionEncoder
 from .value_function import ValueFunction
 
 

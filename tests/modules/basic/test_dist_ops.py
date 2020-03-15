@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from raylab.modules import DistRSample, DistMean
+from raylab.modules.basic import DistRSample, DistMean
 from raylab.distributions import DiagMultivariateNormal
 
 

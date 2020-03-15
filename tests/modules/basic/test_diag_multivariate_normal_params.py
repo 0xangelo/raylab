@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from raylab.modules import DiagMultivariateNormalParams
+from raylab.modules.basic import DiagMultivariateNormalParams
 
 
 @pytest.fixture(params=(True, False))
