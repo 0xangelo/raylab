@@ -1,7 +1,8 @@
 """Registry of modules for PyTorch policies."""
 from .naf_module import NAFModule
+from .deterministic_actor_critic import DeterministicActorCritic
 
-MODULES = {"NAFModule": NAFModule}
+MODULES = {"NAFModule": NAFModule, "DeterministicActorCritic": DeterministicActorCritic}
 
 
 def get_module(name, obs_space, action_space, config):

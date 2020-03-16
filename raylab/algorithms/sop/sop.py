@@ -9,9 +9,6 @@ from .sop_policy import SOPTorchPolicy
 
 DEFAULT_CONFIG = with_common_config(
     {
-        # === SQUASHING EXPLORATION PROBLEM ===
-        # Maximum l1 norm of the policy's output vector before the squashing function
-        "beta": 1.2,
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning: use the minimun of two target Q functions
         # as the next action-value in the target for fitted Q iteration
@@ -37,10 +34,15 @@ DEFAULT_CONFIG = with_common_config(
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
         "module": {
+            "name": "DeterministicActorCritic",
             "policy": {
                 "units": (400, 300),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
+                # === SQUASHING EXPLORATION PROBLEM ===
+                # Maximum l1 norm of the policy's output vector before the squashing
+                # function
+                "beta": 1.2,
             },
             "critic": {
                 "units": (400, 300),
@@ -48,6 +50,7 @@ DEFAULT_CONFIG = with_common_config(
                 "initializer_options": {"name": "xavier_uniform"},
                 "delay_action": True,
             },
+            "torch_script": True,
         },
         # === Rollout Worker ===
         "num_workers": 0,

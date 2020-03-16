@@ -34,7 +34,7 @@ DEFAULT_CONFIG = with_common_config(
             "beta": 1.2,
             # === Module Optimization ===
             # Whether to convert the module to a ScriptModule for faster inference
-            "torch_script": False,
+            "torch_script": True,
         },
         # === Optimization ===
         # PyTorch optimizer and options to use

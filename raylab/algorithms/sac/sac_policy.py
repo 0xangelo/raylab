@@ -85,7 +85,7 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
     @staticmethod
     def _make_critic(obs_space, action_space, config):
         critic_config = config["module"]["critic"]
-        return mods.ActionValueFunction.from_scratch(
+        return mods.deterministic_actor_critic.ActionValueFunction.from_scratch(
             obs_dim=obs_space.shape[0],
             action_dim=action_space.shape[0],
             delay_action=critic_config["delay_action"],
