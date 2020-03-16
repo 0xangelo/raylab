@@ -16,13 +16,19 @@ def clipped_double_q(request):
     return request.param
 
 
+@pytest.fixture(params=(True, False), ids=("TorchScript", "Eager"))
+def torch_script(request):
+    return request.param
+
+
 @pytest.fixture
-def config(exploration, clipped_double_q):
+def config(exploration, clipped_double_q, torch_script):
     return {
         "module": {
             "units": (32, 32),
             "activation": "ELU",
             "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
+            "torch_script": torch_script,
         },
         "exploration": exploration,
         "clipped_double_q": clipped_double_q,

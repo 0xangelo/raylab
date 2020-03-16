@@ -44,7 +44,7 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
 
     @override(SVGBaseTorchPolicy)
     def set_reward_fn(self, reward_fn):
-        self.module.reward = modules.Lambda(reward_fn)
+        self.module.reward = modules.Lambda(lambda inputs: reward_fn(*inputs))
 
     def update_old_policy(self):
         """Copy params of current policy into old one for future KL computation."""
@@ -88,7 +88,7 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
             batch_tensors[SampleBatch.NEXT_OBS],
         )
         _rewards = self.module.reward(
-            batch_tensors[SampleBatch.CUR_OBS], _acts, _next_obs
+            (batch_tensors[SampleBatch.CUR_OBS], _acts, _next_obs)
         )
         _next_vals = self.module.value(_next_obs).squeeze(-1)
         return torch.where(

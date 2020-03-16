@@ -32,6 +32,9 @@ DEFAULT_CONFIG = with_common_config(
             # Maximum l1 norm of the policy's output vector before the squashing
             # function
             "beta": 1.2,
+            # === Module Optimization ===
+            # Whether to convert the module to a ScriptModule for faster inference
+            "torch_script": False,
         },
         # === Optimization ===
         # PyTorch optimizer and options to use

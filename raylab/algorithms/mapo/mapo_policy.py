@@ -170,24 +170,13 @@ class MAPOTorchPolicy(
 
     def set_reward_fn(self, reward_fn):
         """Set the reward function to use when unrolling the policy and model."""
-        self.module.reward = mods.Lambda(reward_fn)
+        self.module.reward = mods.Lambda(lambda inputs: reward_fn(*inputs))
 
     def set_transition_fn(self, transition_fn):
         """Set the transition function to use when unrolling the policy and model."""
-        transform = nn.Sequential()
-        bias = self.config["model_bias"]
-        if bias is not None:
-            biast = torch.as_tensor(bias, dtype=torch.float32)
-            transform.add_module(str(len(transform)), mods.Lambda(lambda x: x + biast))
-        sigma = self.config["model_noise_sigma"]
-        if sigma:
-            transform.add_module(str(len(transform)), mods.GaussianNoise(sigma))
-
-        def sampler(*args):
-            samp, logp = transition_fn(*args)
-            return transform(samp), logp
-
-        self.module.model_sampler = mods.Lambda(sampler)
+        self.module.model_sampler = EnvTransition(
+            transition_fn, self.config["model_bias"], self.config["model_noise_sigma"]
+        )
         self.check_model(self.module.model_sampler)
 
     def check_model(self, sampler):
@@ -373,13 +362,13 @@ class MAPOTorchPolicy(
         next_obs, logp = module.model_sampler(
             obs, actions, [config["num_model_samples"]]
         )
-        rews = [module.reward(obs, actions, next_obs)]
+        rews = [module.reward((obs, actions, next_obs))]
 
         for _ in range(config["model_rollout_len"] - 1):
             obs = next_obs
             actions = module.policy(obs)
             next_obs, _ = module.model_sampler(obs, actions)
-            rews.append(module.reward(obs, actions, next_obs))
+            rews.append(module.reward((obs, actions, next_obs)))
 
         rews = (torch.stack(rews).T * gamma ** torch.arange(rollout_len).float()).T
         critic = module.critics[0](next_obs, module.policy(next_obs)).squeeze(-1)
@@ -437,3 +426,25 @@ class MAPOTorchPolicy(
 
         self._optimizer.policy.step()
         return info
+
+
+class EnvTransition(nn.Module):
+    """Wrapper module around existing env transition function."""
+
+    def __init__(self, transition_fn, bias, noise_sigma):
+        super().__init__()
+        transform = nn.Sequential()
+        if bias is not None:
+            biast = torch.as_tensor(bias, dtype=torch.float32)
+            transform.add_module(str(len(transform)), mods.Lambda(lambda x: x + biast))
+        if noise_sigma:
+            transform.add_module(str(len(transform)), mods.GaussianNoise(noise_sigma))
+        self.transform = transform
+        self.transition_fn = transition_fn
+
+    @override(nn.Module)
+    def forward(
+        self, obs, action, sample_shape=torch.Size([])
+    ):  # pylint:disable=arguments-differ
+        samp, logp = self.transition_fn(obs, action, sample_shape=sample_shape)
+        return self.transform(samp), logp
