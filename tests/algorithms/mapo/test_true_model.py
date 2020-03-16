@@ -21,6 +21,11 @@ def config(bias, noise_sigma):
 
 
 @pytest.fixture
+def navigation_env(envs):
+    return envs["Navigation"]
+
+
+@pytest.fixture
 def policy_and_env(mapo_policy, navigation_env, config):
     env = navigation_env({})
     policy = mapo_policy(env.observation_space, env.action_space, config)
