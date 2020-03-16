@@ -6,11 +6,6 @@ from raylab.modules.basic import DiagMultivariateNormalParams
 
 
 @pytest.fixture(params=(True, False))
-def torch_script(request):
-    return request.param
-
-
-@pytest.fixture(params=(True, False))
 def input_dependent_scale(request):
     return request.param
 

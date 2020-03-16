@@ -5,11 +5,6 @@ import torch
 from raylab.modules.basic import NormalizedLinear
 
 
-@pytest.fixture(params=(True, False))
-def torch_script(request):
-    return request.param
-
-
 @pytest.fixture(params=(1, 2, 4))
 def dim(request):
     return request.param
