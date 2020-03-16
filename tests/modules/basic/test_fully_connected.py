@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from raylab.modules.basic import FullyConnected
+from raylab.modules.basic import FullyConnected, StateActionEncoder
 
 
 @pytest.fixture(params=(1, 2, 4))
@@ -31,19 +31,49 @@ def initializer_options(request):
 
 
 @pytest.fixture
-def kwargs(in_features, units, activation, layer_norm, initializer_options):
+def kwargs(units, activation, layer_norm, initializer_options):
     return dict(
-        in_features=in_features,
-        units=units,
-        activation=activation,
-        layer_norm=layer_norm,
-        **initializer_options
+        units=units, activation=activation, layer_norm=layer_norm, **initializer_options
     )
 
 
-def test_fully_connected(kwargs, torch_script):
-    maker = FullyConnected.as_script_module if torch_script else FullyConnected
-    module = maker(**kwargs)
+@pytest.fixture
+def fc_kwargs(in_features, kwargs):
+    return dict(in_features=in_features, **kwargs)
 
-    inputs = torch.randn(1, kwargs["in_features"])
+
+def test_fully_connected(fc_kwargs, torch_script):
+    maker = FullyConnected.as_script_module if torch_script else FullyConnected
+    module = maker(**fc_kwargs)
+
+    inputs = torch.randn(1, fc_kwargs["in_features"])
     module(inputs)
+
+
+@pytest.fixture(params=((1, 1), (2, 2), (4, 4)))
+def obs_action_dim(request):
+    return request.param
+
+
+@pytest.fixture(params=(True, False), ids=("DelayAction", "ConcatAction"))
+def delay_action(request):
+    return request.param
+
+
+@pytest.fixture
+def sae_kwargs(obs_action_dim, kwargs):
+    obs_dim, action_dim = obs_action_dim
+    return dict(
+        obs_dim=obs_dim, action_dim=action_dim, delay_action=delay_action, **kwargs
+    )
+
+
+def test_state_action_encoder(sae_kwargs, torch_script):
+    maker = StateActionEncoder.as_script_module if torch_script else StateActionEncoder
+    module = maker(**sae_kwargs)
+
+    obs, action = (
+        torch.randn(1, sae_kwargs["obs_dim"]),
+        torch.randn(1, sae_kwargs["action_dim"]),
+    )
+    module(obs, action)

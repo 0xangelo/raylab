@@ -35,3 +35,7 @@ class StateActionEncoder(nn.Module):
         output = torch.cat([output, actions], dim=-1)
         output = self.sequential_module(output)
         return output
+
+    @classmethod
+    def as_script_module(cls, *args, **kwargs):
+        return torch.jit.script(cls(*args, **kwargs))
