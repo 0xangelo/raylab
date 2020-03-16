@@ -5,6 +5,11 @@ import torch
 from raylab.modules.basic import NormalizedLinear
 
 
+@pytest.fixture(params=(True, False))
+def torch_script(request):
+    return request.param
+
+
 @pytest.fixture(params=(1, 2, 4))
 def dim(request):
     return request.param
@@ -25,8 +30,9 @@ def beta(request):
     return request.param
 
 
-def test_normalizes_vector(input_dim, output_dim, beta):
-    module = NormalizedLinear(input_dim, output_dim, beta=beta)
+def test_normalizes_vector(input_dim, output_dim, beta, torch_script):
+    maker = NormalizedLinear.as_script_module if torch_script else NormalizedLinear
+    module = maker(input_dim, output_dim, beta=beta)
 
     inputs = torch.randn(10, input_dim)
     output = module(inputs)
@@ -35,8 +41,9 @@ def test_normalizes_vector(input_dim, output_dim, beta):
     assert (norms <= (beta + atol)).all()
 
 
-def test_propagates_gradients(input_dim, output_dim, beta):
-    module = NormalizedLinear(input_dim, output_dim, beta=beta)
+def test_propagates_gradients(input_dim, output_dim, beta, torch_script):
+    maker = NormalizedLinear.as_script_module if torch_script else NormalizedLinear
+    module = maker(input_dim, output_dim, beta=beta)
 
     inputs = torch.randn(10, input_dim, requires_grad=True)
     module(inputs).mean().backward()

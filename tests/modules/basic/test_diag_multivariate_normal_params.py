@@ -6,19 +6,25 @@ from raylab.modules.basic import DiagMultivariateNormalParams
 
 
 @pytest.fixture(params=(True, False))
+def torch_script(request):
+    return request.param
+
+
+@pytest.fixture(params=(True, False))
 def input_dependent_scale(request):
     return request.param
 
 
 @pytest.fixture
-def module_and_logits_fn():
+def module_and_logits_fn(torch_script):
+    cls = DiagMultivariateNormalParams
+    maker = cls.as_script_module if torch_script else cls
+
     def func(input_dependent_scale):
-        return (
-            DiagMultivariateNormalParams(
-                in_features=10, event_dim=4, input_dependent_scale=input_dependent_scale
-            ),
-            torch.randn(6, 10, requires_grad=True),
+        module = maker(
+            in_features=10, event_dim=4, input_dependent_scale=input_dependent_scale
         )
+        return module, torch.randn(6, 10, requires_grad=True)
 
     return func
 

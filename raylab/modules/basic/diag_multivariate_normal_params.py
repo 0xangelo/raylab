@@ -24,6 +24,7 @@ class DiagMultivariateNormalParams(nn.Module):
     This module is initialized to be closed to a standard Normal distribution.
     """
 
+    __constants__ = {"LOG_STD_MAX", "LOG_STD_MIN"}
     LOG_STD_MAX = 2
     LOG_STD_MIN = -20
 
@@ -42,3 +43,7 @@ class DiagMultivariateNormalParams(nn.Module):
         log_scale = self.log_scale_module(inputs)
         scale_diag = torch.clamp(log_scale, self.LOG_STD_MIN, self.LOG_STD_MAX).exp()
         return {"loc": loc, "scale_diag": scale_diag}
+
+    @classmethod
+    def as_script_module(cls, *args, **kwargs):
+        return torch.jit.script(cls(*args, **kwargs))

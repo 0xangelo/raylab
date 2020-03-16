@@ -1,4 +1,5 @@
 # pylint: disable=missing-docstring
+import torch
 import torch.nn as nn
 
 from .normalized_linear import NormalizedLinear
@@ -17,3 +18,8 @@ class ActionOutput(nn.Sequential):
             NormalizedLinear(self.in_features, self.out_features, beta=beta),
             TanhSquash(action_low, action_high),
         )
+
+    @classmethod
+    def as_script_module(cls, *args, **kwargs):
+        # pylint:disable=missing-kwoa
+        return torch.jit.script(cls(*args, **kwargs))
