@@ -35,6 +35,5 @@ class TrilMatrix(nn.Module):
         tril = torch.stack(tril_rows, dim=-2)
         return tril
 
-    @classmethod
-    def as_script_module(cls, *args, **kwargs):
-        return torch.jit.script(cls(*args, **kwargs))
+    def as_script_module(self):
+        return torch.jit.script(self)

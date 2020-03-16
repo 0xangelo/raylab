@@ -14,7 +14,11 @@ def low_high(request):
 
 @pytest.fixture
 def maker(torch_script):
-    return TanhSquash.as_script_module if torch_script else TanhSquash
+    def factory(*args, **kwargs):
+        module = TanhSquash(*args, **kwargs)
+        return module.as_script_module() if torch_script else module
+
+    return factory
 
 
 def test_squash_to_range(maker, low_high):

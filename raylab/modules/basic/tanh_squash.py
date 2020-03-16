@@ -16,6 +16,5 @@ class TanhSquash(nn.Module):
     def forward(self, inputs):  # pylint: disable=arguments-differ
         return self.loc + inputs.tanh() * self.scale
 
-    @classmethod
-    def as_script_module(cls, *args, **kwargs):
-        return torch.jit.script(cls(*args, **kwargs))
+    def as_script_module(self):
+        return torch.jit.script(self)

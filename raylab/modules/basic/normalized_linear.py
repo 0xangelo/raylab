@@ -26,7 +26,5 @@ class NormalizedLinear(nn.Module):
             norms / self.linear.out_features > self.beta, normalized, vec
         )
 
-    @classmethod
-    def as_script_module(cls, *args, **kwargs):
-        # pylint:disable=missing-kwoa
-        return torch.jit.script(cls(*args, **kwargs))
+    def as_script_module(self):
+        return torch.jit.script(self)

@@ -38,6 +38,5 @@ class FullyConnected(nn.Sequential):
     def forward(self, inputs):  # pylint: disable=arguments-differ
         return self.sequential(inputs)
 
-    @classmethod
-    def as_script_module(cls, *args, **kwargs):
-        return torch.jit.script(cls(*args, **kwargs))
+    def as_script_module(self):
+        return torch.jit.script(self)

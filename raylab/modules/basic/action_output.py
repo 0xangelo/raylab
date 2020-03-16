@@ -19,7 +19,5 @@ class ActionOutput(nn.Sequential):
             TanhSquash(action_low, action_high),
         )
 
-    @classmethod
-    def as_script_module(cls, *args, **kwargs):
-        # pylint:disable=missing-kwoa
-        return torch.jit.script(cls(*args, **kwargs))
+    def as_script_module(self):
+        return torch.jit.script(self)

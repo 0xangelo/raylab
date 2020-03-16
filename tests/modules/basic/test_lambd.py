@@ -65,7 +65,7 @@ def script_func(request):
 
 
 def test_script(script_func):
-    module = Lambda.as_script_module(script_func)
+    module = Lambda(script_func).as_script_module()
 
     inputs = torch.randn(4)
     module(inputs)

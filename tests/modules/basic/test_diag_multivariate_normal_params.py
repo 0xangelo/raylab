@@ -12,13 +12,12 @@ def input_dependent_scale(request):
 
 @pytest.fixture
 def module_and_logits_fn(torch_script):
-    cls = DiagMultivariateNormalParams
-    maker = cls.as_script_module if torch_script else cls
-
     def func(input_dependent_scale):
-        module = maker(
+        module = DiagMultivariateNormalParams(
             in_features=10, event_dim=4, input_dependent_scale=input_dependent_scale
         )
+        if torch_script:
+            module = module.as_script_module()
         return module, torch.randn(6, 10, requires_grad=True)
 
     return func

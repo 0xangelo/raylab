@@ -44,6 +44,5 @@ class DiagMultivariateNormalParams(nn.Module):
         scale_diag = torch.clamp(log_scale, self.LOG_STD_MIN, self.LOG_STD_MAX).exp()
         return {"loc": loc, "scale_diag": scale_diag}
 
-    @classmethod
-    def as_script_module(cls, *args, **kwargs):
-        return torch.jit.script(cls(*args, **kwargs))
+    def as_script_module(self):
+        return torch.jit.script(self)

@@ -11,9 +11,10 @@ def args_kwargs():
 
 
 def test_module_creation(torch_script, args_kwargs):
-    maker = ActionOutput.as_script_module if torch_script else ActionOutput
     args, kwargs = args_kwargs
-    module = maker(*args, **kwargs)
+    module = ActionOutput(*args, **kwargs)
+    if torch_script:
+        module = module.as_script_module()
 
     inputs = torch.randn(2, args[0])
     module(inputs)

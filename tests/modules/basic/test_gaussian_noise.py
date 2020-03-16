@@ -11,8 +11,9 @@ def scale(request):
 
 
 def test_gaussian_noise(scale, torch_script):
-    maker = GaussianNoise.as_script_module if torch_script else GaussianNoise
-    module = maker(scale)
+    module = GaussianNoise(scale)
+    if torch_script:
+        module = module.as_script_module()
 
     inputs = torch.randn(10, 4)
     module(inputs)

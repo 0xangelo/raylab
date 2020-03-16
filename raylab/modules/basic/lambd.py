@@ -15,10 +15,8 @@ class Lambda(nn.Module):
     def forward(self, inputs):  # pylint: disable=arguments-differ
         return self.func(inputs)
 
-    @classmethod
-    def as_script_module(cls, *args, **kwargs):
-        func = args[0]
-        assert isinstance(
-            func, torch.jit.ScriptFunction
-        ), "Function must be converted to TorchScript"
-        return torch.jit.script(cls(*args, **kwargs))
+    def as_script_module(self):
+        func = self.func
+        cls = torch.jit.ScriptFunction
+        assert isinstance(func, cls), "Function must be an instance of f{cls}"
+        return torch.jit.script(self)
