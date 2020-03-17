@@ -5,19 +5,14 @@ import gym.spaces as spaces
 from raylab.utils.debug import fake_batch
 
 
-@pytest.fixture(params=((1,), (2,), (4,)))
-def shape(request):
-    return request.param
+@pytest.fixture(params=((1,), (4,)), ids=("Obs1Dim", "Obs4Dim"))
+def obs_space(request):
+    return spaces.Box(-10, 10, shape=request.param)
 
 
-@pytest.fixture
-def obs_space(shape):
-    return spaces.Box(-10, 10, shape=shape)
-
-
-@pytest.fixture
-def action_space(shape):
-    return spaces.Box(-1, 1, shape=shape)
+@pytest.fixture(params=((1,), (4,)), ids=("Act1Dim", "Act4Dim"))
+def action_space(request):
+    return spaces.Box(-1, 1, shape=request.param)
 
 
 @pytest.fixture

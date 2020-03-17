@@ -5,7 +5,7 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.algorithms.svg.svg_base_policy import SVGBaseTorchPolicy
-import raylab.modules as modules
+from raylab.modules import RewardFn
 import raylab.utils.pytorch as torch_util
 
 
@@ -25,12 +25,8 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
 
     @override(SVGBaseTorchPolicy)
     def make_module(self, obs_space, action_space, config):
-        module = super().make_module(obs_space, action_space, config)
-        if not config["replay_kl"]:
-            old = self._make_policy(obs_space, action_space, config)
-            module.old_policy = old["policy"].requires_grad_(False)
-            module.old_sampler = old["sampler"]
-        return module
+        config["module"]["replay_kl"] = config["replay_kl"]
+        return super().make_module(obs_space, action_space, config)
 
     @override(SVGBaseTorchPolicy)
     def optimizer(self):
@@ -44,11 +40,18 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
 
     @override(SVGBaseTorchPolicy)
     def set_reward_fn(self, reward_fn):
-        self.module.reward = modules.Lambda(lambda inputs: reward_fn(*inputs))
+        torch_script = self.config["module"]["torch_script"]
+        reward_fn = RewardFn(
+            self.observation_space,
+            self.action_space,
+            reward_fn,
+            torch_script=torch_script,
+        )
+        self.reward = torch.jit.script(reward_fn) if torch_script else reward_fn
 
     def update_old_policy(self):
         """Copy params of current policy into old one for future KL computation."""
-        self.module.old_policy.load_state_dict(self.module.policy.state_dict())
+        self.module.old_actor.load_state_dict(self.module.actor.state_dict())
 
     @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):
@@ -60,7 +63,7 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         info.update(stats)
         model_value_loss.backward()
 
-        with self.freeze_nets("model", "value"):
+        with self.freeze_nets("model", "critic"):
             svg_loss, stats = self.compute_stochastic_value_gradient_loss(batch_tensors)
             info.update(stats)
             kl_loss = self.curr_kl_coeff * self._avg_kl_divergence(batch_tensors)
@@ -68,7 +71,7 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
 
         info.update(self.extra_grad_info(batch_tensors))
         self._optimizer.step()
-        self.update_targets("value", "target_value")
+        self.update_targets("critic", "target_critic")
 
         return self._learner_stats(info)
 
@@ -79,18 +82,16 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         return svg_loss, {"svg_loss": svg_loss.item()}
 
     def _compute_policy_td_targets(self, batch_tensors):
-        _acts = self.module.policy_reproduce(
+        _acts = self.module.actor.reproduce(
             batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
         )
-        _next_obs = self.module.model_reproduce(
+        _next_obs = self.module.model.reproduce(
             batch_tensors[SampleBatch.CUR_OBS],
             _acts,
             batch_tensors[SampleBatch.NEXT_OBS],
         )
-        _rewards = self.module.reward(
-            (batch_tensors[SampleBatch.CUR_OBS], _acts, _next_obs)
-        )
-        _next_vals = self.module.value(_next_obs).squeeze(-1)
+        _rewards = self.reward(batch_tensors[SampleBatch.CUR_OBS], _acts, _next_obs)
+        _next_vals = self.module.critic(_next_obs).squeeze(-1)
         return torch.where(
             batch_tensors[SampleBatch.DONES],
             _rewards,
@@ -100,28 +101,30 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
     @override(SVGBaseTorchPolicy)
     def _avg_kl_divergence(self, batch_tensors):
         if self.config["replay_kl"]:
-            logp = self.module.policy_logp(
+            logp = self.module.actor.logp(
                 batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
             )
             return torch.mean(batch_tensors[self.ACTION_LOGP] - logp)
 
-        old_act, old_logp = self.module.old_sampler(batch_tensors[SampleBatch.CUR_OBS])
-        logp = self.module.policy_logp(batch_tensors[SampleBatch.CUR_OBS], old_act)
+        old_act, old_logp = self.module.old_actor.sampler(
+            batch_tensors[SampleBatch.CUR_OBS]
+        )
+        logp = self.module.actor.logp(batch_tensors[SampleBatch.CUR_OBS], old_act)
         return torch.mean(old_logp - logp)
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):
         """Compute gradient norm for components. Also clips policy gradient."""
         model_params = self.module.model.parameters()
-        value_params = self.module.value.parameters()
-        policy_params = self.module.policy.parameters()
+        value_params = self.module.critic.parameters()
+        policy_params = self.module.actor.parameters()
         fetches = {
             "model_grad_norm": nn.utils.clip_grad_norm_(model_params, float("inf")),
             "value_grad_norm": nn.utils.clip_grad_norm_(value_params, float("inf")),
             "policy_grad_norm": nn.utils.clip_grad_norm_(
                 policy_params, max_norm=self.config["max_grad_norm"]
             ),
-            "policy_entropy": self.module.policy_logp(
+            "policy_entropy": self.module.actor.logp(
                 batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
             )
             .mean()

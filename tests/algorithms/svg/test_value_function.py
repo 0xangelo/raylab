@@ -10,13 +10,12 @@ def policy_and_batch(policy_and_batch_fn, svg_policy):
     return policy_and_batch_fn(svg_policy, {"polyak": 0.5})
 
 
-def test_target_value_output(policy_and_batch):
+def test_target_critic_output(policy_and_batch):
     policy, batch = policy_and_batch
-    next_vals = policy.module.target_value(batch[SampleBatch.NEXT_OBS])
+    next_vals = policy.module.target_critic(batch[SampleBatch.NEXT_OBS])
     assert next_vals.shape == (10, 1)
     assert next_vals.dtype == torch.float32
 
-    policy.module.target_value.requires_grad_(True)
     targets = policy._compute_value_targets(batch)
     assert targets.shape == (10,)
     assert targets.dtype == torch.float32
@@ -27,7 +26,7 @@ def test_target_value_output(policy_and_batch):
 
     policy.module.zero_grad()
     targets.mean().backward()
-    target_params = set(policy.module.target_value.parameters())
+    target_params = set(policy.module.target_critic.parameters())
     other_params = (p for p in policy.module.parameters() if p not in target_params)
     assert all(p.grad is not None for p in target_params)
     assert all(p.grad is None for p in other_params)
@@ -35,7 +34,7 @@ def test_target_value_output(policy_and_batch):
 
 def test_importance_sampling_weighted_loss(policy_and_batch):
     policy, batch = policy_and_batch
-    values = policy.module.value(batch[SampleBatch.CUR_OBS])
+    values = policy.module.critic(batch[SampleBatch.CUR_OBS])
     assert values.shape == (10, 1)
     assert values.dtype == torch.float32
 
@@ -47,7 +46,7 @@ def test_importance_sampling_weighted_loss(policy_and_batch):
 
     loss = weighted_losses.div(2).mean()
     loss.backward()
-    value_params = set(policy.module.value.parameters())
+    value_params = set(policy.module.critic.parameters())
     other_params = (p for p in policy.module.parameters() if p not in value_params)
     assert all(p.grad is not None for p in value_params)
     assert all(p.grad is None for p in other_params)
@@ -58,15 +57,15 @@ def test_target_params_update(policy_and_batch):
     assert all(
         torch.allclose(p, p_)
         for p, p_ in zip(
-            policy.module.value.parameters(), policy.module.target_value.parameters()
+            policy.module.critic.parameters(), policy.module.target_critic.parameters()
         )
     )
 
-    old_params = [p.clone() for p in policy.module.target_value.parameters()]
-    for param in policy.module.value.parameters():
+    old_params = [p.clone() for p in policy.module.target_critic.parameters()]
+    for param in policy.module.critic.parameters():
         param.data.add_(torch.ones_like(param))
-    policy.update_targets("value", "target_value")
+    policy.update_targets("critic", "target_critic")
     assert all(
         not torch.allclose(p, p_)
-        for p, p_ in zip(policy.module.target_value.parameters(), old_params)
+        for p, p_ in zip(policy.module.target_critic.parameters(), old_params)
     )
