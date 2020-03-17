@@ -35,6 +35,8 @@ DEFAULT_CONFIG = with_common_config(
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
         "module": {
+            "name": "StochasticActorCritic",
+            "torch_script": True,
             "policy": {
                 "units": (400, 300),
                 "activation": "ReLU",

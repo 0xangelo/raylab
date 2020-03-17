@@ -6,8 +6,7 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-import raylab.modules as mods
-import raylab.distributions as dists
+from raylab.modules.catalog import get_module
 import raylab.utils.pytorch as torch_util
 from raylab.policy import TorchPolicy, PureExplorationMixin, TargetNetworksMixin
 
@@ -38,61 +37,10 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
 
     @override(TorchPolicy)
     def make_module(self, obs_space, action_space, config):
-        module = nn.ModuleDict()
-        module.update(self._make_policy(obs_space, action_space, config))
-
-        def make_critic():
-            return self._make_critic(obs_space, action_space, config)
-
-        module.critics = nn.ModuleList([make_critic()])
-        module.target_critics = nn.ModuleList([make_critic()])
-        if config["clipped_double_q"]:
-            module.critics.append(make_critic())
-            module.target_critics.append(make_critic())
-        module.target_critics.load_state_dict(module.critics.state_dict())
-
-        module.log_alpha = nn.Parameter(torch.zeros([]))
-        return module
-
-    def _make_policy(self, obs_space, action_space, config):
-        policy_config = config["module"]["policy"]
-        logits_module = mods.FullyConnected(
-            in_features=obs_space.shape[0],
-            units=policy_config["units"],
-            activation=policy_config["activation"],
-            **policy_config["initializer_options"]
-        )
-        params_module = mods.DiagMultivariateNormalParams(
-            logits_module.out_features,
-            action_space.shape[0],
-            input_dependent_scale=policy_config["input_dependent_scale"],
-        )
-        policy_module = nn.Sequential(logits_module, params_module)
-        dist_kwargs = dict(
-            dist_cls=dists.DiagMultivariateNormal,
-            detach_logp=False,
-            low=self.convert_to_tensor(action_space.low),
-            high=self.convert_to_tensor(action_space.high),
-        )
-        sampler_module = nn.Sequential(
-            policy_module,
-            mods.DistMean(**dist_kwargs)
-            if config["mean_action_only"]
-            else mods.DistRSample(**dist_kwargs),
-        )
-        return {"policy": policy_module, "sampler": sampler_module}
-
-    @staticmethod
-    def _make_critic(obs_space, action_space, config):
-        critic_config = config["module"]["critic"]
-        return mods.deterministic_actor_critic.ActionValueFunction.from_scratch(
-            obs_dim=obs_space.shape[0],
-            action_dim=action_space.shape[0],
-            delay_action=critic_config["delay_action"],
-            units=critic_config["units"],
-            activation=critic_config["activation"],
-            **critic_config["initializer_options"]
-        )
+        module_config = config["module"]
+        module_config["clipped_double_q"] = config["clipped_double_q"]
+        module_config["mean_action_only"] = config["mean_action_only"]
+        return get_module(module_config["name"], obs_space, action_space, module_config)
 
     @override(TorchPolicy)
     def optimizer(self):
