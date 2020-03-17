@@ -89,7 +89,7 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy)
             activation=value_config["activation"],
             **value_config["initializer_options"]
         )
-        value_output = mods.ValueFunction(logits_module.out_features)
+        value_output = nn.Linear(logits_module.out_features, 1)
         return nn.Sequential(logits_module, value_output)
 
     def _make_policy(self, obs_space, action_space, config):

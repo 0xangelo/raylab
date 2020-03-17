@@ -7,7 +7,6 @@ from ray.rllib.utils.annotations import override
 from raylab.modules import (
     FullyConnected,
     TrilMatrix,
-    ValueFunction,
     NormalizedLinear,
     TanhSquash,
     GaussianNoise,
@@ -69,7 +68,7 @@ class NAFModule(nn.ModuleDict):
 
     def _make_value(self, obs_space, config):
         logits = self._make_encoder(obs_space, config)
-        val = ValueFunction(logits.out_features)
+        val = nn.Linear(logits.out_features, 1)
         value = nn.Sequential(logits, val.as_script_module() if self._script else val)
         return torch.jit.script(value) if self._script else value
 
@@ -77,7 +76,7 @@ class NAFModule(nn.ModuleDict):
         logits = self._make_encoder(obs_space, config)
         components = {
             "logits": logits,
-            "value": ValueFunction(logits.out_features),
+            "value": nn.Linear(logits.out_features, 1),
             "mu": NormalizedLinear(
                 in_features=logits.out_features,
                 out_features=action_space.shape[0],

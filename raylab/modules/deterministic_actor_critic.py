@@ -10,7 +10,6 @@ from raylab.modules import (
     GaussianNoise,
     StateActionEncoder,
 )
-from .value_function import ValueFunction
 
 
 class DeterministicActorCritic(nn.ModuleDict):
@@ -156,7 +155,7 @@ class ActionValueFunction(nn.Module):
     def from_scratch(cls, *logits_args, **logits_kwargs):
         """Create an action value function with new logits and value modules."""
         logits_module = StateActionEncoder(*logits_args, **logits_kwargs)
-        value_module = ValueFunction(logits_module.out_features)
+        value_module = nn.Linear(logits_module.out_features, 1)
         return cls(logits_module, value_module)
 
     def as_script_module(self):
