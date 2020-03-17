@@ -13,7 +13,7 @@ class TanhTransform(Transform):
     codomain = constraints.interval(-1, +1)
     bijective = True
     sign = +1
-    eps = torch.finfo(torch.float32).eps
+    eps = torch.as_tensor(torch.finfo(torch.float32).eps)
 
     def __eq__(self, other):
         return isinstance(other, TanhTransform)
@@ -22,8 +22,8 @@ class TanhTransform(Transform):
         return torch.tanh(x)
 
     def _inverse(self, y):
-        to_log1 = torch.max(1 + y, torch.as_tensor(self.eps))
-        to_log2 = torch.max(1 - y, torch.as_tensor(self.eps))
+        to_log1 = torch.max(1 + y, self.eps)
+        to_log2 = torch.max(1 - y, self.eps)
         return (torch.log(to_log1) - torch.log(to_log2)) / 2
 
     def log_abs_det_jacobian(self, x, y):
