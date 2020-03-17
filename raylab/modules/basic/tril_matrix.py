@@ -34,6 +34,3 @@ class TrilMatrix(nn.Module):
         # upper triangular one)
         tril = torch.stack(tril_rows, dim=-2)
         return tril
-
-    def as_script_module(self):
-        return torch.jit.script(self)

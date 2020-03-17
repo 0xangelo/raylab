@@ -1,5 +1,4 @@
 # pylint: disable=missing-docstring
-import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
@@ -15,6 +14,3 @@ class TanhSquash(nn.Module):
     @override(nn.Module)
     def forward(self, inputs):  # pylint: disable=arguments-differ
         return self.loc + inputs.tanh() * self.scale
-
-    def as_script_module(self):
-        return torch.jit.script(self)

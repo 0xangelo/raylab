@@ -16,6 +16,3 @@ class GaussianNoise(nn.Module):
     @override(nn.Module)
     def forward(self, inputs):  # pylint: disable=arguments-differ
         return inputs + torch.randn_like(inputs) * self.scale
-
-    def as_script_module(self):
-        return torch.jit.script(self)

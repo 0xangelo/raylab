@@ -36,7 +36,8 @@ class NAFTorchPolicy(
 
         module_name = module_config["name"]
         assert module_name == "NAFModule", "Incompatible module type f{module_name}"
-        return get_module(module_name, obs_space, action_space, module_config)
+        module = get_module(module_name, obs_space, action_space, module_config)
+        return torch.jit.script(module) if module_config["torch_script"] else module
 
     @override(raypi.TorchPolicy)
     def optimizer(self):

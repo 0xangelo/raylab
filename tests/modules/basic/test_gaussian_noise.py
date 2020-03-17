@@ -13,7 +13,7 @@ def scale(request):
 def test_gaussian_noise(scale, torch_script):
     module = GaussianNoise(scale)
     if torch_script:
-        module = module.as_script_module()
+        module = torch.jit.script(module)
 
     inputs = torch.randn(10, 4)
     module(inputs)

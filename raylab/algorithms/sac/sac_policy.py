@@ -40,7 +40,10 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         module_config = config["module"]
         module_config["clipped_double_q"] = config["clipped_double_q"]
         module_config["mean_action_only"] = config["mean_action_only"]
-        return get_module(module_config["name"], obs_space, action_space, module_config)
+        module = get_module(
+            module_config["name"], obs_space, action_space, module_config
+        )
+        return torch.jit.script(module) if module_config["torch_script"] else module
 
     @override(TorchPolicy)
     def optimizer(self):

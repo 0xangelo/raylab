@@ -20,8 +20,6 @@ class StochasticActorCritic(DeterministicActorCritic):
     @override(DeterministicActorCritic)
     def _make_policy(self, obs_space, action_space, config):
         policy_module = StochasticPolicy(obs_space, action_space, config["policy"])
-        if self._script:
-            policy_module = policy_module.as_script_module()
 
         dist_kwargs = dict(
             dist_cls=DiagMultivariateNormal,
@@ -29,12 +27,18 @@ class StochasticActorCritic(DeterministicActorCritic):
             low=torch.as_tensor(action_space.low),
             high=torch.as_tensor(action_space.high),
         )
-        sampler_module = nn.Sequential(
-            policy_module,
+        action_sampler = (
             DistMean(**dist_kwargs)
             if config["mean_action_only"]
-            else DistRSample(**dist_kwargs),
+            else DistRSample(**dist_kwargs)
         )
+        if config["torch_script"]:
+            inputs = {
+                "loc": torch.zeros(1, action_space.shape[0]),
+                "scale_diag": torch.ones(1, action_space.shape[0]),
+            }
+            action_sampler = action_sampler.traced(inputs)
+        sampler_module = nn.Sequential(policy_module, action_sampler)
         return {"policy": policy_module, "sampler": sampler_module}
 
 
@@ -59,10 +63,3 @@ class StochasticPolicy(nn.Module):
     @override(nn.Module)
     def forward(self, obs):  # pylint:disable=arguments-differ
         return self.sequential(obs)
-
-    def as_script_module(self):
-        """Return self as a ScriptModule."""
-        self.logits = self.logits.as_script_module()
-        self.params = self.params.as_script_module()
-        self.sequential = nn.Sequential(self.logits, self.params)
-        return torch.jit.script(self)

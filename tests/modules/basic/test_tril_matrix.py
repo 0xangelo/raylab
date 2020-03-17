@@ -18,7 +18,7 @@ def matrix_dim(request):
 def test_tril_matrix(in_features, matrix_dim, torch_script):
     module = TrilMatrix(in_features, matrix_dim)
     if torch_script:
-        module = module.as_script_module()
+        module = torch.jit.script(module)
 
     inputs = torch.randn(1, in_features)
     module(inputs)

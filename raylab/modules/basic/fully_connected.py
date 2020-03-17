@@ -1,5 +1,4 @@
 # pylint: disable=missing-docstring
-import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
@@ -37,6 +36,3 @@ class FullyConnected(nn.Sequential):
     @override(nn.Module)
     def forward(self, inputs):  # pylint: disable=arguments-differ
         return self.sequential(inputs)
-
-    def as_script_module(self):
-        return torch.jit.script(self)

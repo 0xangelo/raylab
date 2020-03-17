@@ -45,7 +45,7 @@ def fc_kwargs(in_features, kwargs):
 def test_fully_connected(fc_kwargs, torch_script):
     module = FullyConnected(**fc_kwargs)
     if torch_script:
-        module.as_script_module()
+        module = torch.jit.script(module)
 
     inputs = torch.randn(1, fc_kwargs["in_features"])
     module(inputs)
@@ -72,7 +72,7 @@ def sae_kwargs(obs_action_dim, kwargs):
 def test_state_action_encoder(sae_kwargs, torch_script):
     module = StateActionEncoder(**sae_kwargs)
     if torch_script:
-        module.as_script_module()
+        module = torch.jit.script(module)
 
     obs, action = (
         torch.randn(1, sae_kwargs["obs_dim"]),

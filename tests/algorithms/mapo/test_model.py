@@ -27,10 +27,14 @@ def model_rollout_len(request):
 def test_model_output(policy_and_batch, num_model_samples):
     policy, batch = policy_and_batch
 
-    next_obs, logp = policy.module.model_sampler(
+    obs, actions = (
         batch[SampleBatch.CUR_OBS],
         batch[SampleBatch.ACTIONS],
-        torch.as_tensor([num_model_samples]),
+    )
+
+    next_obs, logp = policy.module.model_sampler(
+        obs.expand((num_model_samples,) + obs.shape),
+        actions.expand((num_model_samples,) + actions.shape),
     )
     assert next_obs.shape == (num_model_samples,) + batch[SampleBatch.NEXT_OBS].shape
     assert next_obs.dtype == torch.float32

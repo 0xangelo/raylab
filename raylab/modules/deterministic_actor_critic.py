@@ -19,7 +19,6 @@ class DeterministicActorCritic(nn.ModuleDict):
 
     def __init__(self, obs_space, action_space, config):
         super().__init__()
-        self._script = config["torch_script"]
         self.update(self._make_policy(obs_space, action_space, config))
 
         def make_critic():
@@ -32,7 +31,8 @@ class DeterministicActorCritic(nn.ModuleDict):
             self.target_critics.append(make_critic())
         self.target_critics.load_state_dict(self.critics.state_dict())
 
-    def _make_policy(self, obs_space, action_space, config):
+    @staticmethod
+    def _make_policy(obs_space, action_space, config):
         modules = {}
 
         policy_config = config["policy"]
@@ -61,16 +61,11 @@ class DeterministicActorCritic(nn.ModuleDict):
         else:
             modules["target_policy"] = modules["policy"]
 
-        if self._script:
-            for key in ("policy", "sampler", "target_policy"):
-                if key in modules and not isinstance(
-                    modules[key], torch.jit.ScriptModule
-                ):
-                    modules[key] = modules[key].as_script_module()
         return modules
 
-    def _make_critic(self, obs_space, action_space, config):
-        critic = ActionValueFunction.from_scratch(
+    @staticmethod
+    def _make_critic(obs_space, action_space, config):
+        return ActionValueFunction.from_scratch(
             obs_dim=obs_space.shape[0],
             action_dim=action_space.shape[0],
             delay_action=config["delay_action"],
@@ -78,7 +73,6 @@ class DeterministicActorCritic(nn.ModuleDict):
             activation=config["activation"],
             **config["initializer_options"]
         )
-        return critic.as_script_module() if self._script else critic
 
 
 class DeterministicPolicy(nn.Module):
@@ -133,10 +127,6 @@ class DeterministicPolicy(nn.Module):
     def forward(self, inputs):  # pylint:disable=arguments-differ
         return self.sequential(inputs)
 
-    def as_script_module(self):
-        """Return self as a ScriptModule."""
-        return torch.jit.script(self)
-
 
 class ActionValueFunction(nn.Module):
     """Neural network module emulating a Q value function."""
@@ -157,9 +147,3 @@ class ActionValueFunction(nn.Module):
         logits_module = StateActionEncoder(*logits_args, **logits_kwargs)
         value_module = nn.Linear(logits_module.out_features, 1)
         return cls(logits_module, value_module)
-
-    def as_script_module(self):
-        """Return self as a ScriptModule."""
-        self.logits_module = self.logits_module.as_script_module()
-        self.value_module = self.value_module.as_script_module()
-        return torch.jit.script(self)

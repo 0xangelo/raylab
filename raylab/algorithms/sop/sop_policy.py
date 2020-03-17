@@ -43,8 +43,10 @@ class SOPTorchPolicy(
             "target_gaussian_sigma",
         ):
             module_config[key] = config[key]
-
-        return get_module(module_config["name"], obs_space, action_space, module_config)
+        module = get_module(
+            module_config["name"], obs_space, action_space, module_config
+        )
+        return torch.jit.script(module) if module_config["torch_script"] else module
 
     @override(raypi.TorchPolicy)
     def optimizer(self):

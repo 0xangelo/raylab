@@ -359,8 +359,10 @@ class MAPOTorchPolicy(
 
         obs = batch_tensors[SampleBatch.CUR_OBS]
         actions = module.policy(obs)
+        n_samples = config["num_model_samples"]
         next_obs, logp = module.model_sampler(
-            obs, actions, [config["num_model_samples"]]
+            obs.expand((n_samples,) + obs.shape),
+            actions.expand((n_samples,) + actions.shape),
         )
         rews = [module.reward((obs, actions, next_obs))]
 
@@ -443,8 +445,6 @@ class EnvTransition(nn.Module):
         self.transition_fn = transition_fn
 
     @override(nn.Module)
-    def forward(
-        self, obs, action, sample_shape=torch.Size([])
-    ):  # pylint:disable=arguments-differ
-        samp, logp = self.transition_fn(obs, action, sample_shape=sample_shape)
+    def forward(self, obs, action):  # pylint:disable=arguments-differ
+        samp, logp = self.transition_fn(obs, action)
         return self.transform(samp), logp

@@ -16,7 +16,7 @@ def low_high(request):
 def maker(torch_script):
     def factory(*args, **kwargs):
         module = TanhSquash(*args, **kwargs)
-        return module.as_script_module() if torch_script else module
+        return torch.jit.script(module) if torch_script else module
 
     return factory
 

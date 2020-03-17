@@ -41,13 +41,15 @@ class DistRSample(_DistributionBase):
         self.detach_logp = detach_logp
 
     @override(nn.Module)
-    def forward(
-        self, inputs, sample_shape=torch.Size([])
-    ):  # pylint: disable=arguments-differ
+    def forward(self, inputs):  # pylint: disable=arguments-differ
         dist = self.compute_dist(inputs)
-        sample = dist.rsample(sample_shape=sample_shape)
+        sample = dist.rsample()
         logp = dist.log_prob(sample.detach() if self.detach_logp else sample)
         return sample, logp
+
+    def traced(self, params):
+        """Return a traced version of this module."""
+        return torch.jit.trace(self, params, check_trace=False)
 
 
 class DistMean(_DistributionBase):
@@ -64,6 +66,10 @@ class DistMean(_DistributionBase):
         logp = dist.log_prob(mean.detach() if self.detach_logp else mean)
         return mean, logp
 
+    def traced(self, inputs):
+        """Return a traced version of this module."""
+        return torch.jit.trace(self, inputs)
+
 
 class DistLogProb(_DistributionBase):
     """Module producing samples given a dict of distribution parameters."""
@@ -73,6 +79,10 @@ class DistLogProb(_DistributionBase):
         dist = self.compute_dist(inputs)
         return dist.log_prob(samples)
 
+    def traced(self, inputs, samples):
+        """Return a traced version of this module."""
+        return torch.jit.trace(self, (inputs, samples))
+
 
 class DistReproduce(_DistributionBase):
     """Reproduce a reparametrized sample by inferring the exogenous noise."""
@@ -81,3 +91,7 @@ class DistReproduce(_DistributionBase):
     def forward(self, inputs, samples):  # pylint: disable=arguments-differ
         dist = self.compute_dist(inputs)
         return dist.reproduce(samples)
+
+    def traced(self, inputs, samples):
+        """Return a traced version of this module."""
+        return torch.jit.trace(self, (inputs, samples))

@@ -14,7 +14,7 @@ def test_module_creation(torch_script, args_kwargs):
     args, kwargs = args_kwargs
     module = ActionOutput(*args, **kwargs)
     if torch_script:
-        module = module.as_script_module()
+        module = torch.jit.script(module)
 
     inputs = torch.randn(2, args[0])
     module(inputs)

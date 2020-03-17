@@ -1,6 +1,7 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 import numpy as np
+import torch
 import torch.nn as nn
 
 from raylab.algorithms.naf.naf_policy import NAFTorchPolicy
@@ -37,4 +38,4 @@ def config(exploration, clipped_double_q, torch_script):
 
 def test_make_module(obs_space, action_space, config):
     policy = NAFTorchPolicy(obs_space, action_space, config)
-    assert isinstance(policy.module, nn.ModuleDict)
+    assert isinstance(policy.module, (nn.ModuleDict, torch.jit.ScriptModule))

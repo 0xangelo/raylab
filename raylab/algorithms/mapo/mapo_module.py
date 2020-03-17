@@ -1,5 +1,4 @@
 """Neural Network modules for Model-Aware Policy Optimization."""
-import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
@@ -44,11 +43,9 @@ class DynamicsModelRSample(nn.Module):
         self.rsample_module = mods.DistRSample(DiagMultivariateNormal)
 
     @override(nn.Module)
-    def forward(
-        self, obs, actions, sample_shape=torch.Size([])
-    ):  # pylint: disable=arguments-differ
+    def forward(self, obs, actions):  # pylint: disable=arguments-differ
         params = self.dynamics_module(obs, actions)
-        sample, logp = self.rsample_module(params, sample_shape=sample_shape)
+        sample, logp = self.rsample_module(params)
         return sample, logp
 
 

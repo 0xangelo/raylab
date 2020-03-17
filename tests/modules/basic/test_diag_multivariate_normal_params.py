@@ -17,7 +17,7 @@ def module_and_logits_fn(torch_script):
             in_features=10, event_dim=4, input_dependent_scale=input_dependent_scale
         )
         if torch_script:
-            module = module.as_script_module()
+            module = torch.jit.script(module)
         return module, torch.randn(6, 10, requires_grad=True)
 
     return func
