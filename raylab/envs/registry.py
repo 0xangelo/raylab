@@ -1,3 +1,4 @@
+# pylint:disable=import-outside-toplevel
 """Registry of custom Gym environments."""
 import inspect
 
@@ -74,7 +75,7 @@ def _mujoco_half_cheetah_maker(_):
 
 
 try:
-    import mujoco_py  # pylint: disable=unused-import
+    import mujoco_py  # pylint:disable=unused-import,import-error
 
     ENVS.update(
         {
@@ -83,4 +84,19 @@ try:
         }
     )
 except Exception:  # pylint: disable=broad-except
+    pass
+
+
+@wrap_if_needed
+def _cartpole_swingup_maker(_):
+    from raylab.envs.cartpole_swingup import CartPoleSwingUpEnv
+
+    return CartPoleSwingUpEnv()
+
+
+try:
+    import gym_cartpole_swingup  # pylint:disable=unused-import,import-error
+
+    ENVS.update({"CartPoleSwingUp": _cartpole_swingup_maker})
+except ImportError:
     pass
