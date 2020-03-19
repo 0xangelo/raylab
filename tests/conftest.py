@@ -9,10 +9,10 @@ from .mock_env import MockEnv
 
 @pytest.fixture
 def envs():
-    from raylab.envs.registry import ENVS
+    from raylab.envs.registry import ENVS  # pylint:disable=import-outside-toplevel
 
     raylab.register_all_environments()
-    return ENVS
+    return ENVS.copy()
 
 
 @pytest.fixture(params=list(ALGORITHMS.values()))

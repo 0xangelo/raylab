@@ -15,7 +15,7 @@ class MockEnv(gym.Env):  # pylint: disable=abstract-method
         self.observation_space = Box(high=1, low=-1, shape=(4,), dtype=np.float32)
         action_dim = self.config["action_dim"]
         self.action_space = Box(high=1, low=-1, shape=(action_dim,), dtype=np.float32)
-        self.goal = np.zeros(self.observation_space.shape, dtype=np.float32)
+        self.goal = torch.zeros(self.observation_space.shape)
         self.state = None
 
     def reset(self):
@@ -28,9 +28,9 @@ class MockEnv(gym.Env):  # pylint: disable=abstract-method
         self.state = np.clip(
             self.state + action, self.observation_space.low, self.observation_space.high
         )
-        reward = np.linalg.norm((self.state - self.goal), axis=-1)
+        reward = np.linalg.norm((self.state - self.goal.numpy()), axis=-1)
         return self.state, reward, self.time >= self.horizon, {}
 
     def reward_fn(self, state, action, next_state):
         # pylint: disable=missing-docstring,unused-argument
-        return torch.norm(next_state - torch.from_numpy(self.goal), dim=-1)
+        return torch.norm(next_state - self.goal, dim=-1)
