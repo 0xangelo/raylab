@@ -19,22 +19,12 @@ class DeterministicActorCritic(nn.ModuleDict):
 
     def __init__(self, obs_space, action_space, config):
         super().__init__()
-        self.update(self._make_policy(obs_space, action_space, config))
-
-        def make_critic():
-            return self._make_critic(obs_space, action_space, config["critic"])
-
-        self.critics = nn.ModuleList([make_critic()])
-        self.target_critics = nn.ModuleList([make_critic()])
-        if config["clipped_double_q"]:
-            self.critics.append(make_critic())
-            self.target_critics.append(make_critic())
-        self.target_critics.load_state_dict(self.critics.state_dict())
+        self.update(self._make_actor(obs_space, action_space, config))
+        self.update(self._make_critic(obs_space, action_space, config))
 
     @staticmethod
-    def _make_policy(obs_space, action_space, config):
+    def _make_actor(obs_space, action_space, config):
         modules = {}
-
         policy_config = config["policy"]
         if "layer_norm" not in policy_config:
             policy_config["layer_norm"] = config["exploration"] == "parameter_noise"
@@ -54,7 +44,7 @@ class DeterministicActorCritic(nn.ModuleDict):
         else:
             modules["sampler"] = modules["policy"]
 
-        if config["target_policy_smoothing"]:
+        if config["smooth_target_policy"]:
             modules["target_policy"] = DeterministicPolicy.from_existing(
                 modules["policy"], noise=config["target_gaussian_sigma"],
             )
@@ -65,14 +55,23 @@ class DeterministicActorCritic(nn.ModuleDict):
 
     @staticmethod
     def _make_critic(obs_space, action_space, config):
-        return ActionValueFunction.from_scratch(
-            obs_dim=obs_space.shape[0],
-            action_dim=action_space.shape[0],
-            delay_action=config["delay_action"],
-            units=config["units"],
-            activation=config["activation"],
-            **config["initializer_options"]
-        )
+        critic_config = config["critic"]
+
+        def make_critic():
+            return ActionValueFunction.from_scratch(
+                obs_dim=obs_space.shape[0],
+                action_dim=action_space.shape[0],
+                delay_action=critic_config["delay_action"],
+                units=critic_config["units"],
+                activation=critic_config["activation"],
+                **critic_config["initializer_options"]
+            )
+
+        n_critics = 2 if config["double_q"] else 1
+        critics = nn.ModuleList([make_critic() for _ in range(n_critics)])
+        target_critics = nn.ModuleList([make_critic() for _ in range(n_critics)])
+        target_critics.load_state_dict(critics.state_dict())
+        return {"critics": critics, "target_critics": target_critics}
 
 
 class DeterministicPolicy(nn.Module):

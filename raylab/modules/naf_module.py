@@ -14,7 +14,7 @@ from raylab.modules import (
 )
 
 
-class NAFModule(nn.ModuleDict):
+class NormalizedAdvantageFunction(nn.ModuleDict):
     """Module dict containing NAF's modules"""
 
     # pylint:disable=abstract-method

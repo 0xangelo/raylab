@@ -13,12 +13,8 @@ class StochasticActorCritic(DeterministicActorCritic):
 
     # pylint:disable=abstract-method
 
-    def __init__(self, obs_space, action_space, config):
-        super().__init__(obs_space, action_space, config)
-        self.log_alpha = nn.Parameter(torch.zeros([]))
-
     @override(DeterministicActorCritic)
-    def _make_policy(self, obs_space, action_space, config):
+    def _make_actor(self, obs_space, action_space, config):
         policy_module = StochasticPolicy(obs_space, action_space, config["policy"])
 
         dist_kwargs = dict(
@@ -63,3 +59,13 @@ class StochasticPolicy(nn.Module):
     @override(nn.Module)
     def forward(self, obs):  # pylint:disable=arguments-differ
         return self.sequential(obs)
+
+
+class MaxEntActorCritic(StochasticActorCritic):
+    """Stochastic Actor-Critic with entropy coefficient parameter."""
+
+    # pylint:disable=abstract-method
+
+    def __init__(self, obs_space, action_space, config):
+        super().__init__(obs_space, action_space, config)
+        self.log_alpha = nn.Parameter(torch.zeros([]))

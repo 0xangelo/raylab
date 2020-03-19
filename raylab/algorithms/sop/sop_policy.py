@@ -35,11 +35,11 @@ class SOPTorchPolicy(
     @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
+        module_config["double_q"] = config["clipped_double_q"]
         for key in (
-            "clipped_double_q",
             "exploration",
             "exploration_gaussian_sigma",
-            "target_policy_smoothing",
+            "smooth_target_policy",
             "target_gaussian_sigma",
         ):
             module_config[key] = config[key]

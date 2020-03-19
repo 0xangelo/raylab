@@ -1,14 +1,15 @@
 """Registry of modules for PyTorch policies."""
-from .naf_module import NAFModule
+from .naf_module import NormalizedAdvantageFunction
 from .deterministic_actor_critic import DeterministicActorCritic
-from .stochastic_actor_critic import StochasticActorCritic
+from .stochastic_actor_critic import StochasticActorCritic, MaxEntActorCritic
 from .model_actor_critic import ModelActorCritic
 from .svg_module import SVGModelActorCritic
 
 MODULES = {
-    "NAFModule": NAFModule,
+    "NormalizedAdvantageFunction": NormalizedAdvantageFunction,
     "DeterministicActorCritic": DeterministicActorCritic,
     "StochasticActorCritic": StochasticActorCritic,
+    "MaxEntActorCritic": MaxEntActorCritic,
     "ModelActorCritic": ModelActorCritic,
     "SVGModelActorCritic": SVGModelActorCritic,
 }

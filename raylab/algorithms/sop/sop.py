@@ -15,7 +15,7 @@ DEFAULT_CONFIG = with_common_config(
         "clipped_double_q": True,
         # Add gaussian noise to the action when calculating the Deterministic
         # Policy Gradient
-        "target_policy_smoothing": True,
+        "smooth_target_policy": True,
         # Additive Gaussian i.i.d. noise to add to actions inputs to target Q function
         "target_gaussian_sigma": 0.3,
         # === Replay buffer ===

@@ -11,15 +11,15 @@ def clipped_double_q(request):
 
 
 @pytest.fixture(params=(True, False))
-def target_policy_smoothing(request):
+def smooth_target_policy(request):
     return request.param
 
 
 @pytest.fixture
-def config(clipped_double_q, target_policy_smoothing):
+def config(clipped_double_q, smooth_target_policy):
     return {
         "clipped_double_q": clipped_double_q,
-        "target_policy_smoothing": target_policy_smoothing,
+        "smooth_target_policy": smooth_target_policy,
     }
 
 

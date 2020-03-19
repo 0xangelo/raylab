@@ -38,7 +38,7 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
     @override(TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
-        module_config["clipped_double_q"] = config["clipped_double_q"]
+        module_config["double_q"] = config["clipped_double_q"]
         module_config["mean_action_only"] = config["mean_action_only"]
         module = get_module(
             module_config["name"], obs_space, action_space, module_config

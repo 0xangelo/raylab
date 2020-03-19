@@ -17,17 +17,17 @@ def exploration(request):
 @pytest.fixture(
     params=(True, False), ids=("smooth_target_policy", "hard_target_policy")
 )
-def target_policy_smoothing(request):
+def smooth_target_policy(request):
     return request.param
 
 
 @pytest.fixture
-def config(double_q, exploration, target_policy_smoothing):
+def config(double_q, exploration, smooth_target_policy):
     return {
-        "clipped_double_q": double_q,
+        "double_q": double_q,
         "exploration": exploration,
         "exploration_gaussian_sigma": 0.3,
-        "target_policy_smoothing": target_policy_smoothing,
+        "smooth_target_policy": smooth_target_policy,
         "target_gaussian_sigma": 0.3,
         "policy": {
             "units": (400, 300),
@@ -53,5 +53,5 @@ def test_module_creation(obs_space, action_space, config):
     assert "policy" in module
     assert "critics" in module
     assert "target_critics" in module
-    expected_n_critics = 2 if config["clipped_double_q"] else 1
+    expected_n_critics = 2 if config["double_q"] else 1
     assert len(module.critics) == expected_n_critics

@@ -35,7 +35,9 @@ class NAFTorchPolicy(
             module_config[key] = config[key]
 
         module_name = module_config["name"]
-        assert module_name == "NAFModule", "Incompatible module type f{module_name}"
+        assert (
+            module_name == "NormalizedAdvantageFunction"
+        ), "Incompatible module type f{module_name}"
         module = get_module(module_name, obs_space, action_space, module_config)
         return torch.jit.script(module) if module_config["torch_script"] else module
 

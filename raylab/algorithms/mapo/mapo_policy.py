@@ -40,7 +40,7 @@ class MAPOTorchPolicy(
     @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module = nn.ModuleDict()
-        module.update(self._make_policy(obs_space, action_space, config))
+        module.update(self._make_actor(obs_space, action_space, config))
 
         def make_critic():
             return self._make_critic(obs_space, action_space, config)
@@ -57,7 +57,7 @@ class MAPOTorchPolicy(
             self.check_model(module.model_sampler)
         return module
 
-    def _make_policy(self, obs_space, action_space, config):
+    def _make_actor(self, obs_space, action_space, config):
         policy_config = config["module"]["policy"]
 
         def _make_modules():
@@ -97,7 +97,7 @@ class MAPOTorchPolicy(
         else:
             modules["sampler"] = modules["policy"]
 
-        if config["target_policy_smoothing"]:
+        if config["smooth_target_policy"]:
             modules["target_policy"] = nn.Sequential(
                 logits_module,
                 mu_module,
