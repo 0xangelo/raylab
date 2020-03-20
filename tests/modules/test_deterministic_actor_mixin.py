@@ -5,11 +5,11 @@ import pytest
 import torch
 from ray.rllib.policy.sample_batch import SampleBatch
 
-from raylab.modules.ddpg_module import DDPGModule
+from raylab.modules.catalog import DDPGModule, MAPOModule
 
 
-@pytest.fixture(params=(True, False), ids=("Double Q", "Single Q"))
-def double_q(request):
+@pytest.fixture(params=(DDPGModule, MAPOModule))
+def module_cls(request):
     return request.param
 
 
@@ -36,11 +36,8 @@ def smooth_target_policy(request):
 
 
 @pytest.fixture
-def full_config(
-    double_q, exploration, exploration_gaussian_sigma, beta, smooth_target_policy
-):
+def full_config(exploration, exploration_gaussian_sigma, beta, smooth_target_policy):
     return {
-        "double_q": double_q,
         "exploration": exploration,
         "exploration_gaussian_sigma": exploration_gaussian_sigma,
         "smooth_target_policy": smooth_target_policy,
@@ -49,18 +46,22 @@ def full_config(
 
 
 @pytest.fixture
-def module_batch_fn(module_and_batch_fn):
-    return partial(module_and_batch_fn, DDPGModule)
+def module_batch_fn(module_and_batch_fn, module_cls):
+    return partial(module_and_batch_fn, module_cls)
 
 
 def test_module_creation(module_batch_fn, full_config):
     module, _ = module_batch_fn(full_config)
 
     assert "actor" in module
-    assert "critics" in module
-    assert "target_critics" in module
-    expected_n_critics = 2 if full_config["double_q"] else 1
-    assert len(module.critics) == expected_n_critics
+    actor = module.actor
+    assert "policy" in module.actor
+    assert "behavior" in module.actor
+    assert "target_policy" in module.actor
+    assert all(
+        torch.allclose(p, p_)
+        for p, p_ in zip(actor.policy.parameters(), actor.target_policy.parameters())
+    )
 
 
 def test_policy(module_batch_fn, beta):
@@ -91,11 +92,3 @@ def test_behavior(module_batch_fn, exploration, exploration_gaussian_sigma):
         (exploration == "gaussian" and exploration_gaussian_sigma != 0)
         and torch.allclose(samples, samples_)
     )
-
-
-def test_target_critics(module_batch_fn, double_q):
-    module, batch = module_batch_fn({"double_q": double_q})
-    for mod in module.target_critics:
-        val = mod(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
-        assert val.shape[-1] == 1
-        assert val.dtype == torch.float32

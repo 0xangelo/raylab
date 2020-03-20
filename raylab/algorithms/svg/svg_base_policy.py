@@ -37,7 +37,7 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy)
     ):
         # pylint: disable=too-many-arguments,unused-argument
         obs_batch = self.convert_to_tensor(obs_batch)
-        actions, logp = self.module.actor.policy(obs_batch)
+        actions, logp = self.module.actor.rsample(obs_batch)
 
         extra_fetches = {self.ACTION_LOGP: logp.cpu().numpy()}
         return actions.cpu().numpy(), state_batches, extra_fetches

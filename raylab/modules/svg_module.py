@@ -1,6 +1,7 @@
 """SVG Architecture with disjoint model, actor, and critic."""
 import torch
 import torch.nn as nn
+from ray.rllib.utils import merge_dicts
 from ray.rllib.utils.annotations import override
 
 from .basic import StateActionEncoder
@@ -8,6 +9,33 @@ from .model_actor_critic import AbstractModelActorCritic
 from .stochastic_model_mixin import StochasticModelMixin, GaussianDynamicsParams
 from .stochastic_actor_mixin import StochasticActorMixin
 from .state_value_mixin import StateValueMixin
+
+
+BASE_CONFIG = {
+    "torch_script": False,
+    "mean_action_only": False,
+    "actor": {
+        "units": (32, 32),
+        "activation": "Tanh",
+        "initializer_options": {"name": "xavier_uniform"},
+        "input_dependent_scale": False,
+    },
+    "critic": {
+        "units": (32, 32),
+        "activation": "Tanh",
+        "initializer_options": {"name": "xavier_uniform"},
+        "target_vf": True,
+    },
+    "model": {
+        "encoder": "svg_paper",
+        "residual": True,
+        "units": (32, 32),
+        "activation": "Tanh",
+        "delay_action": True,
+        "initializer_options": {"name": "xavier_uniform"},
+        "input_dependent_scale": False,
+    },
+}
 
 
 class SVGModule(
@@ -24,6 +52,7 @@ class SVGModule(
     # pylint:disable=abstract-method
 
     def __init__(self, obs_space, action_space, config):
+        config = merge_dicts(BASE_CONFIG, config)
         super().__init__(obs_space, action_space, config)
         if config.get("replay_kl") is False:
             old = self._make_actor(obs_space, action_space, config)

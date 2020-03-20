@@ -23,6 +23,6 @@ def test_policy_policy_loss(
     assert loss.dtype == torch.float32
 
     loss.backward()
-    assert all(p.grad is not None for p in policy.module.actor.policy.parameters())
+    assert all(p.grad is not None for p in policy.module.actor.parameters())
     assert policy.module.log_alpha.grad is not None
     assert all(p.grad is not None for p in policy.module.critics.parameters())

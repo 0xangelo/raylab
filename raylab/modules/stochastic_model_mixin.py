@@ -127,7 +127,7 @@ class ModelReproduce(nn.Module):
 
     @override(nn.Module)
     def forward(self, obs, actions, new_obs):  # pylint:disable=arguments-differ
-        self.resample_module(self.params_module(obs, actions), new_obs)
+        return self.resample_module(self.params_module(obs, actions), new_obs)
 
 
 class ResModelRSample(ModelRSample):

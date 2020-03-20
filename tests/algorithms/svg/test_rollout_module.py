@@ -4,14 +4,9 @@ import torch
 from ray.rllib.policy.sample_batch import SampleBatch
 
 
-@pytest.fixture(params=(True, False), ids=("InputDepScale", "InputIndepScale"))
-def policy_config(request):
-    return {"module": {"actor": {"input_dependent_scale": request.param}}}
-
-
 @pytest.fixture
-def policy_and_batch(policy_and_batch_fn, svg_inf_policy, policy_config):
-    return policy_and_batch_fn(svg_inf_policy, policy_config)
+def policy_and_batch(policy_and_batch_fn, svg_inf_policy):
+    return policy_and_batch_fn(svg_inf_policy, {})
 
 
 def test_reproduce_rewards(policy_and_batch):

@@ -88,7 +88,7 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         if self.is_uniform_random:
             actions = self._uniform_random_actions(obs_batch)
         else:
-            actions, _ = self.module.actor.policy(obs_batch)
+            actions, _ = self.module.actor.rsample(obs_batch)
 
         return actions.cpu().numpy(), state_batches, {}
 
@@ -144,7 +144,7 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
         dones = batch_tensors[SampleBatch.DONES]
 
-        next_acts, logp = module.actor.policy(next_obs)
+        next_acts, logp = module.actor.rsample(next_obs)
         next_vals, _ = torch.cat(
             [m(next_obs, next_acts) for m in module.target_critics], dim=-1
         ).min(dim=-1)
@@ -176,7 +176,7 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         # pylint: disable=unused-argument
         obs = batch_tensors[SampleBatch.CUR_OBS]
 
-        actions, logp = module.actor.policy(obs)
+        actions, logp = module.actor.rsample(obs)
         action_values, _ = torch.cat(
             [m(obs, actions) for m in module.critics], dim=-1
         ).min(dim=-1)
@@ -206,7 +206,7 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
     def compute_alpha_loss(batch_tensors, module, config):
         """Compute entropy coefficient loss."""
         with torch.no_grad():
-            _, logp = module.actor.policy(batch_tensors[SampleBatch.CUR_OBS])
+            _, logp = module.actor.rsample(batch_tensors[SampleBatch.CUR_OBS])
         alpha = module.log_alpha.exp()
         entropy_diff = torch.mean(-alpha * logp - alpha * config["target_entropy"])
         return entropy_diff, {"alpha_loss": entropy_diff.item()}

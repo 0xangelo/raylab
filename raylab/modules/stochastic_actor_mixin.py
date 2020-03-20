@@ -56,11 +56,9 @@ class StochasticActorMixin:
             dist_samp = dist_samp.traced(params_)
             dist_logp = dist_logp.traced(params_, actions_)
             dist_repr = dist_repr.traced(params_, actions_)
-        actor.policy = nn.Sequential(actor.params, dist_samp)
+        actor.rsample = nn.Sequential(actor.params, dist_samp)
         actor.logp = PolicyLogProb(actor.params, dist_logp)
         actor.reproduce = PolicyReproduce(actor.params, dist_repr)
-
-        actor.behavior = actor.policy
         return {"actor": actor}
 
 
