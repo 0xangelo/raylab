@@ -1,24 +1,24 @@
 # raylab
-Reinforcement learning algorithms in [RLlib](https://github.com/ray-project/ray/tree/master/rllib)
+Reinforcement learning algorithms in [RLlib](https://github.com/ray-project/ray/tree/master/rllib) and [PyTorch](https://pytorch.org).
+
+![](https://i.imgur.com/DlOemPW.png)
 
 ## Installation
-Simply clone the repository and run
+With PyTorch installed, clone the repository and run
 ```bash
 pip install -e .
 ```
 
-## Structure
-The project is structured as follows
+For the visualization tools you'll need to install [Streamlit](http://streamlit.io) and [Bokeh](https://docs.bokeh.org/en/latest/).
 
-    raylab
-    ├── algorithms      # Trainer and Policy classes
-    ├── cli             # Command line utilities
-    ├── distributions   # Extendend and additional PyTorch distributions
-    ├── envs            # Gym environments
-    ├── logger          # Tune loggers
-    ├── modules         # Additional PyTorch neural network modules
-    ├── policy          # Extensions and customizations of ray.rllib.policy submodules
-    ├── utils           # miscellaneous utilities
+## Algorithms implemented
+
+| Algorithm | Paper | Name in library |
+| --------- | ----- | --------------- |
+| Normalized Advantage Function | [link](http://proceedings.mlr.press/v48/gu16.html) | NAF |
+| Stochastic Value Gradients | [link](http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients) | SVG(inf) & SVG(1) |
+| Soft Actor-Critic | [link](http://proceedings.mlr.press/v80/haarnoja18b.html) | SoftAC |
+| Streamlined Off-Policy | [link](https://arxiv.org/abs/1910.02208) | SOP |
 
 ## Examples
 
@@ -144,13 +144,19 @@ Options:
   --help  Show this message and exit.
 
 ```
-![](https://i.imgur.com/DlOemPW.png)
-
 To generate `matplotlib` plots, check out the `raylab plot` and `raylab plot-export`.
 
-## Algorithms
+## Structure
+The project is structured as follows
 
-* [NAF](http://proceedings.mlr.press/v48/gu16.html) (Normalized Advantage Function)
-* [SVG(inf) and SVG(1)](http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients) (Stochastic Value Gradients)
-* [SAC](http://proceedings.mlr.press/v80/haarnoja18b.html) (Soft Actor-Critic)
-* [SOP](https://arxiv.org/abs/1910.02208) (Streamlined Off-Policy)
+    raylab
+    ├── algorithms      # Trainer and Policy classes
+    ├── cli             # Command line utilities
+    ├── distributions   # Extendend and additional PyTorch distributions
+    ├── envs            # Gym environments
+    ├── logger          # Tune loggers
+    ├── modules         # PyTorch neural network modules for algorithms
+        ├── basic       # Building blocks for neural networks
+        ├── flows       # Normalizing Flow modules
+    ├── policy          # Extensions and customizations of ray.rllib.policy submodules
+    ├── utils           # miscellaneous utilities
