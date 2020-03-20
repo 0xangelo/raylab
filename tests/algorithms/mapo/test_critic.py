@@ -31,12 +31,8 @@ def policy_and_batch(policy_and_batch_fn, config):
     return policy, batch
 
 
-def test_target_value_output(policy_and_batch):
+def test_critic_targets(policy_and_batch):
     policy, batch = policy_and_batch
-    for mod in policy.module.target_critics:
-        val = mod(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
-        assert val.shape == (10, 1)
-        assert val.dtype == torch.float32
 
     targets = policy._compute_critic_targets(batch, policy.module, policy.config)
     assert targets.shape == (10,)

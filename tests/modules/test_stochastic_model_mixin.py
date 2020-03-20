@@ -81,6 +81,20 @@ def test_model_params(module_batch_fn, config):
     assert all(p.grad is None for p in set(module.parameters()) - parameters)
 
 
+def test_model_logp(module_batch_fn, config):
+    module, batch = module_batch_fn(config)
+
+    logp = module.model.logp(
+        batch[SampleBatch.CUR_OBS],
+        batch[SampleBatch.ACTIONS],
+        batch[SampleBatch.NEXT_OBS],
+    )
+    assert logp.shape == batch[SampleBatch.REWARDS].shape
+    assert logp.dtype == torch.float32
+    assert not torch.isnan(logp).any()
+    assert torch.isfinite(logp).all()
+
+
 def test_model_reproduce(module_batch_fn, config):
     module, batch = module_batch_fn(config)
 
