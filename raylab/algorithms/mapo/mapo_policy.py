@@ -292,12 +292,9 @@ class MAPOTorchPolicy(
         transition = self.transition if config["true_model"] else module.model.sampler
 
         obs = batch_tensors[SampleBatch.CUR_OBS]
+        obs = obs.expand((config["num_model_samples"],) + obs.shape)
         actions = module.actor.policy(obs)
-        n_samples = config["num_model_samples"]
-        next_obs, logp = transition(
-            obs.expand((n_samples,) + obs.shape),
-            actions.expand((n_samples,) + actions.shape),
-        )
+        next_obs, logp = transition(obs, actions)
         rews = [self.reward(obs, actions, next_obs)]
 
         for _ in range(config["model_rollout_len"] - 1):
