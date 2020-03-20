@@ -24,7 +24,6 @@ DEFAULT_CONFIG = with_common_config(
         # for the normalized advantage function. No layers means the Q function is
         # linear in states and actions.
         "module": {
-            "name": "NAFModule",
             "units": (400, 300),
             "activation": "ELU",
             "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},

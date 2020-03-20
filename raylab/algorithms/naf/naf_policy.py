@@ -31,12 +31,11 @@ class NAFTorchPolicy(
     @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
-        for key in ("exploration", "clipped_double_q", "diag_gaussian_stddev"):
+        module_config["double_q"] = config["clipped_double_q"]
+        for key in ("exploration", "diag_gaussian_stddev"):
             module_config[key] = config[key]
 
-        module_name = module_config["name"]
-        assert module_name == "NAFModule", "Incompatible module type f{module_name}"
-        module = get_module(module_name, obs_space, action_space, module_config)
+        module = get_module("NAFModule", obs_space, action_space, module_config)
         return torch.jit.script(module) if module_config["torch_script"] else module
 
     @override(raypi.TorchPolicy)

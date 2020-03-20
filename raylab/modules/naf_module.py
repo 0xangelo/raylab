@@ -1,7 +1,9 @@
 """Normalized Advantage Function neural network modules."""
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.distributions as dists
+from ray.rllib.utils import merge_dicts
 from ray.rllib.utils.annotations import override
 
 from raylab.modules import (
@@ -14,6 +16,23 @@ from raylab.modules import (
 )
 
 
+BASE_CONFIG = {
+    "double_q": False,
+    "exploration": None,
+    "diag_gaussian_stddev": 0.1,
+    "units": (32, 32),
+    "activation": "ELU",
+    "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
+    # === SQUASHING EXPLORATION PROBLEM ===
+    # Maximum l1 norm of the policy's output vector before the squashing
+    # function
+    "beta": 1.2,
+    # === Module Optimization ===
+    # Whether to convert the module to a ScriptModule for faster inference
+    "torch_script": False,
+}
+
+
 class NAFModule(nn.ModuleDict):
     """Module dict containing NAF's modules"""
 
@@ -21,6 +40,7 @@ class NAFModule(nn.ModuleDict):
 
     def __init__(self, obs_space, action_space, config):
         super().__init__()
+        config = merge_dicts(BASE_CONFIG, config)
         self.update(self._make_naf(obs_space, action_space, config))
         self.target_value = nn.ModuleList(
             [self._make_value(obs_space, config) for _ in self.value]
@@ -41,7 +61,7 @@ class NAFModule(nn.ModuleDict):
         modules["value"] = nn.ModuleList(
             [nn.Sequential(modules["logits"], modules["value"])]
         )
-        if config["clipped_double_q"]:
+        if config["double_q"]:
             twin_modules = self._make_components(obs_space, action_space, config)
             twin_naf = NAF(
                 twin_modules["logits"],

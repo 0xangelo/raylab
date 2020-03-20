@@ -9,7 +9,10 @@ from raylab.utils.debug import fake_batch
 from raylab.utils.pytorch import convert_to_tensor
 
 
-@pytest.fixture(params=(True, False), ids=("TorchScript", "Eager"))
+@pytest.fixture(
+    params=(pytest.param(True, marks=pytest.mark.slow), False),
+    ids=("TorchScript", "Eager"),
+)
 def torch_script(request):
     return request.param
 
