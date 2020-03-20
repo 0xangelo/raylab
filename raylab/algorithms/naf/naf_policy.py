@@ -35,9 +35,7 @@ class NAFTorchPolicy(
             module_config[key] = config[key]
 
         module_name = module_config["name"]
-        assert (
-            module_name == "NormalizedAdvantageFunction"
-        ), "Incompatible module type f{module_name}"
+        assert module_name == "NAFModule", "Incompatible module type f{module_name}"
         module = get_module(module_name, obs_space, action_space, module_config)
         return torch.jit.script(module) if module_config["torch_script"] else module
 
@@ -74,12 +72,12 @@ class NAFTorchPolicy(
     @override(raypi.AdaptiveParamNoiseMixin)
     def _compute_noise_free_actions(self, sample_batch):
         obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.policy[:-1](obs_tensors).numpy()
+        return self.module.actor.policy[:-1](obs_tensors).numpy()
 
     @override(raypi.AdaptiveParamNoiseMixin)
     def _compute_noisy_actions(self, sample_batch):
         obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.perturbed_policy[:-1](obs_tensors).numpy()
+        return self.module.actor.behavior[:-1](obs_tensors).numpy()
 
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
@@ -139,9 +137,11 @@ class NAFTorchPolicy(
     @torch.no_grad()
     def extra_grad_info(self):
         """Compute gradient norm for components."""
-        return {
+        info = {
             "grad_norm": nn.utils.clip_grad_norm_(
                 self.module.naf.parameters(), float("inf")
             ),
-            "param_noise_stddev": self.curr_param_stddev,
         }
+        if self.config["exploration"] == "parameter_noise":
+            info["param_noise_stddev"] = self.curr_param_stddev
+        return info

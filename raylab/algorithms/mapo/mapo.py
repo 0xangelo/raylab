@@ -31,11 +31,6 @@ DEFAULT_CONFIG = with_common_config(
         # === Debugging ===
         # Whether to use the environment's true model to sample states
         "true_model": False,
-        # Degrade the true model using a constant bias, i.e., by adding a constant
-        # vector to the model's output
-        "model_bias": None,
-        # Degrade the true model using zero-mean gaussian noise
-        "model_noise_sigma": None,
         # === SQUASHING EXPLORATION PROBLEM ===
         # Maximum l1 norm of the policy's output vector before the squashing function
         "beta": 1.2,
@@ -66,10 +61,15 @@ DEFAULT_CONFIG = with_common_config(
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
         "module": {
-            "policy": {
+            "name": "MAPOModule",
+            "actor": {
                 "units": (400, 300),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},
+                # === SQUASHING EXPLORATION PROBLEM ===
+                # Maximum l1 norm of the policy's output vector before the squashing
+                # function
+                "beta": 1.2,
             },
             "critic": {
                 "units": (400, 300),
@@ -83,6 +83,7 @@ DEFAULT_CONFIG = with_common_config(
                 "initializer_options": {"name": "xavier_uniform"},
                 "delay_action": True,
                 "input_dependent_scale": False,
+                "residual": False,
             },
         },
         # === Rollout Worker ===

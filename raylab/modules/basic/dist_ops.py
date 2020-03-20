@@ -49,7 +49,15 @@ class DistRSample(_DistributionBase):
 
     def traced(self, params):
         """Return a traced version of this module."""
-        return torch.jit.trace(self, params, check_trace=False)
+        return torch.jit.trace(
+            self,
+            params,
+            check_inputs=[
+                {k: v.expand((1,) * i + v.shape) for k, v in params.items()}
+                for i in range(3)
+            ],
+            check_trace=False,
+        )
 
 
 class DistMean(_DistributionBase):

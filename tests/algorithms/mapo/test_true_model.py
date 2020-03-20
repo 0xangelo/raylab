@@ -5,19 +5,9 @@ import torch
 from raylab.utils.debug import fake_batch
 
 
-@pytest.fixture(params=((-1.0, -1.0, 0.0), (0.0, 0.0, 0.0), (1.0, 1.0, 0.0)))
-def bias(request):
-    return request.param
-
-
-@pytest.fixture(params=(0.0, 1.0))
-def noise_sigma(request):
-    return request.param
-
-
 @pytest.fixture
-def config(bias, noise_sigma):
-    return {"true_model": True, "model_bias": bias, "model_noise_sigma": noise_sigma}
+def config():
+    return {"true_model": True}
 
 
 @pytest.fixture
@@ -42,12 +32,10 @@ def test_model_output(policy_and_env):
     obs, act = map(lambda x: x.requires_grad_(True), (obs, act))
 
     torch.manual_seed(42)
-    sample, logp = policy.module.model_sampler(obs, act)
+    sample, logp = policy.transition(obs, act)
     torch.manual_seed(42)
     next_obs, log_prob = env.transition_fn(obs, act)
-    assert torch.allclose(sample, next_obs) or (
-        policy.config["model_bias"] is not None or policy.config["model_noise_sigma"]
-    )
+    assert torch.allclose(sample, next_obs)
     assert torch.allclose(logp, log_prob)
     assert sample.grad_fn is not None
     assert logp.grad_fn is not None
@@ -71,5 +59,5 @@ def test_madpg_loss(policy_and_env):
         p.grad is not None
         and torch.isfinite(p.grad).all()
         and not torch.isnan(p.grad).all()
-        for p in policy.module.policy.parameters()
+        for p in policy.module.actor.policy.parameters()
     )

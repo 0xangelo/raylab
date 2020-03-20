@@ -32,7 +32,7 @@ def test_model_output(policy_and_batch, num_model_samples):
         batch[SampleBatch.ACTIONS],
     )
 
-    next_obs, logp = policy.module.model_sampler(
+    next_obs, logp = policy.module.model.sampler(
         obs.expand((num_model_samples,) + obs.shape),
         actions.expand((num_model_samples,) + actions.shape),
     )
@@ -49,7 +49,7 @@ def test_model_output(policy_and_batch, num_model_samples):
 def test_model_logp(policy_and_batch):
     policy, batch = policy_and_batch
 
-    logp = policy.module.model_logp(
+    logp = policy.module.model.logp(
         batch[SampleBatch.CUR_OBS],
         batch[SampleBatch.ACTIONS],
         batch[SampleBatch.NEXT_OBS],

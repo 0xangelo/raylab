@@ -34,8 +34,8 @@ DEFAULT_CONFIG = with_common_config(
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
         "module": {
-            "name": "DeterministicActorCritic",
-            "policy": {
+            "name": "DDPGModule",
+            "actor": {
                 "units": (400, 300),
                 "activation": "ReLU",
                 "initializer_options": {"name": "xavier_uniform"},

@@ -40,8 +40,9 @@ SVG_BASE_CONFIG = with_common_config(
         # for the policy, value function and model. No layers means the component is
         # linear in states and/or actions.
         "module": {
-            "name": "SVGModelActorCritic",
+            "name": "SVGModule",
             "torch_script": True,
+            "mean_action_only": False,
             "actor": {
                 "units": [100, 100],
                 "activation": "Tanh",
@@ -52,6 +53,7 @@ SVG_BASE_CONFIG = with_common_config(
                 "units": [400, 200],
                 "activation": "Tanh",
                 "initializer_options": {"name": "xavier_uniform"},
+                "target_vf": True,
             },
             "model": {
                 "encoder": "svg_paper",

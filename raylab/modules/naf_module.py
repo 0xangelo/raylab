@@ -14,7 +14,7 @@ from raylab.modules import (
 )
 
 
-class NormalizedAdvantageFunction(nn.ModuleDict):
+class NAFModule(nn.ModuleDict):
     """Module dict containing NAF's modules"""
 
     # pylint:disable=abstract-method
@@ -103,7 +103,8 @@ class NormalizedAdvantageFunction(nn.ModuleDict):
                     torch.as_tensor(action_space.high),
                 ),
             )
-            return {"sampler": sampler, "perturbed_policy": sampler}
+            actor = nn.ModuleDict({"policy": self.policy, "behavior": sampler})
+            return {"sampler": sampler, "actor": actor}
         if config["exploration"] == "diag_gaussian":
             expl_noise = GaussianNoise(config["diag_gaussian_stddev"])
             return {

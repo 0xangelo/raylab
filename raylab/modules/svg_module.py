@@ -3,13 +3,19 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
+from .basic import StateActionEncoder
+from .model_actor_critic import AbstractModelActorCritic
+from .stochastic_model_mixin import StochasticModelMixin, GaussianDynamicsParams
+from .stochastic_actor_mixin import StochasticActorMixin
+from .state_value_mixin import StateValueMixin
 
-from raylab.distributions import DiagMultivariateNormal
-from .basic import DistLogProb, DistReproduce, StateActionEncoder
-from . import model_actor_critic as mac
 
-
-class SVGModelActorCritic(mac.ModelActorCritic):
+class SVGModule(
+    StochasticModelMixin,
+    StochasticActorMixin,
+    StateValueMixin,
+    AbstractModelActorCritic,
+):
     """Module architecture with reparemeterized actor and model.
 
     Allows inference of noise variables given existing samples.
@@ -24,40 +30,12 @@ class SVGModelActorCritic(mac.ModelActorCritic):
             self.old_actor = old["actor"].requires_grad_(False)
 
     @staticmethod
-    @override(mac.ModelActorCritic)
+    @override(StochasticModelMixin)
     def _make_model_encoder(obs_space, action_space, config):
         if config["encoder"] == "svg_paper":
             return SVGDynamicsParams(obs_space, action_space, config)
 
-        return mac.GaussianDynamicsParams(obs_space, action_space, config)
-
-    @override(mac.ModelActorCritic)
-    def _make_actor(self, obs_space, action_space, config):
-        modules = super()._make_actor(obs_space, action_space, config)
-        actor = modules["actor"]
-
-        dist_logp = DistLogProb(
-            dist_cls=DiagMultivariateNormal,
-            low=torch.as_tensor(action_space.low),
-            high=torch.as_tensor(action_space.high),
-        )
-        dist_repr = DistReproduce(
-            dist_cls=DiagMultivariateNormal,
-            low=torch.as_tensor(action_space.low),
-            high=torch.as_tensor(action_space.high),
-        )
-        if config["torch_script"]:
-            params_ = {
-                "loc": torch.zeros(1, *action_space.shape),
-                "scale_diag": torch.ones(1, *action_space.shape),
-            }
-            actions_ = torch.randn(1, *action_space.shape)
-            dist_logp = dist_logp.traced(params_, actions_)
-            dist_repr = dist_repr.traced(params_, actions_)
-
-        actor.logp = PolicyLogProb(actor.params, dist_logp)
-        actor.reproduce = PolicyReproduce(actor.params, dist_repr)
-        return modules
+        return GaussianDynamicsParams(obs_space, action_space, config)
 
 
 class SVGDynamicsParams(nn.Module):
@@ -88,29 +66,3 @@ class SVGDynamicsParams(nn.Module):
         loc = torch.cat([l(m(obs, act)) for l, m in zip(self.loc, self.logits)], dim=-1)
         scale_diag = self.log_scale.exp().expand_as(loc)
         return {"loc": loc, "scale_diag": scale_diag}
-
-
-class PolicyReproduce(nn.Module):
-    """Reproduces observed actions."""
-
-    def __init__(self, params_module, resample_module):
-        super().__init__()
-        self.params_module = params_module
-        self.resample_module = resample_module
-
-    @override(nn.Module)
-    def forward(self, obs, actions):  # pylint:disable=arguments-differ
-        return self.resample_module(self.params_module(obs), actions)
-
-
-class PolicyLogProb(nn.Module):
-    """Computes the log-likelihood of actions."""
-
-    def __init__(self, params_module, logp_module):
-        super().__init__()
-        self.params_module = params_module
-        self.logp_module = logp_module
-
-    @override(nn.Module)
-    def forward(self, obs, actions):  # pylint:disable=arguments-differ
-        return self.logp_module(self.params_module(obs), actions)

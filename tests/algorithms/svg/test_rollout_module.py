@@ -6,7 +6,7 @@ from ray.rllib.policy.sample_batch import SampleBatch
 
 @pytest.fixture(params=(True, False), ids=("InputDepScale", "InputIndepScale"))
 def policy_config(request):
-    return {"module": {"policy": {"input_dependent_scale": request.param}}}
+    return {"module": {"actor": {"input_dependent_scale": request.param}}}
 
 
 @pytest.fixture

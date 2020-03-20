@@ -1,17 +1,16 @@
 """Registry of modules for PyTorch policies."""
-from .naf_module import NormalizedAdvantageFunction
-from .deterministic_actor_critic import DeterministicActorCritic
-from .stochastic_actor_critic import StochasticActorCritic, MaxEntActorCritic
-from .model_actor_critic import ModelActorCritic
-from .svg_module import SVGModelActorCritic
+from .naf_module import NAFModule
+from .ddpg_module import DDPGModule
+from .sac_module import SACModule
+from .svg_module import SVGModule
+from .mapo_module import MAPOModule
 
 MODULES = {
-    "NormalizedAdvantageFunction": NormalizedAdvantageFunction,
-    "DeterministicActorCritic": DeterministicActorCritic,
-    "StochasticActorCritic": StochasticActorCritic,
-    "MaxEntActorCritic": MaxEntActorCritic,
-    "ModelActorCritic": ModelActorCritic,
-    "SVGModelActorCritic": SVGModelActorCritic,
+    "NAFModule": NAFModule,
+    "DDPGModule": DDPGModule,
+    "SACModule": SACModule,
+    "SVGModule": SVGModule,
+    "MAPOModule": MAPOModule,
 }
 
 

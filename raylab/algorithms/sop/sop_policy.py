@@ -50,29 +50,31 @@ class SOPTorchPolicy(
 
     @override(raypi.TorchPolicy)
     def optimizer(self):
-        pi_cls = torch_util.get_optimizer_class(self.config["policy_optimizer"]["name"])
-        pi_optim = pi_cls(
-            self.module.policy.parameters(),
-            **self.config["policy_optimizer"]["options"]
+        policy_optim_name = self.config["policy_optimizer"]["name"]
+        policy_optim_cls = torch_util.get_optimizer_class(policy_optim_name)
+        policy_optim_options = self.config["policy_optimizer"]["options"]
+        policy_optim = policy_optim_cls(
+            self.module.actor.parameters(), **policy_optim_options
         )
 
-        qf_cls = torch_util.get_optimizer_class(self.config["critic_optimizer"]["name"])
-        qf_optim = qf_cls(
-            self.module.critics.parameters(),
-            **self.config["critic_optimizer"]["options"]
+        critic_optim_name = self.config["critic_optimizer"]["name"]
+        critic_optim_cls = torch_util.get_optimizer_class(critic_optim_name)
+        critic_optim_options = self.config["critic_optimizer"]["options"]
+        critic_optim = critic_optim_cls(
+            self.module.critics.parameters(), **critic_optim_options
         )
 
-        return OptimizerCollection(policy=pi_optim, critic=qf_optim)
+        return OptimizerCollection(policy=policy_optim, critic=critic_optim,)
 
     @override(raypi.AdaptiveParamNoiseMixin)
     def _compute_noise_free_actions(self, sample_batch):
         obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.policy[:-1](obs_tensors).numpy()
+        return self.module.actor.policy[:-1](obs_tensors).numpy()
 
     @override(raypi.AdaptiveParamNoiseMixin)
     def _compute_noisy_actions(self, sample_batch):
         obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.perturbed_policy[:-1](obs_tensors).numpy()
+        return self.module.actor.behavior[:-1](obs_tensors).numpy()
 
     @torch.no_grad()
     @override(raypi.TorchPolicy)
@@ -92,9 +94,9 @@ class SOPTorchPolicy(
         if self.is_uniform_random:
             actions = self._uniform_random_actions(obs_batch)
         elif self.config["greedy"]:
-            actions = self.module.policy(obs_batch)
+            actions = self.module.actor.policy(obs_batch)
         else:
-            actions = self.module.sampler(obs_batch)
+            actions = self.module.actor.behavior(obs_batch)
 
         return actions.cpu().numpy(), state_batches, {}
 
@@ -148,7 +150,7 @@ class SOPTorchPolicy(
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
         dones = batch_tensors[SampleBatch.DONES]
 
-        next_acts = module.target_policy(next_obs)
+        next_acts = module.actor.target_policy(next_obs)
         next_vals, _ = torch.cat(
             [m(next_obs, next_acts) for m in module.target_critics], dim=-1
         ).min(dim=-1)
@@ -158,13 +160,7 @@ class SOPTorchPolicy(
         policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
         self._optimizer.policy.zero_grad()
         policy_loss.backward()
-        grad_stats = {
-            "policy_grad_norm": nn.utils.clip_grad_norm_(
-                module.policy.parameters(), float("inf")
-            ),
-            "param_noise_stddev": self.curr_param_stddev,
-        }
-        info.update(grad_stats)
+        info.update(self.extra_policy_grad_info())
 
         self._optimizer.policy.step()
         return info
@@ -175,7 +171,7 @@ class SOPTorchPolicy(
         # pylint: disable=unused-argument
         obs = batch_tensors[SampleBatch.CUR_OBS]
 
-        actions = module.policy(obs)
+        actions = module.actor.policy(obs)
         action_values, _ = torch.cat(
             [m(obs, actions) for m in module.critics], dim=-1
         ).min(dim=-1)
@@ -186,3 +182,14 @@ class SOPTorchPolicy(
             "qpi_mean": max_objective.item(),
         }
         return max_objective.neg(), stats
+
+    def extra_policy_grad_info(self):
+        """Return dict of extra info on policy gradient."""
+        info = {
+            "policy_grad_norm": nn.utils.clip_grad_norm_(
+                self.module.actor.policy.parameters(), float("inf")
+            ),
+        }
+        if self.config["exploration"] == "parameter_noise":
+            info["param_noise_stddev"] = self.curr_param_stddev
+        return info
