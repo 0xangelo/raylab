@@ -1,7 +1,6 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 import torch
-from ray.rllib.policy.sample_batch import SampleBatch
 
 
 @pytest.fixture(params=(True, False))
@@ -12,35 +11,6 @@ def input_dependent_scale(request):
 @pytest.fixture(params=(True, False))
 def clipped_double_q(request):
     return {"clipped_double_q": request.param}
-
-
-def test_policy_output(policy_and_batch_fn, input_dependent_scale):
-    policy, batch = policy_and_batch_fn(input_dependent_scale)
-
-    params = policy.module.actor.params(batch[SampleBatch.CUR_OBS])
-    assert "loc" in params
-    assert "scale_diag" in params
-
-    loc, scale_diag = [params[k] for k in ("loc", "scale_diag")]
-    assert loc.shape == (10,) + policy.action_space.shape
-    assert scale_diag.shape == (10,) + policy.action_space.shape
-    assert loc.dtype == torch.float32
-    assert scale_diag.dtype == torch.float32
-
-    pi_params = set(policy.module.actor.policy.parameters())
-    for par in pi_params:
-        par.grad = None
-    loc.mean().backward()
-    assert any(p.grad is not None for p in pi_params)
-    assert all(p.grad is None for p in set(policy.module.parameters()) - pi_params)
-
-    for par in pi_params:
-        par.grad = None
-    policy.module.actor.params(batch[SampleBatch.CUR_OBS])[
-        "scale_diag"
-    ].mean().backward()
-    assert any(p.grad is not None for p in pi_params)
-    assert all(p.grad is None for p in set(policy.module.parameters()) - pi_params)
 
 
 def test_policy_policy_loss(
