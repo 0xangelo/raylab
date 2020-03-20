@@ -15,7 +15,7 @@ class StateActionEncoder(nn.Module):
         super().__init__()
         self.in_features = obs_dim + action_dim
         if units:
-            if delay_action:
+            if delay_action is True:
                 self.obs_module = FullyConnected(obs_dim, units=units[:1], **fc_kwargs)
                 input_dim = units[0] + action_dim
                 units = units[1:]

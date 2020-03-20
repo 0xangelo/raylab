@@ -62,7 +62,7 @@ def delay_action(request):
 
 
 @pytest.fixture
-def sae_kwargs(obs_action_dim, kwargs):
+def sae_kwargs(obs_action_dim, delay_action, kwargs):
     obs_dim, action_dim = obs_action_dim
     return dict(
         obs_dim=obs_dim, action_dim=action_dim, delay_action=delay_action, **kwargs
