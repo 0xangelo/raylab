@@ -59,7 +59,7 @@ class MAPOTorchPolicy(
         module = get_module(
             module_config["name"], obs_space, action_space, module_config
         )
-        self.check_model(module.model.sampler)
+        self.check_model(module.model.rsample)
         return module
 
     @override(raypi.TorchPolicy)
@@ -289,7 +289,7 @@ class MAPOTorchPolicy(
         # pylint: disable=too-many-locals
         gamma = config["gamma"]
         rollout_len = config["model_rollout_len"]
-        transition = self.transition if config["true_model"] else module.model.sampler
+        transition = self.transition if config["true_model"] else module.model.rsample
 
         obs = batch_tensors[SampleBatch.CUR_OBS]
         obs = obs.expand((config["num_model_samples"],) + obs.shape)

@@ -25,7 +25,7 @@ def test_model_params(module_batch_fn, model_encoder):
     assert "loc" in params
     assert "scale_diag" in params
 
-    loc, scale_diag = params.values()
+    loc, scale_diag = params["loc"], params["scale_diag"]
     assert loc.shape == batch[SampleBatch.NEXT_OBS].shape
     assert scale_diag.shape == batch[SampleBatch.NEXT_OBS].shape
     assert loc.dtype == torch.float32

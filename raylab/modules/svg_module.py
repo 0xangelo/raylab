@@ -4,7 +4,7 @@ import torch.nn as nn
 from ray.rllib.utils import merge_dicts
 from ray.rllib.utils.annotations import override
 
-from .basic import StateActionEncoder
+from .basic import DiagMultivariateNormalParams, StateActionEncoder
 from .model_actor_critic import AbstractModelActorCritic
 from .stochastic_model_mixin import StochasticModelMixin, GaussianDynamicsParams
 from .stochastic_actor_mixin import StochasticActorMixin
@@ -75,8 +75,9 @@ class SVGDynamicsParams(nn.Module):
 
     def __init__(self, obs_space, action_space, config):
         super().__init__()
-        logits_modules = [
-            StateActionEncoder(
+
+        def make_encoder():
+            return StateActionEncoder(
                 obs_dim=obs_space.shape[0],
                 action_dim=action_space.shape[0],
                 units=config["units"],
@@ -84,14 +85,18 @@ class SVGDynamicsParams(nn.Module):
                 activation=config["activation"],
                 **config["initializer_options"]
             )
-            for _ in range(obs_space.shape[0])
-        ]
-        self.logits = nn.ModuleList(logits_modules)
-        self.loc = nn.ModuleList([nn.Linear(m.out_features, 1) for m in self.logits])
-        self.log_scale = nn.Parameter(torch.zeros(*obs_space.shape))
+
+        self.logits = nn.ModuleList([make_encoder() for _ in range(obs_space.shape[0])])
+
+        def make_dist(in_features):
+            kwargs = dict(event_dim=1, input_dependent_scale=False)
+            return DiagMultivariateNormalParams(in_features, **kwargs)
+
+        self.params = nn.ModuleList([make_dist(l.out_features) for l in self.logits])
 
     @override(nn.Module)
     def forward(self, obs, act):  # pylint: disable=arguments-differ
-        loc = torch.cat([l(m(obs, act)) for l, m in zip(self.loc, self.logits)], dim=-1)
-        scale_diag = self.log_scale.exp().expand_as(loc)
+        params = [p(l(obs, act)) for p, l in zip(self.params, self.logits)]
+        loc = torch.cat([d["loc"] for d in params], dim=-1)
+        scale_diag = torch.cat([d["scale_diag"] for d in params], dim=-1)
         return {"loc": loc, "scale_diag": scale_diag}

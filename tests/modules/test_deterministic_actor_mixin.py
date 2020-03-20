@@ -1,6 +1,4 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
-from functools import partial
-
 import pytest
 import torch
 from ray.rllib.policy.sample_batch import SampleBatch
@@ -8,34 +6,36 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from raylab.modules.catalog import DDPGModule, MAPOModule
 
 
-@pytest.fixture(params=(DDPGModule, MAPOModule))
+@pytest.fixture(scope="module", params=(DDPGModule, MAPOModule))
 def module_cls(request):
     return request.param
 
 
-@pytest.fixture(params=(None, "gaussian", "parameter_noise"))
+@pytest.fixture(scope="module", params=(None, "gaussian", "parameter_noise"))
 def exploration(request):
     return request.param
 
 
-@pytest.fixture(params=(0.3, 0.0))
+@pytest.fixture(scope="module", params=(0.3, 0.0))
 def exploration_gaussian_sigma(request):
     return request.param
 
 
-@pytest.fixture(params=(0.8, 1.2))
+@pytest.fixture(scope="module", params=(0.8, 1.2))
 def beta(request):
     return request.param
 
 
 @pytest.fixture(
-    params=(True, False), ids=("Smooth Target Policy", "Hard Target Policy")
+    scope="module",
+    params=(True, False),
+    ids=("Smooth Target Policy", "Hard Target Policy"),
 )
 def smooth_target_policy(request):
     return request.param
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def full_config(exploration, exploration_gaussian_sigma, beta, smooth_target_policy):
     return {
         "exploration": exploration,
@@ -45,13 +45,14 @@ def full_config(exploration, exploration_gaussian_sigma, beta, smooth_target_pol
     }
 
 
-@pytest.fixture
-def module_batch_fn(module_and_batch_fn, module_cls):
-    return partial(module_and_batch_fn, module_cls)
+@pytest.fixture(scope="module")
+def module_batch_config(module_and_batch_fn, module_cls, full_config):
+    module, batch = module_and_batch_fn(module_cls, full_config)
+    return module, batch, full_config
 
 
-def test_module_creation(module_batch_fn, full_config):
-    module, _ = module_batch_fn(full_config)
+def test_module_creation(module_batch_config):
+    module, _, _ = module_batch_config
 
     assert "actor" in module
     actor = module.actor
@@ -64,8 +65,9 @@ def test_module_creation(module_batch_fn, full_config):
     )
 
 
-def test_policy(module_batch_fn, beta):
-    module, batch = module_batch_fn({"actor": {"beta": beta}})
+def test_policy(module_batch_config):
+    module, batch, config = module_batch_config
+    beta = config["actor"]["beta"]
     action_dim = batch[SampleBatch.ACTIONS][0].numel()
 
     policy_out = module.actor.policy(batch[SampleBatch.CUR_OBS])
@@ -75,18 +77,15 @@ def test_policy(module_batch_fn, beta):
     assert (norms <= (beta + torch.finfo(torch.float32).eps)).all()
 
 
-def test_behavior(module_batch_fn, exploration, exploration_gaussian_sigma):
-    module, batch = module_batch_fn(
-        {
-            "exploration": exploration,
-            "exploration_gaussian_sigma": exploration_gaussian_sigma,
-        }
-    )
-    action_dim = batch[SampleBatch.ACTIONS][0].numel()
+def test_behavior(module_batch_config):
+    module, batch, config = module_batch_config
+    exploration = config["exploration"]
+    exploration_gaussian_sigma = config["exploration_gaussian_sigma"]
+    action = batch[SampleBatch.ACTIONS]
 
     samples = module.actor.behavior(batch[SampleBatch.CUR_OBS])
     samples_ = module.actor.behavior(batch[SampleBatch.CUR_OBS])
-    assert samples.shape[-1] == action_dim
+    assert samples.shape == action.shape
     assert samples.dtype == torch.float32
     assert not (
         (exploration == "gaussian" and exploration_gaussian_sigma != 0)

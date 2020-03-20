@@ -50,11 +50,11 @@ class StochasticModelMixin:
             dist_repr = dist_repr.traced(params_, obs_)
 
         if model_config["residual"]:
-            model.sampler = ResModelRSample(model.params, dist_samp)
+            model.rsample = ResModelRSample(model.params, dist_samp)
             model.logp = ResModelLogProb(model.params, dist_logp)
             model.reproduce = ResModelReproduce(model.params, dist_repr)
         else:
-            model.sampler = ModelRSample(model.params, dist_samp)
+            model.rsample = ModelRSample(model.params, dist_samp)
             model.logp = ModelLogProb(model.params, dist_logp)
             model.reproduce = ModelReproduce(model.params, dist_repr)
 

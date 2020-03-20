@@ -1,6 +1,4 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
-from functools import partial
-
 import pytest
 import torch
 from ray.rllib.policy.sample_batch import SampleBatch
@@ -8,22 +6,26 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from raylab.modules.catalog import MAPOModule, SVGModule
 
 
-@pytest.fixture(params=(MAPOModule, SVGModule))
+@pytest.fixture(scope="module", params=(MAPOModule, SVGModule))
 def module_cls(request):
     return request.param
 
 
-@pytest.fixture(params=(True, False), ids=("InputDepScale", "InputIndepScale"))
+@pytest.fixture(
+    scope="module", params=(True, False), ids=("InputDepScale", "InputIndepScale")
+)
 def input_dependent_scale(request):
     return request.param
 
 
-@pytest.fixture(params=(True, False), ids=("ResidualModel", "StandardModel"))
+@pytest.fixture(
+    scope="module", params=(True, False), ids=("ResidualModel", "StandardModel")
+)
 def residual(request):
     return request.param
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def config(input_dependent_scale, residual):
     return {
         "model": {"input_dependent_scale": input_dependent_scale},
@@ -31,18 +33,19 @@ def config(input_dependent_scale, residual):
     }
 
 
-@pytest.fixture
-def module_batch_fn(module_and_batch_fn, module_cls):
-    return partial(module_and_batch_fn, module_cls)
+@pytest.fixture(scope="module")
+def module_batch_config(module_and_batch_fn, module_cls, config):
+    module, batch = module_and_batch_fn(module_cls, config)
+    return module, batch, config
 
 
-def test_model_sampler(module_batch_fn, config):
-    module, batch = module_batch_fn(config)
+def test_model_rsample(module_batch_config):
+    module, batch, _ = module_batch_config
 
-    samples, logp = module.model.sampler(
+    samples, logp = module.model.rsample(
         batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS]
     )
-    samples_, _ = module.model.sampler(
+    samples_, _ = module.model.rsample(
         batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS]
     )
     assert samples.shape == batch[SampleBatch.NEXT_OBS].shape
@@ -52,14 +55,14 @@ def test_model_sampler(module_batch_fn, config):
     assert not torch.allclose(samples, samples_)
 
 
-def test_model_params(module_batch_fn, config):
-    module, batch = module_batch_fn(config)
+def test_model_params(module_batch_config):
+    module, batch, _ = module_batch_config
 
     params = module.model.params(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
     assert "loc" in params
     assert "scale_diag" in params
 
-    loc, scale_diag = params.values()
+    loc, scale_diag = params["loc"], params["scale_diag"]
     assert loc.shape == batch[SampleBatch.NEXT_OBS].shape
     assert scale_diag.shape == batch[SampleBatch.NEXT_OBS].shape
     assert loc.dtype == torch.float32
@@ -81,8 +84,8 @@ def test_model_params(module_batch_fn, config):
     assert all(p.grad is None for p in set(module.parameters()) - parameters)
 
 
-def test_model_logp(module_batch_fn, config):
-    module, batch = module_batch_fn(config)
+def test_model_logp(module_batch_config):
+    module, batch, _ = module_batch_config
 
     logp = module.model.logp(
         batch[SampleBatch.CUR_OBS],
@@ -95,8 +98,8 @@ def test_model_logp(module_batch_fn, config):
     assert torch.isfinite(logp).all()
 
 
-def test_model_reproduce(module_batch_fn, config):
-    module, batch = module_batch_fn(config)
+def test_model_reproduce(module_batch_config):
+    module, batch, _ = module_batch_config
 
     next_obs = batch[SampleBatch.NEXT_OBS]
     _next_obs = module.model.reproduce(
