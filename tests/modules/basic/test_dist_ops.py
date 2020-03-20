@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from raylab.modules import DistRSample, DistMean
+from raylab.modules.basic import DistRSample, DistMean
 from raylab.distributions import DiagMultivariateNormal
 
 
@@ -54,8 +54,11 @@ def mean_module_and_inputs(module_and_inputs_fn):
     return module_and_inputs_fn(DistMean)
 
 
-def test_forward(module_and_inputs):
+def test_forward(module_and_inputs, torch_script):
     module, inputs = module_and_inputs
+    if torch_script:
+        module = module.traced(inputs)
+
     loc = inputs["loc"]
     loc.requires_grad_(True)
     sample, logp = module(inputs)
@@ -76,8 +79,11 @@ def test_forward(module_and_inputs):
     assert loc.grad is not None
 
 
-def test_mean_only_is_deterministic(mean_module_and_inputs):
+def test_mean_only_is_deterministic(mean_module_and_inputs, torch_script):
     module, inputs = mean_module_and_inputs
+    if torch_script:
+        module = module.traced(inputs)
+
     loc, scale = inputs["loc"], inputs["scale_diag"]
     loc.requires_grad_(True)
     scale.requires_grad_(True)

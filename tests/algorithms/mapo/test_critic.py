@@ -11,15 +11,15 @@ def clipped_double_q(request):
 
 
 @pytest.fixture(params=(True, False))
-def target_policy_smoothing(request):
+def smooth_target_policy(request):
     return request.param
 
 
 @pytest.fixture
-def config(clipped_double_q, target_policy_smoothing):
+def config(clipped_double_q, smooth_target_policy):
     return {
         "clipped_double_q": clipped_double_q,
-        "target_policy_smoothing": target_policy_smoothing,
+        "smooth_target_policy": smooth_target_policy,
     }
 
 
@@ -49,7 +49,7 @@ def test_target_value_output(policy_and_batch):
     policy.module.zero_grad()
     targets.mean().backward()
     target_params = set(policy.module.target_critics.parameters())
-    target_params.update(set(policy.module.policy.parameters()))
+    target_params.update(set(policy.module.actor.parameters()))
     assert all(p.grad is not None for p in target_params)
     assert all(p.grad is None for p in set(policy.module.parameters()) - target_params)
 

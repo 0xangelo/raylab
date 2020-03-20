@@ -4,22 +4,41 @@ import torch
 from ray.rllib.policy.sample_batch import SampleBatch
 
 
+@pytest.fixture(params=("svg_paper", "default"), ids=("svg_paper", "default"))
+def config(request):
+    return {"module": {"model": {"encoder": request.param}}}
+
+
 @pytest.fixture
-def policy_and_batch(policy_and_batch_fn, svg_policy):
-    return policy_and_batch_fn(svg_policy, {})
+def policy_and_batch(policy_and_batch_fn, svg_policy, config):
+    return policy_and_batch_fn(svg_policy, config)
+
+
+def test_reward_reproduce(policy_and_batch):
+    policy, batch = policy_and_batch
+
+    rews = batch[SampleBatch.REWARDS]
+    _rews = policy.reward(
+        batch[SampleBatch.CUR_OBS],
+        batch[SampleBatch.ACTIONS],
+        batch[SampleBatch.NEXT_OBS],
+    )
+    assert _rews.shape == rews.shape
+    assert _rews.dtype == rews.dtype
+    assert torch.allclose(_rews, rews, atol=1e-6)
 
 
 def test_policy_reproduce(policy_and_batch):
     policy, batch = policy_and_batch
 
     acts = batch[SampleBatch.ACTIONS]
-    _acts = policy.module.policy_reproduce(batch[SampleBatch.CUR_OBS], acts)
+    _acts = policy.module.actor.reproduce(batch[SampleBatch.CUR_OBS], acts)
     assert _acts.shape == acts.shape
     assert _acts.dtype == acts.dtype
     assert torch.allclose(_acts, acts, atol=1e-6)
 
     _acts.mean().backward()
-    pi_params = set(policy.module.policy.parameters())
+    pi_params = set(policy.module.actor.parameters())
     assert all(p.grad is not None for p in pi_params)
     assert all(p.grad is None for p in set(policy.module.parameters()) - pi_params)
 
@@ -28,7 +47,7 @@ def test_model_reproduce(policy_and_batch):
     policy, batch = policy_and_batch
 
     next_obs = batch[SampleBatch.NEXT_OBS]
-    _next_obs = policy.module.model_reproduce(
+    _next_obs = policy.module.model.reproduce(
         batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS], next_obs
     )
     assert _next_obs.shape == next_obs.shape

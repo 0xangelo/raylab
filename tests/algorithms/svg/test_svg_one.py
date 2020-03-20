@@ -21,4 +21,4 @@ def test_truncated_svg(policy_and_batch):
     )
 
     td_targets.mean().backward()
-    assert all(p.grad is not None for p in policy.module.policy.parameters())
+    assert all(p.grad is not None for p in policy.module.actor.parameters())

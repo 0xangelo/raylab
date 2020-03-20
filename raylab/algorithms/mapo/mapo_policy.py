@@ -8,9 +8,10 @@ from ray.rllib.utils.annotations import override
 from ray.rllib.policy.sample_batch import SampleBatch
 
 import raylab.policy as raypi
-import raylab.modules as mods
+
 import raylab.utils.pytorch as torch_util
-import raylab.algorithms.mapo.mapo_module as mapom
+from raylab.modules import RewardFn
+from raylab.modules.catalog import get_module
 
 
 OptimizerCollection = collections.namedtuple(
@@ -28,6 +29,13 @@ class MAPOTorchPolicy(
 
     # pylint: disable=abstract-method
 
+    def __init__(self, observation_space, action_space, config):
+        config.setdefault("module", {})
+        config["module"]["torch_script"] = False
+        super().__init__(observation_space, action_space, config)
+        self.reward = None
+        self.transition = None
+
     @staticmethod
     @override(raypi.TorchPolicy)
     def get_default_config():
@@ -39,174 +47,89 @@ class MAPOTorchPolicy(
 
     @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
-        module = nn.ModuleDict()
-        module.update(self._make_policy(obs_space, action_space, config))
-
-        def make_critic():
-            return self._make_critic(obs_space, action_space, config)
-
-        module.critics = nn.ModuleList([make_critic()])
-        module.target_critics = nn.ModuleList([make_critic()])
-        if config["clipped_double_q"]:
-            module.critics.append(make_critic())
-            module.target_critics.append(make_critic())
-        module.target_critics.load_state_dict(module.critics.state_dict())
-
-        if not config["true_model"]:
-            module.update(self._make_model(obs_space, action_space, config))
-            self.check_model(module.model_sampler)
+        module_config = config["module"]
+        module_config["double_q"] = config["clipped_double_q"]
+        for key in (
+            "exploration",
+            "exploration_gaussian_sigma",
+            "smooth_target_policy",
+            "target_gaussian_sigma",
+        ):
+            module_config[key] = config[key]
+        module = get_module(
+            module_config["name"], obs_space, action_space, module_config
+        )
+        self.check_model(module.model.sampler)
         return module
-
-    def _make_policy(self, obs_space, action_space, config):
-        policy_config = config["module"]["policy"]
-
-        def _make_modules():
-            logits = mods.FullyConnected(
-                in_features=obs_space.shape[0],
-                units=policy_config["units"],
-                activation=policy_config["activation"],
-                layer_norm=policy_config.get(
-                    "layer_norm", config["exploration"] == "parameter_noise"
-                ),
-                **policy_config["initializer_options"]
-            )
-            mu_ = mods.NormalizedLinear(
-                in_features=logits.out_features,
-                out_features=action_space.shape[0],
-                beta=config["beta"],
-            )
-            squash = mods.TanhSquash(
-                self.convert_to_tensor(action_space.low),
-                self.convert_to_tensor(action_space.high),
-            )
-            return logits, mu_, squash
-
-        logits_module, mu_module, squash_module = _make_modules()
-        modules = {}
-        modules["policy"] = nn.Sequential(logits_module, mu_module, squash_module)
-
-        if config["exploration"] == "gaussian":
-            expl_noise = mods.GaussianNoise(config["exploration_gaussian_sigma"])
-            modules["sampler"] = nn.Sequential(
-                logits_module, mu_module, expl_noise, squash_module
-            )
-        elif config["exploration"] == "parameter_noise":
-            modules["sampler"] = modules["perturbed_policy"] = nn.Sequential(
-                *_make_modules()
-            )
-        else:
-            modules["sampler"] = modules["policy"]
-
-        if config["target_policy_smoothing"]:
-            modules["target_policy"] = nn.Sequential(
-                logits_module,
-                mu_module,
-                mods.GaussianNoise(config["target_gaussian_sigma"]),
-                squash_module,
-            )
-        else:
-            modules["target_policy"] = modules["policy"]
-        return modules
-
-    @staticmethod
-    def _make_critic(obs_space, action_space, config):
-        critic_config = config["module"]["critic"]
-        return mods.ActionValueFunction.from_scratch(
-            obs_dim=obs_space.shape[0],
-            action_dim=action_space.shape[0],
-            delay_action=critic_config["delay_action"],
-            units=critic_config["units"],
-            activation=critic_config["activation"],
-            **critic_config["initializer_options"]
-        )
-
-    @staticmethod
-    def _make_model(obs_space, action_space, config):
-        model_config = config["module"]["model"]
-        model_module = mapom.DynamicsModel.from_scratch(
-            obs_dim=obs_space.shape[0],
-            action_dim=action_space.shape[0],
-            input_dependent_scale=model_config["input_dependent_scale"],
-            delay_action=model_config["delay_action"],
-            units=model_config["units"],
-            activation=model_config["activation"],
-            **model_config["initializer_options"]
-        )
-
-        sampler_module = mapom.DynamicsModelRSample(model_module)
-        logp_module = mapom.DynamicsModelLogProb(model_module)
-        return {
-            "model": model_module,
-            "model_sampler": sampler_module,
-            "model_logp": logp_module,
-        }
 
     @override(raypi.TorchPolicy)
     def optimizer(self):
-        pi_cls = torch_util.get_optimizer_class(self.config["policy_optimizer"]["name"])
-        pi_optim = pi_cls(
-            self.module.policy.parameters(),
-            **self.config["policy_optimizer"]["options"]
+        policy_optim_name = self.config["policy_optimizer"]["name"]
+        policy_optim_cls = torch_util.get_optimizer_class(policy_optim_name)
+        policy_optim_options = self.config["policy_optimizer"]["options"]
+        policy_optim = policy_optim_cls(
+            self.module.actor.parameters(), **policy_optim_options
         )
 
-        qf_cls = torch_util.get_optimizer_class(self.config["critic_optimizer"]["name"])
-        qf_optim = qf_cls(
-            self.module.critics.parameters(),
-            **self.config["critic_optimizer"]["options"]
+        critic_optim_name = self.config["critic_optimizer"]["name"]
+        critic_optim_cls = torch_util.get_optimizer_class(critic_optim_name)
+        critic_optim_options = self.config["critic_optimizer"]["options"]
+        critic_optim = critic_optim_cls(
+            self.module.critics.parameters(), **critic_optim_options
         )
 
         if self.config["true_model"]:
-            dm_optim = None
+            model_optim = None
         else:
-            dm_cls = torch_util.get_optimizer_class(
-                self.config["model_optimizer"]["name"]
-            )
-            dm_optim = dm_cls(
-                self.module.model.parameters(),
-                **self.config["model_optimizer"]["options"]
+            model_optim_name = self.config["model_optimizer"]["name"]
+            model_optim_cls = torch_util.get_optimizer_class(model_optim_name)
+            model_optim_options = self.config["model_optimizer"]["options"]
+            model_optim = model_optim_cls(
+                self.module.model.parameters(), **model_optim_options
             )
 
-        return OptimizerCollection(policy=pi_optim, critic=qf_optim, model=dm_optim)
+        return OptimizerCollection(
+            policy=policy_optim, critic=critic_optim, model=model_optim
+        )
 
     def set_reward_fn(self, reward_fn):
         """Set the reward function to use when unrolling the policy and model."""
-        self.module.reward = mods.Lambda(reward_fn)
+        torch_script = self.config["module"]["torch_script"]
+        reward_fn = RewardFn(
+            self.observation_space,
+            self.action_space,
+            reward_fn,
+            torch_script=torch_script,
+        )
+        self.reward = torch.jit.script(reward_fn) if torch_script else reward_fn
 
     def set_transition_fn(self, transition_fn):
         """Set the transition function to use when unrolling the policy and model."""
-        transform = nn.Sequential()
-        bias = self.config["model_bias"]
-        if bias is not None:
-            biast = torch.as_tensor(bias, dtype=torch.float32)
-            transform.add_module(str(len(transform)), mods.Lambda(lambda x: x + biast))
-        sigma = self.config["model_noise_sigma"]
-        if sigma:
-            transform.add_module(str(len(transform)), mods.GaussianNoise(sigma))
-
-        def sampler(*args):
-            samp, logp = transition_fn(*args)
-            return transform(samp), logp
-
-        self.module.model_sampler = mods.Lambda(sampler)
-        self.check_model(self.module.model_sampler)
+        torch_script = self.config["module"]["torch_script"]
+        transition = EnvTransition(
+            self.observation_space,
+            self.action_space,
+            transition_fn,
+            torch_script=torch_script,
+        )
+        self.transition = torch.jit.script(transition) if torch_script else transition
+        self.check_model(self.transition)
 
     def check_model(self, sampler):
         """Verify that the transition model is appropriate for the desired estimator."""
         if self.config["grad_estimator"] == "score_function":
-            obs = self.convert_to_tensor(self.observation_space.sample())
-            act = self.convert_to_tensor(self.action_space.sample()).requires_grad_()
-            _, logp = sampler(obs, act)
+            obs = self.convert_to_tensor(self.observation_space.sample())[None]
+            act = self.convert_to_tensor(self.action_space.sample())[None]
+            _, logp = sampler(obs, act.requires_grad_())
             assert logp is not None
             logp.mean().backward()
             assert (
                 act.grad is not None
             ), "Transition grad log_prob must exist for SF estimator"
         if self.config["grad_estimator"] == "pathwise_derivative":
-            obs = self.convert_to_tensor(
-                self.observation_space.sample()
-            ).requires_grad_()
-            act = self.convert_to_tensor(self.action_space.sample()).requires_grad_()
-            samp, _ = sampler(obs, act)
+            obs = self.convert_to_tensor(self.observation_space.sample())[None]
+            act = self.convert_to_tensor(self.action_space.sample())[None]
+            samp, _ = sampler(obs.requires_grad_(), act.requires_grad_())
             samp.mean().backward()
             assert (
                 obs.grad is not None and act.grad is not None
@@ -215,12 +138,12 @@ class MAPOTorchPolicy(
     @override(raypi.AdaptiveParamNoiseMixin)
     def _compute_noise_free_actions(self, sample_batch):
         obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.policy[:-1](obs_tensors).numpy()
+        return self.module.actor.policy[:-1](obs_tensors).numpy()
 
     @override(raypi.AdaptiveParamNoiseMixin)
     def _compute_noisy_actions(self, sample_batch):
         obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.perturbed_policy[:-1](obs_tensors).numpy()
+        return self.module.actor.behavior[:-1](obs_tensors).numpy()
 
     @torch.no_grad()
     @override(raypi.TorchPolicy)
@@ -240,9 +163,9 @@ class MAPOTorchPolicy(
         if self.is_uniform_random:
             actions = self._uniform_random_actions(obs_batch)
         elif self.config["greedy"]:
-            actions = self.module.policy(obs_batch)
+            actions = self.module.actor.policy(obs_batch)
         else:
-            actions = self.module.sampler(obs_batch)
+            actions = self.module.actor.behavior(obs_batch)
 
         return actions.cpu().numpy(), state_batches, {}
 
@@ -298,7 +221,7 @@ class MAPOTorchPolicy(
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
         dones = batch_tensors[SampleBatch.DONES]
 
-        next_acts = module.target_policy(next_obs)
+        next_acts = module.actor.target_policy(next_obs)
         next_vals, _ = torch.cat(
             [m(next_obs, next_acts) for m in module.target_critics], dim=-1
         ).min(dim=-1)
@@ -328,11 +251,11 @@ class MAPOTorchPolicy(
         """Compute policy gradient-aware (PGA) model loss."""
         with self.freeze_nets("model"):
             dpg_loss, dpg_info = self.compute_dpg_loss(batch_tensors, module, config)
-            dpg_grads = torch.autograd.grad(dpg_loss, module.policy.parameters())
+            dpg_grads = torch.autograd.grad(dpg_loss, module.actor.parameters())
 
         madpg_loss, _ = self.compute_madpg_loss(batch_tensors, module, config)
         madpg_grads = torch.autograd.grad(
-            madpg_loss, module.policy.parameters(), create_graph=True
+            madpg_loss, module.actor.parameters(), create_graph=True
         )
 
         total_norm = self.compute_total_diff_norm(
@@ -349,7 +272,7 @@ class MAPOTorchPolicy(
         # pylint: disable=unused-argument
         obs = batch_tensors[SampleBatch.CUR_OBS]
 
-        actions = module.policy(obs)
+        actions = module.actor.policy(obs)
         action_values, _ = torch.cat(
             [m(obs, actions) for m in module.critics], dim=-1
         ).min(dim=-1)
@@ -361,28 +284,30 @@ class MAPOTorchPolicy(
         }
         return max_objective.neg(), stats
 
-    @staticmethod
-    def compute_madpg_loss(batch_tensors, module, config):
+    def compute_madpg_loss(self, batch_tensors, module, config):
         """Compute loss for model-aware deterministic policy gradient."""
         # pylint: disable=too-many-locals
         gamma = config["gamma"]
         rollout_len = config["model_rollout_len"]
+        transition = self.transition if config["true_model"] else module.model.sampler
 
         obs = batch_tensors[SampleBatch.CUR_OBS]
-        actions = module.policy(obs)
-        next_obs, logp = module.model_sampler(
-            obs, actions, [config["num_model_samples"]]
+        actions = module.actor.policy(obs)
+        n_samples = config["num_model_samples"]
+        next_obs, logp = transition(
+            obs.expand((n_samples,) + obs.shape),
+            actions.expand((n_samples,) + actions.shape),
         )
-        rews = [module.reward(obs, actions, next_obs)]
+        rews = [self.reward(obs, actions, next_obs)]
 
         for _ in range(config["model_rollout_len"] - 1):
             obs = next_obs
-            actions = module.policy(obs)
-            next_obs, _ = module.model_sampler(obs, actions)
-            rews.append(module.reward(obs, actions, next_obs))
+            actions = module.actor.policy(obs)
+            next_obs, _ = transition(obs, actions)
+            rews.append(self.reward(obs, actions, next_obs))
 
         rews = (torch.stack(rews).T * gamma ** torch.arange(rollout_len).float()).T
-        critic = module.critics[0](next_obs, module.policy(next_obs)).squeeze(-1)
+        critic = module.critics[0](next_obs, module.actor.policy(next_obs)).squeeze(-1)
         values = rews.sum(0) + gamma ** rollout_len * critic
 
         if config["grad_estimator"] == "score_function":
@@ -414,7 +339,7 @@ class MAPOTorchPolicy(
     @staticmethod
     def compute_mle_loss(batch_tensors, module):
         """Compute Maximum Likelihood Estimation (MLE) model loss."""
-        avg_logp = module.model_logp(
+        avg_logp = module.model.logp(
             batch_tensors[SampleBatch.CUR_OBS],
             batch_tensors[SampleBatch.ACTIONS],
             batch_tensors[SampleBatch.NEXT_OBS],
@@ -427,13 +352,34 @@ class MAPOTorchPolicy(
         policy_loss, info = self.compute_madpg_loss(batch_tensors, module, config)
         self._optimizer.policy.zero_grad()
         policy_loss.backward()
-        grad_stats = {
-            "policy_grad_norm": nn.utils.clip_grad_norm_(
-                module.policy.parameters(), float("inf")
-            ),
-            "param_noise_stddev": self.curr_param_stddev,
-        }
-        info.update(grad_stats)
+        info.update(self.extra_policy_grad_info())
 
         self._optimizer.policy.step()
         return info
+
+    def extra_policy_grad_info(self):
+        """Return dict of extra info on policy gradient."""
+        info = {
+            "policy_grad_norm": nn.utils.clip_grad_norm_(
+                self.module.actor.parameters(), float("inf")
+            ),
+        }
+        if self.config["exploration"] == "parameter_noise":
+            info["param_noise_stddev"] = self.curr_param_stddev
+        return info
+
+
+class EnvTransition(nn.Module):
+    """Wrapper module around existing env transition function."""
+
+    def __init__(self, obs_space, action_space, transition_fn, torch_script=False):
+        super().__init__()
+        if torch_script:
+            obs = torch.as_tensor(obs_space.sample())[None]
+            action = torch.as_tensor(action_space.sample())[None]
+            transition_fn = torch.jit.trace(transition_fn, (obs, action))
+        self.transition_fn = transition_fn
+
+    @override(nn.Module)
+    def forward(self, obs, action):  # pylint:disable=arguments-differ
+        return self.transition_fn(obs, action)

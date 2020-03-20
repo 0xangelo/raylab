@@ -11,5 +11,5 @@ class Lambda(nn.Module):
         self.func = func
 
     @override(nn.Module)
-    def forward(self, *inputs):  # pylint: disable=arguments-differ
-        return self.func(*inputs)
+    def forward(self, inputs):  # pylint: disable=arguments-differ
+        return self.func(inputs)

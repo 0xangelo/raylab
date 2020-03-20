@@ -6,7 +6,9 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from raylab.algorithms.registry import ALGORITHMS as ALGS
 
 
-@pytest.fixture(params=[ALGS[k] for k in "SVG(1) SVG(inf)".split()])
+@pytest.fixture(
+    params=[ALGS[k] for k in "SVG(1) SVG(inf)".split()], ids=("SVG(1)", "SVF(inf)")
+)
 def svg_trainer(request):
     return request.param()
 

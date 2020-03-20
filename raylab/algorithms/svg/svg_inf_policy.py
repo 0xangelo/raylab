@@ -8,9 +8,10 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.algorithms.svg.svg_base_policy import SVGBaseTorchPolicy
-import raylab.algorithms.svg.svg_module as svgm
 import raylab.utils.pytorch as torch_util
+from raylab.algorithms.svg.svg_base_policy import SVGBaseTorchPolicy
+from raylab.modules import RewardFn
+from .rollout_module import ReproduceRollout
 
 
 OptimizerCollection = collections.namedtuple(
@@ -29,6 +30,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
         super().__init__(observation_space, action_space, config)
         # Flag for off-policy learning
         self._off_policy_learning = False
+        self.rollout = None
 
     @staticmethod
     @override(SVGBaseTorchPolicy)
@@ -44,7 +46,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
         """PyTorch optimizers to use."""
         optim_cls = torch_util.get_optimizer_class(self.config["off_policy_optimizer"])
         params = itertools.chain(
-            *[self.module[k].parameters() for k in ["model", "value"]]
+            *[self.module[k].parameters() for k in ["model", "critic"]]
         )
         off_policy_optim = optim_cls(
             params, **self.config["off_policy_optimizer_options"]
@@ -52,8 +54,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
 
         optim_cls = torch_util.get_optimizer_class(self.config["on_policy_optimizer"])
         on_policy_optim = optim_cls(
-            self.module.policy.parameters(),
-            **self.config["on_policy_optimizer_options"]
+            self.module.actor.parameters(), **self.config["on_policy_optimizer_options"]
         )
 
         return OptimizerCollection(
@@ -63,10 +64,20 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
     @override(SVGBaseTorchPolicy)
     def set_reward_fn(self, reward_fn):
         # Add recurrent policy-model combination
+        torch_script = self.config["module"]["torch_script"]
         module = self.module
-        module.rollout = svgm.ReproduceRollout(
-            module.policy_reproduce, module.model_reproduce, reward_fn
+        reward_fn = RewardFn(
+            self.observation_space,
+            self.action_space,
+            reward_fn,
+            torch_script=torch_script,
         )
+        reward_fn = torch.jit.script(reward_fn) if torch_script else reward_fn
+        rollout = ReproduceRollout(
+            module.actor.reproduce, module.model.reproduce, reward_fn
+        )
+        self.reward = reward_fn
+        self.rollout = torch.jit.script(rollout) if torch_script else rollout
 
     def set_off_policy(self, learn_off_policy):
         """Set the current learning state to off-policy or not."""
@@ -86,7 +97,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
             loss.backward()
             info.update(self.extra_grad_info(batch_tensors))
             self._optimizer.off_policy.step()
-            self.update_targets("value", "target_value")
+            self.update_targets("critic", "target_critic")
         else:
             episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
             loss, info = self.compute_stochastic_value_gradient_loss(episodes)
@@ -108,7 +119,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
             actions = episode[SampleBatch.ACTIONS]
             next_obs = episode[SampleBatch.NEXT_OBS]
 
-            rewards, _ = self.module.rollout(actions, next_obs, init_obs)
+            rewards, _ = self.rollout(actions, next_obs, init_obs)
             total_ret += rewards.sum()
 
         avg_sim_return = total_ret / len(episodes)
@@ -116,7 +127,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
 
     @override(SVGBaseTorchPolicy)
     def _avg_kl_divergence(self, batch_tensors):
-        logp = self.module.policy_logp(
+        logp = self.module.actor.logp(
             batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
         )
         return torch.mean(batch_tensors[self.ACTION_LOGP] - logp)
@@ -126,18 +137,18 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
         """Compute gradient norm for components. Also clips on-policy gradient."""
         if self._off_policy_learning:
             model_params = self.module.model.parameters()
-            value_params = self.module.value.parameters()
+            value_params = self.module.critic.parameters()
             fetches = {
                 "model_grad_norm": nn.utils.clip_grad_norm_(model_params, float("inf")),
                 "value_grad_norm": nn.utils.clip_grad_norm_(value_params, float("inf")),
             }
         else:
-            policy_params = self.module.policy.parameters()
+            policy_params = self.module.actor.parameters()
             fetches = {
                 "policy_grad_norm": nn.utils.clip_grad_norm_(
                     policy_params, max_norm=self.config["max_grad_norm"]
                 ),
-                "policy_entropy": self.module.policy_logp(
+                "policy_entropy": self.module.actor.logp(
                     batch_tensors[SampleBatch.CUR_OBS],
                     batch_tensors[SampleBatch.ACTIONS],
                 )

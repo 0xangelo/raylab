@@ -21,9 +21,10 @@ class ExpandVector(nn.Module):
 class DiagMultivariateNormalParams(nn.Module):
     """Neural network module mapping inputs to DiagMultivariateNormal parameters.
 
-    This module is initialized to be closed to a standard Normal distribution.
+    This module is initialized to be close to a standard Normal distribution.
     """
 
+    __constants__ = {"LOG_STD_MAX", "LOG_STD_MIN"}
     LOG_STD_MAX = 2
     LOG_STD_MIN = -20
 

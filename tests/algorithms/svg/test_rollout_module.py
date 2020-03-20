@@ -4,9 +4,9 @@ import torch
 from ray.rllib.policy.sample_batch import SampleBatch
 
 
-@pytest.fixture(params=(True, False))
+@pytest.fixture(params=(True, False), ids=("InputDepScale", "InputIndepScale"))
 def policy_config(request):
-    return {"module": {"policy": {"input_dependent_scale": request.param}}}
+    return {"module": {"actor": {"input_dependent_scale": request.param}}}
 
 
 @pytest.fixture
@@ -18,7 +18,7 @@ def test_reproduce_rewards(policy_and_batch):
     policy, batch = policy_and_batch
 
     with torch.no_grad():
-        rewards, _ = policy.module.rollout(
+        rewards, _ = policy.rollout(
             batch[SampleBatch.ACTIONS],
             batch[SampleBatch.NEXT_OBS],
             batch[SampleBatch.CUR_OBS][0],
@@ -30,7 +30,7 @@ def test_reproduce_rewards(policy_and_batch):
 def test_propagates_gradients(policy_and_batch):
     policy, batch = policy_and_batch
 
-    rewards, _ = policy.module.rollout(
+    rewards, _ = policy.rollout(
         batch[SampleBatch.ACTIONS],
         batch[SampleBatch.NEXT_OBS],
         batch[SampleBatch.CUR_OBS][0],
@@ -38,4 +38,4 @@ def test_propagates_gradients(policy_and_batch):
 
     rewards.sum().backward()
 
-    assert all(p.grad is not None for p in policy.module.policy.parameters())
+    assert all(p.grad is not None for p in policy.module.actor.parameters())

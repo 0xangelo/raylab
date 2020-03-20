@@ -14,9 +14,12 @@ class AdaptiveParamNoiseMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._param_noise_spec = AdaptiveParamNoiseSpec(
-            **self.config["param_noise_spec"]
-        )
+        if self.config["exploration"] == "parameter_noise":
+            assert "policy" in self.module.actor
+            assert "behavior" in self.module.actor
+            self._param_noise_spec = AdaptiveParamNoiseSpec(
+                **self.config["param_noise_spec"]
+            )
 
     def update_parameter_noise(self, sample_batch):
         """Update parameter noise stddev given a batch from the perturbed policy."""
@@ -28,8 +31,8 @@ class AdaptiveParamNoiseMixin:
     def perturb_policy_parameters(self):
         """Update the perturbed policy's parameters for exploration."""
         perturb_module_params(
-            self.module["perturbed_policy"],
-            self.module["policy"],
+            self.module.actor.behavior,
+            self.module.actor.policy,
             self.curr_param_stddev,
         )
 
@@ -62,7 +65,7 @@ class AdaptiveParamNoiseMixin:
             Actions as numpy arrays.
         """
         obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module["policy"](obs_tensors).numpy()
+        return self.module.actor.policy(obs_tensors).numpy()
 
     def _compute_noisy_actions(self, sample_batch):  # pylint: disable=no-self-use
         """Compute actions with the perturbed policy.
