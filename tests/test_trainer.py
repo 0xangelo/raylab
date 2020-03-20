@@ -2,6 +2,8 @@
 import pytest
 import ray
 
+from .mock_env import MockEnv
+
 
 def setup_module():
     ray.init()
@@ -12,6 +14,6 @@ def teardown_module():
 
 
 @pytest.mark.slow
-def test_trainer_step(trainer_cls, env_creator):
-    trainer = trainer_cls(env=env_creator, config={"num_workers": 0})
+def test_trainer_step(trainer_cls):
+    trainer = trainer_cls(env=MockEnv, config={"num_workers": 0})
     trainer.train()

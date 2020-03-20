@@ -24,10 +24,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import numpy as np
-from scipy.special import cbrt
+from scipy.special import cbrt  # pylint:disable=no-name-in-module
 
 
-class nlgp:
+class NLGP:
+    # pylint:disable=missing-docstring,invalid-name
+
     def __init__(self):
         u0 = cbrt(1 + np.sqrt(2)) / np.sqrt(3)  # Equation (34)
         r0 = u0 + 1 / (3 * u0)  # Equation (35)

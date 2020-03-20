@@ -7,6 +7,13 @@ import torch
 
 from raylab.utils.pytorch import convert_to_tensor
 
+try:
+    import gym_cartpole_swingup
+except ImportError:
+    pytest.skip(
+        "Missing gym-cartpole-swingup; skipping tests...", allow_module_level=True
+    )
+
 
 @pytest.fixture
 def env(envs):

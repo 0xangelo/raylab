@@ -23,12 +23,18 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-from .dynamics import dynamics
+from .dynamics import Dynamics
 
 
-class environment:
+class GoldstoneEnvironment:
+    # pylint:disable=missing-docstring
+
     def __init__(self, number_steps, max_required_step, safe_zone):
-        self._dynamics = dynamics(number_steps, max_required_step, safe_zone)
+        self._dynamics = Dynamics(number_steps, max_required_step, safe_zone)
+
+    @property
+    def safe_zone(self):
+        return self._dynamics.safe_zone
 
     def reward(self, phi_idx, effective_shift):
         return self._dynamics.reward(phi_idx, effective_shift)

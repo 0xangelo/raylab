@@ -23,14 +23,16 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-# pylint: disable=invalid-name
-from collections import OrderedDict
+from collections import namedtuple, OrderedDict
 
 import numpy as np
 from gym.utils import seeding
 
-from .goldstone.environment import environment as GoldstoneEnvironment
+from .goldstone.environment import GoldstoneEnvironment
 from .effective_action import EffectiveAction
+
+
+SystemsConf = namedtuple("SystemsConf", "operational_cost miscalibration fatigue")
 
 
 class IDS:
@@ -41,8 +43,33 @@ class IDS:
     """
 
     # pylint: disable=too-many-instance-attributes,missing-docstring,protected-access
+    # cost/reward weighting constants
+    CRF = 3.0
+    CRC = 1.0
+    CRGS = 25.0
 
-    def __init__(self, p=50, stationary_p=True, miscalibration=True):
+    # fatigue dynamics constants
+    exp_lambda = 0.1
+    action_tolerance = 0.05
+    fatigue_amplification = 1.1
+    fatigue_amplification_max = 5.0
+    fatigue_amplification_start = 1.2
+
+    # Coefficients for calculation of equation (6)
+    cost_setpoint = 2.0
+    cost_velocity = 4.0
+    cost_gain = 2.5
+
+    def __init__(
+        self,
+        p=50,
+        stationary_p=True,
+        operational_cost=True,
+        miscalibration=True,
+        fatigue=True,
+        auto_he=False,
+    ):
+        # pylint:disable=too-many-arguments
         """
         p sets the setpoint hyperparameter (between 1-100) which will
         affect the dynamics and stochasticity.
@@ -52,24 +79,24 @@ class IDS:
         """
         self._init_p = p
         self.stationary_p = stationary_p
-        self._miscalibration = miscalibration
+        self.systems = SystemsConf(
+            operational_cost=operational_cost,
+            miscalibration=miscalibration,
+            fatigue=fatigue,
+        )
+        self._auto_he = auto_he
 
         self.set_seed()
 
         # constants
-        self.maxRequiredStep = np.sin(15.0 / 180.0 * np.pi)
-        self.gsBound = 1.5  # for use in equation (8) to update the effective shift
-        self.gsSetPointDependency = 0.02
-        self.gsScale = (
-            2.0 * self.gsBound + 100.0 * self.gsSetPointDependency
+        self.max_required_step = np.sin(15.0 / 180.0 * np.pi)
+        self.gs_bound = 1.5  # for use in equation (8) to update the effective shift
+        self.gs_setpoint_dependency = 0.02
+        self.gs_scale = (
+            2.0 * self.gs_bound + 100.0 * self.gs_setpoint_dependency
         )  # scaling factor for shift
 
-        # cost/reward weighting constants
-        self.CRF = 3.0
-        self.CRC = 1.0
-        self.CRGS = 25.0
-
-        self.gsEnvironment = None
+        self.gs_env = None
         self.state = None
         self.init = False
         self._p_steps = None
@@ -82,8 +109,8 @@ class IDS:
         return [seed]
 
     def reset(self):
-        self.gsEnvironment = GoldstoneEnvironment(
-            24, self.maxRequiredStep, self.maxRequiredStep / 2.0  # safe zone
+        self.gs_env = GoldstoneEnvironment(
+            24, self.max_required_step, self.max_required_step / 2.0  # safe zone
         )
 
         self.state = OrderedDict()
@@ -100,11 +127,11 @@ class IDS:
 
         # Goldstone variables
         # Miscalibration domain. Denoted delta in the paper and starts at +1.
-        self.state["gs_domain"] = self.gsEnvironment._dynamics.Domain.positive.value
+        self.state["gs_domain"] = self.gs_env._dynamics.Domain.positive.value
         # Miscalibration System Response. Denoted psi in the paper and starts at +1.
         self.state[
             "gs_sys_response"
-        ] = self.gsEnvironment._dynamics.System_Response.advantageous.value
+        ] = self.gs_env._dynamics.SystemResponse.advantageous.value
         # Miscalibration direction. Denoted phi
         self.state["gs_phi_idx"] = 0
         self.state["ge"] = 0.0  # effective action gain beta
@@ -125,23 +152,23 @@ class IDS:
         self.state["reward"] = 0.0  # reward
 
         self.init = True
-        self.defineNewSequence()
+        self.define_new_sequence()
         self.step(np.zeros(3))
 
-    def visibleState(self):
+    def visible_state(self):
         """Return the observable state as in Table I of the Appendix."""
         return np.concatenate(
             [np.array(self.state[k]).ravel() for k in self.observable_keys]
         )
 
-    def fullState(self):
+    def full_state(self):
         """Return all current state variables."""
         hid_vars = [k for k in self.state.keys() if k not in set(self.observable_keys)]
         return np.concatenate(
-            [self.visibleState()] + [np.array(self.state[k]).ravel() for k in hid_vars]
+            [self.visible_state()] + [np.array(self.state[k]).ravel() for k in hid_vars]
         )
 
-    def minimalMarkovState(self):
+    def minimal_markov_state(self):
         """Return the minimal Markovian state as in Table I of the Appendix."""
         obs_vars = [np.array(self.state[k]).ravel() for k in self.observable_keys]
         op_costs = [self.state["o"][1:]]
@@ -153,21 +180,21 @@ class IDS:
         return np.concatenate(obs_vars + op_costs + miscalibration + fatigue)
 
     def step(self, delta):
-        self.updateSetPoint()
-        self.addAction(delta)
-        self.updateFatigue()
-        self.updateCurrentOperationalCost()
-        self.updateOperationalCostConvolution()
-        self.updateGS()
-        self.updateOperationalCosts()
-        self.updateCost()
+        self.update_setpoint()
+        self.add_action(delta)
+        self.update_fatigue()
+        self.update_current_operational_cost()
+        self.update_operational_cost_convolution()
+        self.update_gs()
+        self.update_operational_costs()
+        self.update_cost()
 
-    def updateSetPoint(self):
+    def update_setpoint(self):
         if self.stationary_p:
             return
 
         if self._p_step == self._p_steps:
-            self.defineNewSequence()
+            self.define_new_sequence()
 
         new_p = self.state["p"] + self._p_ch
         if new_p > 100 or new_p < 0:
@@ -180,7 +207,7 @@ class IDS:
         self.state["p"] = new_p
         self._p_step += 1
 
-    def addAction(self, delta):
+    def add_action(self, delta):
         """Apply the 3-dimensional actions.
 
         Clips the action to [-1, 1]^3. Updates the velocity, gain and shift
@@ -199,31 +226,34 @@ class IDS:
         # Update shift
         self.state["h"] = np.clip(
             self.state["h"]
-            + ((self.maxRequiredStep / 0.9) * 100.0 / self.gsScale) * delta[2],
+            + ((self.max_required_step / 0.9) * 100.0 / self.gs_scale) * delta[2],
             0.0,
             100.0,
         )
-        if self._miscalibration:
+        if self._auto_he:
+            rho_s = self.gs_env._dynamics._compute_rhos(self.state["gs_phi_idx"])
+            r_opt = self.gs_env._dynamics._compute_ropt(rho_s)
+            self.state["he"] = r_opt
+            # rho_s = np.sin(np.pi * self.state["gs_phi_idx"] / 12)
+            # safe_zone = self.gs_env.safe_zone
+            # self.state["he"] = (
+            #     rho_s
+            #     if np.abs(rho_s) >= safe_zone
+            #     else np.random.choice((safe_zone + 1e-6, -safe_zone - 1e-6))
+            # )
+        else:
             # Update effective shift through equation (8)
             # The scaling factor for the shift is effectively 1 / 20
             # The scaling factor for the setpoint is effectively 1 / 50
             self.state["he"] = np.clip(
-                self.gsScale * self.state["h"] / 100.0
-                - self.gsSetPointDependency * self.state["p"]
-                - self.gsBound,
-                -self.gsBound,
-                self.gsBound,
+                self.gs_scale * self.state["h"] / 100.0
+                - self.gs_setpoint_dependency * self.state["p"]
+                - self.gs_bound,
+                -self.gs_bound,
+                self.gs_bound,
             )
-        else:
-            self.state["he"] = np.sin(np.pi * self.state["gs_phi_idx"] / 12)
 
-    def updateFatigue(self):  # pylint: disable=too-many-locals
-        expLambda = 0.1
-        actionTolerance = 0.05
-        fatigueAmplification = 1.1
-        fatigueAmplificationMax = 5.0
-        fatigueAmplificationStart = 1.2
-
+    def update_fatigue(self):  # pylint: disable=too-many-locals
         velocity = self.state["v"]
         gain = self.state["g"]
         setpoint = self.state["p"]
@@ -231,15 +261,15 @@ class IDS:
         hidden_gain = self.state["hg"]
         hidden_velocity = self.state["hv"]
 
-        effAct = EffectiveAction(velocity, gain, setpoint)
-        effAct_velocity = effAct.getEffectiveVelocity()
-        effAct_gain = effAct.getEffectiveGain()
+        eff_act = EffectiveAction(velocity, gain, setpoint)
+        eff_act_velocity = eff_act.get_effective_velocity()
+        eff_act_gain = eff_act.get_effective_gain()
 
-        self.state["ge"] = effAct_gain
-        self.state["ve"] = effAct_velocity
+        self.state["ge"] = eff_act_gain
+        self.state["ve"] = eff_act_velocity
 
-        noise_e_g = self.np_random.exponential(expLambda)
-        noise_e_v = self.np_random.exponential(expLambda)
+        noise_e_g = self.np_random.exponential(self.exp_lambda)
+        noise_e_v = self.np_random.exponential(self.exp_lambda)
         noise_e_g = 2.0 * (1.0 / (1.0 + np.exp(-noise_e_g)) - 0.5)
         noise_e_v = 2.0 * (1.0 / (1.0 + np.exp(-noise_e_v)) - 0.5)
 
@@ -247,78 +277,80 @@ class IDS:
         noise_u_v = self.np_random.rand()
 
         noise_b_g = np.float(
-            self.np_random.binomial(1, np.clip(effAct_gain, 0.001, 0.999))
+            self.np_random.binomial(1, np.clip(eff_act_gain, 0.001, 0.999))
         )
         noise_b_v = np.float(
-            self.np_random.binomial(1, np.clip(effAct_velocity, 0.001, 0.999))
+            self.np_random.binomial(1, np.clip(eff_act_velocity, 0.001, 0.999))
         )
 
-        noise_gain = noise_e_g + (1 - noise_e_g) * noise_u_g * noise_b_g * effAct_gain
+        noise_gain = noise_e_g + (1 - noise_e_g) * noise_u_g * noise_b_g * eff_act_gain
         noise_velocity = (
-            noise_e_v + (1 - noise_e_v) * noise_u_v * noise_b_v * effAct_velocity
+            noise_e_v + (1 - noise_e_v) * noise_u_v * noise_b_v * eff_act_velocity
         )
 
-        if effAct_gain <= actionTolerance:
-            hidden_gain = effAct_gain
-        elif hidden_gain >= fatigueAmplificationStart:
+        if eff_act_gain <= self.action_tolerance:
+            hidden_gain = eff_act_gain
+        elif hidden_gain >= self.fatigue_amplification_start:
             hidden_gain = np.minimum(
-                fatigueAmplificationMax, fatigueAmplification * hidden_gain
+                self.fatigue_amplification_max, self.fatigue_amplification * hidden_gain
             )
         else:
             hidden_gain = 0.9 * hidden_gain + noise_gain / 3.0
 
-        if effAct_velocity <= actionTolerance:
-            hidden_velocity = effAct_velocity
-        elif hidden_velocity >= fatigueAmplificationStart:
+        if eff_act_velocity <= self.action_tolerance:
+            hidden_velocity = eff_act_velocity
+        elif hidden_velocity >= self.fatigue_amplification_start:
             hidden_velocity = np.minimum(
-                fatigueAmplificationMax, fatigueAmplification * hidden_velocity
+                self.fatigue_amplification_max,
+                self.fatigue_amplification * hidden_velocity,
             )
         else:
             hidden_velocity = 0.9 * hidden_velocity + noise_velocity / 3.0
 
-        if np.maximum(hidden_velocity, hidden_gain) >= fatigueAmplificationMax:
+        if np.maximum(hidden_velocity, hidden_gain) >= self.fatigue_amplification_max:
             alpha = 1.0 / (1.0 + np.exp(-self.np_random.normal(2.4, 0.4)))
         else:
             alpha = np.maximum(noise_velocity, noise_gain)
 
-        fb = np.maximum(0, ((30000.0 / ((5 * velocity) + 100)) - 0.01 * (gain ** 2)))
+        basic_fatigue = np.maximum(
+            0, ((30000.0 / ((5 * velocity) + 100)) - 0.01 * (gain ** 2))
+        )
         self.state["hv"] = hidden_velocity
         self.state["hg"] = hidden_gain
-        self.state["f"] = (fb * (1 + 2 * alpha)) / 3.0
-        self.state["fb"] = fb
+        self.state["f"] = (basic_fatigue * (1 + 2 * alpha)) / 3.0
+        self.state["fb"] = basic_fatigue
 
-    def updateCurrentOperationalCost(self):
+    def update_current_operational_cost(self):
         """Calculate the current operational cost through equation (6) of the paper."""
-        # Coefficients for calculation of equation (6)
-        CostSetPoint = 2.0
-        CostVelocity = 4.0
-        CostGain = 2.5
-
         gain = self.state["g"]
         velocity = self.state["v"]
         setpoint = self.state["p"]
 
         # Calculation of equation (6)
-        costs = CostSetPoint * setpoint + CostGain * gain + CostVelocity * velocity
-        o = np.exp(costs / 100.0)
-        self.state["coc"] = o
+        costs = (
+            self.cost_setpoint * setpoint
+            + self.cost_gain * gain
+            + self.cost_velocity * velocity
+        )
+        coc = np.exp(costs / 100.0)
+        self.state["coc"] = coc
 
         # Update history of operational costs for future use in equation (7)
         if self.init:
-            self.state["o"] += o
+            self.state["o"] += coc
             self.init = False
         else:
             self.state["o"][1:] = self.state["o"][:-1]
-            self.state["o"][0] = o
+            self.state["o"][0] = coc
 
-    def updateOperationalCostConvolution(self):
+    def update_operational_cost_convolution(self):
         """Calculate the convoluted cost according to equation (7) of the paper."""
-        ConvArray = np.array(
+        conv_array = np.array(
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.11111, 0.22222, 0.33333, 0.22222, 0.11111]
         )
-        self.state["oc"] = np.dot(self.state["o"], ConvArray)
+        self.state["oc"] = np.dot(self.state["o"], conv_array)
 
-    def updateGS(self):
+    def update_gs(self):
         """Calculate the domain, response, direction, and MisCalibration.
 
         Computes equations (9), (10), (11), and (12) of the paper under the
@@ -330,10 +362,10 @@ class IDS:
         phi_idx = self.state["gs_phi_idx"]
         system_response = self.state["gs_sys_response"]
 
-        reward, domain, phi_idx, system_response = self.gsEnvironment.state_transition(
-            self.gsEnvironment._dynamics.Domain(domain),
+        reward, domain, phi_idx, system_response = self.gs_env.state_transition(
+            self.gs_env._dynamics.Domain(domain),
             phi_idx,
-            self.gsEnvironment._dynamics.System_Response(system_response),
+            self.gs_env._dynamics.SystemResponse(system_response),
             effective_shift,
         )
         self.state["MC"] = -reward
@@ -341,32 +373,35 @@ class IDS:
         self.state["gs_sys_response"] = system_response.value
         self.state["gs_phi_idx"] = phi_idx
 
-    def updateOperationalCosts(self):
+    def update_operational_costs(self):
         """Calculate the consumption according to equations (19) and (20)."""
-        rGS = self.state["MC"]
+        goldstone_cost = self.state["MC"] if self.systems.miscalibration else 0
+        operational_cost = self.state["oc"] if self.systems.operational_cost else 0
         # This seems to correspond to equation (19),
         # although the minus sign is mysterious.
-        # eNewHidden = self.state["oc"] - (self.CRGS * (rGS - 1.0))
-        eNewHidden = self.state["oc"] + self.CRGS * rGS
+        # hidden_cost = self.state["oc"] - (self.CRGS * (rgs - 1.0))
+        hidden_cost = operational_cost + self.CRGS * goldstone_cost
         # This corresponds to equation (20), although the constant 0.005 is
         # different from the 0.02 written in the paper. This might result in
         # very low observational noise
-        # operationalcosts = eNewHidden - self.np_random.randn() * (
-        #     1 + 0.005 * eNewHidden
+        # operationalcosts = hidden_cost - self.np_random.randn() * (
+        #     1 + 0.005 * hidden_cost
         # )
-        operationalcosts = eNewHidden + self.np_random.randn() * (1 + 0.02 * eNewHidden)
+        operationalcosts = hidden_cost + self.np_random.randn() * (
+            1 + 0.02 * hidden_cost
+        )
         self.state["c"] = operationalcosts
 
-    def updateCost(self):
+    def update_cost(self):
         """Calculate cost according to equation (5) of the paper."""
-        fatigue = self.state["f"]
+        fatigue = self.state["f"] if self.systems.fatigue else 0
         consumption = self.state["c"]
         cost = self.CRF * fatigue + self.CRC * consumption
 
         self.state["cost"] = cost
         self.state["reward"] = -cost
 
-    def defineNewSequence(self):
+    def define_new_sequence(self):
         """Sample new setpoint sequence parameters.
 
         See section III.D of the original paper for details.

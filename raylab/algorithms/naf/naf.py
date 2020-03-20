@@ -12,9 +12,6 @@ from .naf_policy import NAFTorchPolicy
 
 DEFAULT_CONFIG = with_common_config(
     {
-        # === SQUASHING EXPLORATION PROBLEM ===
-        # Maximum l1 norm of the policy's output vector before the squashing function
-        "beta": 1.2,
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning
         "clipped_double_q": False,
@@ -30,6 +27,13 @@ DEFAULT_CONFIG = with_common_config(
             "units": (400, 300),
             "activation": "ELU",
             "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
+            # === SQUASHING EXPLORATION PROBLEM ===
+            # Maximum l1 norm of the policy's output vector before the squashing
+            # function
+            "beta": 1.2,
+            # === Module Optimization ===
+            # Whether to convert the module to a ScriptModule for faster inference
+            "torch_script": True,
         },
         # === Optimization ===
         # PyTorch optimizer and options to use

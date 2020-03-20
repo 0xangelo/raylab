@@ -11,7 +11,7 @@ https://arxiv.org/abs/1605.08803
 import torch
 from ray.rllib.utils.annotations import override
 
-from raylab.modules.lambd import Lambda
+from raylab.modules.basic.lambd import Lambda
 from .abstract import NormalizingFlow
 
 

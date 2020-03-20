@@ -6,9 +6,9 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-import raylab.modules as mods
 import raylab.utils.pytorch as torch_util
 import raylab.policy as raypi
+from raylab.modules.catalog import get_module
 
 OptimizerCollection = collections.namedtuple("OptimizerCollection", "policy critic")
 
@@ -34,109 +34,47 @@ class SOPTorchPolicy(
 
     @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
-        module = nn.ModuleDict()
-        module.update(self._make_policy(obs_space, action_space, config))
-
-        def make_critic():
-            return self._make_critic(obs_space, action_space, config)
-
-        module.critics = nn.ModuleList([make_critic()])
-        module.target_critics = nn.ModuleList([make_critic()])
-        if config["clipped_double_q"]:
-            module.critics.append(make_critic())
-            module.target_critics.append(make_critic())
-        module.target_critics.load_state_dict(module.critics.state_dict())
-
-        return module
-
-    def _make_policy(self, obs_space, action_space, config):
-        policy_config = config["module"]["policy"]
-
-        def _make_modules():
-            logits = mods.FullyConnected(
-                in_features=obs_space.shape[0],
-                units=policy_config["units"],
-                activation=policy_config["activation"],
-                layer_norm=policy_config.get(
-                    "layer_norm", config["exploration"] == "parameter_noise"
-                ),
-                **policy_config["initializer_options"]
-            )
-            mu_ = mods.NormalizedLinear(
-                in_features=logits.out_features,
-                out_features=action_space.shape[0],
-                beta=config["beta"],
-            )
-            squash = mods.TanhSquash(
-                self.convert_to_tensor(action_space.low),
-                self.convert_to_tensor(action_space.high),
-            )
-            return logits, mu_, squash
-
-        logits_module, mu_module, squash_module = _make_modules()
-        modules = {}
-        modules["policy"] = nn.Sequential(logits_module, mu_module, squash_module)
-
-        if config["exploration"] == "gaussian":
-            expl_noise = mods.GaussianNoise(config["exploration_gaussian_sigma"])
-            modules["sampler"] = nn.Sequential(
-                logits_module, mu_module, expl_noise, squash_module
-            )
-        elif config["exploration"] == "parameter_noise":
-            modules["sampler"] = modules["perturbed_policy"] = nn.Sequential(
-                *_make_modules()
-            )
-        else:
-            modules["sampler"] = modules["policy"]
-
-        if config["target_policy_smoothing"]:
-            modules["target_policy"] = nn.Sequential(
-                logits_module,
-                mu_module,
-                mods.GaussianNoise(config["target_gaussian_sigma"]),
-                squash_module,
-            )
-        else:
-            modules["target_policy"] = modules["policy"]
-        return modules
-
-    @staticmethod
-    def _make_critic(obs_space, action_space, config):
-        critic_config = config["module"]["critic"]
-        return mods.ActionValueFunction.from_scratch(
-            obs_dim=obs_space.shape[0],
-            action_dim=action_space.shape[0],
-            delay_action=critic_config["delay_action"],
-            units=critic_config["units"],
-            activation=critic_config["activation"],
-            **critic_config["initializer_options"]
+        module_config = config["module"]
+        module_config["double_q"] = config["clipped_double_q"]
+        for key in (
+            "exploration",
+            "exploration_gaussian_sigma",
+            "smooth_target_policy",
+            "target_gaussian_sigma",
+        ):
+            module_config[key] = config[key]
+        module = get_module(
+            module_config["name"], obs_space, action_space, module_config
         )
+        return torch.jit.script(module) if module_config["torch_script"] else module
 
     @override(raypi.TorchPolicy)
     def optimizer(self):
-        pi_cls = torch_util.get_optimizer_class(self.config["policy_optimizer"]["name"])
-        pi_optim = pi_cls(
-            self.module.policy.parameters(),
-            **self.config["policy_optimizer"]["options"]
+        policy_optim_name = self.config["policy_optimizer"]["name"]
+        policy_optim_cls = torch_util.get_optimizer_class(policy_optim_name)
+        policy_optim_options = self.config["policy_optimizer"]["options"]
+        policy_optim = policy_optim_cls(
+            self.module.actor.parameters(), **policy_optim_options
         )
 
-        qf_cls = torch_util.get_optimizer_class(self.config["critic_optimizer"]["name"])
-        qf_optim = qf_cls(
-            self.module.critics.parameters(),
-            **self.config["critic_optimizer"]["options"]
+        critic_optim_name = self.config["critic_optimizer"]["name"]
+        critic_optim_cls = torch_util.get_optimizer_class(critic_optim_name)
+        critic_optim_options = self.config["critic_optimizer"]["options"]
+        critic_optim = critic_optim_cls(
+            self.module.critics.parameters(), **critic_optim_options
         )
 
-        return OptimizerCollection(policy=pi_optim, critic=qf_optim)
+        return OptimizerCollection(policy=policy_optim, critic=critic_optim,)
 
     @override(raypi.AdaptiveParamNoiseMixin)
     def _compute_noise_free_actions(self, sample_batch):
         obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.policy[:-1](obs_tensors).numpy()
+        return self.module.actor.policy[:-1](obs_tensors).numpy()
 
     @override(raypi.AdaptiveParamNoiseMixin)
     def _compute_noisy_actions(self, sample_batch):
         obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.perturbed_policy[:-1](obs_tensors).numpy()
+        return self.module.actor.behavior[:-1](obs_tensors).numpy()
 
     @torch.no_grad()
     @override(raypi.TorchPolicy)
@@ -156,9 +94,9 @@ class SOPTorchPolicy(
         if self.is_uniform_random:
             actions = self._uniform_random_actions(obs_batch)
         elif self.config["greedy"]:
-            actions = self.module.policy(obs_batch)
+            actions = self.module.actor.policy(obs_batch)
         else:
-            actions = self.module.sampler(obs_batch)
+            actions = self.module.actor.behavior(obs_batch)
 
         return actions.cpu().numpy(), state_batches, {}
 
@@ -212,7 +150,7 @@ class SOPTorchPolicy(
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
         dones = batch_tensors[SampleBatch.DONES]
 
-        next_acts = module.target_policy(next_obs)
+        next_acts = module.actor.target_policy(next_obs)
         next_vals, _ = torch.cat(
             [m(next_obs, next_acts) for m in module.target_critics], dim=-1
         ).min(dim=-1)
@@ -222,13 +160,7 @@ class SOPTorchPolicy(
         policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
         self._optimizer.policy.zero_grad()
         policy_loss.backward()
-        grad_stats = {
-            "policy_grad_norm": nn.utils.clip_grad_norm_(
-                module.policy.parameters(), float("inf")
-            ),
-            "param_noise_stddev": self.curr_param_stddev,
-        }
-        info.update(grad_stats)
+        info.update(self.extra_policy_grad_info())
 
         self._optimizer.policy.step()
         return info
@@ -239,7 +171,7 @@ class SOPTorchPolicy(
         # pylint: disable=unused-argument
         obs = batch_tensors[SampleBatch.CUR_OBS]
 
-        actions = module.policy(obs)
+        actions = module.actor.policy(obs)
         action_values, _ = torch.cat(
             [m(obs, actions) for m in module.critics], dim=-1
         ).min(dim=-1)
@@ -250,3 +182,14 @@ class SOPTorchPolicy(
             "qpi_mean": max_objective.item(),
         }
         return max_objective.neg(), stats
+
+    def extra_policy_grad_info(self):
+        """Return dict of extra info on policy gradient."""
+        info = {
+            "policy_grad_norm": nn.utils.clip_grad_norm_(
+                self.module.actor.policy.parameters(), float("inf")
+            ),
+        }
+        if self.config["exploration"] == "parameter_noise":
+            info["param_noise_stddev"] = self.curr_param_stddev
+        return info

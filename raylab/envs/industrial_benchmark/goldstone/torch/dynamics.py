@@ -4,21 +4,22 @@ import math
 import torch
 from ray.rllib.utils.annotations import override
 
-from ..dynamics import dynamics
+from ..dynamics import Dynamics
 
 
-class TorchDynamics(dynamics):
+class TorchDynamics(Dynamics):
     """Utility class to provide a differentiable goldstone potential."""
+
+    alpha = 0.5849
+    beta = 0.2924
+    kappa = -0.6367
 
     def __init__(self, number_steps, max_required_step, safe_zone):
         super().__init__(number_steps, max_required_step, safe_zone)
         self.number_steps = number_steps
         self.max_required_step = max_required_step
-        self.alpha = 0.5849
-        self.beta = 0.2924
-        self.kappa = -0.6367
 
-    @override(dynamics)
+    @override(Dynamics)
     def reward(self, phi, effective_shift):  # pylint: disable=arguments-differ
         rho_s = self._compute_rhos(phi)
         omega = self.omega(rho_s, effective_shift)
@@ -61,10 +62,11 @@ class TorchDynamics(dynamics):
         varrho = rho_s.sign()
         q = self._compute_q(rho_s)
 
-        mask = q < -math.sqrt(1 / 27)
-        r_min = torch.empty_like(rho_s)
-        r_min[mask] = self._compute_r_min1(q[mask], varrho[mask])
-        r_min[~mask] = self._compute_r_min2(q[~mask], varrho[~mask])
+        # mask = q < -math.sqrt(1 / 27)
+        # r_min = torch.empty_like(rho_s)
+        # r_min[mask] = self._compute_r_min1(q[mask], varrho[mask])
+        # r_min[~mask] = self._compute_r_min2(q[~mask], varrho[~mask])
+        r_min = self._compute_r_min2(q, varrho)
         return r_min
 
     def _compute_q(self, rho_s):
@@ -79,7 +81,7 @@ class TorchDynamics(dynamics):
 
     @staticmethod
     def _compute_u(q, varrho):
-        """Compute q resulting from Equation (45)."""
+        """Compute u resulting from Equation (45)."""
         # pylint:disable=invalid-name
         base = -varrho * q + torch.sqrt(q ** 2 - (1 / 27))
         return base.sign() * base.abs().pow(1 / 3)
@@ -88,10 +90,12 @@ class TorchDynamics(dynamics):
     def _compute_r_min2(q, varrho):
         """Compute r_min resulting from the second branch of Equation (44)."""
         # pylint:disable=invalid-name
+
         return (
             varrho
             * math.sqrt(4 / 3)
-            * torch.cos(1 / 3 * torch.acos(-q * math.sqrt(27)))
+            * torch.cos((1 / 3) * torch.acos(-q * (1 / 0.279)))
+            # * torch.cos((1 / 3) * torch.acos(-q * math.sqrt(27)))
         )
 
     @staticmethod
@@ -109,7 +113,7 @@ class TorchDynamics(dynamics):
         omega2 = effective_shift.sign() * omega_hat
         return omega2
 
-    @override(dynamics)
+    @override(Dynamics)
     def state_transition(self, domain, phi_idx, system_response, effective_shift):
         old_domain = domain
 
@@ -137,13 +141,13 @@ class TorchDynamics(dynamics):
 
         return domain, phi_idx, system_response
 
-    @override(dynamics)
+    @override(Dynamics)
     def _compute_domain(self, domain, effective_shift):
         return torch.where(
             effective_shift.abs() <= self._safe_zone, domain, effective_shift.sign()
         )
 
-    @override(dynamics)
+    @override(Dynamics)
     def _compute_angular_step(self, domain, phi_idx, system_response, effective_shift):
         return torch.where(
             effective_shift.abs() <= self._safe_zone,
@@ -159,7 +163,7 @@ class TorchDynamics(dynamics):
             ),
         )
 
-    @override(dynamics)
+    @override(Dynamics)
     def _updated_system_response(self, phi_idx, system_response):
         return torch.where(
             phi_idx.abs() >= self._strongest_penality_abs_idx,
@@ -167,7 +171,7 @@ class TorchDynamics(dynamics):
             system_response,
         )
 
-    @override(dynamics)
+    @override(Dynamics)
     def _apply_symmetry(self, phi_idx):
         return torch.where(
             phi_idx.abs() < self._strongest_penality_abs_idx,

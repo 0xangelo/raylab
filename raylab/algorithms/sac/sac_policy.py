@@ -6,8 +6,7 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-import raylab.modules as mods
-import raylab.distributions as dists
+from raylab.modules.catalog import get_module
 import raylab.utils.pytorch as torch_util
 from raylab.policy import TorchPolicy, PureExplorationMixin, TargetNetworksMixin
 
@@ -38,82 +37,38 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
 
     @override(TorchPolicy)
     def make_module(self, obs_space, action_space, config):
-        module = nn.ModuleDict()
-        module.update(self._make_policy(obs_space, action_space, config))
-
-        def make_critic():
-            return self._make_critic(obs_space, action_space, config)
-
-        module.critics = nn.ModuleList([make_critic()])
-        module.target_critics = nn.ModuleList([make_critic()])
-        if config["clipped_double_q"]:
-            module.critics.append(make_critic())
-            module.target_critics.append(make_critic())
-        module.target_critics.load_state_dict(module.critics.state_dict())
-
-        module.log_alpha = nn.Parameter(torch.zeros([]))
-        return module
-
-    def _make_policy(self, obs_space, action_space, config):
-        policy_config = config["module"]["policy"]
-        logits_module = mods.FullyConnected(
-            in_features=obs_space.shape[0],
-            units=policy_config["units"],
-            activation=policy_config["activation"],
-            **policy_config["initializer_options"]
+        module_config = config["module"]
+        module_config["double_q"] = config["clipped_double_q"]
+        module_config["mean_action_only"] = config["mean_action_only"]
+        module = get_module(
+            module_config["name"], obs_space, action_space, module_config
         )
-        params_module = mods.DiagMultivariateNormalParams(
-            logits_module.out_features,
-            action_space.shape[0],
-            input_dependent_scale=policy_config["input_dependent_scale"],
-        )
-        policy_module = nn.Sequential(logits_module, params_module)
-        dist_kwargs = dict(
-            dist_cls=dists.DiagMultivariateNormal,
-            detach_logp=False,
-            low=self.convert_to_tensor(action_space.low),
-            high=self.convert_to_tensor(action_space.high),
-        )
-        sampler_module = nn.Sequential(
-            policy_module,
-            mods.DistMean(**dist_kwargs)
-            if config["mean_action_only"]
-            else mods.DistRSample(**dist_kwargs),
-        )
-        return {"policy": policy_module, "sampler": sampler_module}
-
-    @staticmethod
-    def _make_critic(obs_space, action_space, config):
-        critic_config = config["module"]["critic"]
-        return mods.ActionValueFunction.from_scratch(
-            obs_dim=obs_space.shape[0],
-            action_dim=action_space.shape[0],
-            delay_action=critic_config["delay_action"],
-            units=critic_config["units"],
-            activation=critic_config["activation"],
-            **critic_config["initializer_options"]
-        )
+        return torch.jit.script(module) if module_config["torch_script"] else module
 
     @override(TorchPolicy)
     def optimizer(self):
-        pi_cls = torch_util.get_optimizer_class(self.config["policy_optimizer"]["name"])
-        pi_optim = pi_cls(
-            self.module.policy.parameters(),
-            **self.config["policy_optimizer"]["options"]
+        policy_optim_name = self.config["policy_optimizer"]["name"]
+        policy_optim_cls = torch_util.get_optimizer_class(policy_optim_name)
+        policy_optim_options = self.config["policy_optimizer"]["options"]
+        policy_optim = policy_optim_cls(
+            self.module.actor.parameters(), **policy_optim_options
         )
 
-        qf_cls = torch_util.get_optimizer_class(self.config["critic_optimizer"]["name"])
-        qf_optim = qf_cls(
-            self.module.critics.parameters(),
-            **self.config["critic_optimizer"]["options"]
+        critic_optim_name = self.config["critic_optimizer"]["name"]
+        critic_optim_cls = torch_util.get_optimizer_class(critic_optim_name)
+        critic_optim_options = self.config["critic_optimizer"]["options"]
+        critic_optim = critic_optim_cls(
+            self.module.critics.parameters(), **critic_optim_options
         )
 
-        al_cls = torch_util.get_optimizer_class(self.config["alpha_optimizer"]["name"])
-        al_optim = al_cls(
-            [self.module.log_alpha], **self.config["alpha_optimizer"]["options"]
-        )
+        alpha_optim_name = self.config["alpha_optimizer"]["name"]
+        alpha_optim_cls = torch_util.get_optimizer_class(alpha_optim_name)
+        alpha_optim_options = self.config["alpha_optimizer"]["options"]
+        alpha_optim = alpha_optim_cls([self.module.log_alpha], **alpha_optim_options)
 
-        return OptimizerCollection(policy=pi_optim, critic=qf_optim, alpha=al_optim)
+        return OptimizerCollection(
+            policy=policy_optim, critic=critic_optim, alpha=alpha_optim
+        )
 
     @torch.no_grad()
     @override(TorchPolicy)
@@ -133,7 +88,7 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         if self.is_uniform_random:
             actions = self._uniform_random_actions(obs_batch)
         else:
-            actions, _ = self.module.sampler(obs_batch)
+            actions, _ = self.module.actor.rsample(obs_batch)
 
         return actions.cpu().numpy(), state_batches, {}
 
@@ -189,7 +144,7 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
         dones = batch_tensors[SampleBatch.DONES]
 
-        next_acts, logp = module.sampler(next_obs)
+        next_acts, logp = module.actor.rsample(next_obs)
         next_vals, _ = torch.cat(
             [m(next_obs, next_acts) for m in module.target_critics], dim=-1
         ).min(dim=-1)
@@ -205,7 +160,7 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         policy_loss.backward()
         grad_stats = {
             "policy_grad_norm": nn.utils.clip_grad_norm_(
-                module.policy.parameters(), float("inf")
+                module.actor.parameters(), float("inf")
             )
         }
         info.update(grad_stats)
@@ -221,7 +176,7 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         # pylint: disable=unused-argument
         obs = batch_tensors[SampleBatch.CUR_OBS]
 
-        actions, logp = module.sampler(obs)
+        actions, logp = module.actor.rsample(obs)
         action_values, _ = torch.cat(
             [m(obs, actions) for m in module.critics], dim=-1
         ).min(dim=-1)
@@ -251,7 +206,7 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
     def compute_alpha_loss(batch_tensors, module, config):
         """Compute entropy coefficient loss."""
         with torch.no_grad():
-            _, logp = module.sampler(batch_tensors[SampleBatch.CUR_OBS])
+            _, logp = module.actor.rsample(batch_tensors[SampleBatch.CUR_OBS])
         alpha = module.log_alpha.exp()
         entropy_diff = torch.mean(-alpha * logp - alpha * config["target_entropy"])
         return entropy_diff, {"alpha_loss": entropy_diff.item()}

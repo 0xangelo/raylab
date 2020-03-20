@@ -17,8 +17,8 @@ DEFAULT_CONFIG = with_base_config(
         # Valid keys include: 'model', 'value', and 'policy'
         "torch_optimizer_options": {
             "model": {"lr": 1e-3},
-            "value": {"lr": 1e-3},
-            "policy": {"lr": 1e-3},
+            "critic": {"lr": 1e-3},
+            "actor": {"lr": 1e-3},
         },
         # === Regularization ===
         # Whether to penalize KL divergence with the current policy or past policies

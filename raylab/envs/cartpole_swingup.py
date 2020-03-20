@@ -2,7 +2,11 @@
 # pylint: enable=missing-docstring
 import numpy as np
 import torch
+
+# pylint:disable=import-error
 from gym_cartpole_swingup.envs import CartPoleSwingUpEnv as _CartPoleSwingUpEnv
+
+# pylint:enable=import-error
 
 
 class CartPoleSwingUpEnv(_CartPoleSwingUpEnv):

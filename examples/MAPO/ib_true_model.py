@@ -20,7 +20,7 @@ def get_config():
         # Gradient estimator for model-aware dpg. Possible types include:
         # score_function, pathwise_derivative
         "grad_estimator": "pathwise_derivative",
-        "model_rollout_len": tune.grid_search([1, 2, 4, 8]),
+        "model_rollout_len": 1,
         # === Debugging ===
         # Whether to use the environment's true model to sample states
         "true_model": True,

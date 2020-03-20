@@ -9,18 +9,16 @@ def worker_kwargs():
 
 
 def test_compute_single_action(env_creator, policy_cls):
-    env = env_creator()
+    env = env_creator({})
     policy = policy_cls(env.observation_space, env.action_space, {})
 
     obs = env.observation_space.sample()
     action, states, info = policy.compute_single_action(obs, [])
-    assert action in env.observation_space
+    assert action in env.action_space
     assert isinstance(states, list)
     assert isinstance(info, dict)
 
 
 def test_policy_in_rollout_worker(env_creator, policy_cls, worker_kwargs):
-    worker = RolloutWorker(
-        env_creator=lambda _: env_creator(), policy=policy_cls, **worker_kwargs
-    )
+    worker = RolloutWorker(env_creator=env_creator, policy=policy_cls, **worker_kwargs)
     worker.sample()

@@ -22,13 +22,9 @@ def policy_and_batch(policy_and_batch_fn, config):
 
 def test_target_value_output(policy_and_batch):
     policy, batch = policy_and_batch
-    for mod in policy.module.target_critics:
-        val = mod(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
-        assert val.shape == (10, 1)
-        assert val.dtype == torch.float32
 
     targets = policy._compute_critic_targets(batch, policy.module, policy.config)
-    assert targets.shape == (10,)
+    assert targets.shape == (len(batch[SampleBatch.CUR_OBS]),)
     assert targets.dtype == torch.float32
     assert torch.allclose(
         targets[batch[SampleBatch.DONES]],
@@ -38,7 +34,7 @@ def test_target_value_output(policy_and_batch):
     policy.module.zero_grad()
     targets.mean().backward()
     target_params = set(policy.module.target_critics.parameters())
-    target_params.update(set(policy.module.policy.parameters()))
+    target_params.update(set(policy.module.actor.policy.parameters()))
     assert all(p.grad is not None for p in target_params)
     assert all(p.grad is None for p in set(policy.module.parameters()) - target_params)
 
