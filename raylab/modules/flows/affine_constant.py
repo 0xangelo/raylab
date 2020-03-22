@@ -37,7 +37,7 @@ class AffineConstantFlow(NormalizingFlow):
         return out, log_det
 
 
-class ActNorm(AffineConstantFlow):
+class ActNorm(NormalizingFlow):
     """
     Really an AffineConstantFlow but with a data-dependent initialization,
     where on the very first batch we clever initialize the s,t so that the output
@@ -45,19 +45,31 @@ class ActNorm(AffineConstantFlow):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__()
+        self.affine_const = AffineConstantFlow(*args, **kwargs)
         self.data_dep_init_done = not (
-            isinstance(self.scale, nn.Parameter) and isinstance(self.loc, nn.Parameter)
+            isinstance(self.affine_const.scale, nn.Parameter)
+            and isinstance(self.affine_const.loc, nn.Parameter)
         )
 
-    @override(AffineConstantFlow)
+    @override(NormalizingFlow)
     def _encode(self, inputs):
         # first batch is used for init
         if not self.data_dep_init_done:
-            stats = inputs.std(dim=0, keepdim=True).log().neg().detach()
-            self.scale.data = torch.where(torch.isnan(stats), self.scale.data, stats)
-            self.loc.data = (
-                (inputs * self.scale.exp()).mean(dim=0, keepdim=True).neg().detach()
-            )
+            scale = self.affine_const.scale
+            loc = self.affine_const.loc
+
+            # pylint:disable=unnecessary-comprehension
+            dims = [i for i in range(inputs.dim() - 1)]
+            # pylint:enable=unnecessary-comprehension
+            std = -inputs.std(dim=dims).log().detach()
+            scale.data.copy_(torch.where(torch.isnan(std), scale, std))
+            mean = -torch.mean(inputs * scale.exp(), dim=dims).detach()
+            loc.data.copy_(mean)
+
             self.data_dep_init_done = True
-        return super()._encode(inputs)
+        return self.affine_const(inputs)
+
+    @override(NormalizingFlow)
+    def _decode(self, inputs):
+        return self.affine_const(inputs)
