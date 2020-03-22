@@ -22,7 +22,7 @@ For the visualization tools you'll need to install [Streamlit](http://streamlit.
 
 ## Examples
 
-Raylab provides algorithms and environments to be used with a normal RLlib/Tune setup. 
+Raylab provides algorithms and environments to be used with a normal RLlib/Tune setup.
 ```python=
 import ray
 from ray import tune
@@ -112,7 +112,7 @@ Options:
 ```
 An example is included in `examples/naf_exploration_experiment.py`.
 
-One can also use `scripts/train.py`, which wraps 
+One can also use `scripts/train.py`, which wraps
 [`rllib train`](https://ray.readthedocs.io/en/latest/rllib-training.html#rllib-training-apis)
 so as to register custom algorithms and environments beforehand.
 
@@ -129,7 +129,7 @@ Options:
   --help       Show this message and exit.
 ```
 
-If one prefers rllib's interface, it is recommended to use `scripts/rollout.py`, which wraps 
+If one prefers rllib's interface, it is recommended to use `scripts/rollout.py`, which wraps
 [`rllib rollout`](https://ray.readthedocs.io/en/latest/rllib-training.html#evaluating-trained-policies)
 so as to register custom algorithms and environments beforehand.
 
