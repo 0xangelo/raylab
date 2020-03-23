@@ -4,7 +4,7 @@ import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
 from raylab.utils.pytorch import initialize_
-from .expand_vector import ExpandVector
+from .leaf_parameter import LeafParameter
 
 
 class DiagMultivariateNormalParams(nn.Module):
@@ -23,7 +23,7 @@ class DiagMultivariateNormalParams(nn.Module):
         if input_dependent_scale:
             self.log_scale_module = nn.Linear(in_features, event_dim)
         else:
-            self.log_scale_module = ExpandVector(event_dim)
+            self.log_scale_module = LeafParameter(event_dim)
         self.apply(initialize_("orthogonal", gain=0.01))
 
     @override(nn.Module)

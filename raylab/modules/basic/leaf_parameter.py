@@ -4,7 +4,7 @@ import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
 
-class ExpandVector(nn.Module):
+class LeafParameter(nn.Module):
     """Holds a single paramater vector an expands it to match batch shape of inputs."""
 
     def __init__(self, in_features):
