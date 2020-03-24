@@ -9,131 +9,123 @@ https://arxiv.org/abs/1606.04934
 (IAF)
 """
 import torch
-from torch import nn
+import torch.nn as nn
+from .abstract import NormalizingFlow
 from ..made import MADE
-
-
-class LeafParam(nn.Module):
-    """
-    just ignores the input and outputs a parameter tensor, lol
-    todo maybe this exists in PyTorch somewhere?
-    """
-
-    def __init__(self, n):
-        super().__init__()
-        self.p = nn.Parameter(torch.zeros(1, n))
-
-    def forward(self, x):
-        return self.p.expand(x.size(0), self.p.size(1))
+from ..basic import LeafParameter
 
 
 class MLP(nn.Module):
-    """
-    A simple 4-layer MLP.
+    """A simple 4-layer MLP.
+
     Note that the ReLU is not used because it is not an invertible mapping
     (more precisely, it is not a diffeormorphism).
     """
 
-    def __init__(self, nin, nout, nh):
+    def __init__(self, in_features, out_features, hidden_dim):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(nin, nh),
+            nn.Linear(in_features, hidden_dim),
             nn.LeakyReLU(0.2),
-            nn.Linear(nh, nh),
+            nn.Linear(hidden_dim, hidden_dim),
             nn.LeakyReLU(0.2),
-            nn.Linear(nh, nh),
+            nn.Linear(hidden_dim, hidden_dim),
             nn.LeakyReLU(0.2),
-            nn.Linear(nh, nout),
+            nn.Linear(hidden_dim, out_features),
         )
 
-    def forward(self, x):
-        return self.net(x)
+    def forward(self, inputs):  # pylint:disable=arguments-differ
+        return self.net(inputs)
 
 
 class ARMLP(nn.Module):
-    """ a 4-layer auto-regressive MLP, wrapper around MADE net """
+    """A 4-layer auto-regressive MLP, wrapper around MADE net."""
 
-    def __init__(self, nin, nout, nh):
+    def __init__(self, in_features, out_features, hidden_dim):
         super().__init__()
-        self.net = MADE(nin, [nh, nh, nh], nout, num_masks=1, natural_ordering=True)
+        self.net = MADE(
+            in_features, (hidden_dim,) * 3, out_features, natural_ordering=True,
+        )
 
-    def forward(self, x):
-        return self.net(x)
+    def forward(self, inputs):  # pylint:disable=arguments-differ
+        return self.net(inputs)
 
 
-class MAF(nn.Module):
-    """ Masked Autoregressive Flow that uses a MADE-style network for fast forward """
+class MAF(NormalizingFlow):
+    """Masked Autoregressive Flow that uses a MADE-style network for fast forward."""
 
-    def __init__(self, dim, parity, net_class=ARMLP, nh=24):
+    def __init__(self, dim, parity, net_class=ARMLP, hidden_dim=24):
         super().__init__()
         self.dim = dim
-        self.net = net_class(dim, dim * 2, nh)
+        self.net = net_class(dim, dim * 2, hidden_dim)
         self.parity = parity
 
-    def forward(self, x):
-        # here we see that we are evaluating all of z in parallel, so density estimation will be fast
-        st = self.net(x)
-        s, t = st.split(self.dim, dim=1)
-        z = x * torch.exp(s) + t
+    def _encode(self, inputs):
+        # here we see that we are evaluating all of out in parallel,
+        # so density estimation will be fast
+        scale_shift = self.net(inputs)
+        scale, shift = scale_shift.split(self.dim, dim=-1)
+        out = inputs * torch.exp(scale) + shift
         # reverse order, so if we stack MAFs correct things happen
-        z = z.flip(dims=(1,)) if self.parity else z
-        log_det = torch.sum(s, dim=1)
-        return z, log_det
+        out = out.flip(-1) if self.parity else out
+        log_det = torch.sum(scale, dim=-1)
+        return out, log_det
 
-    def backward(self, z):
+    def _decode(self, inputs):
         # we have to decode the x one at a time, sequentially
-        x = torch.zeros_like(z)
-        log_det = torch.zeros(z.size(0))
-        z = z.flip(dims=(1,)) if self.parity else z
-        for i in range(self.dim):
-            st = self.net(x.clone())  # clone to avoid in-place op errors if using IAF
-            s, t = st.split(self.dim, dim=1)
-            x[:, i] = (z[:, i] - t[:, i]) * torch.exp(-s[:, i])
-            log_det += -s[:, i]
-        return x, log_det
+        out = torch.empty_like(inputs)
+        log_det = torch.zeros(inputs.shape[:-1])
+        inputs = inputs.flip(-1) if self.parity else inputs
+        for idx in range(self.dim):
+            # clone to avoid in-place op errors if using IAF
+            scale_shift = self.net(out.clone())
+            scale, shift = scale_shift.split(self.dim, dim=-1)
+            out[..., idx] = (inputs[..., idx] - shift[..., idx]) * torch.exp(
+                -scale[..., idx]
+            )
+            log_det += -scale[..., idx]
+        return out, log_det
 
 
 class IAF(MAF):
     """
     Reverse the flow, giving an Inverse Autoregressive Flow (IAF) instead,
-    where sampling will be fast but density estimation slow
+    where sampling will be fast but density estimation slow.
     """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.forward, self.backward = self.backward, self.forward
+        self._encode, self._decode = self._decode, self._encode
 
 
-class SlowMAF(nn.Module):
-    """
-    Masked Autoregressive Flow, slow version with explicit networks per dim
-    """
+class SlowMAF(NormalizingFlow):
+    """Masked Autoregressive Flow, slow version with explicit networks per dim."""
 
-    def __init__(self, dim, parity, net_class=MLP, nh=24):
+    def __init__(self, dim, parity, net_class=MLP, hidden_dim=24):
         super().__init__()
         self.dim = dim
-        self.layers = nn.ModuleDict()
-        self.layers[str(0)] = LeafParam(2)
-        for i in range(1, dim):
-            self.layers[str(i)] = net_class(i, 2, nh)
+        self.layers = nn.ModuleList()
+        self.layers.append(LeafParameter(2))
+        for idx in range(1, dim):
+            self.layers.append(net_class(idx, 2, hidden_dim))
         self.order = list(range(dim)) if parity else list(range(dim))[::-1]
 
-    def forward(self, x):
-        z = torch.zeros_like(x)
-        log_det = torch.zeros(x.size(0))
-        for i in range(self.dim):
-            st = self.layers[str(i)](x[:, :i])
-            s, t = st[:, 0], st[:, 1]
-            z[:, self.order[i]] = x[:, i] * torch.exp(s) + t
-            log_det += s
-        return z, log_det
+    def _encode(self, inputs):
+        out = torch.zeros_like(inputs)
+        log_det = torch.zeros(inputs.size(0))
+        for idx, layer in enumerate(self.layers):
+            scale_shift = layer(inputs[..., :idx])
+            scale, shift = scale_shift[..., 0], scale_shift[..., 1]
+            out[..., self.order[idx]] = inputs[..., idx] * torch.exp(scale) + shift
+            log_det += scale
+        return out, log_det
 
-    def backward(self, z):
-        x = torch.zeros_like(z)
-        log_det = torch.zeros(z.size(0))
-        for i in range(self.dim):
-            st = self.layers[str(i)](x[:, :i])
-            s, t = st[:, 0], st[:, 1]
-            x[:, i] = (z[:, self.order[i]] - t) * torch.exp(-s)
-            log_det += -s
-        return x, log_det
+    def _decode(self, inputs):
+        out = torch.zeros_like(inputs)
+        log_det = torch.zeros(inputs.size(0))
+        for idx, layer in enumerate(self.layers):
+            scale_shift = layer(out[..., :idx])
+            scale, shift = scale_shift[..., 0], scale_shift[..., 1]
+            out[..., idx] = (inputs[..., self.order[idx]] - shift) * torch.exp(-scale)
+            log_det += -scale
+        return out, log_det

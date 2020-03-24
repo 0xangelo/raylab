@@ -16,3 +16,16 @@ from .abstract import ComposeNormalizingFlow, NormalizingFlowModel
 from .affine_constant import AffineConstantFlow, ActNorm
 from .affine_half import AffineHalfFlow
 from .cond_affine_half import CondAffineHalfFlow
+from .maf import MAF, IAF
+
+
+__all__ = [
+    "ActNorm",
+    "AffineConstantFlow",
+    "AffineHalfFlow",
+    "CondAffineHalfFlow",
+    "ComposeNormalizingFlow",
+    "IAF",
+    "NormalizingFlowModel",
+    "MAF",
+]
