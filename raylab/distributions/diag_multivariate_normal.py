@@ -1,4 +1,5 @@
 # pylint: disable=missing-docstring
+# pylint: enable=missing-docstring
 import torch
 import torch.distributions as dists
 
