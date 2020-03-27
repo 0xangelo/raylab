@@ -17,7 +17,7 @@ def shift(request):
 
 
 @pytest.fixture(params=(AffineConstantFlow, ActNorm))
-def model(request, scale, shift):
+def module(request, scale, shift):
     return lambda dim: request.param(dim, scale, shift)
 
 
@@ -32,13 +32,12 @@ def inputs(request, dim):
     return torch.randn(*input_shape).requires_grad_()
 
 
-def test_affine_constant(model, inputs, torch_script):
-    model = model(inputs.size(-1))
-    model = torch.jit.script(model) if torch_script else model
-    scale = model.scale if "scale" in dir(model) else model.affine_const.scale
+def test_affine_constant(module, inputs, torch_script):
+    module = module(inputs.size(-1))
+    module = torch.jit.script(module) if torch_script else module
+    scale = module.scale if "scale" in dir(module) else module.affine_const.scale
 
-    model.train()
-    latent, log_det = model(inputs)
+    latent, log_det = module(inputs)
     if isinstance(scale, nn.Parameter):
         log_det.sum().backward(retain_graph=True)
         assert scale.grad is not None
@@ -46,8 +45,7 @@ def test_affine_constant(model, inputs, torch_script):
     assert inputs.grad is not None
 
     latent = latent.detach().requires_grad_()
-    model.eval()
-    input_, log_det = model(latent)
+    input_, log_det = module(latent, reverse=True)
     assert torch.allclose(input_, inputs, atol=1e-6)
     if isinstance(scale, nn.Parameter):
         log_det.sum().backward(retain_graph=True)

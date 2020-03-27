@@ -46,8 +46,8 @@ def parity(request):
 
 
 @pytest.fixture
-def model(parity, scale_module, shift_module):
-    def model_fn(dim):
+def module(parity, scale_module, shift_module):
+    def module_fn(dim):
         nin = dim - (dim // 2)
         nout = dim // 2
         if parity:
@@ -56,7 +56,7 @@ def model(parity, scale_module, shift_module):
             parity, scale_module(nin, dim, nout), shift_module(nin, dim, nout)
         )
 
-    return model_fn
+    return module_fn
 
 
 @pytest.fixture(params=(2, 4, 7))
@@ -73,29 +73,28 @@ def inputs(request, dim):
     )
 
 
-def test_affine_half(model, inputs):
+def test_affine_half(module, inputs):
     var, cond = inputs
-    model = model(var.size(-1))
+    module = module(var.size(-1))
 
-    scale = bool(list(model.s_cond.parameters()))
-    shift = bool(list(model.t_cond.parameters()))
+    scale = bool(list(module.s_cond.parameters()))
+    shift = bool(list(module.t_cond.parameters()))
 
-    model.train()
-    latent, log_det = model(inputs)
+    latent, log_det = module(inputs)
     if scale:
         log_det.sum().backward(retain_graph=True)
-        assert all(p.grad is not None for p in model.s_cond.parameters())
+        assert all(p.grad is not None for p in module.s_cond.parameters())
     latent.sum().backward()
     assert var.grad is not None
     if scale or shift:
         assert cond.grad is not None
 
     latent = latent.detach().requires_grad_()
-    model.eval()
-    input_, log_det = model([latent, cond])
+
+    input_, log_det = module([latent, cond], reverse=True)
     assert torch.allclose(input_, var, atol=1e-7)
     if scale:
         log_det.sum().backward(retain_graph=True)
-        assert all(p.grad is not None for p in model.s_cond.parameters())
+        assert all(p.grad is not None for p in module.s_cond.parameters())
     input_.sum().backward()
     assert latent.grad is not None

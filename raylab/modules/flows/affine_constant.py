@@ -68,8 +68,8 @@ class ActNorm(NormalizingFlow):
             loc.data.copy_(mean)
 
             self.data_dep_init_done = True
-        return self.affine_const(inputs)
+        return self.affine_const._encode(inputs)  # pylint:disable=protected-access
 
     @override(NormalizingFlow)
     def _decode(self, inputs):
-        return self.affine_const(inputs)
+        return self.affine_const._decode(inputs)  # pylint:disable=protected-access
