@@ -16,6 +16,7 @@ class DistributionModule(nn.Module):
         Generates a sample_shape shaped sample or sample_shape shaped batch of
         samples if the distribution parameters are batched.
         """
+        return self.rsample(params, sample_shape).detach()
 
     @torch.jit.export
     def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):

@@ -22,22 +22,11 @@ class Uniform(DistributionModule):
 
     @override(DistributionModule)
     @torch.jit.export
-    def cdf(self, params: Dict[str, torch.Tensor], value):
+    def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         low, high = self._unpack_params(params)
-        result = (value - low) / (high - low)
-        return result.clamp(min=0, max=1)
-
-    @override(DistributionModule)
-    @torch.jit.export
-    def entropy(self, params: Dict[str, torch.Tensor]):
-        low, high = self._unpack_params(params)
-        return torch.log(high - low)
-
-    @override(DistributionModule)
-    @torch.jit.export
-    def icdf(self, params: Dict[str, torch.Tensor], prob):
-        low, high = self._unpack_params(params)
-        return prob * (high - low) + low
+        shape = sample_shape + low.shape
+        rand = torch.rand(shape, dtype=low.dtype, device=low.device)
+        return low + rand * (high - low)
 
     @override(DistributionModule)
     @torch.jit.export
@@ -49,16 +38,22 @@ class Uniform(DistributionModule):
 
     @override(DistributionModule)
     @torch.jit.export
-    def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
+    def cdf(self, params: Dict[str, torch.Tensor], value):
         low, high = self._unpack_params(params)
-        shape = sample_shape + low.shape
-        rand = torch.rand(shape, dtype=low.dtype, device=low.device)
-        return low + rand * (high - low)
+        result = (value - low) / (high - low)
+        return result.clamp(min=0, max=1)
 
     @override(DistributionModule)
     @torch.jit.export
-    def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
-        return self.rsample(params, sample_shape).detach()
+    def icdf(self, params: Dict[str, torch.Tensor], prob):
+        low, high = self._unpack_params(params)
+        return prob * (high - low) + low
+
+    @override(DistributionModule)
+    @torch.jit.export
+    def entropy(self, params: Dict[str, torch.Tensor]):
+        low, high = self._unpack_params(params)
+        return torch.log(high - low)
 
     def _unpack_params(self, params: Dict[str, torch.Tensor]):
         # pylint:disable=no-self-use
