@@ -10,26 +10,11 @@ class DistributionModule(nn.Module):
     # pylint:disable=abstract-method
 
     @torch.jit.export
-    def cdf(self, params: Dict[str, torch.Tensor], value):
-        """Returns the cumulative density/mass function evaluated at `value`."""
-
-    @torch.jit.export
-    def entropy(self, params: Dict[str, torch.Tensor]):
-        """Returns entropy of distribution."""
-
-    @torch.jit.export
-    def icdf(self, params: Dict[str, torch.Tensor], prob):
-        """Returns the inverse cumulative density/mass function evaluated at `value`."""
-
-    @torch.jit.export
-    def log_prob(self, params: Dict[str, torch.Tensor], value):
+    def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         """
-        Returns the log of the probability density/mass function evaluated at `value`.
+        Generates a sample_shape shaped sample or sample_shape shaped batch of
+        samples if the distribution parameters are batched.
         """
-
-    @torch.jit.export
-    def perplexity(self, params: Dict[str, torch.Tensor]):
-        """Returns perplexity of distribution."""
 
     @torch.jit.export
     def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
@@ -40,8 +25,24 @@ class DistributionModule(nn.Module):
         """
 
     @torch.jit.export
-    def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
+    def log_prob(self, params: Dict[str, torch.Tensor], value):
         """
-        Generates a sample_shape shaped sample or sample_shape shaped batch of
-        samples if the distribution parameters are batched.
+        Returns the log of the probability density/mass function evaluated at `value`.
         """
+
+    @torch.jit.export
+    def cdf(self, params: Dict[str, torch.Tensor], value):
+        """Returns the cumulative density/mass function evaluated at `value`."""
+
+    @torch.jit.export
+    def icdf(self, params: Dict[str, torch.Tensor], prob):
+        """Returns the inverse cumulative density/mass function evaluated at `value`."""
+
+    @torch.jit.export
+    def entropy(self, params: Dict[str, torch.Tensor]):
+        """Returns entropy of distribution."""
+
+    @torch.jit.export
+    def perplexity(self, params: Dict[str, torch.Tensor]):
+        """Returns perplexity of distribution."""
+        return self.entropy(params).exp()

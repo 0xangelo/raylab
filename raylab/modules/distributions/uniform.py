@@ -49,11 +49,6 @@ class Uniform(DistributionModule):
 
     @override(DistributionModule)
     @torch.jit.export
-    def perplexity(self, params: Dict[str, torch.Tensor]):
-        return self.entropy(params).exp()
-
-    @override(DistributionModule)
-    @torch.jit.export
     def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         low, high = self._unpack_params(params)
         shape = sample_shape + low.shape
