@@ -43,6 +43,4 @@ def test_independent_uniform(independent_uniform, sample_shape):
     batch_shape = params["low"].shape[:-1]
     event_shape = params["low"].shape[-1:]
 
-    _test_dist_ops(
-        dist, params, batch_shape, event_shape, sample_shape, test_icdf=False
-    )
+    _test_dist_ops(dist, params, batch_shape, event_shape, sample_shape)

@@ -78,13 +78,17 @@ class Independent(DistributionModule):
     @torch.jit.export
     def log_prob(self, params: Dict[str, torch.Tensor], value):
         base_log_prob = self.base_dist.log_prob(params, value)
-        return _sum_rightmost(base_log_prob, self.reinterpreted_batch_ndims)
+        if base_log_prob is not None:
+            return _sum_rightmost(base_log_prob, self.reinterpreted_batch_ndims)
+        return None
 
     @override(DistributionModule)
     @torch.jit.export
     def cdf(self, params: Dict[str, torch.Tensor], value):
         base_cdf = self.base_dist.cdf(params, value)
-        return _multiply_rightmost(base_cdf, self.reinterpreted_batch_ndims)
+        if base_cdf is not None:
+            return _multiply_rightmost(base_cdf, self.reinterpreted_batch_ndims)
+        return None
 
     @override(DistributionModule)
     @torch.jit.export
