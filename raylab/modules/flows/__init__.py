@@ -12,7 +12,7 @@ https://arxiv.org/abs/1912.02762
 Mostly copied from
 https://github.com/karpathy/pytorch-normalizing-flows
 """
-from .abstract import ComposeNormalizingFlow, NormalizingFlowModel
+from .abstract import ComposeNormalizingFlow, NormalizingFlow, NormalizingFlowModel
 from .affine_constant import AffineConstantFlow, ActNorm
 from .affine_half import AffineHalfFlow
 from .cond_affine_half import CondAffineHalfFlow

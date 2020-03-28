@@ -59,10 +59,9 @@ class NormalizingFlowModel(nn.Module):
 
     def __init__(self, prior, flows):
         super().__init__()
-        sample = prior.rsample((1,))
         self.prior = prior
-        self.prior_rsample = torch.jit.trace(prior.rsample, ((1,)), check_trace=False)
-        self.prior_logp = torch.jit.trace(prior.log_prob, sample)
+        self.prior_rsample = prior.rsample
+        self.prior_logp = prior.log_prob
         self.flow = ComposeNormalizingFlow(flows)
 
     @torch.jit.export
