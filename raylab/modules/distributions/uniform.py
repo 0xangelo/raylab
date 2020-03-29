@@ -26,7 +26,8 @@ class Uniform(DistributionModule):
         low, high = self._unpack_params(params)
         shape = sample_shape + low.shape
         rand = torch.rand(shape, dtype=low.dtype, device=low.device)
-        return low + rand * (high - low)
+        out = low + rand * (high - low)
+        return out, self.log_prob(params, out)
 
     @override(DistributionModule)
     @torch.jit.export

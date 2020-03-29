@@ -27,7 +27,8 @@ class Normal(DistributionModule):
         loc, scale = self._unpack_params(params)
         shape = sample_shape + loc.shape
         eps = torch.randn(shape, dtype=loc.dtype, device=loc.device)
-        return loc + eps * scale
+        out = loc + eps * scale
+        return out, self.log_prob(params, out)
 
     @override(DistributionModule)
     @torch.jit.export

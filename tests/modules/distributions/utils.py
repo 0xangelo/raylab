@@ -3,9 +3,9 @@
 
 def _test_dist_ops(dist, params, batch_shape, event_shape, sample_shape):
     # pylint:disable=too-many-arguments
-    sample = dist.sample(params, sample_shape)
+    sample, _ = dist.sample(params, sample_shape)
     assert sample.shape == sample_shape + batch_shape + event_shape
-    rsample = dist.rsample(params, sample_shape)
+    rsample, _ = dist.rsample(params, sample_shape)
     if rsample is not None:
         assert rsample.shape == sample_shape + batch_shape + event_shape
 

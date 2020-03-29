@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
+from .utils import _sum_rightmost, _multiply_rightmost
+
 
 class DistributionModule(nn.Module):
     """Implements Distribution interface as a nn.Module."""
@@ -14,17 +16,21 @@ class DistributionModule(nn.Module):
     def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         """
         Generates a sample_shape shaped sample or sample_shape shaped batch of
-        samples if the distribution parameters are batched.
+        samples if the distribution parameters are batched. Returns a (sample, log_prob)
+        pair.
         """
-        return self.rsample(params, sample_shape).detach()
+        rsample, log_prob = self.rsample(params, sample_shape)
+        return rsample.detach(), log_prob
 
     @torch.jit.export
     def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         """
         Generates a sample_shape shaped reparameterized sample or sample_shape
         shaped batch of reparameterized samples if the distribution parameters
-        are batched.
+        are batched. Returns a (rsample, log_prob) pair.
         """
+        # pylint:disable=unused-argument,no-self-use
+        return None, None
 
     @torch.jit.export
     def log_prob(self, params: Dict[str, torch.Tensor], value):
@@ -47,7 +53,10 @@ class DistributionModule(nn.Module):
     @torch.jit.export
     def perplexity(self, params: Dict[str, torch.Tensor]):
         """Returns perplexity of distribution."""
-        return self.entropy(params).exp()
+        entropy = self.entropy(params)
+        if entropy is not None:
+            return entropy.exp()
+        return None
 
 
 class Independent(DistributionModule):
@@ -67,20 +76,22 @@ class Independent(DistributionModule):
     @override(DistributionModule)
     @torch.jit.export
     def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
-        return self.base_dist.sample(params, sample_shape)
+        out, base_log_prob = self.base_dist.sample(params, sample_shape)
+        return out, _sum_rightmost(base_log_prob, self.reinterpreted_batch_ndims)
 
     @override(DistributionModule)
     @torch.jit.export
     def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
-        return self.base_dist.rsample(params, sample_shape)
+        out, base_log_prob = self.base_dist.rsample(params, sample_shape)
+        if out is not None:
+            return out, _sum_rightmost(base_log_prob, self.reinterpreted_batch_ndims)
+        return out, base_log_prob
 
     @override(DistributionModule)
     @torch.jit.export
     def log_prob(self, params: Dict[str, torch.Tensor], value):
         base_log_prob = self.base_dist.log_prob(params, value)
-        if base_log_prob is not None:
-            return _sum_rightmost(base_log_prob, self.reinterpreted_batch_ndims)
-        return None
+        return _sum_rightmost(base_log_prob, self.reinterpreted_batch_ndims)
 
     @override(DistributionModule)
     @torch.jit.export
@@ -97,29 +108,40 @@ class Independent(DistributionModule):
         return _sum_rightmost(base_entropy, self.reinterpreted_batch_ndims)
 
 
-def _sum_rightmost(value, dim: int):
-    r"""
-    Sum out ``dim`` many rightmost dimensions of a given tensor.
-
-    Args:
-        value (Tensor): A tensor of ``.dim()`` at least ``dim``.
-        dim (int): The number of rightmost dims to sum out.
+class TransformedDistribution(DistributionModule):
     """
-    if dim == 0:
-        return value
-    required_shape = value.shape[:-dim] + (-1,)
-    return value.reshape(required_shape).sum(-1)
-
-
-def _multiply_rightmost(value, dim: int):
-    r"""
-    Multiply out ``dim`` many rightmost dimensions of a given tensor.
-
-    Args:
-        value (Tensor): A tensor of ``.dim()`` at least ``dim``.
-        dim (int): The number of rightmost dims to multiply out.
+    Extension of the DistributionModule class, which applies a sequence of Transforms
+    to a base distribution.
     """
-    if dim == 0:
-        return value
-    required_shape = value.shape[:-dim] + (-1,)
-    return value.reshape(required_shape).prod(-1)
+
+    # pylint:disable=abstract-method
+
+    def __init__(self, base_dist, transform):
+        super().__init__()
+        self.base_dist = base_dist
+        self.transform = transform
+
+    @override(nn.Module)
+    def forward(self, inputs):  # pylint:disable=arguments-differ
+        return self.base_dist(inputs)
+
+    @override(DistributionModule)
+    @torch.jit.export
+    def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
+        base_sample, base_log_prob = self.base_dist.sample(params, sample_shape)
+        transformed, log_abs_det_jacobian = self.transform(base_sample)
+        return transformed, base_log_prob + log_abs_det_jacobian
+
+    @override(DistributionModule)
+    @torch.jit.export
+    def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
+        base_rsample, base_log_prob = self.base_dist.rsample(params, sample_shape)
+        transformed, log_abs_det_jacobian = self.transform(base_rsample)
+        return transformed, base_log_prob + log_abs_det_jacobian
+
+    @override(DistributionModule)
+    @torch.jit.export
+    def log_prob(self, params: Dict[str, torch.Tensor], value):
+        latent, log_abs_det_jacobian = self.transform(value, reverse=True)
+        base_log_prob = self.base_dist.log_prob(params, latent)
+        return base_log_prob + log_abs_det_jacobian

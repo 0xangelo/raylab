@@ -42,7 +42,8 @@ class Categorical(DistributionModule):
         probs = F.softmax(logits, dim=-1).expand(params_shape)
         probs_2d = probs.reshape(-1, logits.shape[-1])
         sample_2d = torch.multinomial(probs_2d, 1, True)
-        return sample_2d.reshape(sample_shape)
+        out = sample_2d.reshape(sample_shape)
+        return out, self.log_prob(params, out)
 
     @override(DistributionModule)
     @torch.jit.export
