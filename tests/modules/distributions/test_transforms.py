@@ -10,9 +10,12 @@ from raylab.modules.distributions import (
     Normal,
     SigmoidTransform,
     TanhTransform,
+    TanhSquashTransform,
     TransformedDistribution,
     Uniform,
 )
+
+from .utils import _test_dist_ops
 
 
 @pytest.fixture(params=(Uniform, Normal))
@@ -27,6 +30,7 @@ def dist_params(request):
         lambda: AffineTransform(torch.ones(2), torch.ones(2) * 2, event_dim=1),
         lambda: SigmoidTransform(event_dim=1),
         lambda: TanhTransform(event_dim=1),
+        lambda: TanhSquashTransform(-2 * torch.ones(2), 2 * torch.ones(2), event_dim=1),
     )
 )
 def transform(request, torch_script):
@@ -62,12 +66,8 @@ def test_transformed_distribution(dist_params, sample_shape, torch_script):
 
     event_shape = (2,)
     batch_shape = ()
-    rsample, log_prob = dist.rsample(params, sample_shape)
-    assert rsample.shape == sample_shape + batch_shape + event_shape
-    assert log_prob.shape == sample_shape + batch_shape
 
-    log_prob = dist.log_prob(params, rsample)
-    assert log_prob.shape == sample_shape + batch_shape
+    _test_dist_ops(dist, params, batch_shape, event_shape, sample_shape)
 
 
 def test_transforms(dist_params, transform, sample_shape):
