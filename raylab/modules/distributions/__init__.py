@@ -8,6 +8,7 @@ from .transforms import (
     InvTransform,
     SigmoidTransform,
     TanhTransform,
+    TanhSquashTransform,
     Transform,
 )
 from .uniform import Uniform
@@ -23,5 +24,6 @@ __all__ = [
     "SigmoidTransform",
     "Uniform",
     "TanhTransform",
+    "TanhSquashTransform",
     "Transform",
 ]

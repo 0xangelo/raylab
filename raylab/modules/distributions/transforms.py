@@ -57,14 +57,21 @@ class ComposeTransform(nn.Module):
     def __init__(self, transforms):
         super().__init__()
         self.transforms = nn.ModuleList(transforms)
+        self.inv_transforms = nn.ModuleList(transforms[::-1])
 
     @override(nn.Module)
     def forward(self, inputs, reverse: bool = False):  # pylint:disable=arguments-differ
         out = inputs
-        log_abs_det_jacobian = 0.0
-        for transform in self.transforms:
-            out, log_det = transform(out, reverse=reverse)
-            log_abs_det_jacobian = log_abs_det_jacobian + log_det
+        if reverse:
+            log_abs_det_jacobian = 0.0
+            for transform in self.inv_transforms:
+                out, log_det = transform(out, reverse=reverse)
+                log_abs_det_jacobian = log_abs_det_jacobian + log_det
+        else:
+            log_abs_det_jacobian = 0.0
+            for transform in self.transforms:
+                out, log_det = transform(out, reverse=reverse)
+                log_abs_det_jacobian = log_abs_det_jacobian + log_det
         return out, log_abs_det_jacobian
 
 
@@ -122,3 +129,14 @@ class AffineTransform(Transform):
     def log_abs_det_jacobian(self, inputs, outputs):
         _, scale = torch.broadcast_tensors(inputs, self.scale)
         return scale.abs().log()
+
+
+class TanhSquashTransform(ComposeTransform):
+    """Squashes samples to the desired range."""
+
+    def __init__(self, low, high, *args, **kwargs):
+        squash = TanhTransform(*args, **kwargs)
+        shift = AffineTransform(
+            loc=(high + low) / 2, scale=(high - low) / 2, *args, **kwargs
+        )
+        super().__init__([squash, shift])
