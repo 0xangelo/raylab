@@ -6,6 +6,7 @@ from .expand_vector import ExpandVector
 from .fully_connected import FullyConnected
 from .gaussian_noise import GaussianNoise
 from .lambd import Lambda
+from .normal_params import NormalParams
 from .normalized_linear import NormalizedLinear
 from .reward_function import RewardFn
 from .state_action_encoder import StateActionEncoder
@@ -23,6 +24,7 @@ __all__ = [
     "FullyConnected",
     "GaussianNoise",
     "Lambda",
+    "NormalParams",
     "NormalizedLinear",
     "RewardFn",
     "StateActionEncoder",

@@ -51,9 +51,9 @@ def test_actor_params(module_batch_fn, input_dependent_scale):
         {"actor": {"input_dependent_scale": input_dependent_scale}}
     )
 
-    params = module.actor.params(batch[SampleBatch.CUR_OBS])
+    params = module.actor(batch[SampleBatch.CUR_OBS])
     assert "loc" in params
-    assert "scale_diag" in params
+    assert "scale" in params
 
     loc, scale_diag = params.values()
     action = batch[SampleBatch.ACTIONS]
@@ -71,7 +71,7 @@ def test_actor_params(module_batch_fn, input_dependent_scale):
 
     for par in pi_params:
         par.grad = None
-    module.actor.params(batch[SampleBatch.CUR_OBS])["scale_diag"].mean().backward()
+    module.actor(batch[SampleBatch.CUR_OBS])["scale"].mean().backward()
     assert any(p.grad is not None for p in pi_params)
     assert all(p.grad is None for p in set(module.parameters()) - pi_params)
 
