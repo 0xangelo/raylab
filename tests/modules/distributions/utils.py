@@ -1,4 +1,5 @@
 # pylint:disable=missing-docstring
+import torch
 
 
 def _test_dist_ops(dist, params, batch_shape, event_shape, sample_shape):
@@ -8,6 +9,9 @@ def _test_dist_ops(dist, params, batch_shape, event_shape, sample_shape):
     rsample, _ = dist.rsample(params, sample_shape)
     if rsample is not None:
         assert rsample.shape == sample_shape + batch_shape + event_shape
+        rsample_ = dist.reproduce(params, rsample.requires_grad_())
+        if rsample_ is not None:
+            assert torch.allclose(rsample_, rsample)
 
     log_prob = dist.log_prob(params, sample)
     assert log_prob.shape == sample_shape + batch_shape

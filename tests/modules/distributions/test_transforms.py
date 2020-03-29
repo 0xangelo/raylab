@@ -78,7 +78,7 @@ def test_transforms(dist_params, transform, sample_shape):
     assert log_det.shape == sample_shape
     decoded, log_det = transform(encoded, reverse=True)
     assert log_det.shape == sample_shape
-    assert torch.allclose(decoded, rsample)
+    assert torch.allclose(decoded, rsample, atol=1e-7)
 
 
 def test_inv_transforms(inv_transform):

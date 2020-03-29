@@ -58,6 +58,10 @@ class DistributionModule(nn.Module):
             return entropy.exp()
         return None
 
+    @torch.jit.export
+    def reproduce(self, params: Dict[str, torch.Tensor], value):
+        """Produce a reparametrized sample with the same value as `value`."""
+
 
 class Independent(DistributionModule):
     """Reinterprets some of the batch dims of a distribution as event dims."""
@@ -107,6 +111,11 @@ class Independent(DistributionModule):
         base_entropy = self.base_dist.entropy(params)
         return _sum_rightmost(base_entropy, self.reinterpreted_batch_ndims)
 
+    @override(DistributionModule)
+    @torch.jit.export
+    def reproduce(self, params: Dict[str, torch.Tensor], value):
+        return self.base_dist.reproduce(params, value)
+
 
 class TransformedDistribution(DistributionModule):
     """
@@ -145,3 +154,13 @@ class TransformedDistribution(DistributionModule):
         latent, log_abs_det_jacobian = self.transform(value, reverse=True)
         base_log_prob = self.base_dist.log_prob(params, latent)
         return base_log_prob + log_abs_det_jacobian
+
+    @override(DistributionModule)
+    @torch.jit.export
+    def reproduce(self, params: Dict[str, torch.Tensor], value):
+        latent, _ = self.transform(value, reverse=True)
+        latent_ = self.base_dist.reproduce(params, latent)
+        if latent_ is not None:
+            value_, _ = self.transform(latent_)
+            return value_
+        return None

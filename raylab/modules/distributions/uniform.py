@@ -56,6 +56,13 @@ class Uniform(DistributionModule):
         low, high = self._unpack_params(params)
         return torch.log(high - low)
 
+    @override(DistributionModule)
+    @torch.jit.export
+    def reproduce(self, params: Dict[str, torch.Tensor], value):
+        low, high = self._unpack_params(params)
+        rand = (value - low) / (high - low)
+        return low + rand.detach() * (high - low)
+
     def _unpack_params(self, params: Dict[str, torch.Tensor]):
         # pylint:disable=no-self-use
         return params["low"], params["high"]

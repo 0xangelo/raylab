@@ -56,6 +56,13 @@ class Normal(DistributionModule):
         _, scale = self._unpack_params(params)
         return 0.5 + 0.5 * math.log(2 * math.pi) + torch.log(scale)
 
+    @override(DistributionModule)
+    @torch.jit.export
+    def reproduce(self, params: Dict[str, torch.Tensor], value):
+        loc, scale = self._unpack_params(params)
+        eps = (value - loc) / scale
+        return loc + scale * eps.detach()
+
     def _unpack_params(self, params: Dict[str, torch.Tensor]):
         # pylint:disable=no-self-use
         return params["loc"], params["scale"]
