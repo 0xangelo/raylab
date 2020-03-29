@@ -163,4 +163,4 @@ class TransformedDistribution(DistributionModule):
         if latent_ is not None:
             value_, _ = self.transform(latent_)
             return value_
-        return None
+        return value

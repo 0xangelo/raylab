@@ -10,9 +10,9 @@ class ReproduceRollout(nn.Module):
     given a trajectory.
     """
 
-    def __init__(self, policy_reproduce, model_reproduce, reward_fn):
+    def __init__(self, policy, model_reproduce, reward_fn):
         super().__init__()
-        self.policy_reproduce = policy_reproduce
+        self.policy = policy
         self.model_reproduce = model_reproduce
         self.reward_fn = reward_fn
 
@@ -20,7 +20,7 @@ class ReproduceRollout(nn.Module):
     def forward(self, acts, next_obs, init_ob):  # pylint: disable=arguments-differ
         reward_seq = []
         for act, next_ob in zip(acts, next_obs):
-            _act = self.policy_reproduce(init_ob, act)
+            _act = self.policy.reproduce(init_ob, act)
             _next_ob = self.model_reproduce(init_ob, _act, next_ob)
             reward_seq.append(self.reward_fn(init_ob, _act, _next_ob))
             init_ob = _next_ob
