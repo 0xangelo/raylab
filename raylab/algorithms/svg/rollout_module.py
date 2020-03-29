@@ -10,10 +10,10 @@ class ReproduceRollout(nn.Module):
     given a trajectory.
     """
 
-    def __init__(self, policy, model_reproduce, reward_fn):
+    def __init__(self, policy, model, reward_fn):
         super().__init__()
         self.policy = policy
-        self.model_reproduce = model_reproduce
+        self.model = model
         self.reward_fn = reward_fn
 
     @override(nn.Module)
@@ -21,7 +21,7 @@ class ReproduceRollout(nn.Module):
         reward_seq = []
         for act, next_ob in zip(acts, next_obs):
             _act = self.policy.reproduce(init_ob, act)
-            _next_ob = self.model_reproduce(init_ob, _act, next_ob)
+            _next_ob = self.model.reproduce(init_ob, _act, next_ob)
             reward_seq.append(self.reward_fn(init_ob, _act, _next_ob))
             init_ob = _next_ob
         return torch.stack(reward_seq), init_ob

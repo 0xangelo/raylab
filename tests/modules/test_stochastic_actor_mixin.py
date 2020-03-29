@@ -55,12 +55,12 @@ def test_actor_params(module_batch_fn, input_dependent_scale):
     assert "loc" in params
     assert "scale" in params
 
-    loc, scale_diag = params.values()
+    loc, scale = params.values()
     action = batch[SampleBatch.ACTIONS]
     assert loc.shape == action.shape
-    assert scale_diag.shape == action.shape
+    assert scale.shape == action.shape
     assert loc.dtype == torch.float32
-    assert scale_diag.dtype == torch.float32
+    assert scale.dtype == torch.float32
 
     pi_params = set(module.actor.parameters())
     for par in pi_params:

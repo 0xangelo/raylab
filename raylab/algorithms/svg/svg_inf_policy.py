@@ -73,7 +73,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
             torch_script=torch_script,
         )
         reward_fn = torch.jit.script(reward_fn) if torch_script else reward_fn
-        rollout = ReproduceRollout(module.actor, module.model.reproduce, reward_fn)
+        rollout = ReproduceRollout(module.actor, module.model, reward_fn)
         self.reward = reward_fn
         self.rollout = torch.jit.script(rollout) if torch_script else rollout
 

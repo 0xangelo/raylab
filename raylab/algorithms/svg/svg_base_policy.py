@@ -89,7 +89,7 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy)
         return loss, {"mle_loss": mle_loss.item(), "value_loss": value_loss.item()}
 
     def _avg_model_logp(self, batch_tensors):
-        return self.module.model.logp(
+        return self.module.model.log_prob(
             batch_tensors[SampleBatch.CUR_OBS],
             batch_tensors[SampleBatch.ACTIONS],
             batch_tensors[SampleBatch.NEXT_OBS],

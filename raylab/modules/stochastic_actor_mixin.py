@@ -73,7 +73,7 @@ class StochasticPolicy(nn.Module):
         pair.
         """
         params = self(obs)
-        return self.dist.rsample(params, sample_shape)
+        return self.dist.sample(params, sample_shape)
 
     @torch.jit.export
     def rsample(self, obs, sample_shape: List[int] = ()):
@@ -86,22 +86,22 @@ class StochasticPolicy(nn.Module):
         return self.dist.rsample(params, sample_shape)
 
     @torch.jit.export
-    def log_prob(self, obs, value):
+    def log_prob(self, obs, action):
         """
-        Returns the log of the probability density/mass function evaluated at `value`.
+        Returns the log of the probability density/mass function evaluated at `action`.
         """
         params = self(obs)
-        return self.dist.log_prob(params, value)
+        return self.dist.log_prob(params, action)
 
     @torch.jit.export
-    def cdf(self, obs, value):
-        """Returns the cumulative density/mass function evaluated at `value`."""
+    def cdf(self, obs, action):
+        """Returns the cumulative density/mass function evaluated at `action`."""
         params = self(obs)
-        return self.dist.cdf(params, value)
+        return self.dist.cdf(params, action)
 
     @torch.jit.export
     def icdf(self, obs, prob):
-        """Returns the inverse cumulative density/mass function evaluated at `value`."""
+        """Returns the inverse cumulative density/mass function evaluated at `prob`."""
         params = self(obs)
         return self.dist.icdf(params, prob)
 
@@ -118,7 +118,7 @@ class StochasticPolicy(nn.Module):
         return self.dist.perplexity(params)
 
     @torch.jit.export
-    def reproduce(self, obs, value):
-        """Produce a reparametrized sample with the same value as `value`."""
+    def reproduce(self, obs, action):
+        """Produce a reparametrized sample with the same value as `action`."""
         params = self(obs)
-        return self.dist.reproduce(params, value)
+        return self.dist.reproduce(params, action)
