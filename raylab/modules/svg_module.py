@@ -4,7 +4,7 @@ import torch.nn as nn
 from ray.rllib.utils import merge_dicts
 from ray.rllib.utils.annotations import override
 
-from .basic import DiagMultivariateNormalParams, StateActionEncoder
+from .basic import NormalParams, StateActionEncoder
 from .model_actor_critic import AbstractModelActorCritic
 from .stochastic_model_mixin import StochasticModelMixin, GaussianDynamicsParams
 from .stochastic_actor_mixin import StochasticActorMixin
@@ -88,15 +88,15 @@ class SVGDynamicsParams(nn.Module):
 
         self.logits = nn.ModuleList([make_encoder() for _ in range(obs_space.shape[0])])
 
-        def make_dist(in_features):
+        def make_param(in_features):
             kwargs = dict(event_dim=1, input_dependent_scale=False)
-            return DiagMultivariateNormalParams(in_features, **kwargs)
+            return NormalParams(in_features, **kwargs)
 
-        self.params = nn.ModuleList([make_dist(l.out_features) for l in self.logits])
+        self.params = nn.ModuleList([make_param(l.out_features) for l in self.logits])
 
     @override(nn.Module)
     def forward(self, obs, act):  # pylint: disable=arguments-differ
         params = [p(l(obs, act)) for p, l in zip(self.params, self.logits)]
         loc = torch.cat([d["loc"] for d in params], dim=-1)
-        scale_diag = torch.cat([d["scale_diag"] for d in params], dim=-1)
-        return {"loc": loc, "scale_diag": scale_diag}
+        scale = torch.cat([d["scale"] for d in params], dim=-1)
+        return {"loc": loc, "scale": scale}

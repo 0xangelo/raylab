@@ -67,7 +67,7 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy)
         return batch_tensors, {"avg_is_ratio": is_ratios.mean().item()}
 
     def _compute_is_ratios(self, batch_tensors):
-        curr_logp = self.module.actor.logp(
+        curr_logp = self.module.actor.log_prob(
             batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
         )
         is_ratio = torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP])
@@ -89,7 +89,7 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy)
         return loss, {"mle_loss": mle_loss.item(), "value_loss": value_loss.item()}
 
     def _avg_model_logp(self, batch_tensors):
-        return self.module.model.logp(
+        return self.module.model.log_prob(
             batch_tensors[SampleBatch.CUR_OBS],
             batch_tensors[SampleBatch.ACTIONS],
             batch_tensors[SampleBatch.NEXT_OBS],
