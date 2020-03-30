@@ -6,9 +6,9 @@ import torch
 from raylab.utils.pytorch import flat_grad
 
 
-def fisher_vec_prod(vec, obs, policy, damping=1e-3):
+def fisher_vec_prod(vec, obs, action, policy, damping=1e-3):
     """Approximately compute the fisher-vector-product using samples."""
-    cur_logp = policy.logp(obs)
+    cur_logp = policy.log_prob(obs, action)
     avg_kl = torch.mean(cur_logp - cur_logp.detach())
     grad = flat_grad(avg_kl, policy.parameters(), create_graph=True)
     fvp = flat_grad(grad.dot(vec), policy.parameters()).detach()

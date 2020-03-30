@@ -1,14 +1,16 @@
 """TRPO policy implemented in PyTorch."""
+import numpy as np
 import torch
-import torch.nn as nn
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from ray.rllib.evaluation.postprocessing import Postprocessing, compute_advantages
+from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
-from ray.rllib.utils.explained_variance import explained_variance
 from ray.rllib.utils.annotations import override
 
-from raylab.policy import TorchPolicy
 import raylab.utils.pytorch as torch_util
+from raylab.policy import TorchPolicy
+from raylab.modules.catalog import get_module
+
 from . import hf_util
 
 
@@ -29,14 +31,16 @@ class TRPOTorchPolicy(TorchPolicy):
 
     @override(TorchPolicy)
     def make_module(self, obs_space, action_space, config):
-        module = nn.ModuleDict()
-
-        return module
+        module_config = config["module"]
+        module = get_module(
+            module_config["name"], obs_space, action_space, module_config
+        )
+        return torch.jit.script(module) if module_config["torch_script"] else module
 
     @override(TorchPolicy)
     def optimizer(self):
         return torch.optim.Adam(
-            self.module.value.parameters(), lr=self.config["val_lr"]
+            self.module.critic.parameters(), lr=self.config["val_lr"]
         )
 
     @torch.no_grad()
@@ -53,11 +57,12 @@ class TRPOTorchPolicy(TorchPolicy):
     ):
         # pylint: disable=too-many-arguments,unused-argument
         obs_batch = self.convert_to_tensor(obs_batch)
-        actions, logp = self.module.sampler(obs_batch)
+        actions, logp = self.module.actor.sample(obs_batch)
 
         extra_fetches = {self.ACTION_LOGP: logp.cpu().numpy()}
         return actions.cpu().numpy(), state_batches, extra_fetches
 
+    @torch.no_grad()
     @override(TorchPolicy)
     def postprocess_trajectory(
         self, sample_batch, other_agent_batches=None, episode=None
@@ -66,10 +71,13 @@ class TRPOTorchPolicy(TorchPolicy):
             sample_batch, other_agent_batches=other_agent_batches, episode=episode
         )
 
-        last_r = self.module.value(sample_batch[SampleBatch.NEXT_OBS][-1]).numpy()
-        sample_batch[SampleBatch.VF_PREDS] = self.module.value(
-            sample_batch[SampleBatch.CUR_OBS]
-        ).numpy()
+        last_obs = self.convert_to_tensor(sample_batch[SampleBatch.NEXT_OBS][-1])
+        last_r = self.module.critic(last_obs).squeeze(-1).numpy()
+
+        cur_obs = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
+        sample_batch[SampleBatch.VF_PREDS] = (
+            self.module.critic(cur_obs).squeeze(-1).numpy()
+        )
         sample_batch = compute_advantages(
             sample_batch,
             last_r,
@@ -84,16 +92,21 @@ class TRPOTorchPolicy(TorchPolicy):
         batch_tensors = self._lazy_tensor_dict(samples)
         info = {}
 
-        cur_logp = self.module.policy.logp(batch_tensors[SampleBatch.CUR_OBS])
+        cur_logp = self.module.actor.log_prob(
+            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
+        )
         surr_loss = -(
             (cur_logp - batch_tensors[self.ACTION_LOGP]).exp()
             * batch_tensors[Postprocessing.ADVANTAGES]
         ).mean()
-        pol_grad = torch_util.flat_grad(surr_loss, self.module.policy.parameters())
+        pol_grad = torch_util.flat_grad(surr_loss, self.module.actor.parameters())
 
         def fvp(vec):
             return hf_util.fisher_vec_prod(
-                vec, batch_tensors[SampleBatch.CUR_OBS], self.module.policy
+                vec,
+                batch_tensors[SampleBatch.CUR_OBS],
+                batch_tensors[SampleBatch.ACTIONS],
+                self.module.actor,
             )
 
         descent_direction = hf_util.conjugate_gradient(fvp, pol_grad)
@@ -109,32 +122,36 @@ class TRPOTorchPolicy(TorchPolicy):
             info.update(line_search_info)
         else:
             new_params = (
-                parameters_to_vector(self.module.policy.parameters()) - descent_step
+                parameters_to_vector(self.module.actor.parameters()) - descent_step
             )
 
-        vector_to_parameters(new_params, self.module.policy.parameters())
+        vector_to_parameters(new_params, self.module.actor.parameters())
 
         info.update(self._fit_value_funtion(batch_tensors))
 
         with torch.no_grad():
             info["kl_divergence"] = torch.mean(
                 batch_tensors[self.ACTION_LOGP]
-                - self.module.policy.logp(batch_tensors[SampleBatch.CUR_OBS])
+                - self.module.actor.log_prob(
+                    batch_tensors[SampleBatch.CUR_OBS],
+                    batch_tensors[SampleBatch.ACTIONS],
+                )
             )
         info["explained_variance"] = explained_variance(
-            batch_tensors[Postprocessing.VALUE_TARGETS],
-            batch_tensors[SampleBatch.VF_PREDS],
-            framework="torch",
+            batch_tensors[Postprocessing.VALUE_TARGETS].numpy(),
+            batch_tensors[SampleBatch.VF_PREDS].numpy(),
         )
-        return info
+        return {LEARNER_STATS_KEY: info}
 
     def _perform_line_search(self, pol_grad, descent_step, surr_loss, batch_tensors):
         expected_improvement = pol_grad.dot(descent_step).item()
 
         @torch.no_grad()
         def f_barrier(params):
-            vector_to_parameters(params, self.module.policy.parameters())
-            new_logp = self.module.policy.logp(batch_tensors[SampleBatch.CUR_OBS])
+            vector_to_parameters(params, self.module.actor.parameters())
+            new_logp = self.module.actor.log_prob(
+                batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
+            )
             surr_loss = -(
                 (new_logp - batch_tensors[self.ACTION_LOGP]).exp()
                 * batch_tensors[Postprocessing.ADVANTAGES]
@@ -144,7 +161,7 @@ class TRPOTorchPolicy(TorchPolicy):
 
         new_params, expected_improvement, improvement = hf_util.line_search(
             f_barrier,
-            parameters_to_vector(self.module.policy.parameters()),
+            parameters_to_vector(self.module.actor.parameters()),
             descent_step,
             expected_improvement,
             y_0=surr_loss.item(),
@@ -161,8 +178,17 @@ class TRPOTorchPolicy(TorchPolicy):
         for _ in range(self.config["val_iters"]):
             self._optimizer.zero_grad()
             loss = mse(
-                self.module.value(batch_tensors[SampleBatch.CUR_OBS]),
+                self.module.critic(batch_tensors[SampleBatch.CUR_OBS]).squeeze(-1),
                 batch_tensors[Postprocessing.VALUE_TARGETS],
-            ).backward()
+            )
+            loss.backward()
             self._optimizer.step()
         return {"vf_loss": loss.item()}
+
+
+def explained_variance(targets, pred):
+    """Compute the explained variance given targets and predictions."""
+    # pylint:disable=invalid-name
+    targets_var = np.var(targets, axis=0)
+    diff_var = np.var(targets - pred, axis=0)
+    return np.maximum(-1.0, 1.0 - (diff_var / targets_var))

@@ -7,17 +7,40 @@ from .trpo_policy import TRPOTorchPolicy
 
 DEFAULT_CONFIG = with_common_config(
     {
-        # # Fraction of samples to use for KL computation
-        # "kl_frac": 1.0,
         # Trust region constraint
         "delta": 0.01,
+        # For GAE(\gamma, \lambda)
+        "lambda": 0.97,
         # Number of iterations to fit value function
         "val_iters": 80,
+        # Learning rate for critic optimizer
+        "val_lr": 1e-3,
         # Whether to use Generalized Advantage Estimation
         "use_gae": True,
         # Whether to use a line search to calculate policy update.
         # Effectively turns TRPO into Natural PG when turned off.
         "line_search": True,
+        # === Network ===
+        # Size and activation of the fully connected networks computing the logits
+        # for the policy and value function. No layers means the component is
+        # linear in states or actions.
+        "module": {
+            "name": "TRPOModule",
+            "torch_script": True,
+            "mean_action_only": False,
+            "actor": {
+                "units": (32, 32),
+                "activation": "Tanh",
+                "initializer_options": {"name": "xavier_uniform"},
+                "input_dependent_scale": False,
+            },
+            "critic": {
+                "units": (32, 32),
+                "activation": "Tanh",
+                "initializer_options": {"name": "xavier_uniform"},
+                "target_vf": False,
+            },
+        },
     }
 )
 
@@ -44,6 +67,9 @@ class TRPOTrainer(Trainer):
     @override(Trainer)
     def _train(self):
         while not self._iteration_done():
-            fetches = self.optimizer.step()
+            _ = self.optimizer.step()
 
-        return self._log_metrics(fetches)
+        res = self.collect_metrics()
+        timesteps = self.optimizer.num_steps_sampled - self.global_vars["timestep"]
+        res.update(timesteps_this_iter=timesteps, info=res.get("info", {}))
+        return res
