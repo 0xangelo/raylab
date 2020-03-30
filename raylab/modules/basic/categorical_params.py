@@ -19,4 +19,4 @@ class CategoricalParams(nn.Module):
     @override(nn.Module)
     def forward(self, inputs):  # pylint: disable=arguments-differ
         logits = self.logits_module(inputs)
-        return {"logits": logits}
+        return {"logits": logits - logits.logsumexp(dim=-1, keepdim=True)}

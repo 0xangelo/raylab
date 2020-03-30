@@ -6,12 +6,23 @@ import torch
 from raylab.utils.pytorch import flat_grad
 
 
-def fisher_vec_prod(vec, obs, action, policy, damping=1e-3):
-    """Approximately compute the fisher-vector-product using samples."""
-    cur_logp = policy.log_prob(obs, action)
-    avg_kl = torch.mean(cur_logp - cur_logp.detach())
-    grad = flat_grad(avg_kl, policy.parameters(), create_graph=True)
-    fvp = flat_grad(grad.dot(vec), policy.parameters()).detach()
+def fisher_vec_prod(vec, obs, policy, n_samples=1, damping=1e-3):
+    """Approximately compute the fisher-vector-product using samples.
+
+    This is based on the Fisher Matrix formulation as the expected hessian
+    of the negative log likelihood. For more information, see:
+    https://en.wikipedia.org/wiki/Fisher_information#Matrix_form
+
+    Args:
+        vec (Tensor): The vector to compute the Fisher vector product with.
+        obs (Tensor): The observations to evaluate the policy in.
+        policy (nn.Module): The policy
+        n_samples (int): The number of actions to sample for each state.
+        damping (float): Regularization to prevent the Fisher from becoming singular.
+    """
+    _, cur_logp = policy.sample(obs, sample_shape=(n_samples,))
+    grad = flat_grad(cur_logp.mean(0).mean(), policy.parameters(), create_graph=True)
+    fvp = -flat_grad(grad.dot(vec), policy.parameters()).detach()
     return fvp + vec * damping
 
 

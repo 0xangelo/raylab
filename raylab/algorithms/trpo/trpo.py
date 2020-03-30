@@ -9,6 +9,8 @@ DEFAULT_CONFIG = with_common_config(
     {
         # Trust region constraint
         "delta": 0.01,
+        # Number of actions to sample per state for Fisher vector product approximation
+        "fvp_samples": 10,
         # For GAE(\gamma, \lambda)
         "lambda": 0.97,
         # Number of iterations to fit value function

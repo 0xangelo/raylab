@@ -92,29 +92,24 @@ class TRPOTorchPolicy(TorchPolicy):
         batch_tensors = self._lazy_tensor_dict(samples)
         info = {}
 
-        cur_logp = self.module.actor.log_prob(
-            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
+        cur_obs, actions, old_logp, advantages = _get_keys(
+            batch_tensors,
+            SampleBatch.CUR_OBS,
+            SampleBatch.ACTIONS,
+            self.ACTION_LOGP,
+            Postprocessing.ADVANTAGES,
         )
-        surr_loss = -(
-            (cur_logp - batch_tensors[self.ACTION_LOGP]).exp()
-            * batch_tensors[Postprocessing.ADVANTAGES]
-        ).mean()
+
+        surr_loss = self._compute_surr_loss(
+            old_logp, self.module.actor.log_prob(cur_obs, actions), advantages
+        )
         pol_grad = torch_util.flat_grad(surr_loss, self.module.actor.parameters())
+        info["pg_norm"] = pol_grad.norm().item()
 
-        def fvp(vec):
-            return hf_util.fisher_vec_prod(
-                vec,
-                batch_tensors[SampleBatch.CUR_OBS],
-                batch_tensors[SampleBatch.ACTIONS],
-                self.module.actor,
-            )
-
-        descent_direction = hf_util.conjugate_gradient(fvp, pol_grad)
-        scale = torch.sqrt(
-            2 * self.config["delta"] / (pol_grad.dot(descent_direction) + 1e-8)
+        descent_step = self._compute_descent_step(
+            pol_grad, cur_obs, self.module.actor, self.config
         )
-        descent_step = descent_direction * scale
-
+        info["natural_pg_norm"] = descent_step.norm().item()
         if self.config["line_search"]:
             new_params, line_search_info = self._perform_line_search(
                 pol_grad, descent_step, surr_loss, batch_tensors
@@ -124,39 +119,47 @@ class TRPOTorchPolicy(TorchPolicy):
             new_params = (
                 parameters_to_vector(self.module.actor.parameters()) - descent_step
             )
-
         vector_to_parameters(new_params, self.module.actor.parameters())
 
         info.update(self._fit_value_funtion(batch_tensors))
-
         with torch.no_grad():
             info["kl_divergence"] = torch.mean(
-                batch_tensors[self.ACTION_LOGP]
-                - self.module.actor.log_prob(
-                    batch_tensors[SampleBatch.CUR_OBS],
-                    batch_tensors[SampleBatch.ACTIONS],
-                )
-            )
-        info["explained_variance"] = explained_variance(
-            batch_tensors[Postprocessing.VALUE_TARGETS].numpy(),
-            batch_tensors[SampleBatch.VF_PREDS].numpy(),
-        )
+                old_logp - self.module.actor.log_prob(cur_obs, actions)
+            ).item()
+            info["entropy"] = torch.mean(-old_logp).item()
+            info["perplexity"] = torch.mean(-old_logp).exp().item()
         return {LEARNER_STATS_KEY: info}
+
+    @staticmethod
+    def _compute_descent_step(pol_grad, cur_obs, actor, config):
+        def fvp(vec):
+            return hf_util.fisher_vec_prod(
+                vec, cur_obs, actor, n_samples=config["fvp_samples"],
+            )
+
+        descent_direction = hf_util.conjugate_gradient(fvp, pol_grad)
+        scale = torch.sqrt(
+            2 * config["delta"] / (pol_grad.dot(descent_direction) + 1e-8)
+        )
+        return descent_direction * scale
 
     def _perform_line_search(self, pol_grad, descent_step, surr_loss, batch_tensors):
         expected_improvement = pol_grad.dot(descent_step).item()
 
+        cur_obs, actions, old_logp, advantages = _get_keys(
+            batch_tensors,
+            SampleBatch.CUR_OBS,
+            SampleBatch.ACTIONS,
+            self.ACTION_LOGP,
+            Postprocessing.ADVANTAGES,
+        )
+
         @torch.no_grad()
         def f_barrier(params):
             vector_to_parameters(params, self.module.actor.parameters())
-            new_logp = self.module.actor.log_prob(
-                batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
-            )
-            surr_loss = -(
-                (new_logp - batch_tensors[self.ACTION_LOGP]).exp()
-                * batch_tensors[Postprocessing.ADVANTAGES]
-            ).mean()
-            avg_kl = torch.mean(batch_tensors[self.ACTION_LOGP] - new_logp)
+            new_logp = self.module.actor.log_prob(cur_obs, actions)
+            surr_loss = self._compute_surr_loss(old_logp, new_logp, advantages)
+            avg_kl = torch.mean(old_logp - new_logp)
             return surr_loss.item() if avg_kl < self.config["delta"] else float("inf")
 
         new_params, expected_improvement, improvement = hf_util.line_search(
@@ -168,22 +171,37 @@ class TRPOTorchPolicy(TorchPolicy):
         )
         info = {
             "expected_improvement": expected_improvement,
-            "actual_improment": improvement,
+            "actual_improvement": improvement,
             "improvement_ratio": improvement / expected_improvement,
         }
         return new_params, info
 
+    @staticmethod
+    def _compute_surr_loss(old_logp, new_logp, advantages):
+        return -torch.mean(torch.exp(new_logp - old_logp) * advantages)
+
     def _fit_value_funtion(self, batch_tensors):
+        info = {}
         mse = torch.nn.MSELoss()
+
+        cur_obs, value_targets, value_preds = _get_keys(
+            batch_tensors,
+            SampleBatch.CUR_OBS,
+            Postprocessing.VALUE_TARGETS,
+            SampleBatch.VF_PREDS,
+        )
+
         for _ in range(self.config["val_iters"]):
             self._optimizer.zero_grad()
-            loss = mse(
-                self.module.critic(batch_tensors[SampleBatch.CUR_OBS]).squeeze(-1),
-                batch_tensors[Postprocessing.VALUE_TARGETS],
-            )
+            loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
             loss.backward()
             self._optimizer.step()
-        return {"vf_loss": loss.item()}
+
+        info["vf_loss"] = loss.item()
+        info["explained_variance"] = explained_variance(
+            value_targets.numpy(), value_preds.numpy()
+        )
+        return info
 
 
 def explained_variance(targets, pred):
@@ -192,3 +210,7 @@ def explained_variance(targets, pred):
     targets_var = np.var(targets, axis=0)
     diff_var = np.var(targets - pred, axis=0)
     return np.maximum(-1.0, 1.0 - (diff_var / targets_var))
+
+
+def _get_keys(mapping, *keys):
+    return (mapping[k] for k in keys)
