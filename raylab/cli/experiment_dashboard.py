@@ -15,8 +15,8 @@ _NUMERIC_KINDS = set("uifc")
 
 
 @st.cache
-def load_data(directories):
-    return exp_util.load_exps_data(directories)
+def load_data(directories, include_errors=False):
+    return exp_util.load_exps_data(directories, include_errors=include_errors)
 
 
 @st.cache
@@ -138,9 +138,10 @@ def main():
     folders = st.sidebar.multiselect(
         "Filter experiments:", root_exp_folders, default=root_exp_folders
     )
+    include_errors = st.sidebar.checkbox("Include experiments with errors")
 
     if folders:
-        exps_data = load_data(tuple(folders))
+        exps_data = load_data(tuple(folders), include_errors=include_errors)
         selector = exp_util.Selector(exps_data)
         distinct_params = dict(sorted(exp_util.extract_distinct_params(exps_data)))
 

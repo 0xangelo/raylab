@@ -108,8 +108,14 @@ def read_exp_folder_data(exp_folders, isprogress, isconfig, verbose=False):
 
 
 def load_exps_data(
-    directories, progress_prefix="progress", config_prefix="params", verbose=False
+    directories,
+    progress_prefix="progress",
+    config_prefix="params",
+    error_prefix="error",
+    include_errors=False,
+    verbose=False,
 ):
+    # pylint:disable=too-many-arguments
     if isinstance(directories, str):
         directories = [directories]
 
@@ -120,6 +126,12 @@ def load_exps_data(
         return file.startswith(config_prefix) and file.endswith(".json")
 
     exp_folders = get_folders_with_target_files(directories, isprogress)
+    if not include_errors:
+        exp_folders = [
+            d
+            for d in exp_folders
+            if not any(f.startswith(error_prefix) for f in d.files)
+        ]
     if verbose:
         print("finished walking exp folders")
 
