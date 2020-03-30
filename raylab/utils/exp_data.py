@@ -95,6 +95,8 @@ def read_exp_folder_data(exp_folders, isprogress, isconfig, verbose=False):
                 if params_file is not None
                 else dict(exp_name="experiment")
             )
+            if "experiment_tag" in progress:
+                params["id"] = progress["experiment_tag"][0]
             exps_data.append(
                 ExperimentData(
                     progress=progress, params=params, flat_params=flatten_dict(params)
