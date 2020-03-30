@@ -104,6 +104,8 @@ def time_series(x_key, y_key, groups, labels):
     p.xaxis.axis_label = x_key
     p.yaxis.axis_label = y_key
     palette = bokeh.palettes.cividis(len(labels))
+
+    individual = st.checkbox("Show individual curves")
     for idx, (label, group) in enumerate(zip(labels, groups)):
         data = group.extract()
         all_xs = np.unique(
@@ -115,19 +117,25 @@ def time_series(x_key, y_key, groups, labels):
             )
             for d in data
         ]
-        mean_ys = np.nanmean(progresses, axis=0)
-        std_ys = np.nanstd(progresses, axis=0)
-        lower = mean_ys - std_ys
-        upper = mean_ys + std_ys
-        p.line(all_xs, mean_ys, legend_label=label, color=palette[idx])
-        p.varea(
-            all_xs,
-            y1=lower,
-            y2=upper,
-            fill_alpha=0.25,
-            legend_label=label,
-            color=palette[idx],
-        )
+
+        if individual:
+            for progress in progresses:
+                p.line(all_xs, progress, legend_label=label, color=palette[idx])
+        else:
+            mean_ys = np.nanmean(progresses, axis=0)
+            std_ys = np.nanstd(progresses, axis=0)
+            lower = mean_ys - std_ys
+            upper = mean_ys + std_ys
+            p.line(all_xs, mean_ys, legend_label=label, color=palette[idx])
+            p.varea(
+                all_xs,
+                y1=lower,
+                y2=upper,
+                fill_alpha=0.25,
+                legend_label=label,
+                color=palette[idx],
+            )
+
         p.legend.location = "bottom_left"
         p.legend.click_policy = "hide"
     return p
