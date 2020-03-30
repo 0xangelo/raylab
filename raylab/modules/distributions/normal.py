@@ -23,12 +23,21 @@ class Normal(DistributionModule):
 
     @override(DistributionModule)
     @torch.jit.export
+    def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
+        out = self._gen_sample(params, sample_shape).detach()
+        return out, self.log_prob(params, out)
+
+    @override(DistributionModule)
+    @torch.jit.export
     def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
+        out = self._gen_sample(params, sample_shape)
+        return out, self.log_prob(params, out)
+
+    def _gen_sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int]):
         loc, scale = self._unpack_params(params)
         shape = sample_shape + loc.shape
         eps = torch.randn(shape, dtype=loc.dtype, device=loc.device)
-        out = loc + eps * scale
-        return out, self.log_prob(params, out)
+        return loc + eps * scale
 
     @override(DistributionModule)
     @torch.jit.export

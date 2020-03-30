@@ -100,9 +100,7 @@ class TRPOTorchPolicy(TorchPolicy):
             Postprocessing.ADVANTAGES,
         )
 
-        surr_loss = self._compute_surr_loss(
-            old_logp, self.module.actor.log_prob(cur_obs, actions), advantages
-        )
+        surr_loss = -(self.module.actor.log_prob(cur_obs, actions) * advantages).mean()
         pol_grad = torch_util.flat_grad(surr_loss, self.module.actor.parameters())
         info["pg_norm"] = pol_grad.norm().item()
 
