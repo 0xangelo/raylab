@@ -1,5 +1,6 @@
 """Basic building blocks for other modules."""
 from .action_output import ActionOutput
+from .categorical_params import CategoricalParams
 from .diag_multivariate_normal_params import DiagMultivariateNormalParams
 from .dist_ops import DistRSample, DistMean, DistLogProb, DistReproduce
 from .expand_vector import ExpandVector
@@ -15,6 +16,7 @@ from .tril_matrix import TrilMatrix
 
 __all__ = [
     "ActionOutput",
+    "CategoricalParams",
     "DiagMultivariateNormalParams",
     "DistRSample",
     "DistMean",
