@@ -6,6 +6,7 @@ from bokeh.plotting import figure
 from raylab.utils import exp_data as exp_util
 
 # pylint:disable=invalid-name,missing-docstring,pointless-string-statement
+# pylint:disable=no-value-for-parameter
 """
 # Raylab
 """
@@ -58,9 +59,10 @@ def is_increasing_key(key, exps_data):
 
 def is_increasing(arr):
     arr = np.asarray(arr)
+    arr = arr[~np.isnan(arr)]
     return (
         is_numeric(arr)
-        and np.all(arr[1:] - arr[:-1] >= 0)
+        and np.all(np.less_equal(arr[:-1], arr[1:]))
         and np.max(arr) >= np.min(arr)
     )
 
@@ -97,6 +99,7 @@ def dict_value_multiselect(mapping, name=None):
 
 
 def time_series(x_key, y_key, groups, labels):
+    # pylint:disable=too-many-locals,too-many-function-args
     p = figure(title="Plot")
     p.xaxis.axis_label = x_key
     p.yaxis.axis_label = y_key
@@ -131,6 +134,7 @@ def time_series(x_key, y_key, groups, labels):
 
 
 def main():
+    # pylint:disable=too-many-locals
     import sys
 
     directories = tuple(sys.argv[1:])
