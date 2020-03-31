@@ -12,9 +12,6 @@ from raylab.utils import exp_data as exp_util
 """
 
 
-_NUMERIC_KINDS = set("uifc")
-
-
 @st.cache
 def load_data(directories, include_errors=False):
     return exp_util.load_exps_data(directories, include_errors=include_errors)
@@ -27,61 +24,6 @@ def get_exp_root_folders(directories):
 
 def is_experiment_root(path):
     return path.startswith("experiment_state") and path.endswith(".json")
-
-
-def is_numeric(array):
-    """Determine whether the argument has a numeric datatype, when
-    converted to a NumPy array.
-
-    Booleans, unsigned integers, signed integers, floats and complex
-    numbers are the kinds of numeric datatype.
-
-    Parameters
-    ----------
-    array : array-like
-        The array to check.
-
-    Returns
-    -------
-    is_numeric : `bool`
-        True if the array has a numeric datatype, False if not.
-
-    """
-    return np.asarray(array).dtype.kind in _NUMERIC_KINDS
-
-
-def is_increasing_key(key, exps_data):
-    for exp in exps_data:
-        if key in exp.progress and not is_increasing(exp.progress[key]):
-            return False
-    return True
-
-
-def is_increasing(arr):
-    arr = np.asarray(arr)
-    arr = arr[~np.isnan(arr)]
-    return (
-        is_numeric(arr)
-        and np.all(np.less_equal(arr[:-1], arr[1:]))
-        and np.max(arr) >= np.min(arr)
-    )
-
-
-def get_plottable_keys(exps_data):
-    return sorted(
-        list(
-            set(
-                col
-                for exp in exps_data
-                for col in exp.progress.columns.to_list()
-                if is_numeric(exp.progress[col])
-            )
-        )
-    )
-
-
-def get_x_plottable_keys(plottable_keys, exps_data):
-    return [key for key in plottable_keys if is_increasing_key(key, exps_data)]
 
 
 def dict_value_multiselect(mapping, name=None):
@@ -106,36 +48,30 @@ def time_series(x_key, y_key, groups, labels):
     palette = bokeh.palettes.cividis(len(labels))
 
     individual = st.checkbox("Show individual curves")
+    print(labels)
     for idx, (label, group) in enumerate(zip(labels, groups)):
         data = group.extract()
-        all_xs = np.unique(
-            np.sort(np.concatenate([d.progress.get(x_key, []) for d in data]))
+        progresses = [d.progress for d in data]
+        x_all = np.unique(
+            np.sort(np.concatenate([p.get(x_key, []) for p in progresses]))
         )
-        progresses = [
-            np.interp(
-                all_xs, d.progress[x_key], d.progress[y_key], left=np.nan, right=np.nan
-            )
-            for d in data
+        all_ys = [
+            np.interp(x_all, p[x_key], p[y_key], left=np.nan, right=np.nan)
+            for p in progresses
         ]
 
         if individual:
-            for datum, progress in zip(data, progresses):
-                p.line(
-                    all_xs,
-                    progress,
-                    legend_label=label + "-" + str(datum.params["id"]),
-                    color=palette[idx],
-                )
+            for datum, y_i in zip(data, all_ys):
+                legend_label = label + "-" + str(datum.params["id"])
+                p.line(x_all, y_i, legend_label=legend_label, color=palette[idx])
         else:
-            mean_ys = np.nanmean(progresses, axis=0)
-            std_ys = np.nanstd(progresses, axis=0)
-            lower = mean_ys - std_ys
-            upper = mean_ys + std_ys
-            p.line(all_xs, mean_ys, legend_label=label, color=palette[idx])
+            y_mean = np.nanmean(all_ys, axis=0)
+            y_std = np.nanstd(all_ys, axis=0)
+            p.line(x_all, y_mean, legend_label=label, color=palette[idx])
             p.varea(
-                all_xs,
-                y1=lower,
-                y2=upper,
+                x_all,
+                y1=y_mean - y_std,
+                y2=y_mean + y_std,
                 fill_alpha=0.25,
                 legend_label=label,
                 color=palette[idx],
@@ -170,8 +106,8 @@ def main():
         )
         exps_data = selector.extract()
         if exps_data:
-            plottable_keys = get_plottable_keys(exps_data)
-            x_plottable_keys = get_x_plottable_keys(plottable_keys, exps_data)
+            plottable_keys = exp_util.get_plottable_keys(exps_data)
+            x_plottable_keys = exp_util.get_x_plottable_keys(plottable_keys, exps_data)
             x_key = st.selectbox("X axis:", x_plottable_keys)
             y_key = st.selectbox("Y axis:", plottable_keys)
 

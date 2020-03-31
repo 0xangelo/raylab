@@ -7,7 +7,65 @@ from ast import literal_eval
 from functools import reduce
 from collections import namedtuple
 
+import numpy as np
 import pandas as pd
+
+
+_NUMERIC_KINDS = set("uifc")
+
+
+def is_numeric(array):
+    """Determine whether the argument has a numeric datatype, when
+    converted to a NumPy array.
+
+    Booleans, unsigned integers, signed integers, floats and complex
+    numbers are the kinds of numeric datatype.
+
+    Parameters
+    ----------
+    array : array-like
+        The array to check.
+
+    Returns
+    -------
+    is_numeric : `bool`
+        True if the array has a numeric datatype, False if not.
+
+    """
+    return np.asarray(array).dtype.kind in _NUMERIC_KINDS
+
+
+def is_increasing_key(key, exps_data):
+    for exp in exps_data:
+        if key in exp.progress and not is_increasing(exp.progress[key]):
+            return False
+    return True
+
+
+def is_increasing(arr):
+    arr = np.asarray(arr)
+    if not is_numeric(arr):
+        return False
+
+    arr = arr[~np.isnan(arr)]
+    return np.all(np.less_equal(arr[:-1], arr[1:])) and np.max(arr) >= np.min(arr)
+
+
+def get_plottable_keys(exps_data):
+    return sorted(
+        list(
+            set(
+                col
+                for exp in exps_data
+                for col in exp.progress.columns.to_list()
+                if is_numeric(exp.progress[col])
+            )
+        )
+    )
+
+
+def get_x_plottable_keys(plottable_keys, exps_data):
+    return [key for key in plottable_keys if is_increasing_key(key, exps_data)]
 
 
 ExperimentData = namedtuple("ExperimentData", ["progress", "params", "flat_params"])
