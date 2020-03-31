@@ -15,6 +15,7 @@ For the visualization tools you'll need to install [Streamlit](http://streamlit.
 
 | Algorithm | Paper | Name in library |
 | --------- | ----- | --------------- |
+| Trust Region Policy Optimization | [link](http://proceedings.mlr.press/v37/schulman15.html) | TRPO |
 | Normalized Advantage Function | [link](http://proceedings.mlr.press/v48/gu16.html) | NAF |
 | Stochastic Value Gradients | [link](http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients) | SVG(inf) & SVG(1) |
 | Soft Actor-Critic | [link](http://proceedings.mlr.press/v80/haarnoja18b.html) | SoftAC |
@@ -150,13 +151,14 @@ To generate `matplotlib` plots, check out the `raylab plot` and `raylab plot-exp
 The project is structured as follows
 
     raylab
-    ├── algorithms      # Trainer and Policy classes
-    ├── cli             # Command line utilities
-    ├── distributions   # Extendend and additional PyTorch distributions
-    ├── envs            # Gym environments
-    ├── logger          # Tune loggers
-    ├── modules         # PyTorch neural network modules for algorithms
-        ├── basic       # Building blocks for neural networks
-        ├── flows       # Normalizing Flow modules
-    ├── policy          # Extensions and customizations of ray.rllib.policy submodules
-    ├── utils           # miscellaneous utilities
+    ├── algorithms        # Trainer and Policy classes
+    ├── cli               # Command line utilities
+    ├── distributions     # Extendend and additional PyTorch distributions
+    ├── envs              # Gym environments
+    ├── logger            # Tune loggers
+    ├── modules           # PyTorch neural network modules for algorithms
+        ├── basic         # Building blocks for neural networks
+        ├── flows         # Normalizing Flow modules
+        ├── distributions # TorchScript compatible distribution modules
+    ├── policy            # Extensions and customizations of RLlib's policy API
+    ├── utils             # miscellaneous utilities
