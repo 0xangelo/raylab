@@ -101,15 +101,15 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
     @override(SVGBaseTorchPolicy)
     def _avg_kl_divergence(self, batch_tensors):
         if self.config["replay_kl"]:
-            logp = self.module.actor.logp(
+            logp = self.module.actor.log_prob(
                 batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
             )
             return torch.mean(batch_tensors[self.ACTION_LOGP] - logp)
 
-        old_act, old_logp = self.module.old_actor.sampler(
+        old_act, old_logp = self.module.old_actor.rsample(
             batch_tensors[SampleBatch.CUR_OBS]
         )
-        logp = self.module.actor.logp(batch_tensors[SampleBatch.CUR_OBS], old_act)
+        logp = self.module.actor.log_prob(batch_tensors[SampleBatch.CUR_OBS], old_act)
         return torch.mean(old_logp - logp)
 
     @torch.no_grad()
@@ -124,7 +124,7 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
             "policy_grad_norm": nn.utils.clip_grad_norm_(
                 policy_params, max_norm=self.config["max_grad_norm"]
             ),
-            "policy_entropy": self.module.actor.logp(
+            "policy_entropy": self.module.actor.log_prob(
                 batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
             )
             .mean()

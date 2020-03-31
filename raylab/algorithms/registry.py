@@ -37,6 +37,12 @@ def _import_mapo():
     return MAPOTrainer
 
 
+def _import_trpo():
+    from raylab.algorithms.trpo.trpo import TRPOTrainer
+
+    return TRPOTrainer
+
+
 ALGORITHMS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
@@ -44,4 +50,5 @@ ALGORITHMS = {
     "SoftAC": _import_sac,
     "SOP": _import_sop,
     "MAPO": _import_mapo,
+    "TRPO": _import_trpo,
 }

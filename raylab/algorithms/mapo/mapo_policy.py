@@ -336,7 +336,7 @@ class MAPOTorchPolicy(
     @staticmethod
     def compute_mle_loss(batch_tensors, module):
         """Compute Maximum Likelihood Estimation (MLE) model loss."""
-        avg_logp = module.model.logp(
+        avg_logp = module.model.log_prob(
             batch_tensors[SampleBatch.CUR_OBS],
             batch_tensors[SampleBatch.ACTIONS],
             batch_tensors[SampleBatch.NEXT_OBS],

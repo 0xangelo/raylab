@@ -7,7 +7,7 @@ from ray.rllib.utils.annotations import override
 class NormalizingFlow(nn.Module):
     """A diffeomorphism."""
 
-    @override(nn.Linear)
+    @override(nn.Module)
     def forward(self, inputs):  # pylint: disable=arguments-differ
         return self._encode(inputs) if self.training else self._decode(inputs)
 

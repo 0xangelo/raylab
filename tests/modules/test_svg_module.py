@@ -21,15 +21,15 @@ def module_batch_fn(module_and_batch_fn):
 def test_model_params(module_batch_fn, model_encoder):
     module, batch = module_batch_fn({"model": {"encoder": model_encoder}})
 
-    params = module.model.params(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
+    params = module.model(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
     assert "loc" in params
-    assert "scale_diag" in params
+    assert "scale" in params
 
-    loc, scale_diag = params["loc"], params["scale_diag"]
+    loc, scale = params["loc"], params["scale"]
     assert loc.shape == batch[SampleBatch.NEXT_OBS].shape
-    assert scale_diag.shape == batch[SampleBatch.NEXT_OBS].shape
+    assert scale.shape == batch[SampleBatch.NEXT_OBS].shape
     assert loc.dtype == torch.float32
-    assert scale_diag.dtype == torch.float32
+    assert scale.dtype == torch.float32
 
     parameters = set(module.model.parameters())
     for par in parameters:
@@ -40,8 +40,8 @@ def test_model_params(module_batch_fn, model_encoder):
 
     for par in parameters:
         par.grad = None
-    module.model.params(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])[
-        "scale_diag"
+    module.model(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])[
+        "scale"
     ].mean().backward()
     assert any(p.grad is not None for p in parameters)
     assert all(p.grad is None for p in set(module.parameters()) - parameters)
