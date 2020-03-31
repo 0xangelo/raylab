@@ -4,6 +4,7 @@ from .ddpg_module import DDPGModule
 from .sac_module import SACModule
 from .svg_module import SVGModule
 from .mapo_module import MAPOModule
+from .trpo_module import TRPOModule
 
 MODULES = {
     "NAFModule": NAFModule,
@@ -11,6 +12,7 @@ MODULES = {
     "SACModule": SACModule,
     "SVGModule": SVGModule,
     "MAPOModule": MAPOModule,
+    "TRPOModule": TRPOModule,
 }
 
 

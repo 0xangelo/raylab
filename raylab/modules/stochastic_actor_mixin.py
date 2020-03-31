@@ -4,9 +4,11 @@ from typing import List
 import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
+import gym.spaces as spaces
 
-from .basic import FullyConnected, NormalParams
+from .basic import CategoricalParams, FullyConnected, NormalParams
 from .distributions import (
+    Categorical,
     Independent,
     Normal,
     TanhSquashTransform,
@@ -44,22 +46,29 @@ class StochasticPolicy(nn.Module):
             in_features=obs_space.shape[0],
             units=config["units"],
             activation=config["activation"],
-            **config["initializer_options"]
+            **config["initializer_options"],
         )
-        self.params = NormalParams(
-            self.logits.out_features,
-            action_space.shape[0],
-            input_dependent_scale=config["input_dependent_scale"],
-        )
+
+        if isinstance(action_space, spaces.Discrete):
+            self.params = CategoricalParams(self.logits.out_features, action_space.n)
+            self.dist = Categorical()
+        elif isinstance(action_space, spaces.Box):
+            self.params = NormalParams(
+                self.logits.out_features,
+                action_space.shape[0],
+                input_dependent_scale=config["input_dependent_scale"],
+            )
+            self.dist = TransformedDistribution(
+                Independent(Normal(), reinterpreted_batch_ndims=1),
+                TanhSquashTransform(
+                    low=torch.as_tensor(action_space.low),
+                    high=torch.as_tensor(action_space.high),
+                    event_dim=1,
+                ),
+            )
+        else:
+            raise ValueError(f"Unsopported action space type {type(action_space)}")
         self.sequential = nn.Sequential(self.logits, self.params)
-        self.dist = TransformedDistribution(
-            Independent(Normal(), reinterpreted_batch_ndims=1),
-            TanhSquashTransform(
-                low=torch.as_tensor(action_space.low),
-                high=torch.as_tensor(action_space.high),
-                event_dim=1,
-            ),
-        )
 
     @override(nn.Module)
     def forward(self, obs):  # pylint:disable=arguments-differ

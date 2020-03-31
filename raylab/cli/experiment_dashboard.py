@@ -119,8 +119,13 @@ def time_series(x_key, y_key, groups, labels):
         ]
 
         if individual:
-            for progress in progresses:
-                p.line(all_xs, progress, legend_label=label, color=palette[idx])
+            for datum, progress in zip(data, progresses):
+                p.line(
+                    all_xs,
+                    progress,
+                    legend_label=label + "-" + str(datum.params["id"]),
+                    color=palette[idx],
+                )
         else:
             mean_ys = np.nanmean(progresses, axis=0)
             std_ys = np.nanstd(progresses, axis=0)
