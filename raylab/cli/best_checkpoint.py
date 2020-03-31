@@ -22,7 +22,7 @@ def get_last_checkpoint_path(logdir):
 @click.argument(
     "logdir",
     nargs=1,
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True),
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
 )
 @click.option(
     "--metric",
@@ -42,11 +42,11 @@ def find_best(logdir, metric, mode):
     """Find the best experiment checkpoint as measured by a metric."""
     import logging
 
-    from ray.tune.analysis import ExperimentAnalysis
+    from ray.tune.analysis import Analysis
 
     logging.getLogger("ray.tune").setLevel("ERROR")
 
-    analysis = ExperimentAnalysis(logdir)
+    analysis = Analysis(logdir)
     best_logdir = analysis.get_best_logdir(metric, mode=mode)
     last_checkpoint_path = get_last_checkpoint_path(best_logdir)
     click.echo(last_checkpoint_path)
