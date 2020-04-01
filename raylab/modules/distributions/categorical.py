@@ -7,10 +7,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ray.rllib.utils.annotations import override
 
-from .abstract import DistributionModule
+from .abstract import ConditionalDistribution
 
 
-class Categorical(DistributionModule):
+class Categorical(ConditionalDistribution):
     r"""
     Creates a categorical distribution parameterized by `logits`.
 
@@ -33,7 +33,7 @@ class Categorical(DistributionModule):
     def forward(self, inputs):  # pylint:disable=arguments-differ
         return {"logits": inputs - inputs.logsumexp(dim=-1, keepdim=True)}
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         logits = self._unpack_params(params)
@@ -45,7 +45,7 @@ class Categorical(DistributionModule):
         out = sample_2d.reshape(sample_shape)
         return out, self.log_prob(params, out)
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def log_prob(self, params: Dict[str, torch.Tensor], value):
         logits = self._unpack_params(params)
@@ -54,7 +54,7 @@ class Categorical(DistributionModule):
         value = value[..., :1]
         return log_pmf.gather(-1, value).squeeze(-1)
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def entropy(self, params: Dict[str, torch.Tensor]):
         logits = self._unpack_params(params)

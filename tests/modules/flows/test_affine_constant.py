@@ -16,24 +16,28 @@ def shift(request):
     return request.param
 
 
-@pytest.fixture(params=(AffineConstantFlow, ActNorm))
+@pytest.fixture(params=(True, False), ids=("AffineConst", "ActNorm"))
 def module(request, scale, shift):
-    return lambda dim: request.param(dim, scale, shift)
+    def make_mod(shape):
+        mod = AffineConstantFlow(shape, scale, shift)
+        return ActNorm(mod) if request.param else mod
+
+    return make_mod
 
 
-@pytest.fixture(params=(1, 2, 4))
-def dim(request):
+@pytest.fixture(params=((1,), (2,), (4,)))
+def shape(request):
     return request.param
 
 
 @pytest.fixture(params=((), (1,), (4,)))
-def inputs(request, dim):
-    input_shape = request.param + (dim,)
+def inputs(request, shape):
+    input_shape = request.param + shape
     return torch.randn(*input_shape).requires_grad_()
 
 
 def test_affine_constant(module, inputs, torch_script):
-    module = module(inputs.size(-1))
+    module = module(inputs.shape[-1:])
     module = torch.jit.script(module) if torch_script else module
     scale = module.scale if "scale" in dir(module) else module.affine_const.scale
 

@@ -6,10 +6,10 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
-from .abstract import DistributionModule
+from .abstract import ConditionalDistribution
 
 
-class Uniform(DistributionModule):
+class Uniform(ConditionalDistribution):
     """
     Generates uniformly distributed random samples from the half-open interval
     ``[low, high)``.
@@ -20,16 +20,25 @@ class Uniform(DistributionModule):
         low, high = torch.chunk(inputs, 2, dim=-1)
         return {"low": low, "high": high}
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
+    @torch.jit.export
+    def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
+        out = self._gen_sample(params, sample_shape).detach()
+        return out, self.log_prob(params, out)
+
+    @override(ConditionalDistribution)
     @torch.jit.export
     def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
+        out = self._gen_sample(params, sample_shape)
+        return out, self.log_prob(params, out)
+
+    def _gen_sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int]):
         low, high = self._unpack_params(params)
         shape = sample_shape + low.shape
         rand = torch.rand(shape, dtype=low.dtype, device=low.device)
-        out = low + rand * (high - low)
-        return out, self.log_prob(params, out)
+        return low + rand * (high - low)
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def log_prob(self, params: Dict[str, torch.Tensor], value):
         low, high = self._unpack_params(params)
@@ -37,26 +46,26 @@ class Uniform(DistributionModule):
         ubound = high.gt(value).type_as(low)
         return torch.log(lbound.mul(ubound)) - torch.log(high - low)
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def cdf(self, params: Dict[str, torch.Tensor], value):
         low, high = self._unpack_params(params)
         result = (value - low) / (high - low)
         return result.clamp(min=0, max=1)
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
-    def icdf(self, params: Dict[str, torch.Tensor], prob):
+    def icdf(self, params: Dict[str, torch.Tensor], value):
         low, high = self._unpack_params(params)
-        return prob * (high - low) + low
+        return value * (high - low) + low
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def entropy(self, params: Dict[str, torch.Tensor]):
         low, high = self._unpack_params(params)
         return torch.log(high - low)
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def reproduce(self, params: Dict[str, torch.Tensor], value):
         low, high = self._unpack_params(params)

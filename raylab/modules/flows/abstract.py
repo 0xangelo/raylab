@@ -1,80 +1,64 @@
 """Base classes for Normalizing Flows."""
+from typing import Dict
+
 import torch
-from torch import nn
 from ray.rllib.utils.annotations import override
 
+from ..distributions import Transform, ConditionalTransform
+from ..distributions.utils import _sum_rightmost
 
-class NormalizingFlow(nn.Module):
+
+class NormalizingFlow(Transform):
     """A diffeomorphism.
 
-    All flows map data to a latent space by default (f(x) -> z).
-    Use the `reverse` flag to invert the flow (f^{-1}(z) -> x).
+    Flows are specialized `Transform`s with tractable Jacobians. They can be used
+    in most situations where a `Transform` would be (e.g., with `ComposeTransform`).
+    All flows map samples from a latent space to another (f(z) -> x)
+    Use the `reverse` flag to invert the flow (f^{-1}(x) -> z).
     """
 
-    @override(nn.Module)
+    @override(Transform)
     def forward(self, inputs, reverse: bool = False):
-        # pylint: disable=arguments-differ
-        return self._decode(inputs) if reverse else self._encode(inputs)
+        if reverse:
+            out, log_abs_det_jacobian = self._decode(inputs)
+        else:
+            out, log_abs_det_jacobian = self._encode(inputs)
+        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
     def _encode(self, inputs):
         """
         Apply the forward transformation to the data.
 
-        Maps data points to latent variables, returning the transformed variable and the
+        Maps latent variables to datapoints, returning the transformed variable and the
         log of the absolute Jacobian determinant.
         """
+        return None, None
 
     def _decode(self, inputs):
         """
         Apply the inverse transformation to the data.
 
-        Maps latent variables to datapoints, returning the transformed variable and the
+        Maps data points to latent variables, returning the transformed variable and the
         log of the absolute Jacobian determinant.
         """
+        return None, None
 
 
-class ComposeNormalizingFlow(nn.Module):
-    """A composition of Normalizing Flows is a Normalizing Flow."""
+class ConditionalNormalizingFlow(ConditionalTransform):
+    """A Normalizing Flow conditioned on some external variable."""
 
-    def __init__(self, flows):
-        super().__init__()
-        self.flows = nn.ModuleList(flows)
+    @override(ConditionalTransform)
+    def forward(self, inputs, cond: Dict[str, torch.Tensor], reverse: bool = False):
+        if reverse:
+            out, log_abs_det_jacobian = self._decode(inputs, cond)
+        else:
+            out, log_abs_det_jacobian = self._encode(inputs, cond)
+        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
-    @override(nn.Linear)
-    def forward(self, inputs, reverse: bool = False):
-        # pylint: disable=arguments-differ
-        out, log_det = inputs, torch.zeros([])
-        for flow in self.flows:
-            out, log_det_ = flow(out, reverse=reverse)
-            log_det = log_det + log_det_
-        return out, log_det
+    @override(ConditionalTransform)
+    def _encode(self, inputs, cond: Dict[str, torch.Tensor]):
+        return None, None
 
-
-class NormalizingFlowModel(nn.Module):
-    """A (prior, flow) pair that allows density estimation and sampling.
-
-    The forward pass encodes the inputs and returns their log-likelihood.
-    Use `rsample` to produce samples.
-    """
-
-    def __init__(self, prior, flows):
-        super().__init__()
-        self.prior = prior
-        self.prior_rsample = prior.rsample
-        self.prior_logp = prior.log_prob
-        self.flow = ComposeNormalizingFlow(flows)
-
-    @torch.jit.export
-    def rsample(self, n_samples: int = 1):
-        """Produce a reparameterized sample."""
-        sample = self.prior_rsample((n_samples,))
-        prior_logp = self.prior_logp(sample)
-        sample, log_det = self.flow(sample, reverse=True)
-        return sample, prior_logp + log_det
-
-    @override(nn.Module)
-    def forward(self, inputs):
-        # pylint: disable=arguments-differ
-        latent, log_det = self.flow(inputs)
-        prior_logp = self.prior_logp(latent)
-        return latent, prior_logp + log_det
+    @override(ConditionalTransform)
+    def _decode(self, inputs, cond: Dict[str, torch.Tensor]):
+        return None, None

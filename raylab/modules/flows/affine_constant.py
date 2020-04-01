@@ -13,28 +13,30 @@ class AffineConstantFlow(NormalizingFlow):
     this where t is None
     """
 
-    def __init__(self, dim, scale=True, shift=True):
-        super().__init__()
+    def __init__(self, shape, scale=True, shift=True, **kwargs):
+        super().__init__(**kwargs)
         if scale:
-            self.scale = nn.Parameter(torch.randn(dim))
+            self.scale = nn.Parameter(torch.randn(shape))
         else:
-            self.register_buffer("scale", torch.zeros(dim))
+            self.register_buffer("scale", torch.zeros(shape))
         if shift:
-            self.loc = nn.Parameter(torch.randn(dim))
+            self.loc = nn.Parameter(torch.randn(shape))
         else:
-            self.register_buffer("loc", torch.zeros(dim))
+            self.register_buffer("loc", torch.zeros(shape))
 
     @override(NormalizingFlow)
     def _encode(self, inputs):
         out = inputs * torch.exp(self.scale) + self.loc
-        log_det = torch.sum(self.scale, dim=-1)
-        return out, log_det
+        # log |dy/dx| = log |torch.exp(scale)| = scale
+        log_abs_det_jacobian = self.scale
+        return out, log_abs_det_jacobian
 
     @override(NormalizingFlow)
     def _decode(self, inputs):
         out = (inputs - self.loc) * torch.exp(-self.scale)
-        log_det = torch.sum(-self.scale, dim=-1)
-        return out, log_det
+        # log |dx/dy| = - log |dy/dx| = - scale
+        log_abs_det_jacobian = -self.scale
+        return out, log_abs_det_jacobian
 
 
 class ActNorm(NormalizingFlow):
@@ -44,9 +46,9 @@ class ActNorm(NormalizingFlow):
     is unit gaussian. As described in Glow paper.
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-        self.affine_const = AffineConstantFlow(*args, **kwargs)
+    def __init__(self, affine_const):
+        super().__init__(event_dim=0)
+        self.affine_const = affine_const
         self.data_dep_init_done = not (
             isinstance(self.affine_const.scale, nn.Parameter)
             and isinstance(self.affine_const.loc, nn.Parameter)
@@ -60,7 +62,7 @@ class ActNorm(NormalizingFlow):
             loc = self.affine_const.loc
 
             # pylint:disable=unnecessary-comprehension
-            dims = [i for i in range(inputs.dim() - 1)]
+            dims = [i for i in range(inputs.dim() - self.event_dim)]
             # pylint:enable=unnecessary-comprehension
             std = -inputs.std(dim=dims).log().detach()
             scale.data.copy_(torch.where(torch.isnan(std), scale, std))

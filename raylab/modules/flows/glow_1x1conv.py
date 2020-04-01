@@ -35,12 +35,12 @@ class Invertible1x1Conv(nn.Module):
     def forward(self, x):
         W = self._assemble_W()
         z = x @ W
-        log_det = torch.sum(torch.log(torch.abs(self.S)))
-        return z, log_det
+        log_abs_det_jacobian = torch.sum(torch.log(torch.abs(self.S)))
+        return z, log_abs_det_jacobian
 
     def backward(self, z):
         W = self._assemble_W()
         W_inv = torch.inverse(W)
         x = z @ W_inv
-        log_det = -torch.sum(torch.log(torch.abs(self.S)))
-        return x, log_det
+        log_abs_det_jacobian = -torch.sum(torch.log(torch.abs(self.S)))
+        return x, log_abs_det_jacobian

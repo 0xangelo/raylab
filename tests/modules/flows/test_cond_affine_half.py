@@ -1,20 +1,28 @@
 # pylint:disable=missing-docstring,redefined-outer-name,protected-access
+from typing import Dict
+
 import pytest
 import torch
 import torch.nn as nn
 
 from raylab.modules import StateActionEncoder
-from raylab.modules.flows import CondAffineHalfFlow
+from raylab.modules.flows import CondAffine1DHalfFlow
 
 
-class MyModule(StateActionEncoder):
-    def forward(self, inputs):  # pylint:disable=arguments-differ
-        obs, actions = inputs
-        return super().forward(obs, actions)
+class MyModule(nn.Module):
+    def __init__(self, in_size, out_size, encoder):
+        super().__init__()
+        self.encoder = encoder
+        self.linear = nn.Linear(in_size + encoder.out_features, out_size)
+
+    def forward(self, inputs, cond: Dict[str, torch.Tensor]):
+        # pylint:disable=arguments-differ
+        encoded = self.encoder(cond["state"], cond["action"])
+        return self.linear(torch.cat([inputs, encoded], dim=-1))
 
 
 MLP_KWARGS = {
-    "units": (24, 24, 24),
+    "units": (24,) * 3,
     "activation": {"name": "LeakyReLU", "options": {"negative_slope": 0.2}},
 }
 
@@ -22,10 +30,10 @@ MLP_KWARGS = {
 def module_fn(kwargs):
     kwargs = kwargs.copy()
 
-    def func(nin1, nin2, nout):
+    def func(in_size, cond1_size, cond2_size, out_size):
         nonlocal kwargs
-        last = kwargs["units"][-1]
-        return nn.Sequential(MyModule(nin1, nin2, **kwargs), nn.Linear(last, nout))
+        encoder = StateActionEncoder(cond1_size, cond2_size, **kwargs)
+        return MyModule(in_size, out_size, encoder)
 
     return func
 
@@ -46,55 +54,63 @@ def parity(request):
 
 
 @pytest.fixture
-def module(parity, scale_module, shift_module):
-    def module_fn(dim):
-        nin = dim - (dim // 2)
-        nout = dim // 2
+def module(parity, scale_module, shift_module, torch_script):
+    def make_module(state_size, action_size):
+        in_size = state_size - (state_size // 2)
+        out_size = state_size // 2
         if parity:
-            nin, nout = nout, nin
-        return CondAffineHalfFlow(
-            parity, scale_module(nin, dim, nout), shift_module(nin, dim, nout)
-        )
+            in_size, out_size = out_size, in_size
+        scale = scale_module(in_size, state_size, action_size, out_size)
+        shift = shift_module(in_size, state_size, action_size, out_size)
+        mod = CondAffine1DHalfFlow(parity, scale, shift)
+        return torch.jit.script(mod) if torch_script else mod
 
-    return module_fn
+    return make_module
 
 
 @pytest.fixture(params=(2, 4, 7))
-def dim(request):
+def state_size(request):
+    return request.param
+
+
+@pytest.fixture(params=(2, 4, 7))
+def action_size(request):
     return request.param
 
 
 @pytest.fixture(params=((), (1,), (4,)))
-def inputs(request, dim):
-    input_shape = request.param + (dim,)
-    return (
-        torch.randn(*input_shape).requires_grad_(),
-        torch.randn(*input_shape).requires_grad_(),
-    )
+def inputs(request, state_size, action_size):
+    batch_shape = request.param
+    input_ = torch.randn(batch_shape + (state_size,)).requires_grad_()
+    cond = {
+        "state": torch.randn_like(input_).requires_grad_(),
+        "action": torch.randn(batch_shape + (action_size,)).requires_grad_(),
+    }
+    return input_, cond
 
 
 def test_affine_half(module, inputs):
-    var, cond = inputs
-    module = module(var.size(-1))
+    inputs, cond = inputs
+    module = module(cond["state"].size(-1), cond["action"].size(-1))
 
-    scale = bool(list(module.s_cond.parameters()))
-    shift = bool(list(module.t_cond.parameters()))
+    scale = bool(list(module.scale.parameters()))
+    shift = bool(list(module.shift.parameters()))
 
-    latent, log_det = module(inputs)
+    latent, log_det = module(inputs, cond)
     if scale:
         log_det.sum().backward(retain_graph=True)
-        assert all(p.grad is not None for p in module.s_cond.parameters())
+        assert all(p.grad is not None for p in module.scale.parameters())
     latent.sum().backward()
-    assert var.grad is not None
+    assert inputs.grad is not None
     if scale or shift:
-        assert cond.grad is not None
+        assert all(cond[k].grad is not None for k in cond)
 
     latent = latent.detach().requires_grad_()
 
-    input_, log_det = module([latent, cond], reverse=True)
-    assert torch.allclose(input_, var, atol=1e-7)
+    input_, log_det = module(latent, cond, reverse=True)
+    assert torch.allclose(input_, inputs, atol=1e-7)
     if scale:
         log_det.sum().backward(retain_graph=True)
-        assert all(p.grad is not None for p in module.s_cond.parameters())
+        assert all(p.grad is not None for p in module.scale.parameters())
     input_.sum().backward()
     assert latent.grad is not None

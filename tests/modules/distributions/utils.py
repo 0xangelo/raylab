@@ -25,7 +25,7 @@ def _test_dist_ops(dist, params, batch_shape, event_shape, sample_shape):
 
     cdf = dist.cdf(params, sample)
     if cdf is not None:
-        assert cdf.shape == sample_shape + batch_shape
+        assert cdf.shape == sample_shape + batch_shape + event_shape
         icdf = dist.icdf(params, cdf)
         if icdf is not None:
-            assert icdf.shape == sample.shape
+            assert icdf.shape == cdf.shape
