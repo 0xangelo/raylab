@@ -7,10 +7,10 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
-from .abstract import DistributionModule
+from .abstract import ConditionalDistribution
 
 
-class Normal(DistributionModule):
+class Normal(ConditionalDistribution):
     """
     Creates a normal (also called Gaussian) distribution parameterized by
     :attr:`loc` and :attr:`scale`.
@@ -21,13 +21,13 @@ class Normal(DistributionModule):
         loc, scale = torch.chunk(inputs, 2, dim=-1)
         return {"loc": loc, "scale": scale}
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         out = self._gen_sample(params, sample_shape).detach()
         return out, self.log_prob(params, out)
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         out = self._gen_sample(params, sample_shape)
@@ -39,7 +39,7 @@ class Normal(DistributionModule):
         eps = torch.randn(shape, dtype=loc.dtype, device=loc.device)
         return loc + eps * scale
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def log_prob(self, params: Dict[str, torch.Tensor], value):
         loc, scale = self._unpack_params(params)
@@ -47,25 +47,25 @@ class Normal(DistributionModule):
         const = math.log(math.sqrt(2 * math.pi))
         return -((value - loc) ** 2) / (2 * var) - scale.log() - const
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def cdf(self, params: Dict[str, torch.Tensor], value):
         loc, scale = self._unpack_params(params)
         return 0.5 * (1 + torch.erf((value - loc) * scale.reciprocal() / math.sqrt(2)))
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
-    def icdf(self, params: Dict[str, torch.Tensor], prob):
+    def icdf(self, params: Dict[str, torch.Tensor], value):
         loc, scale = self._unpack_params(params)
-        return loc + scale * torch.erfinv(2 * prob - 1) * math.sqrt(2)
+        return loc + scale * torch.erfinv(2 * value - 1) * math.sqrt(2)
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def entropy(self, params: Dict[str, torch.Tensor]):
         _, scale = self._unpack_params(params)
         return 0.5 + 0.5 * math.log(2 * math.pi) + torch.log(scale)
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def reproduce(self, params: Dict[str, torch.Tensor], value):
         loc, scale = self._unpack_params(params)

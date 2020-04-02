@@ -1,9 +1,15 @@
 """Distributions as PyTorch modules compatible with TorchScript."""
-from .abstract import DistributionModule, Independent, TransformedDistribution
+from .abstract import (
+    ConditionalDistribution,
+    Distribution,
+    Independent,
+    TransformedDistribution,
+)
 from .categorical import Categorical
 from .normal import Normal
 from .transforms import (
     AffineTransform,
+    ConditionalTransform,
     ComposeTransform,
     InvTransform,
     SigmoidTransform,
@@ -16,8 +22,10 @@ from .uniform import Uniform
 __all__ = [
     "AffineTransform",
     "Categorical",
+    "ConditionalTransform",
     "ComposeTransform",
-    "DistributionModule",
+    "ConditionalDistribution",
+    "Distribution",
     "Independent",
     "InvTransform",
     "Normal",
@@ -26,4 +34,5 @@ __all__ = [
     "TanhTransform",
     "TanhSquashTransform",
     "Transform",
+    "TransformedDistribution",
 ]

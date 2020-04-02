@@ -131,7 +131,7 @@ def test_actor_reproduce(module_batch_spaces_fn, input_dependent_scale):
     acts = batch[SampleBatch.ACTIONS]
     _acts = module.actor.reproduce(batch[SampleBatch.CUR_OBS], acts)
     if isinstance(action_space, Discrete):
-        assert _acts is None
+        assert torch.isnan(_acts).all()
     else:
         assert _acts.shape == acts.shape
         assert _acts.dtype == acts.dtype

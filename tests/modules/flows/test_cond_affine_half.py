@@ -1,101 +1,92 @@
-# pylint:disable=missing-docstring,redefined-outer-name,protected-access
+# pylint:disable=missing-docstring,redefined-outer-name,protected-access,invalid-name
+# pylint:disable=too-many-locals,too-many-arguments
+from typing import Dict
+
 import pytest
 import torch
 import torch.nn as nn
 
 from raylab.modules import StateActionEncoder
-from raylab.modules.flows import CondAffineHalfFlow
-
-
-class MyModule(StateActionEncoder):
-    def forward(self, inputs):  # pylint:disable=arguments-differ
-        obs, actions = inputs
-        return super().forward(obs, actions)
+from raylab.modules.flows import CondAffine1DHalfFlow
 
 
 MLP_KWARGS = {
-    "units": (24, 24, 24),
+    "units": (24,) * 3,
     "activation": {"name": "LeakyReLU", "options": {"negative_slope": 0.2}},
 }
+PARITY = (False, True)
+STATE_SHAPE = ((10, 2), (10, 4), (10, 7))
+ACTION_SHAPE = ((10, 2), (10, 4), (10, 7))
+SCALE = (True, False)
+SHIFT = (True, False)
 
 
-def module_fn(kwargs):
-    kwargs = kwargs.copy()
+class MyMLP(nn.Module):
+    def __init__(self, parity, state_size, action_size):
+        super().__init__()
+        out_size = state_size // 2
+        in_size = state_size - out_size
+        if parity:
+            in_size, out_size = out_size, in_size
+        self.encoder = StateActionEncoder(state_size, action_size, **MLP_KWARGS)
+        self.linear = nn.Linear(in_size + self.encoder.out_features, out_size)
 
-    def func(nin1, nin2, nout):
-        nonlocal kwargs
-        last = kwargs["units"][-1]
-        return nn.Sequential(MyModule(nin1, nin2, **kwargs), nn.Linear(last, nout))
-
-    return func
-
-
-@pytest.fixture(params=(MLP_KWARGS, None))
-def scale_module(request):
-    return module_fn(request.param) if request.param else lambda *x: None
-
-
-@pytest.fixture(params=(MLP_KWARGS, None))
-def shift_module(request):
-    return module_fn(request.param) if request.param else lambda *x: None
+    def forward(self, inputs, cond: Dict[str, torch.Tensor]):
+        # pylint:disable=arguments-differ
+        state, action = cond["state"], cond["action"]
+        encoded = self.encoder(state, action)
+        return self.linear(torch.cat([inputs, encoded], dim=-1))
 
 
-@pytest.fixture(params=(True, False))
+@pytest.fixture(params=PARITY, ids=(f"Parity({p})" for p in PARITY))
 def parity(request):
     return request.param
 
 
-@pytest.fixture
-def model(parity, scale_module, shift_module):
-    def model_fn(dim):
-        nin = dim - (dim // 2)
-        nout = dim // 2
-        if parity:
-            nin, nout = nout, nin
-        return CondAffineHalfFlow(
-            parity, scale_module(nin, dim, nout), shift_module(nin, dim, nout)
-        )
-
-    return model_fn
+@pytest.fixture(params=STATE_SHAPE, ids=(f"State({s})" for s in STATE_SHAPE))
+def state(request):
+    return torch.randn(request.param, requires_grad=True)
 
 
-@pytest.fixture(params=(2, 4, 7))
-def dim(request):
+@pytest.fixture(params=ACTION_SHAPE, ids=(f"Action({s})" for s in ACTION_SHAPE))
+def action(request):
+    return torch.randn(request.param, requires_grad=True)
+
+
+@pytest.fixture(params=SCALE, ids=(f"Scale({s})" for s in SCALE))
+def scale(request):
     return request.param
 
 
-@pytest.fixture(params=((), (1,), (4,)))
-def inputs(request, dim):
-    input_shape = request.param + (dim,)
-    return (
-        torch.randn(*input_shape).requires_grad_(),
-        torch.randn(*input_shape).requires_grad_(),
-    )
+@pytest.fixture(params=SHIFT, ids=(f"Shift({s})" for s in SHIFT))
+def shift(request):
+    return request.param
 
 
-def test_affine_half(model, inputs):
-    var, cond = inputs
-    model = model(var.size(-1))
+def test_cond_affine_half(parity, state, action, scale, shift, torch_script):
+    z = torch.randn_like(state, requires_grad=True)
+    state_size = state.size(-1)
+    action_size = action.size(-1)
 
-    scale = bool(list(model.s_cond.parameters()))
-    shift = bool(list(model.t_cond.parameters()))
+    scale_mod = MyMLP(parity, state_size, action_size) if scale else None
+    shift_mod = MyMLP(parity, state_size, action_size) if shift else None
+    mod = CondAffine1DHalfFlow(parity, scale_mod, shift_mod)
+    module = torch.jit.script(mod) if torch_script else mod
 
-    model.train()
-    latent, log_det = model(inputs)
-    if scale:
+    cond = dict(state=state, action=action)
+    x, log_det = module(z, cond)
+    if list(module.scale.parameters()):
         log_det.sum().backward(retain_graph=True)
-        assert all(p.grad is not None for p in model.s_cond.parameters())
-    latent.sum().backward()
-    assert var.grad is not None
-    if scale or shift:
-        assert cond.grad is not None
+        assert all(p.grad is not None for p in module.scale.parameters())
+    x.sum().backward()
+    assert z.grad is not None
 
-    latent = latent.detach().requires_grad_()
-    model.eval()
-    input_, log_det = model([latent, cond])
-    assert torch.allclose(input_, var, atol=1e-7)
-    if scale:
+    x = x.detach().requires_grad_()
+
+    z_, log_det = module(x, cond, reverse=True)
+    assert torch.allclose(z_, z, atol=1e-7)
+    if list(module.scale.parameters()):
         log_det.sum().backward(retain_graph=True)
-        assert all(p.grad is not None for p in model.s_cond.parameters())
-    input_.sum().backward()
-    assert latent.grad is not None
+        assert all(p.grad is not None for p in module.scale.parameters())
+    z_.sum().backward()
+    assert x.grad is not None

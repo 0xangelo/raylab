@@ -9,64 +9,71 @@ https://arxiv.org/abs/1605.08803
 (Laurent's extension of NICE)
 """
 import torch
+import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
-from raylab.modules.basic.lambd import Lambda
 from .abstract import NormalizingFlow
+from ..distributions.utils import _sum_rightmost
 
 
-class AffineHalfFlow(NormalizingFlow):
+class Dummy(nn.Module):
+    """Dummy module outputting zeros on input."""
+
+    @override(nn.Module)
+    def forward(self, _):
+        # pylint:disable=arguments-differ
+        return torch.zeros(())
+
+
+class Affine1DHalfFlow(NormalizingFlow):
     """
     As seen in RealNVP, affine autoregressive flow (z = x * exp(s) + t), where half of
-    the dimensions in x are linearly scaled/transformed as a function of the other half.
-    Which half is which is determined by the parity bit.
+    the elements in the last dimension of x are linearly scaled/transformed as a
+    function of the other half. Which half is which is determined by the parity bit.
     - RealNVP both scales and shifts (default)
     - NICE only shifts
     """
 
     def __init__(self, parity, scale_module=None, shift_module=None):
-        super().__init__()
+        super().__init__(event_dim=1)
         self.parity = parity
-        if scale_module is None:
-            self.s_cond = Lambda(lambda _: torch.zeros([]))
-        else:
-            self.s_cond = scale_module
-        if shift_module is None:
-            self.t_cond = Lambda(lambda _: torch.zeros([]))
-        else:
-            self.t_cond = shift_module
+        self.scale = scale_module or Dummy()
+        self.shift = shift_module or Dummy()
 
     @override(NormalizingFlow)
     def _encode(self, inputs):
-        x_0, x_1 = inputs[..., ::2], inputs[..., 1::2]
-        if self.parity:
-            x_0, x_1 = x_1, x_0
-        scale = self.s_cond(x_0)
-        shift = self.t_cond(x_0)
-        z_0 = x_0
-        z_1 = torch.exp(scale) * x_1 + shift
-        if self.parity:
-            z_0, z_1 = z_1, z_0
-        out = torch.cat([z_0, z_1], dim=-1)
-        log_det = torch.sum(scale, dim=-1)
-        return out, log_det
-
-    @override(NormalizingFlow)
-    def _decode(self, inputs):
         z_0, z_1 = torch.chunk(inputs, 2, dim=-1)
         if self.parity:
             z_0, z_1 = z_1, z_0
-        scale = self.s_cond(z_0)
-        shift = self.t_cond(z_0)
+
+        scale = self.scale(z_0)
+        shift = self.shift(z_0)
         x_0 = z_0
         x_1 = (z_1 - shift) * torch.exp(-scale)
         if self.parity:
             x_0, x_1 = x_1, x_0
-        mask0 = torch.zeros_like(inputs).bool()
-        mask0[..., ::2] = True
-        mask1 = ~mask0
+
         out = torch.empty_like(inputs)
-        out[mask0] = x_0.flatten()
-        out[mask1] = x_1.flatten()
-        log_det = torch.sum(-scale, dim=-1)
-        return out, log_det
+        out[..., ::2] = x_0
+        out[..., 1::2] = x_1
+
+        log_abs_det_jacobian = -scale
+        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
+
+    @override(NormalizingFlow)
+    def _decode(self, inputs):
+        x_0, x_1 = inputs[..., ::2], inputs[..., 1::2]
+        if self.parity:
+            x_0, x_1 = x_1, x_0
+
+        scale = self.scale(x_0)
+        shift = self.shift(x_0)
+        z_0 = x_0
+        z_1 = torch.exp(scale) * x_1 + shift
+
+        if self.parity:
+            z_0, z_1 = z_1, z_0
+        out = torch.cat([z_0, z_1], dim=-1)
+
+        log_abs_det_jacobian = scale
+        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)

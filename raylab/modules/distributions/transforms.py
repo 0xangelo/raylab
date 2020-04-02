@@ -1,6 +1,6 @@
 """Distribution transforms as PyTorch modules compatible with TorchScript."""
-# pylint:disable=missing-docstring
 import math
+from typing import Dict
 
 import torch
 import torch.nn as nn
@@ -11,132 +11,206 @@ from .utils import _sum_rightmost
 
 
 class Transform(nn.Module):
-    def __init__(self, event_dim=0):
+    # pylint:disable=missing-docstring
+    cond: Dict[str, torch.Tensor]
+
+    def __init__(self, *, cond_transform=None, cond=None, event_dim=0):
         super().__init__()
-        self.event_dim = event_dim
-
-    @override(nn.Module)
-    def forward(self, inputs, reverse: bool = False):
-        # pylint:disable=arguments-differ,assignment-from-no-return
-        if reverse:
-            out = self._decode(inputs)
-            log_abs_det_jacobian = -self.log_abs_det_jacobian(out, inputs)
-        else:
-            out = self._encode(inputs)
-            log_abs_det_jacobian = self.log_abs_det_jacobian(inputs, out)
-        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
-
-    def _encode(self, inputs):
-        """
-        Computes the transform `x => y`.
-        """
-
-    def _decode(self, inputs):
-        """
-        Inverts the transform `y => x`.
-        """
-
-    def log_abs_det_jacobian(self, inputs, outputs):
-        """
-        Computes the log det jacobian `log |dy/dx|` given input and output.
-        """
-
-
-class InvTransform(Transform):
-    def __init__(self, transform):
-        super().__init__()
-        self.transform = transform
-
-    @override(Transform)
-    def forward(self, inputs, reverse: bool = False):
-        # pylint:disable=protected-access
-        return self.transform(inputs, reverse=not reverse)
-
-
-class ComposeTransform(nn.Module):
-    def __init__(self, transforms):
-        super().__init__()
-        self.transforms = nn.ModuleList(transforms)
-        self.inv_transforms = nn.ModuleList(transforms[::-1])
+        self.event_dim = (
+            event_dim if cond_transform is None else cond_transform.event_dim
+        )
+        self.cond_transform = cond_transform
+        self.cond = cond or {}
+        for name, param in self.cond.items():
+            if isinstance(param, nn.Parameter):
+                self.register_parameter(name, param)
+            else:
+                self.register_buffer(name, param)
 
     @override(nn.Module)
     def forward(self, inputs, reverse: bool = False):  # pylint:disable=arguments-differ
+        return self._decode(inputs) if reverse else self._encode(inputs)
+
+    def _encode(self, inputs):
+        """
+        Computes the transform `z => x` and the log det jacobian `log |dz/dx|`
+        """
+        # pylint:disable=protected-access
+        return self.cond_transform._encode(inputs, self.cond)
+
+    def _decode(self, inputs):
+        """
+        Inverts the transform `x => z` and the log det jacobian `log |dx/dz|`,
+        or `- log |dz/dx|`.
+        """
+        # pylint:disable=protected-access
+        return self.cond_transform._decode(inputs, self.cond)
+
+
+class ConditionalTransform(nn.Module):
+    # pylint:disable=missing-docstring
+
+    def __init__(self, *, transform=None, event_dim=0):
+        super().__init__()
+        self.event_dim = event_dim if transform is None else transform.event_dim
+        self.transform = transform
+
+    @override(nn.Module)
+    def forward(self, inputs, cond: Dict[str, torch.Tensor], reverse: bool = False):
+        # pylint:disable=arguments-differ
+        return self._decode(inputs, cond) if reverse else self._encode(inputs, cond)
+
+    def _encode(self, inputs, cond: Dict[str, torch.Tensor]):
+        """
+        Computes the transform `(z, y) => x`.
+        """
+        # pylint:disable=protected-access,unused-argument
+        return self.transform._encode(inputs)
+
+    def _decode(self, inputs, cond: Dict[str, torch.Tensor]):
+        """
+        Inverts the transform `(x, y) => z`.
+        """
+        # pylint:disable=protected-access,unused-argument
+        return self.transform._decode(inputs)
+
+
+class InvTransform(ConditionalTransform):
+    """Invert the transform, effectively swapping the encoding/decoding directions."""
+
+    def __init__(self, transform):
+        super().__init__(event_dim=transform.event_dim)
+        self.transform = (
+            ConditionalTransform(transform=transform)
+            if isinstance(transform, Transform)
+            else transform
+        )
+
+    @override(ConditionalTransform)
+    def _encode(self, inputs, cond: Dict[str, torch.Tensor]):
+        # pylint:disable=protected-access
+        return self.transform._decode(inputs, cond)
+
+    @override(ConditionalTransform)
+    def _decode(self, inputs, cond: Dict[str, torch.Tensor]):
+        # pylint:disable=protected-access
+        return self.transform._encode(inputs, cond)
+
+
+class ComposeTransform(ConditionalTransform):
+    # pylint:disable=missing-docstring
+
+    def __init__(self, transforms, event_dim=None):
+        event_dim = event_dim or max(t.event_dim for t in transforms)
+        super().__init__(event_dim=event_dim)
+        assert self.event_dim >= max(t.event_dim for t in transforms), (
+            "ComposeTransform cannot have an event_dim smaller than any "
+            "of its components'"
+        )
+        trans = [
+            (ConditionalTransform(transform=t) if isinstance(t, Transform) else t)
+            for t in transforms
+        ]
+        self.transforms = nn.ModuleList(trans)
+        self.inv_transforms = nn.ModuleList(trans[::-1])
+
+    @override(ConditionalTransform)
+    def _encode(self, inputs, cond: Dict[str, torch.Tensor]):
         out = inputs
-        if reverse:
-            log_abs_det_jacobian = 0.0
-            for transform in self.inv_transforms:
-                out, log_det = transform(out, reverse=reverse)
-                log_abs_det_jacobian = log_abs_det_jacobian + log_det
-        else:
-            log_abs_det_jacobian = 0.0
-            for transform in self.transforms:
-                out, log_det = transform(out, reverse=reverse)
-                log_abs_det_jacobian = log_abs_det_jacobian + log_det
+        log_abs_det_jacobian = 0.0
+        for transform in self.transforms:
+            out, log_det = transform(out, cond, reverse=False)
+            log_abs_det_jacobian += _sum_rightmost(
+                log_det, self.event_dim - transform.event_dim
+            )
+        return out, log_abs_det_jacobian
+
+    @override(ConditionalTransform)
+    def _decode(self, inputs, cond: Dict[str, torch.Tensor]):
+        out = inputs
+        log_abs_det_jacobian = 0.0
+        for transform in self.inv_transforms:
+            out, log_det = transform(out, cond, reverse=True)
+            log_abs_det_jacobian += _sum_rightmost(
+                log_det, self.event_dim - transform.event_dim
+            )
         return out, log_abs_det_jacobian
 
 
 class TanhTransform(Transform):
     """Transform via the mapping :math:`y = \frac{e^x - e^{-x}} {e^x + e^{-x}}`."""
 
+    # pylint:disable=arguments-out-of-order
+
     @override(Transform)
     def _encode(self, inputs):
-        return torch.tanh(inputs)
+        outputs = torch.tanh(inputs)
+        return outputs, self.log_abs_det_jacobian(inputs, outputs)
 
     @override(Transform)
     def _decode(self, inputs):
         # torch.finfo(torch.float32).tiny
         to_log1 = torch.clamp(1 + inputs, min=1.1754943508222875e-38)
         to_log2 = torch.clamp(1 - inputs, min=1.1754943508222875e-38)
-        return (torch.log(to_log1) - torch.log(to_log2)) / 2
+        outputs = (torch.log(to_log1) - torch.log(to_log2)) / 2
+        return outputs, -self.log_abs_det_jacobian(outputs, inputs)
 
-    @override(Transform)
     def log_abs_det_jacobian(self, inputs, outputs):
-        # pylint:disable=unused-argument
+        # pylint:disable=unused-argument,missing-docstring
         # Taken from spinningup's implementation of SAC
-        return 2 * (math.log(2) - inputs - F.softplus(-2 * inputs))
+        return _sum_rightmost(
+            2 * (math.log(2) - inputs - F.softplus(-2 * inputs)), self.event_dim
+        )
 
 
 class SigmoidTransform(Transform):
+    # pylint:disable=missing-docstring,arguments-out-of-order
+
     @override(Transform)
     def _encode(self, inputs):
-        return inputs.sigmoid()
+        outputs = inputs.sigmoid()
+        return outputs, self.log_abs_det_jacobian(inputs, outputs)
 
     @override(Transform)
     def _decode(self, inputs):
         to_log = inputs.clamp(min=1.1754943508222875e-38)
-        return to_log.log() - (-to_log).log1p()
+        outputs = to_log.log() - (-to_log).log1p()
+        return outputs, -self.log_abs_det_jacobian(outputs, inputs)
 
-    @override(Transform)
     def log_abs_det_jacobian(self, inputs, outputs):
-        return -F.softplus(-inputs) - F.softplus(inputs)
+        # pylint:disable=unused-argument,missing-docstring
+        return _sum_rightmost(-F.softplus(-inputs) - F.softplus(inputs), self.event_dim)
 
 
 class AffineTransform(Transform):
-    def __init__(self, loc, scale, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    # pylint:disable=missing-docstring,arguments-out-of-order
+
+    def __init__(self, loc, scale, **kwargs):
+        super().__init__(**kwargs)
         self.register_buffer("loc", loc)
         self.register_buffer("scale", scale)
 
     @override(Transform)
     def _encode(self, inputs):
-        return inputs * self.scale + self.loc
+        outputs = inputs * self.scale + self.loc
+        return outputs, self.log_abs_det_jacobian(inputs, outputs)
 
     @override(Transform)
     def _decode(self, inputs):
-        return (inputs - self.loc) / self.scale
+        outputs = (inputs - self.loc) / self.scale
+        return outputs, -self.log_abs_det_jacobian(outputs, inputs)
 
-    @override(Transform)
     def log_abs_det_jacobian(self, inputs, outputs):
+        # pylint:disable=unused-argument,missing-docstring
         _, scale = torch.broadcast_tensors(inputs, self.scale)
-        return scale.abs().log()
+        return _sum_rightmost(scale.abs().log(), self.event_dim)
 
 
-class TanhSquashTransform(ComposeTransform):
+class TanhSquashTransform(Transform):
     """Squashes samples to the desired range."""
 
-    def __init__(self, low, high, *args, **kwargs):
-        squash = TanhTransform(*args, **kwargs)
-        shift = AffineTransform(
-            loc=(high + low) / 2, scale=(high - low) / 2, *args, **kwargs
-        )
-        super().__init__([squash, shift])
+    def __init__(self, low, high, event_dim=0):
+        squash = TanhTransform()
+        shift = AffineTransform(loc=(high + low) / 2, scale=(high - low) / 2)
+        compose = ComposeTransform([squash, shift], event_dim=event_dim)
+        super().__init__(cond_transform=compose)
