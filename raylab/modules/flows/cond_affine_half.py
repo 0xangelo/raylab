@@ -49,7 +49,8 @@ class CondAffine1DHalfFlow(ConditionalNormalizingFlow):
         out[..., ::2] = x_0
         out[..., 1::2] = x_1
 
-        log_abs_det_jacobian = torch.cat([-scale, out * 0], dim=-1)
+        # HACK: TorchScript doesn't behave well when not all grad tensors are involved
+        log_abs_det_jacobian = -scale + shift * 0
         return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
     @override(ConditionalNormalizingFlow)
@@ -62,10 +63,11 @@ class CondAffine1DHalfFlow(ConditionalNormalizingFlow):
         shift = self.shift(x_0, cond)
         z_0 = x_0
         z_1 = torch.exp(scale) * x_1 + shift
-
         if self.parity:
             z_0, z_1 = z_1, z_0
+
         out = torch.cat([z_0, z_1], dim=-1)
 
-        log_abs_det_jacobian = scale
+        # HACK: TorchScript doesn't behave well when not all grad tensors are involved
+        log_abs_det_jacobian = scale + shift * 0
         return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
