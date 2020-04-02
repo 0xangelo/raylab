@@ -11,45 +11,30 @@ from raylab.modules.distributions import (
     TransformedDistribution,
     Uniform,
 )
+from raylab.modules.distributions.utils import _sum_rightmost
 
 
-# class NormalCDF(nn.Module):
-#     def forward(self, inputs):  # pylint:disable=arguments-differ
-#         dist = ptd.Normal(torch.zeros(2), torch.ones(2))
-#         return dist.cdf(inputs), dist.log_prob(inputs).sum(-1)
-
-
-# class NormalICDF(nn.Module):
-#     def forward(self, inputs):  # pylint:disable=arguments-differ
-#         dist = ptd.Normal(torch.zeros(2), torch.ones(2))
-#         value = dist.icdf(inputs)
-#         # https://math.stackexchange.com/q/910355/595715
-#         log_det = -dist.log_prob(value).sum(-1)
-#         return value, log_det
-
-
-class Basic2DFlow(NormalizingFlow):
+class Basic1DFlow(NormalizingFlow):
     def __init__(self, distribution):
-        super().__init__()
+        super().__init__(event_dim=1)
         self.distribution = distribution
 
     def _encode(self, inputs):
         out = self.distribution.cdf(inputs)
         log_abs_det_jacobian = self.distribution.log_prob(inputs)
-        return out, log_abs_det_jacobian
+        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
     def _decode(self, inputs):
         out = self.distribution.icdf(inputs)
         log_abs_det_jacobian = -self.distribution.log_prob(out)
-        return out, log_abs_det_jacobian
+        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
 
 @pytest.fixture
 def flow():
-    return Basic2DFlow(
+    return Basic1DFlow(
         Distribution(
-            cond_dist=Independent(Normal(), reinterpreted_batch_ndims=1),
-            params={"loc": torch.zeros(2), "scale": torch.ones(2)},
+            cond_dist=Normal(), params={"loc": torch.zeros(2), "scale": torch.ones(2)},
         )
     )
 
@@ -75,7 +60,7 @@ def test_basic_flow(flow, torch_script):
 
     value_, log_det = flow(latent, reverse=True)
     assert value_.shape == value.shape
-    assert torch.allclose(value_, value)
+    assert torch.allclose(value_, value, atol=1e-7)
     assert log_det.shape == (10,)
 
 

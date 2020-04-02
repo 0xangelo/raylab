@@ -11,6 +11,7 @@ import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
 from .abstract import ConditionalNormalizingFlow
+from ..distributions.utils import _sum_rightmost
 
 
 class DummyCond(nn.Module):
@@ -19,14 +20,14 @@ class DummyCond(nn.Module):
     @override(nn.Module)
     def forward(self, inputs, cond: Dict[str, torch.Tensor]):
         # pylint:disable=arguments-differ,unused-argument
-        return torch.zeros([])
+        return torch.zeros(())
 
 
 class CondAffine1DHalfFlow(ConditionalNormalizingFlow):
     """Conditional affine coupling layer."""
 
-    def __init__(self, parity, scale_module=None, shift_module=None, **kwargs):
-        super().__init__(event_dim=1, **kwargs)
+    def __init__(self, parity, scale_module=None, shift_module=None):
+        super().__init__(event_dim=1)
         self.parity = parity
         self.scale = DummyCond() if scale_module is None else scale_module
         self.shift = DummyCond() if shift_module is None else shift_module
@@ -44,15 +45,12 @@ class CondAffine1DHalfFlow(ConditionalNormalizingFlow):
         if self.parity:
             x_0, x_1 = x_1, x_0
 
-        mask0 = torch.zeros_like(inputs).bool()
-        mask0[..., ::2] = True
-        mask1 = ~mask0
         out = torch.empty_like(inputs)
-        out[mask0] = x_0.flatten()
-        out[mask1] = x_1.flatten()
+        out[..., ::2] = x_0
+        out[..., 1::2] = x_1
 
-        log_abs_det_jacobian = torch.sum(-scale, dim=-1)
-        return out, log_abs_det_jacobian
+        log_abs_det_jacobian = torch.cat([-scale, out * 0], dim=-1)
+        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
     @override(ConditionalNormalizingFlow)
     def _decode(self, inputs, cond: Dict[str, torch.Tensor]):
@@ -69,5 +67,5 @@ class CondAffine1DHalfFlow(ConditionalNormalizingFlow):
             z_0, z_1 = z_1, z_0
         out = torch.cat([z_0, z_1], dim=-1)
 
-        log_abs_det_jacobian = torch.sum(scale, dim=-1)
-        return out, log_abs_det_jacobian
+        log_abs_det_jacobian = scale
+        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)

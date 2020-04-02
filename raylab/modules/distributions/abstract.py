@@ -1,5 +1,7 @@
 """Distributions as PyTorch modules compatible with TorchScript."""
 from typing import Dict, List
+
+import numpy as np
 import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
@@ -15,7 +17,7 @@ class ConditionalDistribution(nn.Module):
     ConditionalDistribution interface.
     """
 
-    # pylint:disable=abstract-method,unused-argument
+    # pylint:disable=abstract-method,unused-argument,not-callable
 
     def __init__(self, *, distribution=None):
         super().__init__()
@@ -30,7 +32,7 @@ class ConditionalDistribution(nn.Module):
         """
         if self.distribution is not None:
             return self.distribution.sample(sample_shape)
-        return None, None
+        return torch.tensor(np.nan).float(), torch.tensor(np.nan).float()
 
     @torch.jit.export
     def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
@@ -41,7 +43,7 @@ class ConditionalDistribution(nn.Module):
         """
         if self.distribution is not None:
             return self.distribution.rsample(sample_shape)
-        return None, None
+        return torch.tensor(np.nan).float(), torch.tensor(np.nan).float()
 
     @torch.jit.export
     def log_prob(self, params: Dict[str, torch.Tensor], value):
@@ -50,43 +52,40 @@ class ConditionalDistribution(nn.Module):
         """
         if self.distribution is not None:
             return self.distribution.log_prob(value)
-        return None
+        return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
     def cdf(self, params: Dict[str, torch.Tensor], value):
         """Returns the cumulative density/mass function evaluated at `value`."""
         if self.distribution is not None:
             return self.distribution.cdf(value)
-        return None
+        return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
     def icdf(self, params: Dict[str, torch.Tensor], value):
         """Returns the inverse cumulative density/mass function evaluated at `value`."""
         if self.distribution is not None:
             return self.distribution.icdf(value)
-        return None
+        return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
     def entropy(self, params: Dict[str, torch.Tensor]):
         """Returns entropy of distribution."""
         if self.distribution is not None:
             return self.distribution.entropy()
-        return None
+        return torch.tensor(np.nan).float()
 
     @torch.jit.export
     def perplexity(self, params: Dict[str, torch.Tensor]):
         """Returns perplexity of distribution."""
-        entropy = self.entropy(params)
-        if entropy is not None:
-            return entropy.exp()
-        return None
+        return self.entropy(params).exp()
 
     @torch.jit.export
     def reproduce(self, params: Dict[str, torch.Tensor], value):
         """Produce a reparametrized sample with the same value as `value`."""
         if self.distribution is not None:
             return self.distribution.reproduce(value)
-        return None
+        return torch.tensor(np.nan).float().expand_as(value)
 
 
 class Distribution(nn.Module):
@@ -98,8 +97,8 @@ class Distribution(nn.Module):
     Otherwise, parameters will be registered as buffers.
     """
 
-    # pylint:disable=abstract-method
-    par: Dict[str, torch.Tensor]
+    # pylint:disable=abstract-method,not-callable
+    params: Dict[str, torch.Tensor]
 
     def __init__(self, *, cond_dist=None, params=None):
         super().__init__()
@@ -120,7 +119,7 @@ class Distribution(nn.Module):
         """
         if self.cond_dist is not None:
             return self.cond_dist.sample(self.params, sample_shape)
-        return None, None
+        return torch.tensor(np.nan).float(), torch.tensor(np.nan).float()
 
     @torch.jit.export
     def rsample(self, sample_shape: List[int] = ()):
@@ -131,7 +130,7 @@ class Distribution(nn.Module):
         """
         if self.cond_dist is not None:
             return self.cond_dist.rsample(self.params, sample_shape)
-        return None, None
+        return torch.tensor(np.nan).float(), torch.tensor(np.nan).float()
 
     @torch.jit.export
     def log_prob(self, value):
@@ -140,43 +139,40 @@ class Distribution(nn.Module):
         """
         if self.cond_dist is not None:
             return self.cond_dist.log_prob(self.params, value)
-        return None
+        return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
     def cdf(self, value):
         """Returns the cumulative density/mass function evaluated at `value`."""
         if self.cond_dist is not None:
             return self.cond_dist.cdf(self.params, value)
-        return None
+        return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
     def icdf(self, value):
         """Returns the inverse cumulative density/mass function evaluated at `value`."""
         if self.cond_dist is not None:
             return self.cond_dist.icdf(self.params, value)
-        return None
+        return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
     def entropy(self):
         """Returns entropy of distribution."""
         if self.cond_dist is not None:
             return self.cond_dist.entropy(self.params)
-        return None
+        return torch.tensor(np.nan).float()
 
     @torch.jit.export
     def perplexity(self):
         """Returns perplexity of distribution."""
-        entropy = self.entropy()
-        if entropy is not None:
-            return entropy.exp()
-        return None
+        return self.entropy().exp()
 
     @torch.jit.export
     def reproduce(self, value):
         """Produce a reparametrized sample with the same value as `value`."""
         if self.cond_dist is not None:
             return self.cond_dist.reproduce(self.params, value)
-        return None
+        return torch.tensor(np.nan).float().expand_as(value)
 
 
 class Independent(ConditionalDistribution):

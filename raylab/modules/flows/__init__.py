@@ -12,7 +12,7 @@ https://arxiv.org/abs/1912.02762
 Mostly copied from
 https://github.com/karpathy/pytorch-normalizing-flows
 """
-from .abstract import NormalizingFlow
+from .abstract import NormalizingFlow, ConditionalNormalizingFlow
 from .affine_constant import AffineConstantFlow, ActNorm
 from .affine_half import Affine1DHalfFlow
 from .cond_affine_half import CondAffine1DHalfFlow
@@ -24,6 +24,8 @@ __all__ = [
     "AffineConstantFlow",
     "Affine1DHalfFlow",
     "CondAffine1DHalfFlow",
+    "ConditionalNormalizingFlow",
     "IAF",
     "MAF",
+    "NormalizingFlow",
 ]

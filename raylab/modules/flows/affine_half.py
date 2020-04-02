@@ -9,10 +9,20 @@ https://arxiv.org/abs/1605.08803
 (Laurent's extension of NICE)
 """
 import torch
+import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
-from raylab.modules.basic.lambd import Lambda
 from .abstract import NormalizingFlow
+from ..distributions.utils import _sum_rightmost
+
+
+class Dummy(nn.Module):
+    """Dummy module outputting zeros on input."""
+
+    @override(nn.Module)
+    def forward(self, _):
+        # pylint:disable=arguments-differ
+        return torch.zeros(())
 
 
 class Affine1DHalfFlow(NormalizingFlow):
@@ -24,17 +34,11 @@ class Affine1DHalfFlow(NormalizingFlow):
     - NICE only shifts
     """
 
-    def __init__(self, parity, scale_module=None, shift_module=None, **kwargs):
-        super().__init__(event_dim=1, **kwargs)
+    def __init__(self, parity, scale_module=None, shift_module=None):
+        super().__init__(event_dim=1)
         self.parity = parity
-        if scale_module is None:
-            self.scale = Lambda(lambda _: torch.zeros([]))
-        else:
-            self.scale = scale_module
-        if shift_module is None:
-            self.shift = Lambda(lambda _: torch.zeros([]))
-        else:
-            self.shift = shift_module
+        self.scale = scale_module or Dummy()
+        self.shift = shift_module or Dummy()
 
     @override(NormalizingFlow)
     def _encode(self, inputs):
@@ -46,18 +50,15 @@ class Affine1DHalfFlow(NormalizingFlow):
         shift = self.shift(z_0)
         x_0 = z_0
         x_1 = (z_1 - shift) * torch.exp(-scale)
-
         if self.parity:
             x_0, x_1 = x_1, x_0
-        mask0 = torch.zeros_like(inputs).bool()
-        mask0[..., ::2] = True
-        mask1 = ~mask0
+
         out = torch.empty_like(inputs)
-        out[mask0] = x_0.flatten()
-        out[mask1] = x_1.flatten()
+        out[..., ::2] = x_0
+        out[..., 1::2] = x_1
 
         log_abs_det_jacobian = -scale
-        return out, log_abs_det_jacobian
+        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
     @override(NormalizingFlow)
     def _decode(self, inputs):
@@ -75,4 +76,4 @@ class Affine1DHalfFlow(NormalizingFlow):
         out = torch.cat([z_0, z_1], dim=-1)
 
         log_abs_det_jacobian = scale
-        return out, log_abs_det_jacobian
+        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
