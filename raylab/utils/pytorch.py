@@ -103,6 +103,7 @@ NONLINEARITY_MAP = {
     "Sigmoid": "sigmoid",
     "Tanh": "tanh",
     "ReLU": "relu",
+    "ELU": "relu",
     "LeakyReLU": "leaky_relu",
 }
 
