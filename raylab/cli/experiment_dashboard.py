@@ -48,7 +48,6 @@ def time_series(x_key, y_key, groups, labels):
     palette = bokeh.palettes.cividis(len(labels))
 
     individual = st.checkbox("Show individual curves")
-    print(labels)
     for idx, (label, group) in enumerate(zip(labels, groups)):
         data = group.extract()
         progresses = [d.progress for d in data]
