@@ -21,8 +21,10 @@ def fisher_vec_prod(vec, obs, policy, n_samples=1, damping=1e-3):
         damping (float): Regularization to prevent the Fisher from becoming singular.
     """
     _, cur_logp = policy.sample(obs, sample_shape=(n_samples,))
-    grad = flat_grad(cur_logp.mean(0).mean(), policy.parameters(), create_graph=True)
-    fvp = -flat_grad(grad.dot(vec), policy.parameters()).detach()
+    grad = flat_grad(
+        cur_logp.mean(), policy.parameters(), create_graph=True, allow_unused=True
+    )
+    fvp = -flat_grad(grad.dot(vec), policy.parameters(), allow_unused=True)
     return fvp + vec * damping
 
 
