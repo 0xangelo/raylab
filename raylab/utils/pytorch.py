@@ -5,11 +5,17 @@ import inspect
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.autograd import grad
 
 
-def flat_grad(*args, **kwargs):
+def flat_grad(outputs, inputs, *args, **kwargs):
     """Compute gradients and return a flattened array."""
-    return torch.cat([g.reshape((-1,)) for g in torch.autograd.grad(*args, **kwargs)])
+    params = list(inputs)
+    grads = [
+        torch.zeros(p.numel()) if g is None else g.reshape((-1,))
+        for p, g in zip(params, grad(outputs, params, *args, **kwargs))
+    ]
+    return torch.cat(grads)
 
 
 def convert_to_tensor(arr, device):
