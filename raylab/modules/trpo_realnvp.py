@@ -72,6 +72,7 @@ class CondMLP(nn.Module):
         self.encoder = StateActionEncoder(
             in_size,
             state_size,
+            delay_action=False,
             units=mlp_kwargs["units"],
             activation=mlp_kwargs["activation"],
             **mlp_kwargs["initializer_options"],
