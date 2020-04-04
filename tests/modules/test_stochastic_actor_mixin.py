@@ -34,7 +34,7 @@ def continuous_agent(request):
     return request.param
 
 
-@pytest.fixture(params=(TRPOModule))
+@pytest.fixture(params=(TRPOModule,))
 def discrete_agent(request):
     return request.param
 
