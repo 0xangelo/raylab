@@ -210,7 +210,8 @@ class TanhSquashTransform(Transform):
     """Squashes samples to the desired range."""
 
     def __init__(self, low, high, event_dim=0):
+        divide = AffineTransform(loc=torch.zeros_like(low), scale=1 / (high - low))
         squash = TanhTransform()
         shift = AffineTransform(loc=(high + low) / 2, scale=(high - low) / 2)
-        compose = ComposeTransform([squash, shift], event_dim=event_dim)
+        compose = ComposeTransform([divide, squash, shift], event_dim=event_dim)
         super().__init__(cond_transform=compose)
