@@ -2,8 +2,7 @@
 Hessian-free optimization utilities
 """
 import torch
-
-from raylab.utils.pytorch import flat_grad
+from torch.autograd import grad
 
 
 def fisher_vec_prod(vec, obs, policy, n_samples=1, damping=1e-3):
@@ -21,14 +20,26 @@ def fisher_vec_prod(vec, obs, policy, n_samples=1, damping=1e-3):
         damping (float): Regularization to prevent the Fisher from becoming singular.
     """
     _, cur_logp = policy.sample(obs, sample_shape=(n_samples,))
-    grad = flat_grad(
-        cur_logp.mean(), policy.parameters(), create_graph=True, allow_unused=True
-    )
-    fvp = -flat_grad(grad.dot(vec), policy.parameters(), allow_unused=True)
+    fvp = -hessian_vector_product(cur_logp.mean(), policy.parameters(), vec)
     return fvp + vec * damping
 
 
-def conjugate_gradient(f_mat_vec_prod, b, cg_iters=10, residual_tol=1e-10):
+def hessian_vector_product(output, params, vector):
+    # pylint:disable=missing-docstring
+    params = list(params)
+    vecs, idx = [], 0
+    for par in params:
+        vecs += [vector[idx : idx + par.numel()].reshape_as(par)]
+        idx += par.numel()
+    grads = grad(output, params, allow_unused=True, create_graph=True)
+    hvp = grad([g for g in grads if g is not None], params, vecs, allow_unused=True)
+    zeros = torch.zeros
+    return torch.cat(
+        [(zeros(p.numel()) if v is None else v.flatten()) for v, p in zip(hvp, params)]
+    )
+
+
+def conjugate_gradient(f_mat_vec_prod, b, cg_iters=10, residual_tol=1e-6):
     """
     Demmel p 312. Approximately solve x = A^{-1}b, or Ax = b,
     where we only have access to f: x -> Ax
@@ -39,7 +50,7 @@ def conjugate_gradient(f_mat_vec_prod, b, cg_iters=10, residual_tol=1e-10):
     x = torch.zeros_like(b)
     rdotr = torch.dot(r, r)
 
-    for _ in range(cg_iters):
+    for i in range(cg_iters):
         z = f_mat_vec_prod(p)
         v = rdotr / torch.dot(p, z)
         x += v * p
@@ -51,7 +62,7 @@ def conjugate_gradient(f_mat_vec_prod, b, cg_iters=10, residual_tol=1e-10):
         if rdotr < residual_tol:
             break
 
-    return x
+    return x, i + 1, rdotr
 
 
 @torch.no_grad()

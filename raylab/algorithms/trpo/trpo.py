@@ -22,6 +22,12 @@ DEFAULT_CONFIG = with_common_config(
         # Whether to use a line search to calculate policy update.
         # Effectively turns TRPO into Natural PG when turned off.
         "line_search": True,
+        "line_search_options": {
+            "accept_ratio": 0.1,
+            "backtrack_ratio": 0.8,
+            "max_backtracks": 15,
+            "atol": 1e-7,
+        },
         # === Network ===
         # Size and activation of the fully connected networks computing the logits
         # for the policy and value function. No layers means the component is

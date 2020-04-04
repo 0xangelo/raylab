@@ -99,18 +99,23 @@ class TRPOTorchPolicy(TorchPolicy):
             self.ACTION_LOGP,
             Postprocessing.ADVANTAGES,
         )
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
+        # Compute Policy Gradient
         surr_loss = -(self.module.actor.log_prob(cur_obs, actions) * advantages).mean()
         pol_grad = torch_util.flat_grad(surr_loss, self.module.actor.parameters())
-        info["pg_norm"] = pol_grad.norm().item()
+        info["grad_norm(pg)"] = pol_grad.norm().item()
+        pol_grad = pol_grad / pol_grad.norm()
 
-        descent_step = self._compute_descent_step(
-            pol_grad, cur_obs, self.module.actor, self.config
-        )
-        info["natural_pg_norm"] = descent_step.norm().item()
+        # Compute Natural Gradient
+        descent_step, cg_info = self._compute_descent_step(pol_grad, cur_obs)
+        info["grad_norm(nat)"] = descent_step.norm().item()
+        info.update(cg_info)
+
+        # Perform Line Search
         if self.config["line_search"]:
             new_params, line_search_info = self._perform_line_search(
-                pol_grad, descent_step, surr_loss, batch_tensors
+                pol_grad, descent_step, surr_loss, batch_tensors,
             )
             info.update(line_search_info)
         else:
@@ -128,18 +133,20 @@ class TRPOTorchPolicy(TorchPolicy):
             info["perplexity"] = torch.mean(-old_logp).exp().item()
         return {LEARNER_STATS_KEY: info}
 
-    @staticmethod
-    def _compute_descent_step(pol_grad, cur_obs, actor, config):
+    def _compute_descent_step(self, pol_grad, cur_obs):
         def fvp(vec):
             return hf_util.fisher_vec_prod(
-                vec, cur_obs, actor, n_samples=config["fvp_samples"],
+                vec, cur_obs, self.module.actor, n_samples=self.config["fvp_samples"],
             )
 
-        descent_direction = hf_util.conjugate_gradient(fvp, pol_grad)
-        scale = torch.sqrt(
-            2 * config["delta"] / (pol_grad.dot(descent_direction) + 1e-8)
+        descent_direction, cg_iters, cg_residual = hf_util.conjugate_gradient(
+            fvp, pol_grad
         )
-        return descent_direction * scale
+        scale = torch.sqrt(
+            2 * self.config["delta"] / (pol_grad.dot(descent_direction) + 1e-8)
+        )
+        info = {"cg_iters": cg_iters, "cg_residual": cg_residual}
+        return descent_direction * scale, info
 
     def _perform_line_search(self, pol_grad, descent_step, surr_loss, batch_tensors):
         expected_improvement = pol_grad.dot(descent_step).item()
@@ -166,6 +173,7 @@ class TRPOTorchPolicy(TorchPolicy):
             descent_step,
             expected_improvement,
             y_0=surr_loss.item(),
+            **self.config["line_search_options"],
         )
         info = {
             "expected_improvement": expected_improvement,
