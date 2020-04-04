@@ -22,26 +22,20 @@ from .state_value_mixin import StateValueMixin
 from .stochastic_actor_mixin import StochasticActorMixin, StochasticPolicy
 
 
+# Defaults for Hopper-v1
 BASE_CONFIG = {
     "torch_script": True,
-    "actor": {
-        "units": (32, 32),
-        "activation": "Tanh",
-        "initializer_options": {"name": "xavier_uniform"},
-        "input_dependent_scale": False,
-    },
+    "actor": {"num_flows": 4, "hidden_size": 3},
     "critic": {
         "units": (32, 32),
         "activation": "Tanh",
-        "initializer_options": {"name": "xavier_uniform"},
+        "initializer_options": {"name": "normal", "std": 1.0},
         "target_vf": False,
     },
 }
 
 
-class TRPOTang2018(
-    StochasticActorMixin, StateValueMixin, AbstractActorCritic,
-):
+class TRPOTang2018(StochasticActorMixin, StateValueMixin, AbstractActorCritic):
     """Actor-Critic module with stochastic actor and state-value critics."""
 
     # pylint:disable=abstract-method
@@ -53,14 +47,6 @@ class TRPOTang2018(
     def _make_actor(self, obs_space, action_space, config):
         actor_config = config["actor"]
         return {"actor": NormalizingFlowsPolicy(obs_space, action_space, actor_config)}
-
-    @override(StateValueMixin)
-    def _make_critic(self, obs_space, action_space, config):
-        critic_config = config["critic"]
-        critic_config["units"] = (64, 64)
-        critic_config["activation"] = "ReLU"
-        critic_config["target_vf"] = False
-        return super()._make_critic(obs_space, action_space, config)
 
 
 class NormalizingFlowsPolicy(StochasticPolicy):
@@ -83,16 +69,11 @@ class NormalizingFlowsPolicy(StochasticPolicy):
             nin = act_size - nout
             if parity:
                 nin, nout = nout, nin
-            mlp = FullyConnected(
-                nin, units=(3,) * 4, activation="ELU", **config["initializer_options"],
-            )
-            linear = nn.Linear(mlp.out_features, nout)
-            linear.apply(initialize_("orthogonal", gain=0.01))
-            return nn.Sequential(mlp, linear)
+            return MLP(nin, nout, hidden_size=config["hidden_size"])
 
-        parities = [bool(i % 2) for i in range(4)]
+        parities = [bool(i % 2) for i in range(config["num_flows"])]
         couplings = [Affine1DHalfFlow(p, make_mod(p), make_mod(p)) for p in parities]
-        add_state = AddStateFlow(obs_size, act_size, config)
+        add_state = AddStateFlow(obs_size, act_size)
         squash = TanhSquashTransform(
             low=torch.as_tensor(action_space.low),
             high=torch.as_tensor(action_space.high),
@@ -114,17 +95,9 @@ class NormalizingFlowsPolicy(StochasticPolicy):
 class AddStateFlow(ConditionalNormalizingFlow):
     """Incorporates state information by adding a state embedding."""
 
-    def __init__(self, obs_size, act_size, config):
+    def __init__(self, obs_size, act_size):
         super().__init__(event_dim=1)
-        mlp = FullyConnected(
-            obs_size,
-            units=(64, 64),
-            activation=config["activation"],
-            **config["initializer_options"],
-        )
-        linear = nn.Linear(mlp.out_features, act_size)
-        linear.apply(initialize_("orthogonal", gain=0.01))
-        self.state_encoder = nn.Sequential(mlp, linear)
+        self.state_encoder = MLP(obs_size, act_size, hidden_size=64)
 
     @override(ConditionalNormalizingFlow)
     def _encode(self, inputs, cond: Dict[str, torch.Tensor]):
@@ -135,3 +108,18 @@ class AddStateFlow(ConditionalNormalizingFlow):
     def _decode(self, inputs, cond: Dict[str, torch.Tensor]):
         encoded = self.state_encoder(cond["state"])
         return inputs - encoded, torch.zeros(inputs.shape[: -self.event_dim])
+
+
+class MLP(nn.Module):
+    # pylint:disable=missing-docstring
+    def __init__(self, in_size, out_size, layer_norm=True, hidden_size=3):
+        super().__init__()
+        fully_connected = FullyConnected(
+            in_size, units=(hidden_size,) * 2, activation="ReLU", layer_norm=layer_norm,
+        )
+        linear = nn.Linear(self.fully_connected, out_size)
+        linear.apply(initialize_("uniform", a=-3e-3, b=3e-3))
+        self.net = nn.Sequential(fully_connected, linear)
+
+    def forward(self, inputs):  # pylint:disable=arguments-differ
+        return self.net(inputs)
