@@ -40,13 +40,13 @@ def get_config():
             "actor": {
                 "units": (32, 32),
                 "activation": "ELU",
-                "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
+                "initializer_options": {"name": "orthogonal"},
                 "input_dependent_scale": False,
             },
             "critic": {
                 "units": (32, 32),
                 "activation": "ELU",
-                "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
+                "initializer_options": {"name": "orthogonal"},
                 "target_vf": False,
             },
         },
