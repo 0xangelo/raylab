@@ -24,7 +24,11 @@ class StochasticActorMixin:
     @staticmethod
     def _make_actor(obs_space, action_space, config):
         actor_config = config["actor"]
-        return {"actor": StandardPolicy(obs_space, action_space, actor_config)}
+        if isinstance(action_space, spaces.Discrete):
+            return {"actor": CategoricalPolicy(obs_space, action_space, actor_config)}
+        if isinstance(action_space, spaces.Box):
+            return {"actor": GaussianPolicy(obs_space, action_space, actor_config)}
+        raise ValueError(f"Unsopported action space type {type(action_space)}")
 
 
 class MaximumEntropyMixin:
@@ -101,39 +105,66 @@ class StochasticPolicy(nn.Module):
         return self.dist.reproduce(params, action)
 
 
-class StandardPolicy(StochasticPolicy):
-    """StochasticPolicy as a conditional Gaussian/Categorical distribution."""
+class CategoricalPolicy(StochasticPolicy):
+    """StochasticPolicy as a conditional Categorical distribution."""
 
     def __init__(self, obs_space, action_space, config):
         super().__init__()
-        self.logits = FullyConnected(
-            in_features=obs_space.shape[0],
-            units=config["units"],
-            activation=config["activation"],
-            **config["initializer_options"],
-        )
-
-        if isinstance(action_space, spaces.Discrete):
-            self.params = CategoricalParams(self.logits.out_features, action_space.n)
-            self.dist = Categorical()
-        elif isinstance(action_space, spaces.Box):
-            self.params = NormalParams(
-                self.logits.out_features,
-                action_space.shape[0],
-                input_dependent_scale=config["input_dependent_scale"],
-            )
-            self.dist = TransformedDistribution(
-                Independent(Normal(), reinterpreted_batch_ndims=1),
-                TanhSquashTransform(
-                    low=torch.as_tensor(action_space.low),
-                    high=torch.as_tensor(action_space.high),
-                    event_dim=1,
-                ),
-            )
-        else:
-            raise ValueError(f"Unsopported action space type {type(action_space)}")
+        self.logits = _build_fully_connected(obs_space, config)
+        self.params = CategoricalParams(self.logits.out_features, action_space.n)
         self.sequential = nn.Sequential(self.logits, self.params)
+        self.dist = Categorical()
 
     @override(nn.Module)
     def forward(self, obs):  # pylint:disable=arguments-differ
         return self.sequential(obs)
+
+    @torch.jit.export
+    def mode(self, obs):
+        """Compute most probable action."""
+        params = self(obs)
+        return torch.argmax(params["logits"], dim=-1)
+
+
+class GaussianPolicy(StochasticPolicy):
+    """StochasticPolicy as a conditional Gaussian distribution."""
+
+    def __init__(self, obs_space, action_space, config):
+        super().__init__()
+        self.logits = _build_fully_connected(obs_space, config)
+        self.params = NormalParams(
+            self.logits.out_features,
+            action_space.shape[0],
+            input_dependent_scale=config["input_dependent_scale"],
+        )
+        self.sequential = nn.Sequential(self.logits, self.params)
+        self.dist = TransformedDistribution(
+            Independent(Normal(), reinterpreted_batch_ndims=1),
+            TanhSquashTransform(
+                low=torch.as_tensor(action_space.low),
+                high=torch.as_tensor(action_space.high),
+                event_dim=1,
+            ),
+        )
+
+    @override(nn.Module)
+    def forward(self, obs):  # pylint:disable=arguments-differ
+        return self.sequential(obs)
+
+    @torch.jit.export
+    def mode(self, obs):
+        """Compute most probable action."""
+        params = self(obs)
+        mode = params["loc"]
+        base_log_prob = self.dist.base_dist.log_prob(params, mode)
+        out, log_det = self.dist.transform(mode, {})
+        return out, base_log_prob - log_det
+
+
+def _build_fully_connected(obs_space, config):
+    return FullyConnected(
+        in_features=obs_space.shape[0],
+        units=config["units"],
+        activation=config["activation"],
+        **config["initializer_options"],
+    )

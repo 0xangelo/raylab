@@ -42,7 +42,6 @@ SVG_BASE_CONFIG = with_common_config(
         "module": {
             "name": "SVGModule",
             "torch_script": True,
-            "mean_action_only": False,
             "actor": {
                 "units": [100, 100],
                 "activation": "Tanh",
@@ -67,6 +66,7 @@ SVG_BASE_CONFIG = with_common_config(
         },
         # === Debugging ===
         # Whether to log detailed information about the actions selected in each episode
+        "mean_action_only": False,
         "debug": False,
     }
 )

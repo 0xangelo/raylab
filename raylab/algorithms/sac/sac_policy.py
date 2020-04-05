@@ -87,6 +87,8 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
 
         if self.is_uniform_random:
             actions = self._uniform_random_actions(obs_batch)
+        elif self.config["mean_action_only"]:
+            actions, _ = self.module.actor.mode(obs_batch)
         else:
             actions, _ = self.module.actor.rsample(obs_batch)
 
