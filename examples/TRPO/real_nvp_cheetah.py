@@ -43,7 +43,7 @@ def get_config():
                 "initializer_options": {"name": "orthogonal"},
                 "num_flows": 4,
                 "flow": {
-                    "units": (6,) * 2,
+                    "units": (24,) * 2,
                     "activation": "ELU",
                     "initializer_options": {"name": "orthogonal"},
                 },
@@ -52,7 +52,6 @@ def get_config():
                 "units": (32, 32),
                 "activation": "ELU",
                 "initializer_options": {"name": "orthogonal"},
-                "target_vf": False,
             },
         },
     }

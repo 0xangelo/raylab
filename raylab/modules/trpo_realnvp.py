@@ -1,4 +1,4 @@
-""" Trust-Region Policy Optimization with RealNVP density approximation."""
+"""Trust-Region Policy Optimization with RealNVP density approximation."""
 from typing import Dict
 
 import gym.spaces as spaces
@@ -27,11 +27,13 @@ BASE_CONFIG = {
     "actor": {
         "units": (64, 64),
         "activation": "ELU",
+        "layer_norm": False,
         "initializer_options": {"name": "xavier_uniform"},
         "num_flows": 4,
         "flow": {
             "units": (24,) * 4,
             "activation": "ELU",
+            "layer_norm": False,
             "initializer_options": {"name": "xavier_uniform"},
         },
     },
@@ -39,7 +41,6 @@ BASE_CONFIG = {
         "units": (64, 64),
         "activation": "ELU",
         "initializer_options": {"name": "xavier_uniform"},
-        "target_vf": False,
     },
 }
 
@@ -52,6 +53,7 @@ class TRPORealNVP(
     # pylint:disable=abstract-method
 
     def __init__(self, obs_space, action_space, config):
+        config["critic"]["target_vf"] = False
         super().__init__(obs_space, action_space, merge_dicts(BASE_CONFIG, config))
 
     @override(StochasticActorMixin)
@@ -65,8 +67,8 @@ class CondMLP(nn.Module):
 
     def __init__(self, parity, action_size, state_size, **mlp_kwargs):
         super().__init__()
+        in_size = (action_size + 1) // 2
         out_size = action_size // 2
-        in_size = action_size - out_size
         if parity:
             in_size, out_size = out_size, in_size
         self.encoder = StateActionEncoder(
@@ -75,6 +77,7 @@ class CondMLP(nn.Module):
             delay_action=False,
             units=mlp_kwargs["units"],
             activation=mlp_kwargs["activation"],
+            layer_norm=mlp_kwargs["layer_norm"],
             **mlp_kwargs["initializer_options"],
         )
         self.linear = nn.Linear(self.encoder.out_features, out_size)
@@ -103,28 +106,27 @@ class RealNVPPolicy(StochasticPolicy):
             obs_size,
             units=config["units"],
             activation=config["activation"],
+            layer_norm=config["layer_norm"],
             **config["initializer_options"],
         )
 
         # RealNVP ==============================================================
-        flow_config = config["flow"]
-
         def make_mod(parity):
             return CondMLP(
-                parity, act_size, self.obs_encoder.out_features, **flow_config
+                parity, act_size, self.obs_encoder.out_features, **config["flow"]
             )
 
         parities = [bool(i % 2) for i in range(config["num_flows"])]
         couplings = [
             CondAffine1DHalfFlow(p, make_mod(p), make_mod(p)) for p in parities
         ]
+
         squash = TanhSquashTransform(
             low=torch.as_tensor(action_space.low),
             high=torch.as_tensor(action_space.high),
             event_dim=1,
         )
         transforms = couplings + [squash]
-
         self.dist = TransformedDistribution(
             base_dist=Independent(Normal(), reinterpreted_batch_ndims=1),
             transform=ComposeTransform(transforms),
