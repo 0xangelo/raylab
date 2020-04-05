@@ -5,26 +5,16 @@ import torch
 from torch.autograd import grad
 
 
-def fisher_vec_prod(vec, obs, policy, n_samples=1, damping=1e-3):
-    """Approximately compute the fisher-vector-product using samples.
-
-    This is based on the Fisher Matrix formulation as the expected hessian
-    of the negative log likelihood. For more information, see:
-    https://en.wikipedia.org/wiki/Fisher_information#Matrix_form
+def hessian_vector_product(output, params, vector):
+    """Computes the Hessian vector product w.r.t to a scalar loss.
 
     Args:
-        vec (Tensor): The vector to compute the Fisher vector product with.
-        obs (Tensor): The observations to evaluate the policy in.
-        policy (nn.Module): The policy
-        n_samples (int): The number of actions to sample for each state.
-        damping (float): Regularization to prevent the Fisher from becoming singular.
+        output (Tensor): loss tensor w.r.t. which the Hessian will be computed.
+        params (list): the parameters of the module, usually from a call to
+            `module.parameters()`.
+        vector (Tensor): The flattened vector to compute the Hessian product with.
+            This must have the same total number of elements in `params`.
     """
-    _, cur_logp = policy.sample(obs, sample_shape=(n_samples,))
-    fvp = -hessian_vector_product(cur_logp.mean(), policy.parameters(), vec)
-    return fvp + vec * damping
-
-
-def hessian_vector_product(output, params, vector):
     # pylint:disable=missing-docstring
     params = list(params)
     vecs, idx = [], 0

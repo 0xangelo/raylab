@@ -19,6 +19,9 @@ DEFAULT_CONFIG = with_common_config(
         "val_lr": 1e-3,
         # Whether to use Generalized Advantage Estimation
         "use_gae": True,
+        # Configuration for Conjugate Gradient
+        "cg_iters": 10,
+        "cg_damping": 1e-3,
         # Whether to use a line search to calculate policy update.
         # Effectively turns TRPO into Natural PG when turned off.
         "line_search": True,
