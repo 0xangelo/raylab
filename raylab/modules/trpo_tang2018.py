@@ -117,7 +117,7 @@ class MLP(nn.Module):
         fully_connected = FullyConnected(
             in_size, units=(hidden_size,) * 2, activation="ReLU", layer_norm=layer_norm,
         )
-        linear = nn.Linear(self.fully_connected, out_size)
+        linear = nn.Linear(fully_connected.out_features, out_size)
         linear.apply(initialize_("uniform", a=-3e-3, b=3e-3))
         self.net = nn.Sequential(fully_connected, linear)
 
