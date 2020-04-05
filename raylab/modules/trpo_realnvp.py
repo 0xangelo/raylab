@@ -53,8 +53,9 @@ class TRPORealNVP(
     # pylint:disable=abstract-method
 
     def __init__(self, obs_space, action_space, config):
+        config = merge_dicts(BASE_CONFIG, config)
         config["critic"]["target_vf"] = False
-        super().__init__(obs_space, action_space, merge_dicts(BASE_CONFIG, config))
+        super().__init__(obs_space, action_space, config)
 
     @override(StochasticActorMixin)
     def _make_actor(self, obs_space, action_space, config):
