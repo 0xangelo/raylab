@@ -24,7 +24,7 @@ class StochasticActorMixin:
     @staticmethod
     def _make_actor(obs_space, action_space, config):
         actor_config = config["actor"]
-        return {"actor": StochasticPolicy(obs_space, action_space, actor_config)}
+        return {"actor": StandardPolicy(obs_space, action_space, actor_config)}
 
 
 class MaximumEntropyMixin:
@@ -40,39 +40,7 @@ class MaximumEntropyMixin:
 class StochasticPolicy(nn.Module):
     """Represents a stochastic policy as a conditional distribution module."""
 
-    def __init__(self, obs_space, action_space, config):
-        super().__init__()
-        self.logits = FullyConnected(
-            in_features=obs_space.shape[0],
-            units=config["units"],
-            activation=config["activation"],
-            **config["initializer_options"],
-        )
-
-        if isinstance(action_space, spaces.Discrete):
-            self.params = CategoricalParams(self.logits.out_features, action_space.n)
-            self.dist = Categorical()
-        elif isinstance(action_space, spaces.Box):
-            self.params = NormalParams(
-                self.logits.out_features,
-                action_space.shape[0],
-                input_dependent_scale=config["input_dependent_scale"],
-            )
-            self.dist = TransformedDistribution(
-                Independent(Normal(), reinterpreted_batch_ndims=1),
-                TanhSquashTransform(
-                    low=torch.as_tensor(action_space.low),
-                    high=torch.as_tensor(action_space.high),
-                    event_dim=1,
-                ),
-            )
-        else:
-            raise ValueError(f"Unsopported action space type {type(action_space)}")
-        self.sequential = nn.Sequential(self.logits, self.params)
-
-    @override(nn.Module)
-    def forward(self, obs):  # pylint:disable=arguments-differ
-        return self.sequential(obs)
+    # pylint:disable=abstract-method
 
     @torch.jit.export
     def sample(self, obs, sample_shape: List[int] = ()):
@@ -131,3 +99,41 @@ class StochasticPolicy(nn.Module):
         """Produce a reparametrized sample with the same value as `action`."""
         params = self(obs)
         return self.dist.reproduce(params, action)
+
+
+class StandardPolicy(StochasticPolicy):
+    """StochasticPolicy as a conditional Gaussian/Categorical distribution."""
+
+    def __init__(self, obs_space, action_space, config):
+        super().__init__()
+        self.logits = FullyConnected(
+            in_features=obs_space.shape[0],
+            units=config["units"],
+            activation=config["activation"],
+            **config["initializer_options"],
+        )
+
+        if isinstance(action_space, spaces.Discrete):
+            self.params = CategoricalParams(self.logits.out_features, action_space.n)
+            self.dist = Categorical()
+        elif isinstance(action_space, spaces.Box):
+            self.params = NormalParams(
+                self.logits.out_features,
+                action_space.shape[0],
+                input_dependent_scale=config["input_dependent_scale"],
+            )
+            self.dist = TransformedDistribution(
+                Independent(Normal(), reinterpreted_batch_ndims=1),
+                TanhSquashTransform(
+                    low=torch.as_tensor(action_space.low),
+                    high=torch.as_tensor(action_space.high),
+                    event_dim=1,
+                ),
+            )
+        else:
+            raise ValueError(f"Unsopported action space type {type(action_space)}")
+        self.sequential = nn.Sequential(self.logits, self.params)
+
+    @override(nn.Module)
+    def forward(self, obs):  # pylint:disable=arguments-differ
+        return self.sequential(obs)

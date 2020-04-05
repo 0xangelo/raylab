@@ -2,31 +2,34 @@
 Hessian-free optimization utilities
 """
 import torch
+from torch.autograd import grad
 
-from raylab.utils.pytorch import flat_grad
 
-
-def fisher_vec_prod(vec, obs, policy, n_samples=1, damping=1e-3):
-    """Approximately compute the fisher-vector-product using samples.
-
-    This is based on the Fisher Matrix formulation as the expected hessian
-    of the negative log likelihood. For more information, see:
-    https://en.wikipedia.org/wiki/Fisher_information#Matrix_form
+def hessian_vector_product(output, params, vector):
+    """Computes the Hessian vector product w.r.t to a scalar loss.
 
     Args:
-        vec (Tensor): The vector to compute the Fisher vector product with.
-        obs (Tensor): The observations to evaluate the policy in.
-        policy (nn.Module): The policy
-        n_samples (int): The number of actions to sample for each state.
-        damping (float): Regularization to prevent the Fisher from becoming singular.
+        output (Tensor): loss tensor w.r.t. which the Hessian will be computed.
+        params (list): the parameters of the module, usually from a call to
+            `module.parameters()`.
+        vector (Tensor): The flattened vector to compute the Hessian product with.
+            This must have the same total number of elements in `params`.
     """
-    _, cur_logp = policy.sample(obs, sample_shape=(n_samples,))
-    grad = flat_grad(cur_logp.mean(0).mean(), policy.parameters(), create_graph=True)
-    fvp = -flat_grad(grad.dot(vec), policy.parameters()).detach()
-    return fvp + vec * damping
+    # pylint:disable=missing-docstring
+    params = list(params)
+    vecs, idx = [], 0
+    for par in params:
+        vecs += [vector[idx : idx + par.numel()].reshape_as(par)]
+        idx += par.numel()
+    grads = grad(output, params, allow_unused=True, create_graph=True)
+    hvp = grad([g for g in grads if g is not None], params, vecs, allow_unused=True)
+    zeros = torch.zeros
+    return torch.cat(
+        [(zeros(p.numel()) if v is None else v.flatten()) for v, p in zip(hvp, params)]
+    )
 
 
-def conjugate_gradient(f_mat_vec_prod, b, cg_iters=10, residual_tol=1e-10):
+def conjugate_gradient(f_mat_vec_prod, b, cg_iters=10, residual_tol=1e-6):
     """
     Demmel p 312. Approximately solve x = A^{-1}b, or Ax = b,
     where we only have access to f: x -> Ax
@@ -37,7 +40,7 @@ def conjugate_gradient(f_mat_vec_prod, b, cg_iters=10, residual_tol=1e-10):
     x = torch.zeros_like(b)
     rdotr = torch.dot(r, r)
 
-    for _ in range(cg_iters):
+    for i in range(cg_iters):
         z = f_mat_vec_prod(p)
         v = rdotr / torch.dot(p, z)
         x += v * p
@@ -49,7 +52,7 @@ def conjugate_gradient(f_mat_vec_prod, b, cg_iters=10, residual_tol=1e-10):
         if rdotr < residual_tol:
             break
 
-    return x
+    return x, i + 1, rdotr
 
 
 @torch.no_grad()

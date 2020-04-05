@@ -99,18 +99,22 @@ class TRPOTorchPolicy(TorchPolicy):
             self.ACTION_LOGP,
             Postprocessing.ADVANTAGES,
         )
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
+        # Compute Policy Gradient
         surr_loss = -(self.module.actor.log_prob(cur_obs, actions) * advantages).mean()
         pol_grad = torch_util.flat_grad(surr_loss, self.module.actor.parameters())
-        info["pg_norm"] = pol_grad.norm().item()
+        info["grad_norm(pg)"] = pol_grad.norm().item()
 
-        descent_step = self._compute_descent_step(
-            pol_grad, cur_obs, self.module.actor, self.config
-        )
-        info["natural_pg_norm"] = descent_step.norm().item()
+        # Compute Natural Gradient
+        descent_step, cg_info = self._compute_descent_step(pol_grad, cur_obs)
+        info["grad_norm(nat)"] = descent_step.norm().item()
+        info.update(cg_info)
+
+        # Perform Line Search
         if self.config["line_search"]:
             new_params, line_search_info = self._perform_line_search(
-                pol_grad, descent_step, surr_loss, batch_tensors
+                pol_grad, descent_step, surr_loss, batch_tensors,
             )
             info.update(line_search_info)
         else:
@@ -128,18 +132,40 @@ class TRPOTorchPolicy(TorchPolicy):
             info["perplexity"] = torch.mean(-old_logp).exp().item()
         return {LEARNER_STATS_KEY: info}
 
-    @staticmethod
-    def _compute_descent_step(pol_grad, cur_obs, actor, config):
-        def fvp(vec):
-            return hf_util.fisher_vec_prod(
-                vec, cur_obs, actor, n_samples=config["fvp_samples"],
-            )
+    def _compute_descent_step(self, pol_grad, obs):
+        """Approximately compute the Natural gradient using samples.
 
-        descent_direction = hf_util.conjugate_gradient(fvp, pol_grad)
-        scale = torch.sqrt(
-            2 * config["delta"] / (pol_grad.dot(descent_direction) + 1e-8)
+        This is based on the Fisher Matrix formulation as the hessian of the average
+        entropy. For more information, see:
+        https://en.wikipedia.org/wiki/Fisher_information#Matrix_form
+
+        Args:
+            pol_grad (Tensor): The vector to compute the Fisher vector product with.
+            obs (Tensor): The observations to evaluate the policy in.
+        """
+        config = self.config
+        params = list(self.module.actor.parameters())
+        with torch.no_grad():
+            ent_acts, _ = self.module.actor.sample(obs, (config["fvp_samples"],))
+
+        def entropy():
+            return self.module.actor.log_prob(obs, ent_acts).neg().mean()
+
+        def fvp(vec):
+            return hf_util.hessian_vector_product(entropy(), params, vec)
+
+        descent_direction, elapsed_iters, residual = hf_util.conjugate_gradient(
+            lambda x: fvp(x) + config["cg_damping"] * x,
+            pol_grad,
+            cg_iters=config["cg_iters"],
         )
-        return descent_direction * scale
+
+        fisher_norm = pol_grad.dot(descent_direction)
+        delta = config["delta"]
+        scale = 0 if fisher_norm < 0 else torch.sqrt(2 * delta / (fisher_norm + 1e-8))
+
+        descent_direction = descent_direction * scale
+        return descent_direction, {"cg_iters": elapsed_iters, "cg_residual": residual}
 
     def _perform_line_search(self, pol_grad, descent_step, surr_loss, batch_tensors):
         expected_improvement = pol_grad.dot(descent_step).item()
@@ -158,7 +184,7 @@ class TRPOTorchPolicy(TorchPolicy):
             new_logp = self.module.actor.log_prob(cur_obs, actions)
             surr_loss = self._compute_surr_loss(old_logp, new_logp, advantages)
             avg_kl = torch.mean(old_logp - new_logp)
-            return surr_loss.item() if avg_kl < self.config["delta"] else float("inf")
+            return surr_loss.item() if avg_kl < self.config["delta"] else np.inf
 
         new_params, expected_improvement, improvement = hf_util.line_search(
             f_barrier,
@@ -166,11 +192,15 @@ class TRPOTorchPolicy(TorchPolicy):
             descent_step,
             expected_improvement,
             y_0=surr_loss.item(),
+            **self.config["line_search_options"],
+        )
+        improvement_ratio = (
+            improvement / expected_improvement if expected_improvement else np.nan
         )
         info = {
             "expected_improvement": expected_improvement,
             "actual_improvement": improvement,
-            "improvement_ratio": improvement / expected_improvement,
+            "improvement_ratio": improvement_ratio,
         }
         return new_params, info
 

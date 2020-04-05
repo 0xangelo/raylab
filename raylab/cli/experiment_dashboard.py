@@ -3,6 +3,7 @@ import streamlit as st
 import numpy as np
 import bokeh
 from bokeh.plotting import figure
+from bokeh.models import HoverTool
 from raylab.utils import exp_data as exp_util
 
 # pylint:disable=invalid-name,missing-docstring,pointless-string-statement
@@ -45,10 +46,10 @@ def time_series(x_key, y_key, groups, labels):
     p = figure(title="Plot")
     p.xaxis.axis_label = x_key
     p.yaxis.axis_label = y_key
+    p.add_tools(HoverTool(tooltips=[("y", "@y{0.00}"), ("x", "@x{a}")]))
     palette = bokeh.palettes.cividis(len(labels))
 
     individual = st.checkbox("Show individual curves")
-    print(labels)
     for idx, (label, group) in enumerate(zip(labels, groups)):
         data = group.extract()
         progresses = [d.progress for d in data]
@@ -108,8 +109,16 @@ def main():
         if exps_data:
             plottable_keys = exp_util.get_plottable_keys(exps_data)
             x_plottable_keys = exp_util.get_x_plottable_keys(plottable_keys, exps_data)
-            x_key = st.selectbox("X axis:", x_plottable_keys)
-            y_key = st.selectbox("Y axis:", plottable_keys)
+            x_key = st.selectbox(
+                "X axis:",
+                x_plottable_keys,
+                index=x_plottable_keys.index("timesteps_total"),
+            )
+            y_key = st.selectbox(
+                "Y axis:",
+                plottable_keys,
+                index=plottable_keys.index("episode_reward_mean"),
+            )
 
             distinct_params = dict(sorted(exp_util.extract_distinct_params(exps_data)))
             split = st.selectbox(

@@ -5,6 +5,8 @@ from .sac_module import SACModule
 from .svg_module import SVGModule
 from .mapo_module import MAPOModule
 from .trpo_module import TRPOModule
+from .trpo_realnvp import TRPORealNVP
+from .trpo_tang2018 import TRPOTang2018
 
 MODULES = {
     "NAFModule": NAFModule,
@@ -13,6 +15,8 @@ MODULES = {
     "SVGModule": SVGModule,
     "MAPOModule": MAPOModule,
     "TRPOModule": TRPOModule,
+    "TRPORealNVP": TRPORealNVP,
+    "TRPOTang2018": TRPOTang2018,
 }
 
 

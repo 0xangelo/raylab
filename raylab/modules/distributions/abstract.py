@@ -257,14 +257,14 @@ class TransformedDistribution(ConditionalDistribution):
     def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         base_sample, base_log_prob = self.base_dist.sample(params, sample_shape)
         transformed, log_abs_det_jacobian = self.transform(base_sample, params)
-        return transformed, base_log_prob + log_abs_det_jacobian
+        return transformed.detach(), base_log_prob - log_abs_det_jacobian
 
     @override(ConditionalDistribution)
     @torch.jit.export
     def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         base_rsample, base_log_prob = self.base_dist.rsample(params, sample_shape)
         transformed, log_abs_det_jacobian = self.transform(base_rsample, params)
-        return transformed, base_log_prob + log_abs_det_jacobian
+        return transformed, base_log_prob - log_abs_det_jacobian
 
     @override(ConditionalDistribution)
     @torch.jit.export
