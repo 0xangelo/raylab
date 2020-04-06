@@ -8,12 +8,10 @@ setup(
     install_requires=[
         "Click",
         "matplotlib",
-        "numpy",
         "pandas",
         "seaborn",
         "requests",
-        "ray[rllib]==0.8.1",
-        "gym",
+        "ray[rllib]",
     ],
     entry_points="""
         [console_scripts]
