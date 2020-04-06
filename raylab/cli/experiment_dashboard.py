@@ -46,7 +46,7 @@ def time_series(x_key, y_key, groups, labels):
     p = figure(title="Plot")
     p.xaxis.axis_label = x_key
     p.yaxis.axis_label = y_key
-    p.add_tools(HoverTool(tooltips=[("y", "@y{0.00}"), ("x", "@x{a}")]))
+    p.add_tools(HoverTool(tooltips=[("y", "@y"), ("x", "@x{a}")]))
     palette = bokeh.palettes.cividis(len(labels))
 
     individual = st.checkbox("Show individual curves")
