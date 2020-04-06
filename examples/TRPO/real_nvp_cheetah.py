@@ -7,7 +7,7 @@ def get_config():
     return {
         # === Environment ===
         "env": "HalfCheetah-v3",
-        "env_config": {"max_episode_steps": 1000, "time_aware": False},
+        "env_config": {"max_episode_steps": 400, "time_aware": False},
         # Trust region constraint
         "delta": 0.01,
         # Number of actions to sample per state for Fisher vector product approximation
@@ -36,7 +36,7 @@ def get_config():
         # linear in states or actions.
         "module": {
             "name": "TRPORealNVP",
-            "torch_script": True,
+            "torch_script": False,
             "actor": {
                 "units": (32,),
                 "activation": "ELU",
