@@ -69,7 +69,7 @@ EVALUATION_CONFIG = {
 
 TRAINER_CONFIG = {
     # === RolloutWorker ===
-    "sample_batch_size": 1,
+    "rollout_fragment_length": 1,
     "batch_mode": "complete_episodes",
     # === Trainer ===
     "train_batch_size": 32,

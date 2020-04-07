@@ -8,7 +8,7 @@ from ray.rllib.utils.annotations import override
 
 from raylab.modules.catalog import get_module
 import raylab.utils.pytorch as torch_util
-from raylab.policy import TorchPolicy, PureExplorationMixin, TargetNetworksMixin
+from raylab.policy import TorchPolicy, TargetNetworksMixin
 
 
 OptimizerCollection = collections.namedtuple(
@@ -16,7 +16,7 @@ OptimizerCollection = collections.namedtuple(
 )
 
 
-class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
+class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
     """Soft Actor-Critic policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
@@ -39,7 +39,6 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
         module_config["double_q"] = config["clipped_double_q"]
-        module_config["mean_action_only"] = config["mean_action_only"]
         module = get_module(
             module_config["name"], obs_space, action_space, module_config
         )
@@ -70,29 +69,9 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
             policy=policy_optim, critic=critic_optim, alpha=alpha_optim
         )
 
-    @torch.no_grad()
     @override(TorchPolicy)
-    def compute_actions(
-        self,
-        obs_batch,
-        state_batches,
-        prev_action_batch=None,
-        prev_reward_batch=None,
-        info_batch=None,
-        episodes=None,
-        **kwargs
-    ):
-        # pylint: disable=too-many-arguments,unused-argument
-        obs_batch = self.convert_to_tensor(obs_batch)
-
-        if self.is_uniform_random:
-            actions = self._uniform_random_actions(obs_batch)
-        elif self.config["mean_action_only"]:
-            actions, _ = self.module.actor.mode(obs_batch)
-        else:
-            actions, _ = self.module.actor.rsample(obs_batch)
-
-        return actions.cpu().numpy(), state_batches, {}
+    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
+        return input_dict[SampleBatch.CUR_OBS], state
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):

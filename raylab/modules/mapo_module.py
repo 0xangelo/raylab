@@ -10,14 +10,14 @@ from .action_value_mixin import ActionValueMixin
 BASE_CONFIG = {
     "torch_script": False,
     "double_q": False,
-    "exploration": None,
-    "exploration_gaussian_sigma": 0.3,
     "smooth_target_policy": False,
     "target_gaussian_sigma": 0.3,
+    "perturbed_policy": False,
     "actor": {
         "units": (32, 32),
         "activation": "ReLU",
         "initializer_options": {"name": "xavier_uniform"},
+        "layer_norm": False,
         # === SQUASHING EXPLORATION PROBLEM ===
         # Maximum l1 norm of the policy's output vector before the squashing
         # function

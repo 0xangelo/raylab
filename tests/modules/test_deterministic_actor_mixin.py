@@ -10,22 +10,15 @@ from raylab.modules.deterministic_actor_mixin import DeterministicActorMixin
 
 BASE_CONFIG = {
     "torch_script": False,
-    "double_q": False,
-    "exploration": None,
-    "exploration_gaussian_sigma": 0.3,
     "smooth_target_policy": False,
     "target_gaussian_sigma": 0.3,
+    "perturbed_policy": False,
     "actor": {
         "units": (32, 32),
         "activation": "ReLU",
         "initializer_options": {"name": "xavier_uniform"},
+        "layer_norm": False,
         "beta": 1.2,
-    },
-    "critic": {
-        "units": (32, 32),
-        "activation": "ReLU",
-        "initializer_options": {"name": "xavier_uniform"},
-        "delay_action": True,
     },
 }
 
@@ -45,17 +38,10 @@ def module_cls(request):
     return request.param
 
 
-@pytest.fixture(scope="module", params=(None, "gaussian", "parameter_noise"))
-def exploration(request):
-    return request.param
+BETA = (0.8, 1.2)
 
 
-@pytest.fixture(scope="module", params=(0.3, 0.0))
-def exploration_gaussian_sigma(request):
-    return request.param
-
-
-@pytest.fixture(scope="module", params=(0.8, 1.2))
+@pytest.fixture(scope="module", params=BETA, ids=(f"Beta{b}" for b in BETA))
 def beta(request):
     return request.param
 
@@ -63,19 +49,25 @@ def beta(request):
 @pytest.fixture(
     scope="module",
     params=(True, False),
-    ids=("Smooth Target Policy", "Hard Target Policy"),
+    ids=("SmoothTargetPolicy", "HardTargetPolicy"),
 )
 def smooth_target_policy(request):
     return request.param
 
 
+@pytest.fixture(
+    scope="module", params=(True, False), ids=("PerturbedPolicy", "FixedPolicy")
+)
+def perturbed_policy(request):
+    return request.param
+
+
 @pytest.fixture(scope="module")
-def full_config(exploration, exploration_gaussian_sigma, beta, smooth_target_policy):
+def full_config(beta, smooth_target_policy, perturbed_policy):
     return {
-        "exploration": exploration,
-        "exploration_gaussian_sigma": exploration_gaussian_sigma,
         "smooth_target_policy": smooth_target_policy,
         "actor": {"beta": beta},
+        "perturbed_policy": perturbed_policy,
     }
 
 
@@ -112,16 +104,11 @@ def test_policy(module_batch_config):
 
 
 def test_behavior(module_batch_config):
-    module, batch, config = module_batch_config
-    exploration = config["exploration"]
-    exploration_gaussian_sigma = config["exploration_gaussian_sigma"]
+    module, batch, _ = module_batch_config
     action = batch[SampleBatch.ACTIONS]
 
     samples = module.actor.behavior(batch[SampleBatch.CUR_OBS])
     samples_ = module.actor.behavior(batch[SampleBatch.CUR_OBS])
     assert samples.shape == action.shape
     assert samples.dtype == torch.float32
-    assert not (
-        (exploration == "gaussian" and exploration_gaussian_sigma != 0)
-        and torch.allclose(samples, samples_)
-    )
+    assert torch.allclose(samples, samples_)

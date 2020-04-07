@@ -27,7 +27,7 @@ def get_config():
         # === RolloutWorker ===
         "num_workers": 0,
         "num_envs_per_worker": 12,
-        "sample_batch_size": 400,
+        "rollout_fragment_length": 400,
         "batch_mode": "truncate_episodes",
         "timesteps_per_iteration": 4800,
         # === Network ===

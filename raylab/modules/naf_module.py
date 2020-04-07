@@ -1,5 +1,4 @@
 """Normalized Advantage Function neural network modules."""
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.distributions as dists
@@ -11,18 +10,16 @@ from raylab.modules import (
     TrilMatrix,
     NormalizedLinear,
     TanhSquash,
-    GaussianNoise,
     DistRSample,
 )
 
 
 BASE_CONFIG = {
     "double_q": False,
-    "exploration": None,
-    "diag_gaussian_stddev": 0.1,
     "units": (32, 32),
     "activation": "ELU",
-    "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
+    "initializer_options": {"name": "orthogonal"},
+    "perturbed_policy": False,
     # === SQUASHING EXPLORATION PROBLEM ===
     # Maximum l1 norm of the policy's output vector before the squashing
     # function
@@ -41,96 +38,42 @@ class NAFModule(nn.ModuleDict):
     def __init__(self, obs_space, action_space, config):
         super().__init__()
         config = merge_dicts(BASE_CONFIG, config)
-        self.update(self._make_naf(obs_space, action_space, config))
-        self.target_value = nn.ModuleList(
-            [self._make_value(obs_space, config) for _ in self.value]
-        )
-        self.target_value.load_state_dict(self.value.state_dict())
-        self.policy = nn.Sequential(self.logits, self.mu, self.squash)
-        self.update(self._make_sampler(obs_space, action_space, config))
+        self.update(self._make_critic(obs_space, action_space, config))
+        self.update(self._make_actor(obs_space, action_space, config))
 
-    def _make_naf(self, obs_space, action_space, config):
-        modules = self._make_components(obs_space, action_space, config)
-        naf_module = NAF(
-            modules["logits"],
-            modules["value"],
-            modules["tril"],
-            nn.Sequential(modules["mu"], modules["squash"]),
-        )
-        modules["naf"] = nn.ModuleList([naf_module])
-        modules["value"] = nn.ModuleList(
-            [nn.Sequential(modules["logits"], modules["value"])]
-        )
+    def _make_critic(self, obs_space, action_space, config):
+        logits = self._make_encoder(obs_space, config)
+        naf = NAF(logits, action_space, config)
+        critics = nn.ModuleList([naf])
         if config["double_q"]:
-            twin_modules = self._make_components(obs_space, action_space, config)
-            twin_naf = NAF(
-                twin_modules["logits"],
-                twin_modules["value"],
-                twin_modules["tril"],
-                nn.Sequential(twin_modules["mu"], twin_modules["squash"]),
-            )
-            modules["naf"].append(twin_naf)
-            modules["value"].append(
-                nn.Sequential(twin_modules["logits"], twin_modules["value"])
-            )
+            twin_logits = self._make_encoder(obs_space, config)
+            twin_naf = NAF(twin_logits, action_space, config)
+            critics.append(twin_naf)
 
-        return modules
+        def make_target():
+            encoder = self._make_encoder(obs_space, config)
+            return nn.Sequential(encoder, nn.Linear(encoder.out_features, 1))
 
-    def _make_value(self, obs_space, config):
-        logits = self._make_encoder(obs_space, config)
-        return nn.Sequential(logits, nn.Linear(logits.out_features, 1))
+        target_critics = nn.ModuleList([make_target() for m in critics])
+        return {"critics": critics, "target_critics": target_critics}
 
-    def _make_components(self, obs_space, action_space, config):
-        logits = self._make_encoder(obs_space, config)
-        components = {
-            "logits": logits,
-            "value": nn.Linear(logits.out_features, 1),
-            "mu": NormalizedLinear(
-                in_features=logits.out_features,
+    def _make_actor(self, obs_space, action_space, config):
+        naf = self.critics[0]
+        actor = nn.ModuleDict()
+        actor.policy = nn.Sequential(naf.logits, naf.pre_act, naf.squash)
+        if config["perturbed_policy"]:
+            encoder = self._make_encoder(obs_space, config)
+            pre_act = NormalizedLinear(
+                in_features=encoder.out_features,
                 out_features=action_space.shape[0],
                 beta=config["beta"],
-            ),
-            "squash": TanhSquash(
-                torch.as_tensor(action_space.low), torch.as_tensor(action_space.high)
-            ),
-            "tril": TrilMatrix(logits.out_features, action_space.shape[0]),
-        }
-        return components
-
-    def _make_sampler(self, obs_space, action_space, config):
-        # Configure sampler module based on exploration strategy
-        if config["exploration"] == "full_gaussian":
-            return {
-                "sampler": MultivariateNormalSampler(
-                    action_space,
-                    self.logits,
-                    self.mu,
-                    self.tril,
-                    script=config["torch_script"],
-                )
-            }
-        if config["exploration"] == "parameter_noise":
-            logits_module = self._make_encoder(obs_space, config)
-            sampler = nn.Sequential(
-                logits_module,
-                NormalizedLinear(
-                    in_features=logits_module.out_features,
-                    out_features=action_space.shape[0],
-                    beta=config["beta"],
-                ),
-                TanhSquash(
-                    torch.as_tensor(action_space.low),
-                    torch.as_tensor(action_space.high),
-                ),
             )
-            actor = nn.ModuleDict({"policy": self.policy, "behavior": sampler})
-            return {"sampler": sampler, "actor": actor}
-        if config["exploration"] == "diag_gaussian":
-            expl_noise = GaussianNoise(config["diag_gaussian_stddev"])
-            return {
-                "sampler": nn.Sequential(self.logits, self.mu, expl_noise, self.squash)
-            }
-        return {"sampler": self.policy}
+            squash = TanhSquash(
+                torch.as_tensor(action_space.low), torch.as_tensor(action_space.high)
+            )
+            actor.behavior = nn.Sequential(encoder, pre_act, squash)
+
+        return {"actor": actor}
 
     @staticmethod
     def _make_encoder(obs_space, config):
@@ -138,11 +81,55 @@ class NAFModule(nn.ModuleDict):
             in_features=obs_space.shape[0],
             units=config["units"],
             activation=config["activation"],
-            layer_norm=config.get(
-                "layer_norm", config["exploration"] == "parameter_noise"
-            ),
+            layer_norm=config.get("layer_norm", config["perturbed_policy"]),
             **config["initializer_options"],
         )
+
+
+class NAF(nn.Module):
+    """Neural network module implementing the Normalized Advantage Function (NAF)."""
+
+    def __init__(self, logits_module, action_space, config):
+        super().__init__()
+        self.logits = logits_module
+        self.value = nn.Linear(self.logits.out_features, 1)
+        self.pre_act = NormalizedLinear(
+            in_features=self.logits.out_features,
+            out_features=action_space.shape[0],
+            beta=config["beta"],
+        )
+        self.squash = TanhSquash(
+            torch.as_tensor(action_space.low), torch.as_tensor(action_space.high)
+        )
+        self.tril = TrilMatrix(self.logits.out_features, action_space.shape[0])
+        self.advantage_module = AdvantageFunction(
+            self.tril, nn.Sequential(self.pre_act, self.squash)
+        )
+
+    @override(nn.Module)
+    def forward(self, obs, actions):  # pylint: disable=arguments-differ
+        logits = self.logits(obs)
+        best_value = self.value(logits)
+        advantage = self.advantage_module(logits, actions)
+        return advantage + best_value
+
+
+class AdvantageFunction(nn.Module):
+    """Neural network module implementing the advantage function term of NAF."""
+
+    def __init__(self, tril_module, action_module):
+        super().__init__()
+        self.tril_module = tril_module
+        self.action_module = action_module
+
+    @override(nn.Module)
+    def forward(self, logits, actions):  # pylint: disable=arguments-differ
+        tril_matrix = self.tril_module(logits)  # square matrix [..., N, N]
+        best_action = self.action_module(logits)  # batch of actions [..., N]
+        action_diff = (actions - best_action).unsqueeze(-1)  # column vector [..., N, 1]
+        vec = tril_matrix.matmul(action_diff)  # column vector [..., N, 1]
+        advantage = -0.5 * vec.transpose(-1, -2).matmul(vec).squeeze(-1)
+        return advantage
 
 
 class MultivariateNormalSampler(nn.Sequential):
@@ -170,23 +157,6 @@ class MultivariateNormalSampler(nn.Sequential):
         super().__init__(params_module, rsample_module)
 
 
-class NAF(nn.Module):
-    """Neural network module implementing the Normalized Advantage Function (NAF)."""
-
-    def __init__(self, logits_module, value_module, tril_module, action_module):
-        super().__init__()
-        self.logits_module = logits_module
-        self.value_module = value_module
-        self.advantage_module = AdvantageFunction(tril_module, action_module)
-
-    @override(nn.Module)
-    def forward(self, obs, actions):  # pylint: disable=arguments-differ
-        logits = self.logits_module(obs)
-        best_value = self.value_module(logits)
-        advantage = self.advantage_module(logits, actions)
-        return advantage + best_value
-
-
 class MultivariateNormalParams(nn.Module):
     """Neural network module implementing a multivariate gaussian policy."""
 
@@ -202,21 +172,3 @@ class MultivariateNormalParams(nn.Module):
         loc = self.loc_module(logits)
         scale_tril = self.scale_tril_module(logits)
         return {"loc": loc, "scale_tril": scale_tril}
-
-
-class AdvantageFunction(nn.Module):
-    """Neural network module implementing the advantage function term of NAF."""
-
-    def __init__(self, tril_module, action_module):
-        super().__init__()
-        self.tril_module = tril_module
-        self.action_module = action_module
-
-    @override(nn.Module)
-    def forward(self, logits, actions):  # pylint: disable=arguments-differ
-        tril_matrix = self.tril_module(logits)  # square matrix [..., N, N]
-        best_action = self.action_module(logits)  # batch of actions [..., N]
-        action_diff = (actions - best_action).unsqueeze(-1)  # column vector [..., N, 1]
-        vec = tril_matrix.matmul(action_diff)  # column vector [..., N, 1]
-        advantage = -0.5 * vec.transpose(-1, -2).matmul(vec).squeeze(-1)
-        return advantage

@@ -14,7 +14,7 @@ def worker(env_creator, policy_cls):
     return RolloutWorker(
         env_creator=env_creator,
         policy=policy_cls,
-        batch_steps=1,
+        rollout_fragment_length=1,
         batch_mode="complete_episodes",
     )
 

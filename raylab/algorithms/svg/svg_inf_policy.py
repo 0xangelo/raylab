@@ -9,7 +9,7 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as torch_util
-from raylab.algorithms.svg.svg_base_policy import SVGBaseTorchPolicy
+from raylab.algorithms.svg.svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
 from raylab.modules import RewardFn
 from .rollout_module import ReproduceRollout
 
@@ -23,8 +23,6 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
     """Stochastic Value Gradients policy for full trajectories."""
 
     # pylint: disable=abstract-method
-
-    ACTION_LOGP = "action_logp"
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
@@ -128,7 +126,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
         logp = self.module.actor.log_prob(
             batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
         )
-        return torch.mean(batch_tensors[self.ACTION_LOGP] - logp)
+        return torch.mean(batch_tensors[ACTION_LOGP] - logp)
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):

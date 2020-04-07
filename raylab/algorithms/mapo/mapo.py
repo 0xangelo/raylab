@@ -4,7 +4,6 @@ from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.utils.annotations import override
 
 from raylab.algorithms import Trainer, with_common_config
-from raylab.algorithms.mixins import ExplorationPhaseMixin, ParameterNoiseMixin
 from raylab.utils.replay_buffer import ReplayBuffer
 
 from .mapo_policy import MAPOTorchPolicy
@@ -88,42 +87,45 @@ DEFAULT_CONFIG = with_common_config(
         },
         # === Rollout Worker ===
         "num_workers": 0,
-        "sample_batch_size": 1,
+        "rollout_fragment_length": 1,
         "batch_mode": "complete_episodes",
-        # === Exploration ===
-        # Whether to act greedly or exploratory, mostly for evaluation purposes
-        "greedy": False,
-        # Which type of exploration to use. Possible types include
-        # None: use the greedy policy to act
-        # parameter_noise: use parameter space noise
-        # gaussian: use i.i.d gaussian action space noise independently for each
-        #     action dimension
-        "exploration": None,
-        # Options for parameter noise exploration
-        "param_noise_spec": {
-            "initial_stddev": 0.1,
-            "desired_action_stddev": 0.2,
-            "adaptation_coeff": 1.01,
+        # === Exploration Settings ===
+        # Default exploration behavior, iff `explore`=None is passed into
+        # compute_action(s).
+        # Set to False for no exploration behavior (e.g., for evaluation).
+        "explore": True,
+        # Provide a dict specifying the Exploration object's config.
+        "exploration_config": {
+            # The Exploration class to use. In the simplest case, this is the name
+            # (str) of any class present in the `rllib.utils.exploration` package.
+            # You can also provide the python class directly or the full location
+            # of your class (e.g. "ray.rllib.utils.exploration.epsilon_greedy.
+            # EpsilonGreedy").
+            "type": "raylab.utils.exploration.ParameterNoise",
+            # Options for parameter noise exploration
+            "param_noise_spec": {
+                "initial_stddev": 0.1,
+                "desired_action_stddev": 0.2,
+                "adaptation_coeff": 1.01,
+            },
+            # Until this many timesteps have elapsed, the agent's policy will be
+            # ignored & it will instead take uniform random actions. Can be used in
+            # conjunction with learning_starts (which controls when the first
+            # optimization step happens) to decrease dependence of exploration &
+            # optimization on initial policy parameters. Note that this will be
+            # disabled when the action noise scale is set to 0 (e.g during evaluation).
+            "pure_exploration_steps": 1000,
         },
-        # Additive Gaussian i.i.d. noise to add to actions before squashing
-        "exploration_gaussian_sigma": 0.3,
-        # Until this many timesteps have elapsed, the agent's policy will be
-        # ignored & it will instead take uniform random actions. Can be used in
-        # conjunction with learning_starts (which controls when the first
-        # optimization step happens) to decrease dependence of exploration &
-        # optimization on initial policy parameters. Note that this will be
-        # disabled when the action noise scale is set to 0 (e.g during evaluation).
-        "pure_exploration_steps": 1000,
         # === Evaluation ===
         # Extra arguments to pass to evaluation workers.
         # Typical usage is to pass extra args to evaluation env creator
         # and to disable exploration by computing deterministic actions
-        "evaluation_config": {"greedy": True, "pure_exploration_steps": 0},
+        "evaluation_config": {"explore": False},
     }
 )
 
 
-class MAPOTrainer(ExplorationPhaseMixin, ParameterNoiseMixin, Trainer):
+class MAPOTrainer(Trainer):
     """Single agent trainer for Model-Aware Policy Optimization."""
 
     # pylint: disable=attribute-defined-outside-init
@@ -135,7 +137,6 @@ class MAPOTrainer(ExplorationPhaseMixin, ParameterNoiseMixin, Trainer):
     @override(Trainer)
     def _init(self, config, env_creator):
         self._validate_config(config)
-        self._set_parameter_noise_callbacks(config)
 
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
@@ -160,8 +161,6 @@ class MAPOTrainer(ExplorationPhaseMixin, ParameterNoiseMixin, Trainer):
         policy = worker.get_policy()
 
         while not self._iteration_done():
-            self.update_exploration_phase()
-
             samples = worker.sample()
             self.optimizer.num_steps_sampled += samples.count
             for row in samples.rows():
@@ -178,7 +177,7 @@ class MAPOTrainer(ExplorationPhaseMixin, ParameterNoiseMixin, Trainer):
     def _validate_config(config):
         assert config["num_workers"] == 0, "No point in using additional workers."
         assert (
-            config["sample_batch_size"] >= 1
+            config["rollout_fragment_length"] >= 1
         ), "At least one sample must be collected."
         assert (
             config["batch_mode"] == "complete_episodes"

@@ -37,7 +37,7 @@ def get_config():
         "polyak": 0.995,
         # === Rollout Worker ===
         "num_workers": 0,
-        "sample_batch_size": 1,
+        "rollout_fragment_length": 1,
         "batch_mode": "complete_episodes",
         # === Trainer ===
         "train_batch_size": 128,

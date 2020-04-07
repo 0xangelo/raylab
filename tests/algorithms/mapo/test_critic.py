@@ -5,12 +5,12 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 
 
-@pytest.fixture(params=(True, False))
+@pytest.fixture(params=(True, False), ids=("DoubleQ", "SingleQ"))
 def clipped_double_q(request):
     return request.param
 
 
-@pytest.fixture(params=(True, False))
+@pytest.fixture(params=(True, False), ids=("SmoothTarget", "HardTarget"))
 def smooth_target_policy(request):
     return request.param
 
@@ -45,7 +45,7 @@ def test_critic_targets(policy_and_batch):
     policy.module.zero_grad()
     targets.mean().backward()
     target_params = set(policy.module.target_critics.parameters())
-    target_params.update(set(policy.module.actor.parameters()))
+    target_params.update(set(policy.module.actor.target_policy.parameters()))
     assert all(p.grad is not None for p in target_params)
     assert all(p.grad is None for p in set(policy.module.parameters()) - target_params)
 

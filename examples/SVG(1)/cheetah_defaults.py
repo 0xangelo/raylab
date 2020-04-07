@@ -52,7 +52,7 @@ def get_config():
             },
         },
         # === RolloutWorker ===
-        "sample_batch_size": 1,
+        "rollout_fragment_length": 1,
         "batch_mode": "complete_episodes",
         "timesteps_per_iteration": 1000,
         # === Trainer ===

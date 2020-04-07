@@ -9,6 +9,7 @@ from ray.rllib.policy.sample_batch import SampleBatch
 
 import raylab.policy as raypi
 
+from raylab.utils.exploration import ParameterNoise
 import raylab.utils.pytorch as torch_util
 from raylab.modules import RewardFn
 from raylab.modules.catalog import get_module
@@ -19,12 +20,7 @@ OptimizerCollection = collections.namedtuple(
 )
 
 
-class MAPOTorchPolicy(
-    raypi.AdaptiveParamNoiseMixin,
-    raypi.PureExplorationMixin,
-    raypi.TargetNetworksMixin,
-    raypi.TorchPolicy,
-):
+class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     """Model-Aware Policy Optimization policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
@@ -49,12 +45,8 @@ class MAPOTorchPolicy(
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
         module_config["double_q"] = config["clipped_double_q"]
-        for key in (
-            "exploration",
-            "exploration_gaussian_sigma",
-            "smooth_target_policy",
-            "target_gaussian_sigma",
-        ):
+        module_config["perturbed_policy"] = isinstance(self.exploration, ParameterNoise)
+        for key in ("smooth_target_policy", "target_gaussian_sigma"):
             module_config[key] = config[key]
         module = get_module(
             module_config["name"], obs_space, action_space, module_config
@@ -68,7 +60,7 @@ class MAPOTorchPolicy(
         policy_optim_cls = torch_util.get_optimizer_class(policy_optim_name)
         policy_optim_options = self.config["policy_optimizer"]["options"]
         policy_optim = policy_optim_cls(
-            self.module.actor.parameters(), **policy_optim_options
+            self.module.actor.policy.parameters(), **policy_optim_options
         )
 
         critic_optim_name = self.config["critic_optimizer"]["name"]
@@ -135,39 +127,10 @@ class MAPOTorchPolicy(
                 obs.grad is not None and act.grad is not None
             ), "Transition grad w.r.t. state and action must exist for PD estimator"
 
-    @override(raypi.AdaptiveParamNoiseMixin)
-    def _compute_noise_free_actions(self, sample_batch):
-        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.actor.policy[:-1](obs_tensors).numpy()
-
-    @override(raypi.AdaptiveParamNoiseMixin)
-    def _compute_noisy_actions(self, sample_batch):
-        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.actor.behavior[:-1](obs_tensors).numpy()
-
-    @torch.no_grad()
     @override(raypi.TorchPolicy)
-    def compute_actions(
-        self,
-        obs_batch,
-        state_batches,
-        prev_action_batch=None,
-        prev_reward_batch=None,
-        info_batch=None,
-        episodes=None,
-        **kwargs
-    ):
-        # pylint: disable=too-many-arguments,unused-argument
-        obs_batch = self.convert_to_tensor(obs_batch)
-
-        if self.is_uniform_random:
-            actions = self._uniform_random_actions(obs_batch)
-        elif self.config["greedy"]:
-            actions = self.module.actor.policy(obs_batch)
-        else:
-            actions = self.module.actor.behavior(obs_batch)
-
-        return actions.cpu().numpy(), state_batches, {}
+    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
+        # pylint:disable=unused-argument
+        return input_dict[SampleBatch.CUR_OBS], state
 
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
@@ -251,11 +214,11 @@ class MAPOTorchPolicy(
         """Compute policy gradient-aware (PGA) model loss."""
         with self.freeze_nets("model"):
             dpg_loss, dpg_info = self.compute_dpg_loss(batch_tensors, module, config)
-            dpg_grads = torch.autograd.grad(dpg_loss, module.actor.parameters())
+            dpg_grads = torch.autograd.grad(dpg_loss, module.actor.policy.parameters())
 
         madpg_loss, _ = self.compute_madpg_loss(batch_tensors, module, config)
         madpg_grads = torch.autograd.grad(
-            madpg_loss, module.actor.parameters(), create_graph=True
+            madpg_loss, module.actor.policy.parameters(), create_graph=True
         )
 
         total_norm = self.compute_total_diff_norm(
@@ -289,7 +252,13 @@ class MAPOTorchPolicy(
         # pylint: disable=too-many-locals
         gamma = config["gamma"]
         rollout_len = config["model_rollout_len"]
-        transition = self.transition if config["true_model"] else module.model.rsample
+        transition = (
+            self.transition
+            if config["true_model"]
+            else module.model.sample
+            if config["grad_estimator"] == "score_function"
+            else module.model.rsample
+        )
 
         obs = batch_tensors[SampleBatch.CUR_OBS]
         obs = obs.expand((config["num_model_samples"],) + obs.shape)
@@ -356,14 +325,11 @@ class MAPOTorchPolicy(
 
     def extra_policy_grad_info(self):
         """Return dict of extra info on policy gradient."""
-        info = {
+        return {
             "policy_grad_norm": nn.utils.clip_grad_norm_(
                 self.module.actor.parameters(), float("inf")
             ),
         }
-        if self.config["exploration"] == "parameter_noise":
-            info["param_noise_stddev"] = self.curr_param_stddev
-        return info
 
 
 class EnvTransition(nn.Module):

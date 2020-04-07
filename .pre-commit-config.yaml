@@ -67,3 +67,4 @@ repos:
         types: [python]
         stages: [commit]
         args: [-j 0]
+        exclude: "examples*"

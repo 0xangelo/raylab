@@ -8,7 +8,6 @@ from .action_value_mixin import ActionValueMixin
 
 BASE_CONFIG = {
     "double_q": True,
-    "mean_action_only": False,
     "torch_script": False,
     "actor": {
         "units": (32, 32),

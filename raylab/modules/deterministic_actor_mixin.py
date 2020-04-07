@@ -1,4 +1,6 @@
 """Support for modules with deterministic policies."""
+import warnings
+
 import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
@@ -12,10 +14,7 @@ from raylab.modules import (
 
 
 class DeterministicActorMixin:
-    """Adds constructor for modules with deterministic policies.
-
-    By nature, deterministic policies require a behavior one to explore the environment.
-    """
+    """Adds constructor for modules with deterministic policies."""
 
     # pylint:disable=too-few-public-methods
 
@@ -23,18 +22,16 @@ class DeterministicActorMixin:
     def _make_actor(obs_space, action_space, config):
         actor = nn.ModuleDict()
         actor_config = config["actor"]
-        if "layer_norm" not in actor_config:
-            actor_config["layer_norm"] = config["exploration"] == "parameter_noise"
+        if "layer_norm" not in actor_config and config["perturbed_policy"]:
+            warnings.warn(
+                "'layer_norm' is deactivated even though a perturbed policy was "
+                "requested. For optimal stability, set 'layer_norm': True."
+            )
 
         actor.policy = DeterministicPolicy.from_scratch(
             obs_space, action_space, actor_config
         )
-
-        if config["exploration"] == "gaussian":
-            actor.behavior = DeterministicPolicy.from_existing(
-                actor.policy, noise=config["exploration_gaussian_sigma"],
-            )
-        elif config["exploration"] == "parameter_noise":
+        if config["perturbed_policy"]:
             actor.behavior = DeterministicPolicy.from_scratch(
                 obs_space, action_space, actor_config
             )
@@ -83,22 +80,17 @@ class DeterministicPolicy(nn.Module):
             layer_norm=config["layer_norm"],
             **config["initializer_options"]
         )
-        mods = nn.ModuleList(
-            [
-                logits,
-                NormalizedLinear(
-                    in_features=logits.out_features,
-                    out_features=action_space.shape[0],
-                    beta=config["beta"],
-                ),
-                TanhSquash(
-                    torch.as_tensor(action_space.low),
-                    torch.as_tensor(action_space.high),
-                ),
-            ]
+        normalize = NormalizedLinear(
+            in_features=logits.out_features,
+            out_features=action_space.shape[0],
+            beta=config["beta"],
         )
+        squash = TanhSquash(
+            torch.as_tensor(action_space.low), torch.as_tensor(action_space.high),
+        )
+        mods = nn.ModuleList([logits, normalize, squash])
         return cls(mods, noise=noise)
 
     @override(nn.Module)
-    def forward(self, inputs):  # pylint:disable=arguments-differ
-        return self.sequential(inputs)
+    def forward(self, obs):  # pylint:disable=arguments-differ
+        return self.sequential(obs)

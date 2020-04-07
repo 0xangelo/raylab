@@ -13,10 +13,12 @@ BASE_CONFIG = {
     "exploration_gaussian_sigma": 0.3,
     "smooth_target_policy": False,
     "target_gaussian_sigma": 0.3,
+    "perturbed_policy": False,
     "actor": {
         "units": (32, 32),
         "activation": "ReLU",
         "initializer_options": {"name": "xavier_uniform"},
+        "layer_norm": False,
         "beta": 1.2,
     },
     "critic": {

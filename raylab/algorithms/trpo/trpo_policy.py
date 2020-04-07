@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from ray.rllib.evaluation.postprocessing import Postprocessing, compute_advantages
-from ray.rllib.policy.policy import LEARNER_STATS_KEY
+from ray.rllib.policy.policy import ACTION_LOGP
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
@@ -18,7 +18,6 @@ class TRPOTorchPolicy(TorchPolicy):
     """Policy class for Trust Region Policy Optimization."""
 
     # pylint:disable=abstract-method
-    ACTION_LOGP = "action_logp"
 
     @staticmethod
     @override(TorchPolicy)
@@ -43,24 +42,9 @@ class TRPOTorchPolicy(TorchPolicy):
             self.module.critic.parameters(), lr=self.config["val_lr"]
         )
 
-    @torch.no_grad()
     @override(TorchPolicy)
-    def compute_actions(
-        self,
-        obs_batch,
-        state_batches,
-        prev_action_batch=None,
-        prev_reward_batch=None,
-        info_batch=None,
-        episodes=None,
-        **kwargs
-    ):
-        # pylint: disable=too-many-arguments,unused-argument
-        obs_batch = self.convert_to_tensor(obs_batch)
-        actions, logp = self.module.actor.sample(obs_batch)
-
-        extra_fetches = {self.ACTION_LOGP: logp.cpu().numpy()}
-        return actions.cpu().numpy(), state_batches, extra_fetches
+    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
+        return input_dict[SampleBatch.CUR_OBS], state
 
     @torch.no_grad()
     @override(TorchPolicy)
@@ -96,7 +80,7 @@ class TRPOTorchPolicy(TorchPolicy):
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,
-            self.ACTION_LOGP,
+            ACTION_LOGP,
             Postprocessing.ADVANTAGES,
         )
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
@@ -130,7 +114,7 @@ class TRPOTorchPolicy(TorchPolicy):
             ).item()
             info["entropy"] = torch.mean(-old_logp).item()
             info["perplexity"] = torch.mean(-old_logp).exp().item()
-        return {LEARNER_STATS_KEY: info}
+        return self._learner_stats(info)
 
     def _compute_descent_step(self, pol_grad, obs):
         """Approximately compute the Natural gradient using samples.
@@ -174,7 +158,7 @@ class TRPOTorchPolicy(TorchPolicy):
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,
-            self.ACTION_LOGP,
+            ACTION_LOGP,
             Postprocessing.ADVANTAGES,
         )
 

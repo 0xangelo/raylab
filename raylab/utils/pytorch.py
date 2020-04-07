@@ -11,11 +11,11 @@ from torch.autograd import grad
 def flat_grad(outputs, inputs, *args, **kwargs):
     """Compute gradients and return a flattened array."""
     params = list(inputs)
-    grads = [
-        torch.zeros(p.numel()) if g is None else g.reshape((-1,))
-        for p, g in zip(params, grad(outputs, params, *args, **kwargs))
-    ]
-    return torch.cat(grads)
+    grads = grad(outputs, params, *args, **kwargs)
+    zeros = torch.zeros
+    return torch.cat(
+        [zeros(p.numel()) if g is None else g.flatten() for p, g in zip(params, grads)]
+    )
 
 
 def convert_to_tensor(arr, device):
@@ -28,6 +28,8 @@ def convert_to_tensor(arr, device):
     Returns:
         The array converted to a `torch.Tensor`.
     """
+    if torch.is_tensor(arr):
+        return arr.to(device)
     tensor = torch.from_numpy(np.asarray(arr))
     if tensor.dtype == torch.double:
         tensor = tensor.float()

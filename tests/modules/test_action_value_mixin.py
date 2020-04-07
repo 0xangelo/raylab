@@ -13,7 +13,7 @@ def module_cls(request):
     return request.param
 
 
-@pytest.fixture(params=(True, False), ids=("Double Q", "Single Q"))
+@pytest.fixture(params=(True, False), ids=("DoubleQ", "SingleQ"))
 def double_q(request):
     return request.param
 

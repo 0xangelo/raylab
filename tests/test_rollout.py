@@ -5,7 +5,7 @@ from ray.rllib import RolloutWorker
 
 @pytest.fixture
 def worker_kwargs():
-    return {"batch_steps": 1, "batch_mode": "complete_episodes"}
+    return {"rollout_fragment_length": 1, "batch_mode": "complete_episodes"}
 
 
 def test_compute_single_action(env_creator, policy_cls):

@@ -21,6 +21,25 @@ DEFAULT_CONFIG = with_base_config(
         "on_policy_optimizer_options": {"lr": 3e-4},
         # Model and Value function updates per step in the environment
         "updates_per_step": 1.0,
+        # === Exploration Settings ===
+        # Default exploration behavior, iff `explore`=None is passed into
+        # compute_action(s).
+        # Set to False for no exploration behavior (e.g., for evaluation).
+        "explore": True,
+        # Provide a dict specifying the Exploration object's config.
+        "exploration_config": {
+            # The Exploration class to use. In the simplest case, this is the name
+            # (str) of any class present in the `rllib.utils.exploration` package.
+            # You can also provide the python class directly or the full location
+            # of your class (e.g. "ray.rllib.utils.exploration.epsilon_greedy.
+            # EpsilonGreedy").
+            "type": "raylab.utils.exploration.StochasticActor",
+        },
+        # === Evaluation ===
+        # Extra arguments to pass to evaluation workers.
+        # Typical usage is to pass extra args to evaluation env creator
+        # and to disable exploration by computing deterministic actions
+        "evaluation_config": {"explore": True},
     },
 )
 

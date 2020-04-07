@@ -5,6 +5,7 @@ http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochas
 import numpy as np
 from ray import tune
 from ray.rllib.optimizers import PolicyOptimizer
+from ray.rllib.policy.policy import ACTION_LOGP
 from ray.rllib.utils.annotations import override
 
 from raylab.utils.replay_buffer import ReplayBuffer
@@ -66,7 +67,6 @@ SVG_BASE_CONFIG = with_common_config(
         },
         # === Debugging ===
         # Whether to log detailed information about the actions selected in each episode
-        "mean_action_only": False,
         "debug": False,
     }
 )
@@ -90,9 +90,7 @@ class SVGBaseTrainer(Trainer):
         )
         # Dummy optimizer to log stats since Trainer.collect_metrics is coupled with it
         self.optimizer = PolicyOptimizer(self.workers)
-        self.replay = ReplayBuffer(
-            config["buffer_size"], extra_keys=[self._policy.ACTION_LOGP]
-        )
+        self.replay = ReplayBuffer(config["buffer_size"], extra_keys=[ACTION_LOGP])
 
     # === New Methods ===
 

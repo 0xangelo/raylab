@@ -34,7 +34,7 @@ def get_config():
         "exploration": "parameter_noise",
         "pure_exploration_steps": 500,
         # === RolloutWorker ===
-        "sample_batch_size": 1,
+        "rollout_fragment_length": 1,
         "batch_mode": "complete_episodes",
         # === Trainer ===
         "train_batch_size": 128,
