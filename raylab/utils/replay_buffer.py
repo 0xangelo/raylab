@@ -71,4 +71,4 @@ class ReplayBuffer(_ReplayBuffer):
     def sample(self, batch_size):
         idxes = random.choices(range(len(self._storage)), k=batch_size)
         data = self._encode_sample(idxes)
-        return SampleBatch({k: v for k, v in zip(self._batch_keys, data)})
+        return SampleBatch(dict(zip(self._batch_keys, data)))

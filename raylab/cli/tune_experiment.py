@@ -120,7 +120,7 @@ def experiment(ctx, **args):
         name=args["name"],
         local_dir=args["local_dir"],
         num_samples=args["num_samples"],
-        stop={k: v for k, v in args["stop"]},
+        stop=dict(args["stop"]),
         config=config,
         checkpoint_freq=args["checkpoint_freq"],
         checkpoint_at_end=args["checkpoint_at_end"],
