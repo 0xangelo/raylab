@@ -59,5 +59,5 @@ def test_madpg_loss(policy_and_env):
         p.grad is not None
         and torch.isfinite(p.grad).all()
         and not torch.isnan(p.grad).all()
-        for p in policy.module.actor.policy.parameters()
+        for p in policy.module.actor.parameters()
     )

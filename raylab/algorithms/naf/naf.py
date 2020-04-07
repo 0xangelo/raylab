@@ -1,5 +1,4 @@
 """Continuous Q-Learning with Normalized Advantage Functions."""
-import numpy as np
 from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers import PolicyOptimizer
@@ -22,18 +21,7 @@ DEFAULT_CONFIG = with_common_config(
         # Size and activation of the fully connected network computing the logits
         # for the normalized advantage function. No layers means the Q function is
         # linear in states and actions.
-        "module": {
-            "units": (400, 300),
-            "activation": "ELU",
-            "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
-            # === SQUASHING EXPLORATION PROBLEM ===
-            # Maximum l1 norm of the policy's output vector before the squashing
-            # function
-            "beta": 1.2,
-            # === Module Optimization ===
-            # Whether to convert the module to a ScriptModule for faster inference
-            "torch_script": True,
-        },
+        "module": {"torch_script": True},
         # === Optimization ===
         # PyTorch optimizer and options to use
         "torch_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},

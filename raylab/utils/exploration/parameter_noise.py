@@ -39,15 +39,16 @@ class ParameterNoise(RandomUniformMixin, Exploration):
                 return super().get_exploration_action(
                     distribution_inputs, action_dist_class, model, timestep, explore
                 )
-            return model.actor.behavior(distribution_inputs), None
-        return model.actor.policy(distribution_inputs), None
+            return model.behavior(distribution_inputs), None
+        return model.actor(distribution_inputs), None
 
     @override(Exploration)
     def on_episode_start(self, policy, *, environment=None, episode=None, tf_sess=None):
         # pylint:disable=unused-argument
-        actor = policy.module.actor
         perturb_module_params(
-            actor.behavior, actor.policy, self._param_noise_spec.curr_stddev
+            policy.module.behavior,
+            policy.module.actor,
+            self._param_noise_spec.curr_stddev,
         )
 
     @torch.no_grad()
@@ -65,7 +66,7 @@ class ParameterNoise(RandomUniformMixin, Exploration):
         module = policy.module
         cur_obs = policy.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
         actions = policy.convert_to_tensor(sample_batch[SampleBatch.ACTIONS])
-        target_actions = module.actor.policy(cur_obs)
+        target_actions = module.actor(cur_obs)
         unsquashed_acts, _ = self._squash(actions, reverse=True)
         unsquashed_targs, _ = self._squash(target_actions, reverse=True)
 

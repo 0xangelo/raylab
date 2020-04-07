@@ -3,6 +3,7 @@ import warnings
 
 import torch
 import torch.nn as nn
+from ray.rllib.utils import deep_update
 from ray.rllib.utils.annotations import override
 
 from raylab.modules import (
@@ -13,6 +14,28 @@ from raylab.modules import (
 )
 
 
+BASE_CONFIG = {
+    # === Twin Delayed DDPG (TD3) tricks ===
+    # Add gaussian noise to the action when calculating the Deterministic
+    # Policy Gradient
+    "smooth_target_policy": True,
+    # Additive Gaussian i.i.d. noise to add to actions inputs to target Q function
+    "target_gaussian_sigma": 0.3,
+    "separate_target_policy": False,
+    "perturbed_policy": False,
+    # === SQUASHING EXPLORATION PROBLEM ===
+    # Maximum l1 norm of the policy's output vector before the squashing
+    # function
+    "beta": 1.2,
+    "encoder": {
+        "units": (32, 32),
+        "activation": "ReLU",
+        "initializer_options": {"name": "xavier_uniform"},
+        "layer_norm": False,
+    },
+}
+
+
 class DeterministicActorMixin:
     """Adds constructor for modules with deterministic policies."""
 
@@ -20,32 +43,31 @@ class DeterministicActorMixin:
 
     @staticmethod
     def _make_actor(obs_space, action_space, config):
-        actor = nn.ModuleDict()
-        actor_config = config["actor"]
-        if "layer_norm" not in actor_config and config["perturbed_policy"]:
+        config = deep_update(BASE_CONFIG, config["actor"], False, ["encoder"])
+        if not config["encoder"].get("layer_norm") and config["perturbed_policy"]:
             warnings.warn(
                 "'layer_norm' is deactivated even though a perturbed policy was "
                 "requested. For optimal stability, set 'layer_norm': True."
             )
 
-        actor.policy = DeterministicPolicy.from_scratch(
-            obs_space, action_space, actor_config
-        )
+        actor = DeterministicPolicy.from_scratch(obs_space, action_space, config)
+
+        behavior = actor
         if config["perturbed_policy"]:
-            actor.behavior = DeterministicPolicy.from_scratch(
-                obs_space, action_space, actor_config
-            )
-        else:
-            actor.behavior = actor.policy
+            behavior = DeterministicPolicy.from_scratch(obs_space, action_space, config)
 
+        target_actor = actor
+        if config["separate_target_policy"]:
+            target_actor = DeterministicPolicy.from_scratch(
+                obs_space, action_space, config
+            )
+            target_actor.load_state_dict(actor.state_dict())
         if config["smooth_target_policy"]:
-            actor.target_policy = DeterministicPolicy.from_existing(
-                actor.policy, noise=config["target_gaussian_sigma"],
+            target_actor = DeterministicPolicy.from_existing(
+                target_actor, noise=config["target_gaussian_sigma"],
             )
-        else:
-            actor.target_policy = actor.policy
 
-        return {"actor": actor}
+        return {"actor": actor, "behavior": behavior, "target_actor": target_actor}
 
 
 class DeterministicPolicy(nn.Module):
@@ -73,13 +95,7 @@ class DeterministicPolicy(nn.Module):
     @classmethod
     def from_scratch(cls, obs_space, action_space, config, *, noise=None):
         """Create a policy using new modules."""
-        logits = FullyConnected(
-            in_features=obs_space.shape[0],
-            units=config["units"],
-            activation=config["activation"],
-            layer_norm=config["layer_norm"],
-            **config["initializer_options"]
-        )
+        logits = FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
         normalize = NormalizedLinear(
             in_features=logits.out_features,
             out_features=action_space.shape[0],

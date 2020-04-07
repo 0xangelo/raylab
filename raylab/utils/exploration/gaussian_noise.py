@@ -34,8 +34,8 @@ class GaussianNoise(RandomUniformMixin, Exploration):
                 return super().get_exploration_action(
                     distribution_inputs, action_dist_class, model, timestep, explore
                 )
-            actions = model.actor.policy(distribution_inputs)
+            actions = model.actor(distribution_inputs)
             pre_squash, _ = self._squash(actions, reverse=True)
             noise = torch.randn_like(pre_squash) * self._noise_stddev
             return self._squash(pre_squash + noise)[0], None
-        return model.actor.policy(distribution_inputs), None
+        return model.actor(distribution_inputs), None

@@ -32,9 +32,9 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
         module_config["double_q"] = config["clipped_double_q"]
-        module_config["perturbed_policy"] = isinstance(self.exploration, ParameterNoise)
-        for key in ("smooth_target_policy", "target_gaussian_sigma"):
-            module_config[key] = config[key]
+        module_config["actor"]["perturbed_policy"] = isinstance(
+            self.exploration, ParameterNoise
+        )
         module = get_module(
             module_config["name"], obs_space, action_space, module_config
         )
@@ -46,7 +46,7 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         policy_optim_cls = torch_util.get_optimizer_class(policy_optim_name)
         policy_optim_options = self.config["policy_optimizer"]["options"]
         policy_optim = policy_optim_cls(
-            self.module.actor.policy.parameters(), **policy_optim_options
+            self.module.actor.parameters(), **policy_optim_options
         )
 
         critic_optim_name = self.config["critic_optimizer"]["name"]
@@ -113,7 +113,7 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
         dones = batch_tensors[SampleBatch.DONES]
 
-        next_acts = module.actor.target_policy(next_obs)
+        next_acts = module.target_actor(next_obs)
         next_vals, _ = torch.cat(
             [m(next_obs, next_acts) for m in module.target_critics], dim=-1
         ).min(dim=-1)
@@ -134,7 +134,7 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         # pylint: disable=unused-argument
         obs = batch_tensors[SampleBatch.CUR_OBS]
 
-        actions = module.actor.policy(obs)
+        actions = module.actor(obs)
         action_values, _ = torch.cat(
             [m(obs, actions) for m in module.critics], dim=-1
         ).min(dim=-1)
@@ -150,6 +150,6 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         """Return dict of extra info on policy gradient."""
         return {
             "policy_grad_norm": nn.utils.clip_grad_norm_(
-                self.module.actor.policy.parameters(), float("inf")
+                self.module.actor.parameters(), float("inf")
             ),
         }

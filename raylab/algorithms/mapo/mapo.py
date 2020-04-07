@@ -30,18 +30,10 @@ DEFAULT_CONFIG = with_common_config(
         # === Debugging ===
         # Whether to use the environment's true model to sample states
         "true_model": False,
-        # === SQUASHING EXPLORATION PROBLEM ===
-        # Maximum l1 norm of the policy's output vector before the squashing function
-        "beta": 1.2,
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning: use the minimun of two target Q functions
         # as the next action-value in the target for fitted Q iteration
         "clipped_double_q": True,
-        # Add gaussian noise to the action when calculating the Deterministic
-        # Policy Gradient
-        "smooth_target_policy": True,
-        # Additive Gaussian i.i.d. noise to add to actions inputs to target Q function
-        "target_gaussian_sigma": 0.3,
         # === Replay buffer ===
         # Size of the replay buffer. Note that if async_updates is set, then
         # each worker will have a replay buffer of this size.
@@ -61,15 +53,7 @@ DEFAULT_CONFIG = with_common_config(
         # linear in states and/or actions.
         "module": {
             "name": "MAPOModule",
-            "actor": {
-                "units": (400, 300),
-                "activation": "ReLU",
-                "initializer_options": {"name": "xavier_uniform"},
-                # === SQUASHING EXPLORATION PROBLEM ===
-                # Maximum l1 norm of the policy's output vector before the squashing
-                # function
-                "beta": 1.2,
-            },
+            "actor": {},
             "critic": {
                 "units": (400, 300),
                 "activation": "ReLU",

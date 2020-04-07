@@ -10,15 +10,18 @@ from raylab.modules.deterministic_actor_mixin import DeterministicActorMixin
 
 BASE_CONFIG = {
     "torch_script": False,
-    "smooth_target_policy": False,
-    "target_gaussian_sigma": 0.3,
-    "perturbed_policy": False,
     "actor": {
-        "units": (32, 32),
-        "activation": "ReLU",
-        "initializer_options": {"name": "xavier_uniform"},
-        "layer_norm": False,
         "beta": 1.2,
+        "smooth_target_policy": False,
+        "target_gaussian_sigma": 0.3,
+        "separate_target_policy": False,
+        "perturbed_policy": False,
+        "encoder": {
+            "units": (32, 32),
+            "activation": "ReLU",
+            "initializer_options": {"name": "xavier_uniform"},
+            "layer_norm": False,
+        },
     },
 }
 
@@ -62,12 +65,22 @@ def perturbed_policy(request):
     return request.param
 
 
+@pytest.fixture(
+    scope="module", params=(True, False), ids=("SeparateTargetPolicy", "NoTargetPolicy")
+)
+def separate_target_policy(request):
+    return request.param
+
+
 @pytest.fixture(scope="module")
-def full_config(beta, smooth_target_policy, perturbed_policy):
+def full_config(beta, smooth_target_policy, perturbed_policy, separate_target_policy):
     return {
-        "smooth_target_policy": smooth_target_policy,
-        "actor": {"beta": beta},
-        "perturbed_policy": perturbed_policy,
+        "actor": {
+            "perturbed_policy": perturbed_policy,
+            "separate_target_policy": separate_target_policy,
+            "smooth_target_policy": smooth_target_policy,
+            "beta": beta,
+        },
     }
 
 
@@ -81,13 +94,11 @@ def test_module_creation(module_batch_config):
     module, _, _ = module_batch_config
 
     assert "actor" in module
-    actor = module.actor
-    assert "policy" in module.actor
-    assert "behavior" in module.actor
-    assert "target_policy" in module.actor
+    assert "behavior" in module
+    assert "target_actor" in module
     assert all(
         torch.allclose(p, p_)
-        for p, p_ in zip(actor.policy.parameters(), actor.target_policy.parameters())
+        for p, p_ in zip(module.actor.parameters(), module.target_actor.parameters())
     )
 
 
@@ -96,7 +107,7 @@ def test_policy(module_batch_config):
     beta = config["actor"]["beta"]
     action_dim = batch[SampleBatch.ACTIONS][0].numel()
 
-    policy_out = module.actor.policy(batch[SampleBatch.CUR_OBS])
+    policy_out = module.actor(batch[SampleBatch.CUR_OBS])
     norms = policy_out.norm(p=1, dim=-1, keepdim=True) / action_dim
     assert policy_out.shape[-1] == action_dim
     assert policy_out.dtype == torch.float32
@@ -107,8 +118,8 @@ def test_behavior(module_batch_config):
     module, batch, _ = module_batch_config
     action = batch[SampleBatch.ACTIONS]
 
-    samples = module.actor.behavior(batch[SampleBatch.CUR_OBS])
-    samples_ = module.actor.behavior(batch[SampleBatch.CUR_OBS])
+    samples = module.behavior(batch[SampleBatch.CUR_OBS])
+    samples_ = module.behavior(batch[SampleBatch.CUR_OBS])
     assert samples.shape == action.shape
     assert samples.dtype == torch.float32
     assert torch.allclose(samples, samples_)

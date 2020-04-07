@@ -1,4 +1,6 @@
 """Normalized Advantage Function neural network modules."""
+import warnings
+
 import torch
 import torch.nn as nn
 import torch.distributions as dists
@@ -15,18 +17,20 @@ from raylab.modules import (
 
 
 BASE_CONFIG = {
+    # === Module Optimization ===
+    # Whether to convert the module to a ScriptModule for faster inference
+    "torch_script": False,
     "double_q": False,
-    "units": (32, 32),
-    "activation": "ELU",
-    "initializer_options": {"name": "orthogonal"},
+    "encoder": {
+        "units": (32, 32),
+        "activation": "ELU",
+        "initializer_options": {"name": "orthogonal"},
+    },
     "perturbed_policy": False,
     # === SQUASHING EXPLORATION PROBLEM ===
     # Maximum l1 norm of the policy's output vector before the squashing
     # function
     "beta": 1.2,
-    # === Module Optimization ===
-    # Whether to convert the module to a ScriptModule for faster inference
-    "torch_script": False,
 }
 
 
@@ -59,9 +63,14 @@ class NAFModule(nn.ModuleDict):
 
     def _make_actor(self, obs_space, action_space, config):
         naf = self.critics[0]
-        actor = nn.ModuleDict()
-        actor.policy = nn.Sequential(naf.logits, naf.pre_act, naf.squash)
+        actor = nn.Sequential(naf.logits, naf.pre_act, naf.squash)
+        behavior = actor
         if config["perturbed_policy"]:
+            if not config["encoder"].get("layer_norm"):
+                warnings.warn(
+                    "'layer_norm' is deactivated even though a perturbed policy was "
+                    "requested. For optimal stability, set 'layer_norm': True."
+                )
             encoder = self._make_encoder(obs_space, config)
             pre_act = NormalizedLinear(
                 in_features=encoder.out_features,
@@ -71,19 +80,13 @@ class NAFModule(nn.ModuleDict):
             squash = TanhSquash(
                 torch.as_tensor(action_space.low), torch.as_tensor(action_space.high)
             )
-            actor.behavior = nn.Sequential(encoder, pre_act, squash)
+            behavior = nn.Sequential(encoder, pre_act, squash)
 
-        return {"actor": actor}
+        return {"actor": actor, "behavior": behavior}
 
     @staticmethod
     def _make_encoder(obs_space, config):
-        return FullyConnected(
-            in_features=obs_space.shape[0],
-            units=config["units"],
-            activation=config["activation"],
-            layer_norm=config.get("layer_norm", config["perturbed_policy"]),
-            **config["initializer_options"],
-        )
+        return FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
 
 
 class NAF(nn.Module):

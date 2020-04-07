@@ -45,9 +45,9 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
         module_config["double_q"] = config["clipped_double_q"]
-        module_config["perturbed_policy"] = isinstance(self.exploration, ParameterNoise)
-        for key in ("smooth_target_policy", "target_gaussian_sigma"):
-            module_config[key] = config[key]
+        module_config["actor"]["perturbed_policy"] = isinstance(
+            self.exploration, ParameterNoise
+        )
         module = get_module(
             module_config["name"], obs_space, action_space, module_config
         )
@@ -60,7 +60,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         policy_optim_cls = torch_util.get_optimizer_class(policy_optim_name)
         policy_optim_options = self.config["policy_optimizer"]["options"]
         policy_optim = policy_optim_cls(
-            self.module.actor.policy.parameters(), **policy_optim_options
+            self.module.actor.parameters(), **policy_optim_options
         )
 
         critic_optim_name = self.config["critic_optimizer"]["name"]
@@ -184,7 +184,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
         dones = batch_tensors[SampleBatch.DONES]
 
-        next_acts = module.actor.target_policy(next_obs)
+        next_acts = module.target_actor(next_obs)
         next_vals, _ = torch.cat(
             [m(next_obs, next_acts) for m in module.target_critics], dim=-1
         ).min(dim=-1)
@@ -214,11 +214,11 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         """Compute policy gradient-aware (PGA) model loss."""
         with self.freeze_nets("model"):
             dpg_loss, dpg_info = self.compute_dpg_loss(batch_tensors, module, config)
-            dpg_grads = torch.autograd.grad(dpg_loss, module.actor.policy.parameters())
+            dpg_grads = torch.autograd.grad(dpg_loss, module.actor.parameters())
 
         madpg_loss, _ = self.compute_madpg_loss(batch_tensors, module, config)
         madpg_grads = torch.autograd.grad(
-            madpg_loss, module.actor.policy.parameters(), create_graph=True
+            madpg_loss, module.actor.parameters(), create_graph=True
         )
 
         total_norm = self.compute_total_diff_norm(
@@ -235,7 +235,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         # pylint: disable=unused-argument
         obs = batch_tensors[SampleBatch.CUR_OBS]
 
-        actions = module.actor.policy(obs)
+        actions = module.actor(obs)
         action_values, _ = torch.cat(
             [m(obs, actions) for m in module.critics], dim=-1
         ).min(dim=-1)
@@ -262,18 +262,18 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
         obs = batch_tensors[SampleBatch.CUR_OBS]
         obs = obs.expand((config["num_model_samples"],) + obs.shape)
-        actions = module.actor.policy(obs)
+        actions = module.actor(obs)
         next_obs, logp = transition(obs, actions)
         rews = [self.reward(obs, actions, next_obs)]
 
         for _ in range(config["model_rollout_len"] - 1):
             obs = next_obs
-            actions = module.actor.policy(obs)
+            actions = module.actor(obs)
             next_obs, _ = transition(obs, actions)
             rews.append(self.reward(obs, actions, next_obs))
 
         rews = (torch.stack(rews).T * gamma ** torch.arange(rollout_len).float()).T
-        critic = module.critics[0](next_obs, module.actor.policy(next_obs)).squeeze(-1)
+        critic = module.critics[0](next_obs, module.actor(next_obs)).squeeze(-1)
         values = rews.sum(0) + gamma ** rollout_len * critic
 
         if config["grad_estimator"] == "score_function":

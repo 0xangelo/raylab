@@ -22,5 +22,5 @@ def test_policy_loss(policy_and_batch):
         p.grad is not None
         and torch.isfinite(p.grad).all()
         and not torch.isnan(p.grad).all()
-        for p in policy.module.actor.policy.parameters()
+        for p in policy.module.actor.parameters()
     )
