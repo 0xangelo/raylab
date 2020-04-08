@@ -1,6 +1,4 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
-from functools import partial
-
 import pytest
 import torch
 from ray.rllib.policy.sample_batch import SampleBatch
@@ -8,18 +6,13 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from raylab.modules.svg_module import SVGModule
 
 
-@pytest.fixture(params=("svg_paper", "default"), ids=("SVG Encoder", "Default Encoder"))
-def model_encoder(request):
-    return request.param
-
-
 @pytest.fixture
-def module_batch_fn(module_and_batch_fn):
-    return partial(module_and_batch_fn, SVGModule)
+def module_batch(module_and_batch_fn):
+    return module_and_batch_fn(SVGModule, {})
 
 
-def test_model_params(module_batch_fn, model_encoder):
-    module, batch = module_batch_fn({"model": {"encoder": model_encoder}})
+def test_model_params(module_batch):
+    module, batch = module_batch
 
     params = module.model(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
     assert "loc" in params

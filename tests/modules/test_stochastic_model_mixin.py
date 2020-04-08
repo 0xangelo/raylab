@@ -1,12 +1,20 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 import torch
+import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 
-from raylab.modules.catalog import MAPOModule, SVGModule
+from raylab.modules.stochastic_model_mixin import StochasticModelMixin
 
 
-@pytest.fixture(scope="module", params=(MAPOModule, SVGModule))
+class DummyModule(StochasticModelMixin, nn.ModuleDict):
+    # pylint:disable=abstract-method
+    def __init__(self, obs_space, action_space, config):
+        super().__init__()
+        self.update(self._make_model(obs_space, action_space, config))
+
+
+@pytest.fixture(scope="module", params=(DummyModule,))
 def module_cls(request):
     return request.param
 
@@ -28,8 +36,7 @@ def residual(request):
 @pytest.fixture(scope="module")
 def config(input_dependent_scale, residual):
     return {
-        "model": {"input_dependent_scale": input_dependent_scale},
-        "residual": residual,
+        "model": {"residual": residual, "input_dependent_scale": input_dependent_scale},
     }
 
 
