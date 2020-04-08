@@ -3,8 +3,8 @@ from ray.rllib.agents.trainer import with_base_config
 from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
 
-from raylab.algorithms.svg import SVG_BASE_CONFIG, SVGBaseTrainer
-from raylab.algorithms.svg.svg_one_policy import SVGOneTorchPolicy
+from .svg_base import SVG_BASE_CONFIG, SVGBaseTrainer
+from .svg_one_policy import SVGOneTorchPolicy
 
 
 DEFAULT_CONFIG = with_base_config(

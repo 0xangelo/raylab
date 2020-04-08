@@ -3,8 +3,8 @@ from ray.rllib.agents.trainer import with_base_config
 from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
 
-from raylab.algorithms.svg import SVG_BASE_CONFIG, SVGBaseTrainer
-from raylab.algorithms.svg.svg_inf_policy import SVGInfTorchPolicy
+from .svg_base import SVG_BASE_CONFIG, SVGBaseTrainer
+from .svg_inf_policy import SVGInfTorchPolicy
 
 
 DEFAULT_CONFIG = with_base_config(
@@ -63,13 +63,12 @@ class SVGInfTrainer(SVGBaseTrainer):
         for row in samples.rows():
             self.replay.add(row)
 
-        policy.learn_off_policy()
-        for _ in range(int(samples.count * self.config["updates_per_step"])):
-            batch = self.replay.sample(self.config["train_batch_size"])
-            off_policy_stats = get_learner_stats(policy.learn_on_batch(batch))
-            self.optimizer.num_steps_trained += batch.count
+        with policy.learning_off_policy():
+            for _ in range(int(samples.count * self.config["updates_per_step"])):
+                batch = self.replay.sample(self.config["train_batch_size"])
+                off_policy_stats = get_learner_stats(policy.learn_on_batch(batch))
+                self.optimizer.num_steps_trained += batch.count
 
-        policy.learn_on_policy()
         on_policy_stats = get_learner_stats(policy.learn_on_batch(samples))
 
         learner_stats = {**off_policy_stats, **on_policy_stats}

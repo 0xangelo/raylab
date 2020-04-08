@@ -1,7 +1,6 @@
 """SVG(inf) policy class using PyTorch."""
-import itertools
-import functools
 import collections
+from contextlib import contextmanager
 
 import torch
 import torch.nn as nn
@@ -9,8 +8,8 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as torch_util
-from raylab.algorithms.svg.svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
 from raylab.modules import RewardFn
+from .svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
 from .rollout_module import ReproduceRollout
 
 
@@ -43,9 +42,7 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
     def optimizer(self):
         """PyTorch optimizers to use."""
         optim_cls = torch_util.get_optimizer_class(self.config["off_policy_optimizer"])
-        params = itertools.chain(
-            *[self.module[k].parameters() for k in ["model", "critic"]]
-        )
+        params = [p for k in ("model", "critic") for p in self.module[k].parameters()]
         off_policy_optim = optim_cls(
             params, **self.config["off_policy_optimizer_options"]
         )
@@ -75,37 +72,55 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
         self.reward = reward_fn
         self.rollout = torch.jit.script(rollout) if torch_script else rollout
 
-    def set_off_policy(self, learn_off_policy):
-        """Set the current learning state to off-policy or not."""
-        self._off_policy_learning = learn_off_policy
-
-    learn_off_policy = functools.partialmethod(set_off_policy, True)
-    learn_on_policy = functools.partialmethod(set_off_policy, False)
-
     @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
         if self._off_policy_learning:
-            batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
-            loss, _info = self.compute_joint_model_value_loss(batch_tensors)
-            info.update(_info)
-            self._optimizer.off_policy.zero_grad()
-            loss.backward()
-            info.update(self.extra_grad_info(batch_tensors))
-            self._optimizer.off_policy.step()
-            self.update_targets("critic", "target_critic")
+            info = self._learn_off_policy(batch_tensors)
         else:
-            episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
-            loss, info = self.compute_stochastic_value_gradient_loss(episodes)
-            kl_div = self._avg_kl_divergence(batch_tensors)
-            loss = loss + kl_div * self.curr_kl_coeff
-            self._optimizer.on_policy.zero_grad()
-            loss.backward()
-            info.update(self.extra_grad_info(batch_tensors))
-            self._optimizer.on_policy.step()
-            info.update(self.update_kl_coeff(samples))
-
+            info = self._learn_on_policy(batch_tensors, samples)
         return self._learner_stats(info)
+
+    @contextmanager
+    def learning_off_policy(self):
+        """Signal to policy to use samples for updating off-policy components."""
+        try:
+            old = self._off_policy_learning
+            self._off_policy_learning = True
+            yield
+        finally:
+            self._off_policy_learning = old
+
+    def _learn_off_policy(self, batch_tensors):
+        """Update off-policy components."""
+        batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
+
+        loss, _info = self.compute_joint_model_value_loss(batch_tensors)
+        info.update(_info)
+
+        self._optimizer.off_policy.zero_grad()
+        loss.backward()
+        info.update(self.extra_grad_info(batch_tensors, off_policy=True))
+        self._optimizer.off_policy.step()
+
+        self.update_targets("critic", "target_critic")
+        return self._learner_stats(info)
+
+    def _learn_on_policy(self, batch_tensors, samples):
+        """Update on-policy components."""
+        episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
+
+        loss, info = self.compute_stochastic_value_gradient_loss(episodes)
+        kl_div = self._avg_kl_divergence(batch_tensors)
+        loss = loss + kl_div * self.curr_kl_coeff
+
+        self._optimizer.on_policy.zero_grad()
+        loss.backward()
+        info.update(self.extra_grad_info(batch_tensors, off_policy=False))
+        self._optimizer.on_policy.step()
+
+        info.update(self.update_kl_coeff(samples))
+        return info
 
     def compute_stochastic_value_gradient_loss(self, episodes):
         """Compute Stochatic Value Gradient loss given full trajectories."""
@@ -129,9 +144,9 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
         return torch.mean(batch_tensors[ACTION_LOGP] - logp)
 
     @torch.no_grad()
-    def extra_grad_info(self, batch_tensors):
+    def extra_grad_info(self, batch_tensors, off_policy=False):
         """Compute gradient norm for components. Also clips on-policy gradient."""
-        if self._off_policy_learning:
+        if off_policy:
             model_params = self.module.model.parameters()
             value_params = self.module.critic.parameters()
             fetches = {
