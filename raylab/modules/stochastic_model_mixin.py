@@ -27,20 +27,15 @@ class StochasticModelMixin:
 
     # pylint:disable=too-few-public-methods
 
-    def _make_model(self, obs_space, action_space, config):
+    @staticmethod
+    def _make_model(obs_space, action_space, config):
         config = deep_update(BASE_CONFIG, config["model"], False, ["encoder"])
 
         params_module = GaussianDynamicsParams(obs_space, action_space, config)
         dist_module = Independent(Normal(), reinterpreted_batch_ndims=1)
 
-        model = self._assemble_final_model(params_module, dist_module, config)
+        model = StochasticModel.assemble(params_module, dist_module, config)
         return {"model": model}
-
-    @staticmethod
-    def _assemble_final_model(params_module, dist_module, config):
-        if config["residual"]:
-            return ResidualStochasticModel(params_module, dist_module)
-        return StochasticModel(params_module, dist_module)
 
 
 class GaussianDynamicsParams(nn.Module):
@@ -132,6 +127,13 @@ class StochasticModel(nn.Module):
         """Produce a reparametrized sample with the same value as `next_obs`."""
         params = self(obs, action)
         return self.dist.reproduce(params, next_obs)
+
+    @classmethod
+    def assemble(cls, params_module, dist_module, config):
+        """Return a residual or normal stochastic model depending on configuration."""
+        if config["residual"]:
+            return ResidualStochasticModel(params_module, dist_module)
+        return cls(params_module, dist_module)
 
 
 class ResidualStochasticModel(StochasticModel):

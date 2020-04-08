@@ -6,6 +6,7 @@ from .ddpg_module import DDPGModule
 from .sac_module import SACModule
 from .simple_model_based_module import SimpleModelBased
 from .svg_module import SVGModule
+from .svg_realnvp_actor import SVGRealNVPActor
 from .mapo_module import MAPOModule
 from .trpo_module import TRPOModule
 from .trpo_realnvp import TRPORealNVP
@@ -21,6 +22,7 @@ MODULES = {
     "TRPOModule": TRPOModule,
     "TRPORealNVP": TRPORealNVP,
     "TRPOTang2018": TRPOTang2018,
+    "SVGRealNVPActor": SVGRealNVPActor,
 }
 
 
