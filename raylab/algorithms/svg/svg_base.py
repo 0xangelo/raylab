@@ -30,12 +30,8 @@ SVG_BASE_CONFIG = with_common_config(
         # === Rollout Worker ===
         "num_workers": 0,
         # === Regularization ===
-        "kl_schedule": {
-            "initial_coeff": 0.0,
-            "desired_kl": 0.01,
-            "adaptation_coeff": 2.0,
-            "threshold": 1.5,
-        },
+        # Options for adaptive KL coefficient. See raylab.utils.adaptive_kl
+        "kl_schedule": {},
         # === Network ===
         # Size and activation of the fully connected networks computing the logits
         # for the policy, value function and model. No layers means the component is
