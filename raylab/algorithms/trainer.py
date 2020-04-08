@@ -5,12 +5,20 @@ from ray.tune.registry import _global_registry, ENV_CREATOR, register_env
 
 from raylab.envs.utils import wrap_if_needed
 
+_Trainer._allow_unknown_subkeys += ["module"]
+
 
 class Trainer(_Trainer):
     """Base Trainer for all algorithms. This should not be instantiated."""
 
     # pylint: disable=abstract-method,no-member
-    _allow_unknown_subkeys = _Trainer._allow_unknown_subkeys + ["module"]
+
+    @override(_Trainer)
+    def _setup(self, config):
+        super()._setup(config)
+        # Evaluate first, before any optimization is done
+        if self.config.get("evaluation_interval"):
+            self.evaluation_metrics = self._evaluate()
 
     @override(_Trainer)
     def _register_if_needed(self, env_object):
