@@ -4,6 +4,7 @@ import torch
 from .naf_module import NAFModule
 from .ddpg_module import DDPGModule
 from .sac_module import SACModule
+from .simple_model_based_module import SimpleModelBased
 from .svg_module import SVGModule
 from .mapo_module import MAPOModule
 from .trpo_module import TRPOModule
@@ -14,6 +15,7 @@ MODULES = {
     "NAFModule": NAFModule,
     "DDPGModule": DDPGModule,
     "SACModule": SACModule,
+    "SimpleModelBased": SimpleModelBased,
     "SVGModule": SVGModule,
     "MAPOModule": MAPOModule,
     "TRPOModule": TRPOModule,
