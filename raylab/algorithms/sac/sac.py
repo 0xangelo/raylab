@@ -34,22 +34,7 @@ DEFAULT_CONFIG = with_common_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
-        "module": {
-            "name": "SACModule",
-            "torch_script": True,
-            "actor": {
-                "units": (400, 300),
-                "activation": "ReLU",
-                "initializer_options": {"name": "xavier_uniform"},
-                "input_dependent_scale": True,
-            },
-            "critic": {
-                "units": (400, 300),
-                "activation": "ReLU",
-                "initializer_options": {"name": "xavier_uniform"},
-                "delay_action": True,
-            },
-        },
+        "module": {"name": "SACModule", "torch_script": True},
         # === Rollout Worker ===
         "num_workers": 0,
         "rollout_fragment_length": 1,

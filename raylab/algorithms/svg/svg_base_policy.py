@@ -6,7 +6,6 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.policy import TorchPolicy, AdaptiveKLCoeffMixin, TargetNetworksMixin
-from raylab.modules.catalog import get_module
 
 
 class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy):
@@ -22,14 +21,6 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy)
 
     def set_reward_fn(self, reward_fn):
         """Set the reward function to use when unrolling the policy and model."""
-
-    @override(TorchPolicy)
-    def make_module(self, obs_space, action_space, config):
-        module_config = config["module"]
-        module = get_module(
-            module_config["name"], obs_space, action_space, module_config
-        )
-        return torch.jit.script(module) if module_config["torch_script"] else module
 
     @override(TorchPolicy)
     def compute_module_ouput(self, input_dict, state=None, seq_lens=None):

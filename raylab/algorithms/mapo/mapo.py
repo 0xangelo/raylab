@@ -51,24 +51,7 @@ DEFAULT_CONFIG = with_common_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
-        "module": {
-            "name": "MAPOModule",
-            "actor": {},
-            "critic": {
-                "units": (400, 300),
-                "activation": "ReLU",
-                "initializer_options": {"name": "xavier_uniform"},
-                "delay_action": True,
-            },
-            "model": {
-                "units": (400, 300),
-                "activation": "ReLU",
-                "initializer_options": {"name": "xavier_uniform"},
-                "delay_action": True,
-                "input_dependent_scale": False,
-                "residual": False,
-            },
-        },
+        "module": {"name": "MAPOModule"},
         # === Rollout Worker ===
         "num_workers": 0,
         "rollout_fragment_length": 1,

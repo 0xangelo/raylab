@@ -1,39 +1,41 @@
 """SVG Architecture with disjoint model, actor, and critic."""
 import torch
 import torch.nn as nn
-from ray.rllib.utils import merge_dicts
+from ray.rllib.utils import deep_update
 from ray.rllib.utils.annotations import override
 
 from .basic import NormalParams, StateActionEncoder
+from .distributions import Independent, Normal
 from .model_actor_critic import AbstractModelActorCritic
-from .stochastic_model_mixin import StochasticModelMixin, GaussianDynamicsParams
+from .stochastic_model_mixin import StochasticModelMixin
 from .stochastic_actor_mixin import StochasticActorMixin
 from .state_value_mixin import StateValueMixin
 
 
 BASE_CONFIG = {
     "torch_script": False,
+    "replay_kl": False,
     "actor": {
-        "units": (32, 32),
+        "units": (100, 100),
         "activation": "Tanh",
         "initializer_options": {"name": "xavier_uniform"},
         "input_dependent_scale": False,
-        "layer_norm": False,
     },
     "critic": {
-        "units": (32, 32),
+        "units": (400, 200),
         "activation": "Tanh",
         "initializer_options": {"name": "xavier_uniform"},
         "target_vf": True,
     },
     "model": {
-        "encoder": "svg_paper",
         "residual": True,
-        "units": (32, 32),
-        "activation": "Tanh",
-        "delay_action": True,
-        "initializer_options": {"name": "xavier_uniform"},
         "input_dependent_scale": False,
+        "encoder": {
+            "units": (40, 40),
+            "activation": "Tanh",
+            "delay_action": True,
+            "initializer_options": {"name": "xavier_uniform"},
+        },
     },
 }
 
@@ -44,7 +46,7 @@ class SVGModule(
     StateValueMixin,
     AbstractModelActorCritic,
 ):
-    """Module architecture with reparemeterized actor and model.
+    """Module architecture with reparameterized actor and model.
 
     Allows inference of noise variables given existing samples.
     """
@@ -52,19 +54,22 @@ class SVGModule(
     # pylint:disable=abstract-method
 
     def __init__(self, obs_space, action_space, config):
-        config = merge_dicts(BASE_CONFIG, config)
+        config = deep_update(BASE_CONFIG, config, False, ["actor", "critic", "model"])
         super().__init__(obs_space, action_space, config)
+
         if config.get("replay_kl") is False:
             old = self._make_actor(obs_space, action_space, config)
             self.old_actor = old["actor"].requires_grad_(False)
 
-    @staticmethod
     @override(StochasticModelMixin)
-    def _make_model_encoder(obs_space, action_space, config):
-        if config["encoder"] == "svg_paper":
-            return SVGDynamicsParams(obs_space, action_space, config)
+    def _make_model(self, obs_space, action_space, config):
+        config = deep_update(BASE_CONFIG["model"], config["model"], False, ["encoder"])
 
-        return GaussianDynamicsParams(obs_space, action_space, config)
+        params_module = SVGDynamicsParams(obs_space, action_space, config)
+        dist_module = Independent(Normal(), reinterpreted_batch_ndims=1)
+
+        model = self._assemble_final_model(params_module, dist_module, config)
+        return {"model": model}
 
 
 class SVGDynamicsParams(nn.Module):
@@ -75,16 +80,10 @@ class SVGDynamicsParams(nn.Module):
 
     def __init__(self, obs_space, action_space, config):
         super().__init__()
+        obs_size, act_size = obs_space.shape[0], action_space.shape[0]
 
         def make_encoder():
-            return StateActionEncoder(
-                obs_dim=obs_space.shape[0],
-                action_dim=action_space.shape[0],
-                units=config["units"],
-                delay_action=config["delay_action"],
-                activation=config["activation"],
-                **config["initializer_options"]
-            )
+            return StateActionEncoder(obs_size, act_size, **config["encoder"])
 
         self.logits = nn.ModuleList([make_encoder() for _ in range(obs_space.shape[0])])
 

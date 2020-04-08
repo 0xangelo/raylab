@@ -40,31 +40,7 @@ SVG_BASE_CONFIG = with_common_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy, value function and model. No layers means the component is
         # linear in states and/or actions.
-        "module": {
-            "name": "SVGModule",
-            "torch_script": True,
-            "actor": {
-                "units": [100, 100],
-                "activation": "Tanh",
-                "initializer_options": {"name": "xavier_uniform"},
-                "input_dependent_scale": False,
-            },
-            "critic": {
-                "units": [400, 200],
-                "activation": "Tanh",
-                "initializer_options": {"name": "xavier_uniform"},
-                "target_vf": True,
-            },
-            "model": {
-                "encoder": "svg_paper",
-                "residual": True,
-                "units": [40, 40],
-                "activation": "Tanh",
-                "delay_action": True,
-                "initializer_options": {"name": "xavier_uniform"},
-                "input_dependent_scale": False,
-            },
-        },
+        "module": {"name": "SVGModule", "torch_script": True},
         # === Debugging ===
         # Whether to log detailed information about the actions selected in each episode
         "debug": False,

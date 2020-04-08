@@ -9,7 +9,6 @@ from ray.rllib.utils.annotations import override
 from raylab.utils.exploration import ParameterNoise
 import raylab.utils.pytorch as torch_util
 import raylab.policy as raypi
-from raylab.modules.catalog import get_module
 
 OptimizerCollection = collections.namedtuple("OptimizerCollection", "policy critic")
 
@@ -31,14 +30,14 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
-        module_config["double_q"] = config["clipped_double_q"]
+        module_config.setdefault("critic", {})
+        module_config["critic"]["double_q"] = config["clipped_double_q"]
+        module_config.setdefault("actor", {})
         module_config["actor"]["perturbed_policy"] = isinstance(
             self.exploration, ParameterNoise
         )
-        module = get_module(
-            module_config["name"], obs_space, action_space, module_config
-        )
-        return torch.jit.script(module) if module_config["torch_script"] else module
+        # pylint:disable=no-member
+        return super().make_module(obs_space, action_space, config)
 
     @override(raypi.TorchPolicy)
     def optimizer(self):

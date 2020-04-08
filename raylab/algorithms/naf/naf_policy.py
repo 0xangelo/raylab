@@ -27,11 +27,11 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
+        module_config["name"] = "NAFModule"
         module_config["double_q"] = config["clipped_double_q"]
         module_config["perturbed_policy"] = isinstance(self.exploration, ParameterNoise)
 
-        module = get_module("NAFModule", obs_space, action_space, module_config)
-        return torch.jit.script(module) if module_config["torch_script"] else module
+        return get_module(obs_space, action_space, module_config)
 
     @override(raypi.TorchPolicy)
     def optimizer(self):

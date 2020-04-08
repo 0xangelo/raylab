@@ -16,6 +16,7 @@ from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.rllib.policy.policy import Policy, ACTION_LOGP, ACTION_PROB, LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
 
+from raylab.modules.catalog import get_module
 from raylab.utils.pytorch import convert_to_tensor
 
 
@@ -40,21 +41,22 @@ class TorchPolicy(Policy):
         """Return the default config for this policy class."""
 
     @abstractmethod
-    def make_module(self, obs_space, action_space, config):
+    def optimizer(self):
+        """PyTorch optimizer to use."""
+
+    @staticmethod
+    def make_module(obs_space, action_space, config):
         """Build the PyTorch nn.Module to be used by this policy.
 
         Arguments:
             obs_space (gym.spaces.Space): the observation space for this policy
             action_space (gym.spaces.Space): the action_space for this policy
-            config (dict): the user config merged with the default one.
+            config (dict): the user config containing the 'module' key
 
         Returns:
             A neural network module.
         """
-
-    @abstractmethod
-    def optimizer(self):
-        """PyTorch optimizer to use."""
+        return get_module(obs_space, action_space, config["module"])
 
     @torch.no_grad()
     @override(Policy)

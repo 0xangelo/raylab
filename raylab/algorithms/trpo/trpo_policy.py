@@ -9,7 +9,6 @@ from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as torch_util
 from raylab.policy import TorchPolicy
-from raylab.modules.catalog import get_module
 
 from . import hf_util
 
@@ -27,14 +26,6 @@ class TRPOTorchPolicy(TorchPolicy):
         from raylab.algorithms.trpo.trpo import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
-
-    @override(TorchPolicy)
-    def make_module(self, obs_space, action_space, config):
-        module_config = config["module"]
-        module = get_module(
-            module_config["name"], obs_space, action_space, module_config
-        )
-        return torch.jit.script(module) if module_config["torch_script"] else module
 
     @override(TorchPolicy)
     def optimizer(self):

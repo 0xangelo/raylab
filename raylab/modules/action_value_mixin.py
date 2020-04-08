@@ -1,8 +1,20 @@
 """Support for modules with action value functions as critics."""
 import torch.nn as nn
+from ray.rllib.utils import deep_update
 from ray.rllib.utils.annotations import override
 
 from raylab.modules import StateActionEncoder
+
+
+BASE_CONFIG = {
+    "double_q": False,
+    "encoder": {
+        "units": (32, 32),
+        "activation": "ReLU",
+        "initializer_options": {"name": "xavier_uniform"},
+        "delay_action": True,
+    },
+}
 
 
 class ActionValueMixin:
@@ -16,16 +28,12 @@ class ActionValueMixin:
 
     @staticmethod
     def _make_critic(obs_space, action_space, config):
-        critic_config = config["critic"]
+        config = deep_update(BASE_CONFIG, config["critic"], False, ["encoder"])
+        obs_size, act_size = obs_space.shape[0], action_space.shape[0]
 
         def make_critic():
             return ActionValueFunction.from_scratch(
-                obs_dim=obs_space.shape[0],
-                action_dim=action_space.shape[0],
-                delay_action=critic_config["delay_action"],
-                units=critic_config["units"],
-                activation=critic_config["activation"],
-                **critic_config["initializer_options"]
+                obs_size, act_size, **config["encoder"]
             )
 
         n_critics = 2 if config["double_q"] else 1

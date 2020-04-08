@@ -3,10 +3,23 @@ from typing import List
 
 import torch
 import torch.nn as nn
+from ray.rllib.utils import deep_update
 from ray.rllib.utils.annotations import override
 
 from .basic import StateActionEncoder, NormalParams
 from .distributions import Independent, Normal
+
+
+BASE_CONFIG = {
+    "residual": True,
+    "input_dependent_scale": False,
+    "encoder": {
+        "units": (32, 32),
+        "activation": "ReLU",
+        "delay_action": True,
+        "initializer_options": {"name": "xavier_uniform"},
+    },
+}
 
 
 class StochasticModelMixin:
@@ -15,22 +28,19 @@ class StochasticModelMixin:
     # pylint:disable=too-few-public-methods
 
     def _make_model(self, obs_space, action_space, config):
-        model = nn.ModuleDict()
-        model_config = config["model"]
+        config = deep_update(BASE_CONFIG, config["model"], False, ["encoder"])
 
-        params_module = self._make_model_encoder(obs_space, action_space, model_config)
+        params_module = GaussianDynamicsParams(obs_space, action_space, config)
         dist_module = Independent(Normal(), reinterpreted_batch_ndims=1)
 
-        if model_config["residual"]:
-            model = ResidualStochasticModel(params_module, dist_module)
-        else:
-            model = StochasticModel(params_module, dist_module)
-
+        model = self._assemble_final_model(params_module, dist_module, config)
         return {"model": model}
 
     @staticmethod
-    def _make_model_encoder(obs_space, action_space, config):
-        return GaussianDynamicsParams(obs_space, action_space, config)
+    def _assemble_final_model(params_module, dist_module, config):
+        if config["residual"]:
+            return ResidualStochasticModel(params_module, dist_module)
+        return StochasticModel(params_module, dist_module)
 
 
 class GaussianDynamicsParams(nn.Module):
@@ -40,17 +50,11 @@ class GaussianDynamicsParams(nn.Module):
 
     def __init__(self, obs_space, action_space, config):
         super().__init__()
-        self.logits = StateActionEncoder(
-            obs_dim=obs_space.shape[0],
-            action_dim=action_space.shape[0],
-            units=config["units"],
-            delay_action=config["delay_action"],
-            activation=config["activation"],
-            **config["initializer_options"],
-        )
+        obs_size, act_size = obs_space.shape[0], action_space.shape[0]
+        self.logits = StateActionEncoder(obs_size, act_size, **config["encoder"])
         self.params = NormalParams(
             self.logits.out_features,
-            obs_space.shape[0],
+            obs_size,
             input_dependent_scale=config["input_dependent_scale"],
         )
 

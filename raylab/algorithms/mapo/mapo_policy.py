@@ -12,7 +12,6 @@ import raylab.policy as raypi
 from raylab.utils.exploration import ParameterNoise
 import raylab.utils.pytorch as torch_util
 from raylab.modules import RewardFn
-from raylab.modules.catalog import get_module
 
 
 OptimizerCollection = collections.namedtuple(
@@ -44,13 +43,15 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
-        module_config["double_q"] = config["clipped_double_q"]
+        module_config.setdefault("critic", {})
+        module_config["critic"]["double_q"] = config["clipped_double_q"]
+        module_config.setdefault("actor", {})
         module_config["actor"]["perturbed_policy"] = isinstance(
             self.exploration, ParameterNoise
         )
-        module = get_module(
-            module_config["name"], obs_space, action_space, module_config
-        )
+        # pylint:disable=no-member
+        module = super().make_module(obs_space, action_space, config)
+        # pylint:enable=no-member
         self.check_model(module.model.rsample)
         return module
 

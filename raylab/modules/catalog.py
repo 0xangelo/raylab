@@ -1,4 +1,6 @@
 """Registry of modules for PyTorch policies."""
+import torch
+
 from .naf_module import NAFModule
 from .ddpg_module import DDPGModule
 from .sac_module import SACModule
@@ -20,6 +22,9 @@ MODULES = {
 }
 
 
-def get_module(name, obs_space, action_space, config):
+def get_module(obs_space, action_space, config):
     """Retrieve and construct module of given name."""
-    return MODULES[name](obs_space, action_space, config)
+    name = config.pop("name")
+    torch_script = config.get("torch_script")
+    module = MODULES[name](obs_space, action_space, config)
+    return torch.jit.script(module) if torch_script else module
