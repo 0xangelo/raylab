@@ -46,9 +46,11 @@ DEFAULT_CONFIG = with_common_config(
                 "input_dependent_scale": False,
             },
             "critic": {
-                "units": (32, 32),
-                "activation": "Tanh",
-                "initializer_options": {"name": "xavier_uniform"},
+                "encoder": {
+                    "units": (32, 32),
+                    "activation": "Tanh",
+                    "initializer_options": {"name": "xavier_uniform"},
+                },
                 "target_vf": False,
             },
         },

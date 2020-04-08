@@ -45,7 +45,7 @@ class RealNVPActorMixin:
     @staticmethod
     def _make_actor(obs_space, action_space, config):
         config = deep_update(
-            BASE_CONFIG, config["actor"], False, ["obs_encoder", "flow_mlp"]
+            BASE_CONFIG, config.get("actor", {}), False, ["obs_encoder", "flow_mlp"]
         )
         return {"actor": RealNVPPolicy(obs_space, action_space, config)}
 

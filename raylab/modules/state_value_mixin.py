@@ -1,7 +1,18 @@
 """Support for modules with state value functions as critics."""
 import torch.nn as nn
+from ray.rllib.utils import deep_update
 
 from raylab.modules import FullyConnected
+
+
+BASE_CONFIG = {
+    "target_vf": True,
+    "encoder": {
+        "units": (400, 200),
+        "activation": "Tanh",
+        "initializer_options": {"name": "xavier_uniform"},
+    },
+}
 
 
 class StateValueMixin:
@@ -17,20 +28,17 @@ class StateValueMixin:
     def _make_critic(obs_space, action_space, config):
         # pylint:disable=unused-argument
         modules = {}
-        critic_config = config["critic"]
+        config = deep_update(BASE_CONFIG, config.get("critic", {}), False, ["encoder"])
 
         def make_vf():
             logits_mod = FullyConnected(
-                in_features=obs_space.shape[0],
-                units=critic_config["units"],
-                activation=critic_config["activation"],
-                **critic_config["initializer_options"],
+                in_features=obs_space.shape[0], **config["encoder"]
             )
             value_mod = nn.Linear(logits_mod.out_features, 1)
             return nn.Sequential(logits_mod, value_mod)
 
         modules["critic"] = make_vf()
-        if critic_config["target_vf"]:
+        if config["target_vf"]:
             modules["target_critic"] = make_vf()
             modules["target_critic"].load_state_dict(modules["critic"].state_dict())
         return modules

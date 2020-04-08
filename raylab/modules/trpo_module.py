@@ -15,9 +15,11 @@ BASE_CONFIG = {
         "input_dependent_scale": False,
     },
     "critic": {
-        "units": (32, 32),
-        "activation": "Tanh",
-        "initializer_options": {"name": "xavier_uniform"},
+        "encoder": {
+            "units": (32, 32),
+            "activation": "Tanh",
+            "initializer_options": {"name": "xavier_uniform"},
+        },
         "target_vf": False,
     },
 }

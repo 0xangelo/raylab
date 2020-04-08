@@ -27,9 +27,11 @@ BASE_CONFIG = {
     "torch_script": True,
     "actor": {"num_flows": 4, "hidden_size": 3},
     "critic": {
-        "units": (32, 32),
-        "activation": "Tanh",
-        "initializer_options": {"name": "normal", "std": 1.0},
+        "encoder": {
+            "units": (32, 32),
+            "activation": "Tanh",
+            "initializer_options": {"name": "normal", "std": 1.0},
+        },
         "target_vf": False,
     },
 }

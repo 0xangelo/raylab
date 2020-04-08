@@ -24,9 +24,11 @@ BASE_CONFIG = {
         },
     },
     "critic": {
-        "units": (64, 64),
-        "activation": "ELU",
-        "initializer_options": {"name": "xavier_uniform"},
+        "encoder": {
+            "units": (64, 64),
+            "activation": "ELU",
+            "initializer_options": {"name": "xavier_uniform"},
+        }
     },
 }
 

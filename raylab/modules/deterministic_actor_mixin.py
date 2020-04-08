@@ -43,7 +43,7 @@ class DeterministicActorMixin:
 
     @staticmethod
     def _make_actor(obs_space, action_space, config):
-        config = deep_update(BASE_CONFIG, config["actor"], False, ["encoder"])
+        config = deep_update(BASE_CONFIG, config.get("actor", {}), False, ["encoder"])
         if not config["encoder"].get("layer_norm") and config["perturbed_policy"]:
             warnings.warn(
                 "'layer_norm' is deactivated even though a perturbed policy was "

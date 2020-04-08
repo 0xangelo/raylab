@@ -28,7 +28,9 @@ class SVGModelMixin:
     # pylint:disable=missing-docstring,too-few-public-methods
     @staticmethod
     def _make_model(obs_space, action_space, config):
-        config = deep_update(BASE_MODEL_CONFIG, config["model"], False, ["encoder"])
+        config = deep_update(
+            BASE_MODEL_CONFIG, config.get("model", {}), False, ["encoder"]
+        )
 
         params_module = SVGDynamicsParams(obs_space, action_space, config)
         dist_module = Independent(Normal(), reinterpreted_batch_ndims=1)
@@ -76,12 +78,13 @@ BASE_CONFIG = {
         "input_dependent_scale": False,
     },
     "critic": {
-        "units": (400, 200),
-        "activation": "Tanh",
-        "initializer_options": {"name": "xavier_uniform"},
         "target_vf": True,
+        "encoder": {
+            "units": (400, 200),
+            "activation": "Tanh",
+            "initializer_options": {"name": "xavier_uniform"},
+        },
     },
-    "model": {},
 }
 
 
