@@ -207,11 +207,22 @@ class AffineTransform(Transform):
 
 
 class TanhSquashTransform(Transform):
-    """Squashes samples to the desired range."""
+    """Squashes samples to the desired range using Tanh."""
+
+    def __init__(self, low, high, event_dim=0):
+        divide = AffineTransform(loc=torch.zeros_like(low), scale=2 / (high - low))
+        squash = TanhTransform()
+        shift = AffineTransform(loc=(high + low) / 2, scale=(high - low) / 2)
+        compose = ComposeTransform([divide, squash, shift], event_dim=event_dim)
+        super().__init__(cond_transform=compose)
+
+
+class SigmoidSquashTransform(Transform):
+    """Squashes samples to the desired range using Sigmoid."""
 
     def __init__(self, low, high, event_dim=0):
         divide = AffineTransform(loc=torch.zeros_like(low), scale=1 / (high - low))
-        squash = TanhTransform()
-        shift = AffineTransform(loc=(high + low) / 2, scale=(high - low) / 2)
+        squash = SigmoidTransform()
+        shift = AffineTransform(loc=low, scale=(high - low))
         compose = ComposeTransform([divide, squash, shift], event_dim=event_dim)
         super().__init__(cond_transform=compose)
