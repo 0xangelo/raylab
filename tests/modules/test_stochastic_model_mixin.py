@@ -109,14 +109,15 @@ def test_model_reproduce(module_batch_config):
     module, batch, _ = module_batch_config
 
     next_obs = batch[SampleBatch.NEXT_OBS]
-    _next_obs = module.model.reproduce(
+    next_obs_, logp_ = module.model.reproduce(
         batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS], next_obs
     )
-    assert _next_obs.shape == next_obs.shape
-    assert _next_obs.dtype == next_obs.dtype
-    assert torch.allclose(_next_obs, next_obs, atol=1e-6)
+    assert next_obs_.shape == next_obs.shape
+    assert next_obs_.dtype == next_obs.dtype
+    assert torch.allclose(next_obs_, next_obs, atol=1e-6)
+    assert logp_.shape == batch[SampleBatch.REWARDS].shape
 
-    _next_obs.mean().backward()
+    next_obs_.mean().backward()
     model_params = set(module.model.parameters())
     assert all(p.grad is not None for p in model_params)
     assert all(p.grad is None for p in set(module.parameters()) - model_params)

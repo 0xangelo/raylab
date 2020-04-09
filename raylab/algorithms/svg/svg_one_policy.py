@@ -82,10 +82,10 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
         return svg_loss, {"svg_loss": svg_loss.item()}
 
     def _compute_policy_td_targets(self, batch_tensors):
-        _acts = self.module.actor.reproduce(
+        _acts, _ = self.module.actor.reproduce(
             batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
         )
-        _next_obs = self.module.model.reproduce(
+        _next_obs, _ = self.module.model.reproduce(
             batch_tensors[SampleBatch.CUR_OBS],
             _acts,
             batch_tensors[SampleBatch.NEXT_OBS],

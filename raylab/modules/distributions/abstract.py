@@ -85,7 +85,10 @@ class ConditionalDistribution(nn.Module):
         """Produce a reparametrized sample with the same value as `value`."""
         if self.distribution is not None:
             return self.distribution.reproduce(value)
-        return torch.tensor(np.nan).float().expand_as(value)
+        return (
+            torch.tensor(np.nan).float().expand_as(value),
+            torch.tensor(np.nan).float().expand_as(value),
+        )
 
 
 class Distribution(nn.Module):
@@ -172,7 +175,10 @@ class Distribution(nn.Module):
         """Produce a reparametrized sample with the same value as `value`."""
         if self.cond_dist is not None:
             return self.cond_dist.reproduce(self.params, value)
-        return torch.tensor(np.nan).float().expand_as(value)
+        return (
+            torch.tensor(np.nan).float().expand_as(value),
+            torch.tensor(np.nan).float().expand_as(value),
+        )
 
 
 class Independent(ConditionalDistribution):
@@ -228,7 +234,8 @@ class Independent(ConditionalDistribution):
     @override(ConditionalDistribution)
     @torch.jit.export
     def reproduce(self, params: Dict[str, torch.Tensor], value):
-        return self.base_dist.reproduce(params, value)
+        sample_, log_prob_ = self.base_dist.reproduce(params, value)
+        return sample_, _sum_rightmost(log_prob_, self.reinterpreted_batch_ndims)
 
 
 class TransformedDistribution(ConditionalDistribution):
@@ -277,8 +284,6 @@ class TransformedDistribution(ConditionalDistribution):
     @torch.jit.export
     def reproduce(self, params: Dict[str, torch.Tensor], value):
         latent, _ = self.transform(value, params, reverse=True)
-        latent_ = self.base_dist.reproduce(params, latent)
-        if latent_ is not None:
-            value_, _ = self.transform(latent_, params)
-            return value_
-        return value
+        latent_, base_log_prob_ = self.base_dist.reproduce(params, latent)
+        value_, log_abs_det_jacobian_ = self.transform(latent_, params)
+        return value_, base_log_prob_ - log_abs_det_jacobian_

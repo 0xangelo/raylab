@@ -70,7 +70,8 @@ class Uniform(ConditionalDistribution):
     def reproduce(self, params: Dict[str, torch.Tensor], value):
         low, high = self._unpack_params(params)
         rand = (value - low) / (high - low)
-        return low + rand.detach() * (high - low)
+        sample_ = low + rand.detach() * (high - low)
+        return sample_, self.log_prob(params, sample_)
 
     def _unpack_params(self, params: Dict[str, torch.Tensor]):
         # pylint:disable=no-self-use
