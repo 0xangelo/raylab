@@ -4,7 +4,7 @@ import torch
 from .naf_module import NAFModule
 from .ddpg_module import DDPGModule
 from .sac_module import SACModule
-from .simple_model_based_module import SimpleModelBased
+from .simple_model_based import SimpleModelBased
 from .svg_module import SVGModule
 from .svg_realnvp_actor import SVGRealNVPActor
 from .mapo_module import MAPOModule
