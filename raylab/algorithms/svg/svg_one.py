@@ -21,9 +21,16 @@ DEFAULT_CONFIG = with_base_config(
             "actor": {"lr": 1e-3},
         },
         # === Regularization ===
+        # Options for adaptive KL coefficient. See raylab.utils.adaptive_kl
+        "kl_schedule": {},
         # Whether to penalize KL divergence with the current policy or past policies
         # that generated the replay pool.
         "replay_kl": True,
+        # === Network ===
+        # Size and activation of the fully connected networks computing the logits
+        # for the policy, value function and model. No layers means the component is
+        # linear in states and/or actions.
+        "module": {"name": "SVGModule", "torch_script": False},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

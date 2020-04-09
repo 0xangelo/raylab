@@ -9,6 +9,7 @@ from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as torch_util
 from raylab.modules import RewardFn
+from raylab.policy import AdaptiveKLCoeffMixin
 from .svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
 from .rollout_module import ReproduceRollout
 
@@ -18,7 +19,7 @@ OptimizerCollection = collections.namedtuple(
 )
 
 
-class SVGInfTorchPolicy(SVGBaseTorchPolicy):
+class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
     """Stochastic Value Gradients policy for full trajectories."""
 
     # pylint: disable=abstract-method
@@ -136,7 +137,12 @@ class SVGInfTorchPolicy(SVGBaseTorchPolicy):
         avg_sim_return = total_ret / len(episodes)
         return -avg_sim_return, {"avg_sim_return": avg_sim_return.item()}
 
-    @override(SVGBaseTorchPolicy)
+    @torch.no_grad()
+    @override(AdaptiveKLCoeffMixin)
+    def _kl_divergence(self, sample_batch):
+        batch_tensors = self._lazy_tensor_dict(sample_batch)
+        return self._avg_kl_divergence(batch_tensors).item()
+
     def _avg_kl_divergence(self, batch_tensors):
         logp = self.module.actor.log_prob(
             batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]

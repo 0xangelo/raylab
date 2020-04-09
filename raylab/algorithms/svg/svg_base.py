@@ -29,14 +29,6 @@ SVG_BASE_CONFIG = with_common_config(
         "polyak": 0.995,
         # === Rollout Worker ===
         "num_workers": 0,
-        # === Regularization ===
-        # Options for adaptive KL coefficient. See raylab.utils.adaptive_kl
-        "kl_schedule": {},
-        # === Network ===
-        # Size and activation of the fully connected networks computing the logits
-        # for the policy, value function and model. No layers means the component is
-        # linear in states and/or actions.
-        "module": {"name": "SVGModule", "torch_script": True},
         # === Debugging ===
         # Whether to log detailed information about the actions selected in each episode
         "debug": False,

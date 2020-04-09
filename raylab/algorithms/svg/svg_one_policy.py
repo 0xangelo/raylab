@@ -5,11 +5,12 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.modules import RewardFn
+from raylab.policy import AdaptiveKLCoeffMixin
 import raylab.utils.pytorch as torch_util
 from .svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
 
 
-class SVGOneTorchPolicy(SVGBaseTorchPolicy):
+class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
 
     # pylint: disable=abstract-method
@@ -98,7 +99,12 @@ class SVGOneTorchPolicy(SVGBaseTorchPolicy):
             _rewards + self.config["gamma"] * _next_vals,
         )
 
-    @override(SVGBaseTorchPolicy)
+    @torch.no_grad()
+    @override(AdaptiveKLCoeffMixin)
+    def _kl_divergence(self, sample_batch):
+        batch_tensors = self._lazy_tensor_dict(sample_batch)
+        return self._avg_kl_divergence(batch_tensors).item()
+
     def _avg_kl_divergence(self, batch_tensors):
         if self.config["replay_kl"]:
             logp = self.module.actor.log_prob(
