@@ -29,7 +29,7 @@ class StochasticModelMixin:
 
     @staticmethod
     def _make_model(obs_space, action_space, config):
-        config = deep_update(BASE_CONFIG, config["model"], False, ["encoder"])
+        config = deep_update(BASE_CONFIG, config.get("model", {}), False, ["encoder"])
 
         params_module = GaussianDynamicsParams(obs_space, action_space, config)
         dist_module = Independent(Normal(), reinterpreted_batch_ndims=1)

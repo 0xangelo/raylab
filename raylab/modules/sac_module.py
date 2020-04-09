@@ -9,9 +9,11 @@ from .action_value_mixin import ActionValueMixin
 BASE_CONFIG = {
     "torch_script": False,
     "actor": {
-        "units": (400, 300),
-        "activation": "ReLU",
-        "initializer_options": {"name": "xavier_uniform"},
+        "encoder": {
+            "units": (400, 300),
+            "activation": "ReLU",
+            "initializer_options": {"name": "xavier_uniform"},
+        },
         "input_dependent_scale": True,
     },
     "critic": {

@@ -72,9 +72,11 @@ BASE_CONFIG = {
     "torch_script": False,
     "replay_kl": False,
     "actor": {
-        "units": (100, 100),
-        "activation": "Tanh",
-        "initializer_options": {"name": "xavier_uniform"},
+        "encoder": {
+            "units": (100, 100),
+            "activation": "Tanh",
+            "initializer_options": {"name": "xavier_uniform"},
+        },
         "input_dependent_scale": False,
     },
     "critic": {

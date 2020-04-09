@@ -3,6 +3,7 @@ from typing import List
 
 import torch
 import torch.nn as nn
+from ray.rllib.utils import deep_update
 from ray.rllib.utils.annotations import override
 import gym.spaces as spaces
 
@@ -16,6 +17,16 @@ from .distributions import (
 )
 
 
+BASE_CONFIG = {
+    "encoder": {
+        "units": (32, 32),
+        "activation": "Tanh",
+        "initializer_options": {"name": "xavier_uniform"},
+    },
+    "input_dependent_scale": False,
+}
+
+
 class StochasticActorMixin:
     """Adds constructor for modules with stochastic policies."""
 
@@ -23,11 +34,11 @@ class StochasticActorMixin:
 
     @staticmethod
     def _make_actor(obs_space, action_space, config):
-        actor_config = config["actor"]
+        config = deep_update(BASE_CONFIG, config.get("actor", {}), False, ["encoder"])
         if isinstance(action_space, spaces.Discrete):
-            return {"actor": CategoricalPolicy(obs_space, action_space, actor_config)}
+            return {"actor": CategoricalPolicy(obs_space, action_space, config)}
         if isinstance(action_space, spaces.Box):
-            return {"actor": GaussianPolicy(obs_space, action_space, actor_config)}
+            return {"actor": GaussianPolicy(obs_space, action_space, config)}
         raise ValueError(f"Unsopported action space type {type(action_space)}")
 
 
@@ -162,12 +173,7 @@ class GaussianPolicy(StochasticPolicy):
 
 
 def _build_fully_connected(obs_space, config):
-    return FullyConnected(
-        in_features=obs_space.shape[0],
-        units=config["units"],
-        activation=config["activation"],
-        **config["initializer_options"],
-    )
+    return FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
 
 
 class Alpha(nn.Module):
