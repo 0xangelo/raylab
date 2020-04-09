@@ -35,25 +35,7 @@ DEFAULT_CONFIG = with_common_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy and value function. No layers means the component is
         # linear in states or actions.
-        "module": {
-            "name": "TRPOModule",
-            "torch_script": True,
-            "mean_action_only": False,
-            "actor": {
-                "units": (32, 32),
-                "activation": "Tanh",
-                "initializer_options": {"name": "xavier_uniform"},
-                "input_dependent_scale": False,
-            },
-            "critic": {
-                "encoder": {
-                    "units": (32, 32),
-                    "activation": "Tanh",
-                    "initializer_options": {"name": "xavier_uniform"},
-                },
-                "target_vf": False,
-            },
-        },
+        "module": {"name": "TRPOModule", "torch_script": True},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).
