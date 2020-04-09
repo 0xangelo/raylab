@@ -13,11 +13,9 @@ def clipped_double_q(request):
     return {"clipped_double_q": request.param}
 
 
-def test_policy_policy_loss(
-    policy_and_batch_fn, clipped_double_q, input_dependent_scale
-):
+def test_actor_loss(policy_and_batch_fn, clipped_double_q, input_dependent_scale):
     policy, batch = policy_and_batch_fn({**clipped_double_q, **input_dependent_scale})
-    loss, _ = policy.compute_policy_loss(batch, policy.module, policy.config)
+    loss, _ = policy.compute_actor_loss(batch, policy.module, policy.config)
 
     assert loss.shape == ()
     assert loss.dtype == torch.float32
