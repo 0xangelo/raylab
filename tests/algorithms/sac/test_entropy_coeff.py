@@ -24,4 +24,4 @@ def test_alpha_loss(policy_and_batch_fn, config):
     assert loss.dtype == torch.float32
 
     loss.backward()
-    assert policy.module.log_alpha.grad is not None
+    assert all(p.grad is not None for p in policy.module.alpha.parameters())

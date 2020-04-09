@@ -38,7 +38,7 @@ class MaximumEntropyMixin:
 
     def __init__(self, obs_space, action_space, config):
         super().__init__(obs_space, action_space, config)
-        self.log_alpha = nn.Parameter(torch.zeros([]))
+        self.alpha = Alpha()
 
 
 class StochasticPolicy(nn.Module):
@@ -168,3 +168,14 @@ def _build_fully_connected(obs_space, config):
         activation=config["activation"],
         **config["initializer_options"],
     )
+
+
+class Alpha(nn.Module):
+    # pylint:disable=missing-class-docstring
+
+    def __init__(self):
+        super().__init__()
+        self.log_alpha = nn.Parameter(torch.zeros([]))
+
+    def forward(self):  # pylint:disable=arguments-differ
+        return self.log_alpha.exp()

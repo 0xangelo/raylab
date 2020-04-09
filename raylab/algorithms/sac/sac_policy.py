@@ -60,7 +60,9 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         alpha_optim_name = self.config["alpha_optimizer"]["name"]
         alpha_optim_cls = torch_util.get_optimizer_class(alpha_optim_name)
         alpha_optim_options = self.config["alpha_optimizer"]["options"]
-        alpha_optim = alpha_optim_cls([self.module.log_alpha], **alpha_optim_options)
+        alpha_optim = alpha_optim_cls(
+            self.module.alpha.parameters(), **alpha_optim_options
+        )
 
         return OptimizerCollection(
             policy=policy_optim, critic=critic_optim, alpha=alpha_optim
@@ -129,7 +131,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return torch.where(
             dones,
             rewards,
-            rewards + config["gamma"] * (next_vals - module.log_alpha.exp() * logp),
+            rewards + config["gamma"] * (next_vals - module.alpha() * logp),
         )
 
     def _update_policy(self, batch_tensors, module, config):
@@ -158,7 +160,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         action_values, _ = torch.cat(
             [m(obs, actions) for m in module.critics], dim=-1
         ).min(dim=-1)
-        max_objective = torch.mean(action_values - module.log_alpha.exp() * logp)
+        max_objective = torch.mean(action_values - module.alpha() * logp)
 
         stats = {
             "policy_loss": max_objective.neg().item(),
@@ -172,8 +174,10 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         self._optimizer.alpha.zero_grad()
         alpha_loss.backward()
         grad_stats = {
-            "alpha_grad_norm": self.module.log_alpha.grad.norm().item(),
-            "curr_alpha": self.module.log_alpha.exp().item(),
+            "alpha_grad_norm": nn.utils.clip_grad_norm_(
+                module.alpha.parameters(), float("inf")
+            ),
+            "curr_alpha": self.module.alpha().item(),
         }
         info.update(grad_stats)
 
@@ -185,6 +189,6 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         """Compute entropy coefficient loss."""
         with torch.no_grad():
             _, logp = module.actor.rsample(batch_tensors[SampleBatch.CUR_OBS])
-        alpha = module.log_alpha.exp()
+        alpha = module.alpha()
         entropy_diff = torch.mean(-alpha * logp - alpha * config["target_entropy"])
         return entropy_diff, {"alpha_loss": entropy_diff.item()}

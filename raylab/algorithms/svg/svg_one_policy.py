@@ -1,4 +1,4 @@
-"""SVG(inf) policy class using PyTorch."""
+"""SVG(1) policy class using PyTorch."""
 import torch
 import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch

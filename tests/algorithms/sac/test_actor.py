@@ -24,5 +24,5 @@ def test_policy_policy_loss(
 
     loss.backward()
     assert all(p.grad is not None for p in policy.module.actor.parameters())
-    assert policy.module.log_alpha.grad is not None
+    assert all(p.grad is not None for p in policy.module.alpha.parameters())
     assert all(p.grad is not None for p in policy.module.critics.parameters())
