@@ -90,6 +90,16 @@ class ConditionalDistribution(nn.Module):
             torch.tensor(np.nan).float().expand_as(value),
         )
 
+    @torch.jit.export
+    def deterministic(self, params: Dict[str, torch.Tensor]):
+        """
+        Generates a deterministic sample or batch of samples if the distribution
+        parameters are batched. Returns a (rsample, log_prob) pair.
+        """
+        if self.distribution is not None:
+            return self.distribution.deterministic()
+        return torch.tensor(np.nan).float(), torch.tensor(np.nan).float()
+
 
 class Distribution(nn.Module):
     """Unconditional Distribution.
@@ -180,6 +190,16 @@ class Distribution(nn.Module):
             torch.tensor(np.nan).float().expand_as(value),
         )
 
+    @torch.jit.export
+    def deterministic(self):
+        """
+        Generates a deterministic sample or batch of samples if the distribution
+        parameters are batched. Returns a (rsample, log_prob) pair.
+        """
+        if self.cond_dist is not None:
+            return self.cond_dist.deterministic(self.params)
+        return torch.tensor(np.nan).float(), torch.tensor(np.nan).float()
+
 
 class Independent(ConditionalDistribution):
     """Reinterprets some of the batch dims of a distribution as event dims."""
@@ -237,6 +257,12 @@ class Independent(ConditionalDistribution):
         sample_, log_prob_ = self.base_dist.reproduce(params, value)
         return sample_, _sum_rightmost(log_prob_, self.reinterpreted_batch_ndims)
 
+    @override(ConditionalDistribution)
+    @torch.jit.export
+    def deterministic(self, params: Dict[str, torch.Tensor]):
+        sample, log_prob = self.base_dist.deterministic(params)
+        return sample, _sum_rightmost(log_prob, self.reinterpreted_batch_ndims)
+
 
 class TransformedDistribution(ConditionalDistribution):
     """
@@ -287,3 +313,10 @@ class TransformedDistribution(ConditionalDistribution):
         latent_, base_log_prob_ = self.base_dist.reproduce(params, latent)
         value_, log_abs_det_jacobian_ = self.transform(latent_, params)
         return value_, base_log_prob_ - log_abs_det_jacobian_
+
+    @override(ConditionalDistribution)
+    @torch.jit.export
+    def deterministic(self, params: Dict[str, torch.Tensor]):
+        base_sample, base_log_prob = self.base_dist.deterministic(params)
+        transformed, log_abs_det_jacobian = self.transform(base_sample, params)
+        return transformed, base_log_prob - log_abs_det_jacobian

@@ -32,3 +32,8 @@ def _test_dist_ops(dist, params, batch_shape, event_shape, sample_shape):
         icdf = dist.icdf(params, cdf)
         if not torch.isnan(icdf).any():
             assert icdf.shape == cdf.shape
+
+    sample, logp = dist.deterministic(params)
+    if not torch.isnan(sample).any():
+        assert sample.shape == batch_shape + event_shape
+        assert logp.shape == batch_shape
