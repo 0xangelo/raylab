@@ -115,6 +115,15 @@ class StochasticPolicy(nn.Module):
         params = self(obs)
         return self.dist.reproduce(params, action)
 
+    @torch.jit.export
+    def deterministic(self, obs):
+        """
+        Generates a deterministic sample or batch of samples if the distribution
+        parameters are batched. Returns a (rsample, log_prob) pair.
+        """
+        params = self(obs)
+        return self.dist.deterministic(params)
+
 
 class CategoricalPolicy(StochasticPolicy):
     """StochasticPolicy as a conditional Categorical distribution."""
