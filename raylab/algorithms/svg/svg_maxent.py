@@ -29,7 +29,7 @@ DEFAULT_CONFIG = with_base_config(
         # linear in states and/or actions.
         "module": {
             "name": "MaxEntModelBased",
-            "torch_script": False,
+            "torch_script": True,
             "critic": {"target_vf": True},
         },
         # === Exploration Settings ===
@@ -58,7 +58,7 @@ DEFAULT_CONFIG = with_base_config(
         # Extra arguments to pass to evaluation workers.
         # Typical usage is to pass extra args to evaluation env creator
         # and to disable exploration by computing deterministic actions
-        "evaluation_config": {"explore": True},
+        "evaluation_config": {"explore": False},
     },
 )
 

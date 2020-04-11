@@ -90,7 +90,8 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
     @override(SVGBaseTorchPolicy)
     def _compute_value_targets(self, batch_tensors):
         _, logp = self.module.actor.sample(batch_tensors[SampleBatch.CUR_OBS])
-        augmented_rewards = batch_tensors[SampleBatch.REWARDS] - logp
+        rewards = batch_tensors[SampleBatch.REWARDS]
+        augmented_rewards = rewards - logp * self.module.alpha()
 
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
         next_vals = self.module.target_critic(next_obs).squeeze(-1)
@@ -129,7 +130,7 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
             batch_tensors[SampleBatch.NEXT_OBS],
         )
         _rewards = self.reward(batch_tensors[SampleBatch.CUR_OBS], _acts, _next_obs)
-        _augmented_rewards = _rewards - _logp
+        _augmented_rewards = _rewards - _logp * self.module.alpha()
         _next_vals = self.module.critic(_next_obs).squeeze(-1)
 
         gamma = self.config["gamma"]
