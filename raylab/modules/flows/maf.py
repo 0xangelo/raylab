@@ -10,7 +10,7 @@ https://arxiv.org/abs/1606.04934
 """
 import torch
 import torch.nn as nn
-from .abstract import NormalizingFlow
+from .abstract import Transform
 from ..made import MADE
 from ..basic import LeafParameter
 
@@ -51,7 +51,7 @@ class ARMLP(nn.Module):
         return self.net(inputs)
 
 
-class MAF(NormalizingFlow):
+class MAF(Transform):
     """Masked Autoregressive Flow that uses a MADE-style network for fast forward."""
 
     def __init__(self, size, parity, net_class=ARMLP, hidden_size=24, **kwargs):
@@ -101,7 +101,7 @@ class IAF(MAF):
         self._encode, self._decode = self._decode, self._encode
 
 
-class SlowMAF(NormalizingFlow):
+class SlowMAF(Transform):
     """
     Masked Autoregressive Flow; slow version with explicit networks per input feature.
     """

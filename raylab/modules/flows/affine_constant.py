@@ -3,10 +3,10 @@ import torch
 from torch import nn
 from ray.rllib.utils.annotations import override
 
-from .abstract import NormalizingFlow
+from .abstract import Transform
 
 
-class AffineConstantFlow(NormalizingFlow):
+class AffineConstantFlow(Transform):
     """
     Scales + Shifts the flow by (learned) constants per dimension.
     In NICE paper there is a Scaling layer which is a special case of
@@ -24,14 +24,14 @@ class AffineConstantFlow(NormalizingFlow):
         else:
             self.register_buffer("loc", torch.zeros(shape))
 
-    @override(NormalizingFlow)
+    @override(Transform)
     def _encode(self, inputs):
         out = inputs * torch.exp(self.scale) + self.loc
         # log |dy/dx| = log |torch.exp(scale)| = scale
         log_abs_det_jacobian = self.scale
         return out, log_abs_det_jacobian
 
-    @override(NormalizingFlow)
+    @override(Transform)
     def _decode(self, inputs):
         out = (inputs - self.loc) * torch.exp(-self.scale)
         # log |dx/dy| = - log |dy/dx| = - scale
@@ -39,7 +39,7 @@ class AffineConstantFlow(NormalizingFlow):
         return out, log_abs_det_jacobian
 
 
-class ActNorm(NormalizingFlow):
+class ActNorm(Transform):
     """
     Really an AffineConstantFlow but with a data-dependent initialization,
     where on the very first batch we clever initialize the s,t so that the output
@@ -54,7 +54,7 @@ class ActNorm(NormalizingFlow):
             and isinstance(self.affine_const.loc, nn.Parameter)
         )
 
-    @override(NormalizingFlow)
+    @override(Transform)
     def _encode(self, inputs):
         # first batch is used for init
         if not self.data_dep_init_done:
@@ -72,6 +72,6 @@ class ActNorm(NormalizingFlow):
             self.data_dep_init_done = True
         return self.affine_const._encode(inputs)  # pylint:disable=protected-access
 
-    @override(NormalizingFlow)
+    @override(Transform)
     def _decode(self, inputs):
         return self.affine_const._decode(inputs)  # pylint:disable=protected-access

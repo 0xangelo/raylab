@@ -17,7 +17,7 @@ from .distributions import (
     TanhSquashTransform,
     TransformedDistribution,
 )
-from .flows import Affine1DHalfFlow, ConditionalNormalizingFlow
+from .flows import Affine1DHalfFlow, ConditionalTransform
 from .state_value_mixin import StateValueMixin
 from .stochastic_actor_mixin import StochasticActorMixin, StochasticPolicy
 
@@ -48,10 +48,10 @@ class TRPOTang2018(StochasticActorMixin, StateValueMixin, AbstractActorCritic):
     @override(StochasticActorMixin)
     def _make_actor(self, obs_space, action_space, config):
         actor_config = config["actor"]
-        return {"actor": NormalizingFlowsPolicy(obs_space, action_space, actor_config)}
+        return {"actor": TransformsPolicy(obs_space, action_space, actor_config)}
 
 
-class NormalizingFlowsPolicy(StochasticPolicy):
+class TransformsPolicy(StochasticPolicy):
     """
     Stochastic policy architecture used in
     http://arxiv.org/abs/1809.10326
@@ -94,21 +94,21 @@ class NormalizingFlowsPolicy(StochasticPolicy):
         return {"loc": torch.zeros(shape), "scale": torch.ones(shape), "state": obs}
 
 
-class AddStateFlow(ConditionalNormalizingFlow):
+class AddStateFlow(ConditionalTransform):
     """Incorporates state information by adding a state embedding."""
 
     def __init__(self, obs_size, act_size):
         super().__init__(event_dim=1)
         self.state_encoder = MLP(obs_size, act_size, hidden_size=64)
 
-    @override(ConditionalNormalizingFlow)
-    def _encode(self, inputs, cond: Dict[str, torch.Tensor]):
-        encoded = self.state_encoder(cond["state"])
+    @override(ConditionalTransform)
+    def _encode(self, inputs, params: Dict[str, torch.Tensor]):
+        encoded = self.state_encoder(params["state"])
         return inputs + encoded, torch.zeros(inputs.shape[: -self.event_dim])
 
-    @override(ConditionalNormalizingFlow)
-    def _decode(self, inputs, cond: Dict[str, torch.Tensor]):
-        encoded = self.state_encoder(cond["state"])
+    @override(ConditionalTransform)
+    def _decode(self, inputs, params: Dict[str, torch.Tensor]):
+        encoded = self.state_encoder(params["state"])
         return inputs - encoded, torch.zeros(inputs.shape[: -self.event_dim])
 
 

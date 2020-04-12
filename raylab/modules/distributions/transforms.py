@@ -11,17 +11,23 @@ from .utils import _sum_rightmost
 
 
 class Transform(nn.Module):
-    # pylint:disable=missing-docstring
-    cond: Dict[str, torch.Tensor]
+    """A diffeomorphism.
 
-    def __init__(self, *, cond_transform=None, cond=None, event_dim=0):
+    Transforms are differentiable bijections with tractable Jacobians.
+    All transforms map samples from a latent space to another (f(z) -> x)
+    Use the `reverse` flag to invert the transformation (f^{-1}(x) -> z).
+    """
+
+    params: Dict[str, torch.Tensor]
+
+    def __init__(self, *, cond_transform=None, params=None, event_dim=0):
         super().__init__()
         self.event_dim = (
             event_dim if cond_transform is None else cond_transform.event_dim
         )
         self.cond_transform = cond_transform
-        self.cond = cond or {}
-        for name, param in self.cond.items():
+        self.params = params or {}
+        for name, param in self.params.items():
             if isinstance(param, nn.Parameter):
                 self.register_parameter(name, param)
             else:
@@ -36,7 +42,7 @@ class Transform(nn.Module):
         Computes the transform `z => x` and the log det jacobian `log |dz/dx|`
         """
         # pylint:disable=protected-access
-        return self.cond_transform._encode(inputs, self.cond)
+        return self.cond_transform._encode(inputs, self.params)
 
     def _decode(self, inputs):
         """
@@ -44,11 +50,11 @@ class Transform(nn.Module):
         or `- log |dz/dx|`.
         """
         # pylint:disable=protected-access
-        return self.cond_transform._decode(inputs, self.cond)
+        return self.cond_transform._decode(inputs, self.params)
 
 
 class ConditionalTransform(nn.Module):
-    # pylint:disable=missing-docstring
+    """A Transform conditioned on some external variable(s)."""
 
     def __init__(self, *, transform=None, event_dim=0):
         super().__init__()
@@ -56,18 +62,18 @@ class ConditionalTransform(nn.Module):
         self.transform = transform
 
     @override(nn.Module)
-    def forward(self, inputs, cond: Dict[str, torch.Tensor], reverse: bool = False):
+    def forward(self, inputs, params: Dict[str, torch.Tensor], reverse: bool = False):
         # pylint:disable=arguments-differ
-        return self._decode(inputs, cond) if reverse else self._encode(inputs, cond)
+        return self._decode(inputs, params) if reverse else self._encode(inputs, params)
 
-    def _encode(self, inputs, cond: Dict[str, torch.Tensor]):
+    def _encode(self, inputs, params: Dict[str, torch.Tensor]):
         """
         Computes the transform `(z, y) => x`.
         """
         # pylint:disable=protected-access,unused-argument
         return self.transform._encode(inputs)
 
-    def _decode(self, inputs, cond: Dict[str, torch.Tensor]):
+    def _decode(self, inputs, params: Dict[str, torch.Tensor]):
         """
         Inverts the transform `(x, y) => z`.
         """
@@ -87,14 +93,14 @@ class InvTransform(ConditionalTransform):
         )
 
     @override(ConditionalTransform)
-    def _encode(self, inputs, cond: Dict[str, torch.Tensor]):
+    def _encode(self, inputs, params: Dict[str, torch.Tensor]):
         # pylint:disable=protected-access
-        return self.transform._decode(inputs, cond)
+        return self.transform._decode(inputs, params)
 
     @override(ConditionalTransform)
-    def _decode(self, inputs, cond: Dict[str, torch.Tensor]):
+    def _decode(self, inputs, params: Dict[str, torch.Tensor]):
         # pylint:disable=protected-access
-        return self.transform._encode(inputs, cond)
+        return self.transform._encode(inputs, params)
 
 
 class ComposeTransform(ConditionalTransform):
@@ -115,22 +121,22 @@ class ComposeTransform(ConditionalTransform):
         self.inv_transforms = nn.ModuleList(trans[::-1])
 
     @override(ConditionalTransform)
-    def _encode(self, inputs, cond: Dict[str, torch.Tensor]):
+    def _encode(self, inputs, params: Dict[str, torch.Tensor]):
         out = inputs
         log_abs_det_jacobian = 0.0
         for transform in self.transforms:
-            out, log_det = transform(out, cond, reverse=False)
+            out, log_det = transform(out, params, reverse=False)
             log_abs_det_jacobian += _sum_rightmost(
                 log_det, self.event_dim - transform.event_dim
             )
         return out, log_abs_det_jacobian
 
     @override(ConditionalTransform)
-    def _decode(self, inputs, cond: Dict[str, torch.Tensor]):
+    def _decode(self, inputs, params: Dict[str, torch.Tensor]):
         out = inputs
         log_abs_det_jacobian = 0.0
         for transform in self.inv_transforms:
-            out, log_det = transform(out, cond, reverse=True)
+            out, log_det = transform(out, params, reverse=True)
             log_abs_det_jacobian += _sum_rightmost(
                 log_det, self.event_dim - transform.event_dim
             )

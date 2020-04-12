@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
-from .abstract import NormalizingFlow
+from .abstract import Transform
 from ..distributions.utils import _sum_rightmost
 
 
@@ -25,7 +25,7 @@ class Dummy(nn.Module):
         return torch.zeros(())
 
 
-class Affine1DHalfFlow(NormalizingFlow):
+class Affine1DHalfFlow(Transform):
     """
     As seen in RealNVP, affine autoregressive flow (z = x * exp(s) + t), where half of
     the elements in the last dimension of x are linearly scaled/transformed as a
@@ -40,7 +40,7 @@ class Affine1DHalfFlow(NormalizingFlow):
         self.scale = scale_module or Dummy()
         self.shift = shift_module or Dummy()
 
-    @override(NormalizingFlow)
+    @override(Transform)
     def _encode(self, inputs):
         z_0, z_1 = torch.chunk(inputs, 2, dim=-1)
         if self.parity:
@@ -60,7 +60,7 @@ class Affine1DHalfFlow(NormalizingFlow):
         log_abs_det_jacobian = -scale
         return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
-    @override(NormalizingFlow)
+    @override(Transform)
     def _decode(self, inputs):
         x_0, x_1 = inputs[..., ::2], inputs[..., 1::2]
         if self.parity:

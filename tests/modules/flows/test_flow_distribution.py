@@ -3,7 +3,7 @@ import pytest
 import torch
 
 
-from raylab.modules.flows import NormalizingFlow
+from raylab.modules.flows import Transform
 from raylab.modules.distributions import (
     Distribution,
     Independent,
@@ -14,7 +14,7 @@ from raylab.modules.distributions import (
 from raylab.modules.distributions.utils import _sum_rightmost
 
 
-class Basic1DFlow(NormalizingFlow):
+class Basic1DFlow(Transform):
     def __init__(self, distribution):
         super().__init__(event_dim=1)
         self.distribution = distribution
