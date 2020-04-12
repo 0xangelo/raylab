@@ -63,8 +63,10 @@ class TransformsPolicy(StochasticPolicy):
             action_space, spaces.Box
         ), f"Normalizing Flows incompatible with action space type {type(action_space)}"
 
-        obs_size = obs_space.shape[0]
-        self.act_size = act_size = action_space.shape[0]
+        self.obs_shape = obs_space.shape
+        self.act_shape = action_space.shape
+        obs_size = self.obs_shape[0]
+        act_size = self.act_shape[0]
 
         def make_mod(parity):
             nout = act_size // 2
@@ -90,7 +92,7 @@ class TransformsPolicy(StochasticPolicy):
 
     @override(nn.Module)
     def forward(self, obs):  # pylint:disable=arguments-differ
-        shape = obs.shape[:-1] + (self.act_size,)
+        shape = obs.shape[: -len(self.obs_shape)] + self.act_shape
         return {"loc": torch.zeros(shape), "scale": torch.ones(shape), "state": obs}
 
 
