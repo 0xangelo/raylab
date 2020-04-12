@@ -21,4 +21,4 @@ class StochasticActor(RandomUniformMixin, Exploration):
                     distribution_inputs, action_dist_class, model, timestep, explore
                 )
             return model.actor.sample(distribution_inputs)
-        return model.actor.mode(distribution_inputs)
+        return model.actor.deterministic(distribution_inputs)

@@ -70,7 +70,15 @@ class Normal(ConditionalDistribution):
     def reproduce(self, params: Dict[str, torch.Tensor], value):
         loc, scale = self._unpack_params(params)
         eps = (value - loc) / scale
-        return loc + scale * eps.detach()
+        sample_ = loc + scale * eps.detach()
+        return sample_, self.log_prob(params, sample_)
+
+    @override(ConditionalDistribution)
+    @torch.jit.export
+    def deterministic(self, params: Dict[str, torch.Tensor]):
+        loc, _ = self._unpack_params(params)
+        sample = loc
+        return sample, self.log_prob(params, sample)
 
     def _unpack_params(self, params: Dict[str, torch.Tensor]):
         # pylint:disable=no-self-use

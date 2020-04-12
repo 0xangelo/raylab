@@ -41,7 +41,7 @@ def dict_value_multiselect(mapping, name=None):
     return items
 
 
-def time_series(x_key, y_key, groups, labels):
+def time_series(x_key, y_key, groups, labels, individual=False):
     # pylint:disable=too-many-locals,too-many-function-args
     p = figure(title="Plot")
     p.xaxis.axis_label = x_key
@@ -49,16 +49,16 @@ def time_series(x_key, y_key, groups, labels):
     p.add_tools(HoverTool(tooltips=[("y", "@y"), ("x", "@x{a}")]))
     palette = bokeh.palettes.cividis(len(labels))
 
-    individual = st.checkbox("Show individual curves")
     for idx, (label, group) in enumerate(zip(labels, groups)):
         data = group.extract()
         progresses = [d.progress for d in data]
-        x_all = np.unique(
-            np.sort(np.concatenate([p.get(x_key, []) for p in progresses]))
-        )
+        # Filter NaN values from plots
+        masks = [~np.isnan(p[y_key]) for p in progresses]
+        xs_ = [p[x_key][m] for m, p in zip(masks, progresses)]
+        ys_ = [p[y_key][m] for m, p in zip(masks, progresses)]
+        x_all = np.unique(np.sort(np.concatenate(xs_)))
         all_ys = [
-            np.interp(x_all, p[x_key], p[y_key], left=np.nan, right=np.nan)
-            for p in progresses
+            np.interp(x_all, x, y, left=np.nan, right=np.nan) for x, y in zip(xs_, ys_)
         ]
 
         if individual:
@@ -67,8 +67,8 @@ def time_series(x_key, y_key, groups, labels):
                 p.line(x_all, y_i, legend_label=legend_label, color=palette[idx])
         else:
             y_mean = np.nanmean(all_ys, axis=0)
-            y_std = np.nanstd(all_ys, axis=0)
             p.line(x_all, y_mean, legend_label=label, color=palette[idx])
+            y_std = np.nanstd(all_ys, axis=0)
             p.varea(
                 x_all,
                 y1=y_mean - y_std,
@@ -96,7 +96,6 @@ def main():
 
     if folders:
         exps_data = load_data(tuple(folders), include_errors=include_errors)
-        selector = exp_util.Selector(exps_data)
         distinct_params = dict(sorted(exp_util.extract_distinct_params(exps_data)))
 
         include = dict_value_multiselect(distinct_params, name="Include")
@@ -134,7 +133,9 @@ def main():
                 labels = ["experiment"]
                 groups = [selector]
 
-            st.bokeh_chart(time_series(x_key, y_key, groups, labels))
+            individual = st.checkbox("Show individual curves")
+            chart = time_series(x_key, y_key, groups, labels, individual=individual)
+            st.bokeh_chart(chart)
 
 
 if __name__ == "__main__":

@@ -1,34 +1,37 @@
-"""Trainer and configuration for SVG(inf)."""
+"""Trainer and configuration for SVG(1) with maximum entropy."""
 from ray.rllib.agents.trainer import with_base_config
 from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
 
 from .svg_base import SVG_BASE_CONFIG, SVGBaseTrainer
-from .svg_inf_policy import SVGInfTorchPolicy
+from .svg_maxent_policy import SVGMaxEntTorchPolicy
 
 
 DEFAULT_CONFIG = with_base_config(
     SVG_BASE_CONFIG,
     {
+        # === Entropy ===
+        # Target entropy to optimize the temperature parameter towards
+        # If None, will use the heuristic provided in the SAC paper:
+        # H = -dim(A), where A is the action space
+        "target_entropy": None,
         # === Optimization ===
-        # Name of Pytorch optimizer class for dynamics model and value function
-        "off_policy_optimizer": "Adam",
-        # Keyword arguments to be passed to the off-policy optimizer
-        "off_policy_optimizer_options": {"lr": 1e-3},
-        # Name of Pytorch optimizer class for paremetrized policy
-        "on_policy_optimizer": "Adam",
-        # Keyword arguments to be passed to the on-policy optimizer
-        "on_policy_optimizer_options": {"lr": 3e-4},
-        # Model and Value function updates per step in the environment
-        "updates_per_step": 1.0,
-        # === Regularization ===
-        # Options for adaptive KL coefficient. See raylab.utils.adaptive_kl
-        "kl_schedule": {},
+        # PyTorch optimizers to use
+        "torch_optimizer": {
+            "model": {"type": "Adam", "lr": 1e-3},
+            "actor": {"type": "Adam", "lr": 1e-3},
+            "critic": {"type": "Adam", "lr": 1e-3},
+            "alpha": {"type": "Adam", "lr": 1e-3},
+        },
         # === Network ===
         # Size and activation of the fully connected networks computing the logits
         # for the policy, value function and model. No layers means the component is
         # linear in states and/or actions.
-        "module": {"name": "SVGModule", "torch_script": True},
+        "module": {
+            "name": "MaxEntModelBased",
+            "torch_script": True,
+            "critic": {"target_vf": True},
+        },
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).
@@ -42,42 +45,45 @@ DEFAULT_CONFIG = with_base_config(
             # of your class (e.g. "ray.rllib.utils.exploration.epsilon_greedy.
             # EpsilonGreedy").
             "type": "raylab.utils.exploration.StochasticActor",
+            # Options for parameter noise exploration
+            # Until this many timesteps have elapsed, the agent's policy will be
+            # ignored & it will instead take uniform random actions. Can be used in
+            # conjunction with learning_starts (which controls when the first
+            # optimization step happens) to decrease dependence of exploration &
+            # optimization on initial policy parameters. Note that this will be
+            # disabled when the action noise scale is set to 0 (e.g during evaluation).
+            "pure_exploration_steps": 1000,
         },
         # === Evaluation ===
         # Extra arguments to pass to evaluation workers.
         # Typical usage is to pass extra args to evaluation env creator
         # and to disable exploration by computing deterministic actions
-        "evaluation_config": {"explore": True},
+        "evaluation_config": {"explore": False},
     },
 )
 
 
-class SVGInfTrainer(SVGBaseTrainer):
-    """Single agent trainer for SVG(inf)."""
+class SVGMaxEntTrainer(SVGBaseTrainer):
+    """Single agent trainer for SVGMaxEnt."""
 
-    # pylint: disable=attribute-defined-outside-init
-
-    _name = "SVG(inf)"
+    _name = "SVGMaxEnt"
     _default_config = DEFAULT_CONFIG
-    _policy = SVGInfTorchPolicy
+    _policy = SVGMaxEntTorchPolicy
 
     @override(SVGBaseTrainer)
     def _train(self):
         worker = self.workers.local_worker()
         policy = worker.get_policy()
 
-        samples = worker.sample()
-        self.optimizer.num_steps_sampled += samples.count
-        for row in samples.rows():
-            self.replay.add(row)
+        while not self._iteration_done():
+            samples = worker.sample()
+            self.optimizer.num_steps_sampled += samples.count
+            for row in samples.rows():
+                self.replay.add(row)
 
-        with policy.learning_off_policy():
-            for _ in range(int(samples.count * self.config["updates_per_step"])):
+            for _ in range(samples.count):
                 batch = self.replay.sample(self.config["train_batch_size"])
-                off_policy_stats = get_learner_stats(policy.learn_on_batch(batch))
+                learner_stats = get_learner_stats(policy.learn_on_batch(batch))
                 self.optimizer.num_steps_trained += batch.count
 
-        on_policy_stats = get_learner_stats(policy.learn_on_batch(samples))
-
-        learner_stats = {**off_policy_stats, **on_policy_stats}
         return self._log_metrics(learner_stats)

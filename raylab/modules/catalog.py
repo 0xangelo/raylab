@@ -4,10 +4,11 @@ import torch
 from .naf_module import NAFModule
 from .ddpg_module import DDPGModule
 from .sac_module import SACModule
-from .simple_model_based_module import SimpleModelBased
+from .simple_model_based import SimpleModelBased
 from .svg_module import SVGModule
 from .svg_realnvp_actor import SVGRealNVPActor
 from .mapo_module import MAPOModule
+from .maxent_model_based import MaxEntModelBased
 from .trpo_module import TRPOModule
 from .trpo_realnvp import TRPORealNVP
 from .trpo_tang2018 import TRPOTang2018
@@ -19,6 +20,7 @@ MODULES = {
     "SimpleModelBased": SimpleModelBased,
     "SVGModule": SVGModule,
     "MAPOModule": MAPOModule,
+    "MaxEntModelBased": MaxEntModelBased,
     "TRPOModule": TRPOModule,
     "TRPORealNVP": TRPORealNVP,
     "TRPOTang2018": TRPOTang2018,

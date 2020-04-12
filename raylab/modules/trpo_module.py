@@ -9,9 +9,11 @@ from .state_value_mixin import StateValueMixin
 BASE_CONFIG = {
     "torch_script": True,
     "actor": {
-        "units": (32, 32),
-        "activation": "Tanh",
-        "initializer_options": {"name": "xavier_uniform"},
+        "encoder": {
+            "units": (32, 32),
+            "activation": "Tanh",
+            "initializer_options": {"name": "xavier_uniform"},
+        },
         "input_dependent_scale": False,
     },
     "critic": {

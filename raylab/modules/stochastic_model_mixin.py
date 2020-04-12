@@ -29,7 +29,7 @@ class StochasticModelMixin:
 
     @staticmethod
     def _make_model(obs_space, action_space, config):
-        config = deep_update(BASE_CONFIG, config["model"], False, ["encoder"])
+        config = deep_update(BASE_CONFIG, config.get("model", {}), False, ["encoder"])
 
         params_module = GaussianDynamicsParams(obs_space, action_space, config)
         dist_module = Independent(Normal(), reinterpreted_batch_ndims=1)
@@ -181,4 +181,5 @@ class ResidualStochasticModel(StochasticModel):
     @torch.jit.export
     def reproduce(self, obs, action, next_obs):
         params = self(obs, action)
-        return obs + self.dist.reproduce(params, next_obs - obs)
+        sample_, log_prob_ = self.dist.reproduce(params, next_obs - obs)
+        return obs + sample_, log_prob_

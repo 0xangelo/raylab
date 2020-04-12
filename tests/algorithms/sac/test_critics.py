@@ -31,7 +31,7 @@ def test_compute_critic_targets(policy_and_batch):
     targets.mean().backward()
     target_params = set(policy.module.target_critics.parameters())
     target_params.update(set(policy.module.actor.parameters()))
-    target_params.update({policy.module.log_alpha})
+    target_params.update(set(policy.module.alpha.parameters()))
     assert all(p.grad is not None for p in target_params)
     assert all(p.grad is None for p in set(policy.module.parameters()) - target_params)
 

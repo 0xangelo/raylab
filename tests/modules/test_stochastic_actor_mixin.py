@@ -166,12 +166,13 @@ def test_reproduce(continuous_agent, obs_space, cont_space, torch_script):
     batch = make_batch(obs_space, cont_space)
 
     acts = batch[SampleBatch.ACTIONS]
-    _acts = module.actor.reproduce(batch[SampleBatch.CUR_OBS], acts)
-    assert _acts.shape == acts.shape
-    assert _acts.dtype == acts.dtype
-    assert torch.allclose(_acts, acts, atol=1e-6)
+    acts_, logp_ = module.actor.reproduce(batch[SampleBatch.CUR_OBS], acts)
+    assert acts_.shape == acts.shape
+    assert acts_.dtype == acts.dtype
+    assert torch.allclose(acts_, acts, atol=1e-6)
+    assert logp_.shape == batch[SampleBatch.REWARDS].shape
 
-    _acts.mean().backward()
+    acts_.mean().backward()
     pi_params = set(module.actor.parameters())
     assert all(p.grad is not None for p in pi_params)
     assert all(p.grad is None for p in set(module.parameters()) - pi_params)

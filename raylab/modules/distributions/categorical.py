@@ -62,6 +62,13 @@ class Categorical(ConditionalDistribution):
         p_log_p = logits * probs
         return -p_log_p.sum(-1)
 
+    @override(ConditionalDistribution)
+    @torch.jit.export
+    def deterministic(self, params: Dict[str, torch.Tensor]):
+        logits = self._unpack_params(params)
+        sample = torch.argmax(logits, dim=-1)
+        return sample, self.log_prob(params, sample)
+
     def _unpack_params(self, params: Dict[str, torch.Tensor]):
         # pylint:disable=no-self-use
         return params["logits"]
