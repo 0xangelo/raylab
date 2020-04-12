@@ -2,6 +2,7 @@
 # pylint: enable=missing-docstring
 import numpy as np
 import torch
+from ray.rllib.utils.annotations import override
 
 # pylint:disable=import-error
 from gym_cartpole_swingup.envs import CartPoleSwingUpEnv as _CartPoleSwingUpEnv
@@ -13,6 +14,7 @@ class CartPoleSwingUpEnv(_CartPoleSwingUpEnv):
     """CartPoleSwingUp task that exposes a differentiable PyTorch reward function."""
 
     @staticmethod
+    @override(_CartPoleSwingUpEnv)
     def _reward_fn(state, action, next_state):  # pylint: disable=unused-argument
         return (1 + np.cos(next_state.theta, dtype=np.float32)) / 2
 

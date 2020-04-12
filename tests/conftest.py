@@ -44,7 +44,10 @@ def policy_cls(trainer_cls):
     return trainer_cls._policy
 
 
-@pytest.fixture(params=("MockEnv", "Navigation", "Reservoir", "HVAC"))
+ENV_IDS = ("MockEnv", "Navigation", "Reservoir", "HVAC")
+
+
+@pytest.fixture(params=ENV_IDS)
 def env_name(request):
     return request.param
 

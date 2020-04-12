@@ -1,9 +1,6 @@
 """Primitives for all Trainers."""
 from ray.rllib.agents.trainer import Trainer as _Trainer
 from ray.rllib.utils.annotations import override
-from ray.tune.registry import _global_registry, ENV_CREATOR, register_env
-
-from raylab.envs.utils import wrap_if_needed
 
 _Trainer._allow_unknown_subkeys += ["module"]
 
@@ -19,16 +16,6 @@ class Trainer(_Trainer):
         # Evaluate first, before any optimization is done
         if self.config.get("evaluation_interval"):
             self.evaluation_metrics = self._evaluate()
-
-    @override(_Trainer)
-    def _register_if_needed(self, env_object):
-        if isinstance(env_object, str) and not _global_registry.contains(
-            ENV_CREATOR, env_object
-        ):
-            import gym
-
-            register_env(env_object, wrap_if_needed(lambda _: gym.make(env_object)))
-        return super()._register_if_needed(env_object)
 
     def _iteration_done(self):
         return self.optimizer.num_steps_sampled - self.global_vars["timestep"] >= max(

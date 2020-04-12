@@ -3,12 +3,10 @@ import pytest
 import numpy as np
 import torch
 
-from raylab.envs.registry import ENVS
 
-
-@pytest.fixture(params=list(ENVS.values()))
-def env(request):
-    return request.param({})
+@pytest.fixture
+def env(env_creator):
+    return env_creator({})
 
 
 def test_env_interaction_loop(env):
