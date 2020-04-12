@@ -46,7 +46,7 @@ class ConditionalDistribution(nn.Module):
         return torch.tensor(np.nan).float(), torch.tensor(np.nan).float()
 
     @torch.jit.export
-    def log_prob(self, params: Dict[str, torch.Tensor], value):
+    def log_prob(self, value, params: Dict[str, torch.Tensor]):
         """
         Returns the log of the probability density/mass function evaluated at `value`.
         """
@@ -55,14 +55,14 @@ class ConditionalDistribution(nn.Module):
         return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
-    def cdf(self, params: Dict[str, torch.Tensor], value):
+    def cdf(self, value, params: Dict[str, torch.Tensor]):
         """Returns the cumulative density/mass function evaluated at `value`."""
         if self.distribution is not None:
             return self.distribution.cdf(value)
         return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
-    def icdf(self, params: Dict[str, torch.Tensor], value):
+    def icdf(self, value, params: Dict[str, torch.Tensor]):
         """Returns the inverse cumulative density/mass function evaluated at `value`."""
         if self.distribution is not None:
             return self.distribution.icdf(value)
@@ -81,7 +81,7 @@ class ConditionalDistribution(nn.Module):
         return self.entropy(params).exp()
 
     @torch.jit.export
-    def reproduce(self, params: Dict[str, torch.Tensor], value):
+    def reproduce(self, value, params: Dict[str, torch.Tensor]):
         """Produce a reparametrized sample with the same value as `value`."""
         if self.distribution is not None:
             return self.distribution.reproduce(value)
@@ -151,21 +151,21 @@ class Distribution(nn.Module):
         Returns the log of the probability density/mass function evaluated at `value`.
         """
         if self.cond_dist is not None:
-            return self.cond_dist.log_prob(self.params, value)
+            return self.cond_dist.log_prob(value, self.params)
         return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
     def cdf(self, value):
         """Returns the cumulative density/mass function evaluated at `value`."""
         if self.cond_dist is not None:
-            return self.cond_dist.cdf(self.params, value)
+            return self.cond_dist.cdf(value, self.params)
         return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
     def icdf(self, value):
         """Returns the inverse cumulative density/mass function evaluated at `value`."""
         if self.cond_dist is not None:
-            return self.cond_dist.icdf(self.params, value)
+            return self.cond_dist.icdf(value, self.params)
         return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
@@ -184,7 +184,7 @@ class Distribution(nn.Module):
     def reproduce(self, value):
         """Produce a reparametrized sample with the same value as `value`."""
         if self.cond_dist is not None:
-            return self.cond_dist.reproduce(self.params, value)
+            return self.cond_dist.reproduce(value, self.params)
         return (
             torch.tensor(np.nan).float().expand_as(value),
             torch.tensor(np.nan).float().expand_as(value),
@@ -231,19 +231,19 @@ class Independent(ConditionalDistribution):
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def log_prob(self, params: Dict[str, torch.Tensor], value):
-        base_log_prob = self.base_dist.log_prob(params, value)
+    def log_prob(self, value, params: Dict[str, torch.Tensor]):
+        base_log_prob = self.base_dist.log_prob(value, params)
         return _sum_rightmost(base_log_prob, self.reinterpreted_batch_ndims)
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def cdf(self, params: Dict[str, torch.Tensor], value):
-        return self.base_dist.cdf(params, value)
+    def cdf(self, value, params: Dict[str, torch.Tensor]):
+        return self.base_dist.cdf(value, params)
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def icdf(self, params: Dict[str, torch.Tensor], value):
-        return self.base_dist.icdf(params, value)
+    def icdf(self, value, params: Dict[str, torch.Tensor]):
+        return self.base_dist.icdf(value, params)
 
     @override(ConditionalDistribution)
     @torch.jit.export
@@ -253,8 +253,8 @@ class Independent(ConditionalDistribution):
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def reproduce(self, params: Dict[str, torch.Tensor], value):
-        sample_, log_prob_ = self.base_dist.reproduce(params, value)
+    def reproduce(self, value, params: Dict[str, torch.Tensor]):
+        sample_, log_prob_ = self.base_dist.reproduce(value, params)
         return sample_, _sum_rightmost(log_prob_, self.reinterpreted_batch_ndims)
 
     @override(ConditionalDistribution)
@@ -301,16 +301,16 @@ class TransformedDistribution(ConditionalDistribution):
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def log_prob(self, params: Dict[str, torch.Tensor], value):
+    def log_prob(self, value, params: Dict[str, torch.Tensor]):
         latent, log_abs_det_jacobian = self.transform(value, params, reverse=True)
-        base_log_prob = self.base_dist.log_prob(params, latent)
+        base_log_prob = self.base_dist.log_prob(latent, params)
         return base_log_prob + log_abs_det_jacobian
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def reproduce(self, params: Dict[str, torch.Tensor], value):
+    def reproduce(self, value, params: Dict[str, torch.Tensor]):
         latent, _ = self.transform(value, params, reverse=True)
-        latent_, base_log_prob_ = self.base_dist.reproduce(params, latent)
+        latent_, base_log_prob_ = self.base_dist.reproduce(latent, params)
         value_, log_abs_det_jacobian_ = self.transform(latent_, params)
         return value_, base_log_prob_ - log_abs_det_jacobian_
 

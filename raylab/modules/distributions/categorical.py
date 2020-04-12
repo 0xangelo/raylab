@@ -43,11 +43,11 @@ class Categorical(ConditionalDistribution):
         probs_2d = probs.reshape(-1, logits.shape[-1])
         sample_2d = torch.multinomial(probs_2d, 1, True)
         out = sample_2d.reshape(sample_shape)
-        return out, self.log_prob(params, out)
+        return out, self.log_prob(out, params)
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def log_prob(self, params: Dict[str, torch.Tensor], value):
+    def log_prob(self, value, params: Dict[str, torch.Tensor]):
         logits = self._unpack_params(params)
         value = value.long().unsqueeze(-1)
         value, log_pmf = torch.broadcast_tensors(value, logits)
@@ -67,7 +67,7 @@ class Categorical(ConditionalDistribution):
     def deterministic(self, params: Dict[str, torch.Tensor]):
         logits = self._unpack_params(params)
         sample = torch.argmax(logits, dim=-1)
-        return sample, self.log_prob(params, sample)
+        return sample, self.log_prob(sample, params)
 
     def _unpack_params(self, params: Dict[str, torch.Tensor]):
         # pylint:disable=no-self-use

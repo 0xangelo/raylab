@@ -83,19 +83,19 @@ class StochasticPolicy(nn.Module):
         Returns the log of the probability density/mass function evaluated at `action`.
         """
         params = self(obs)
-        return self.dist.log_prob(params, action)
+        return self.dist.log_prob(action, params)
 
     @torch.jit.export
     def cdf(self, obs, action):
         """Returns the cumulative density/mass function evaluated at `action`."""
         params = self(obs)
-        return self.dist.cdf(params, action)
+        return self.dist.cdf(action, params)
 
     @torch.jit.export
     def icdf(self, obs, prob):
         """Returns the inverse cumulative density/mass function evaluated at `prob`."""
         params = self(obs)
-        return self.dist.icdf(params, prob)
+        return self.dist.icdf(prob, params)
 
     @torch.jit.export
     def entropy(self, obs):
@@ -113,7 +113,7 @@ class StochasticPolicy(nn.Module):
     def reproduce(self, obs, action):
         """Produce a reparametrized sample with the same value as `action`."""
         params = self(obs)
-        return self.dist.reproduce(params, action)
+        return self.dist.reproduce(action, params)
 
     @torch.jit.export
     def deterministic(self, obs):
@@ -138,12 +138,6 @@ class CategoricalPolicy(StochasticPolicy):
     @override(nn.Module)
     def forward(self, obs):  # pylint:disable=arguments-differ
         return self.sequential(obs)
-
-    @torch.jit.export
-    def mode(self, obs):
-        """Compute most probable action."""
-        params = self(obs)
-        return torch.argmax(params["logits"], dim=-1)
 
 
 class GaussianPolicy(StochasticPolicy):
@@ -170,15 +164,6 @@ class GaussianPolicy(StochasticPolicy):
     @override(nn.Module)
     def forward(self, obs):  # pylint:disable=arguments-differ
         return self.sequential(obs)
-
-    @torch.jit.export
-    def mode(self, obs):
-        """Compute most probable action."""
-        params = self(obs)
-        mode = params["loc"]
-        base_log_prob = self.dist.base_dist.log_prob(params, mode)
-        out, log_det = self.dist.transform(mode, {})
-        return out, base_log_prob - log_det
 
 
 def _build_fully_connected(obs_space, config):

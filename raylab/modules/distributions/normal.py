@@ -25,13 +25,13 @@ class Normal(ConditionalDistribution):
     @torch.jit.export
     def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         out = self._gen_sample(params, sample_shape).detach()
-        return out, self.log_prob(params, out)
+        return out, self.log_prob(out, params)
 
     @override(ConditionalDistribution)
     @torch.jit.export
     def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         out = self._gen_sample(params, sample_shape)
-        return out, self.log_prob(params, out)
+        return out, self.log_prob(out, params)
 
     def _gen_sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int]):
         loc, scale = self._unpack_params(params)
@@ -41,7 +41,7 @@ class Normal(ConditionalDistribution):
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def log_prob(self, params: Dict[str, torch.Tensor], value):
+    def log_prob(self, value, params: Dict[str, torch.Tensor]):
         loc, scale = self._unpack_params(params)
         var = scale ** 2
         const = math.log(math.sqrt(2 * math.pi))
@@ -49,13 +49,13 @@ class Normal(ConditionalDistribution):
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def cdf(self, params: Dict[str, torch.Tensor], value):
+    def cdf(self, value, params: Dict[str, torch.Tensor]):
         loc, scale = self._unpack_params(params)
         return 0.5 * (1 + torch.erf((value - loc) * scale.reciprocal() / math.sqrt(2)))
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def icdf(self, params: Dict[str, torch.Tensor], value):
+    def icdf(self, value, params: Dict[str, torch.Tensor]):
         loc, scale = self._unpack_params(params)
         return loc + scale * torch.erfinv(2 * value - 1) * math.sqrt(2)
 
@@ -67,18 +67,18 @@ class Normal(ConditionalDistribution):
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def reproduce(self, params: Dict[str, torch.Tensor], value):
+    def reproduce(self, value, params: Dict[str, torch.Tensor]):
         loc, scale = self._unpack_params(params)
         eps = (value - loc) / scale
         sample_ = loc + scale * eps.detach()
-        return sample_, self.log_prob(params, sample_)
+        return sample_, self.log_prob(sample_, params)
 
     @override(ConditionalDistribution)
     @torch.jit.export
     def deterministic(self, params: Dict[str, torch.Tensor]):
         loc, _ = self._unpack_params(params)
         sample = loc
-        return sample, self.log_prob(params, sample)
+        return sample, self.log_prob(sample, params)
 
     def _unpack_params(self, params: Dict[str, torch.Tensor]):
         # pylint:disable=no-self-use

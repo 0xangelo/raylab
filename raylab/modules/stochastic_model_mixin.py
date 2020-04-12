@@ -96,19 +96,19 @@ class StochasticModel(nn.Module):
         Returns the log probability density/mass function evaluated at `next_obs`.
         """
         params = self(obs, action)
-        return self.dist.log_prob(params, next_obs)
+        return self.dist.log_prob(next_obs, params)
 
     @torch.jit.export
     def cdf(self, obs, action, next_obs):
         """Returns the cumulative density/mass function evaluated at `next_obs`."""
         params = self(obs, action)
-        return self.dist.cdf(params, next_obs)
+        return self.dist.cdf(next_obs, params)
 
     @torch.jit.export
     def icdf(self, obs, action, prob):
         """Returns the inverse cumulative density/mass function evaluated at `prob`."""
         params = self(obs, action)
-        return self.dist.icdf(params, prob)
+        return self.dist.icdf(prob, params)
 
     @torch.jit.export
     def entropy(self, obs, action):
@@ -126,7 +126,7 @@ class StochasticModel(nn.Module):
     def reproduce(self, obs, action, next_obs):
         """Produce a reparametrized sample with the same value as `next_obs`."""
         params = self(obs, action)
-        return self.dist.reproduce(params, next_obs)
+        return self.dist.reproduce(next_obs, params)
 
     @classmethod
     def assemble(cls, params_module, dist_module, config):
@@ -160,26 +160,24 @@ class ResidualStochasticModel(StochasticModel):
     @torch.jit.export
     def log_prob(self, obs, action, next_obs):
         params = self(obs, action)
-        return self.dist.log_prob(params, next_obs - obs)
+        return self.dist.log_prob(next_obs - obs, params)
 
     @override(StochasticModel)
     @torch.jit.export
     def cdf(self, obs, action, next_obs):
         params = self(obs, action)
-        return self.dist.cdf(params, next_obs - obs)
+        return self.dist.cdf(next_obs - obs, params)
 
     @override(StochasticModel)
     @torch.jit.export
     def icdf(self, obs, action, prob):
         params = self(obs, action)
-        residual = self.dist.icdf(params, prob)
-        if residual is not None:
-            return obs + residual
-        return None
+        residual = self.dist.icdf(prob, params)
+        return obs + residual
 
     @override(StochasticModel)
     @torch.jit.export
     def reproduce(self, obs, action, next_obs):
         params = self(obs, action)
-        sample_, log_prob_ = self.dist.reproduce(params, next_obs - obs)
+        sample_, log_prob_ = self.dist.reproduce(next_obs - obs, params)
         return obs + sample_, log_prob_
