@@ -2,7 +2,6 @@
 from functools import partial
 
 import pytest
-import numpy as np
 import torch
 
 from raylab.utils.pytorch import convert_to_tensor
@@ -23,19 +22,6 @@ def env(envs):
 @pytest.fixture(params=((), (1,), (4,)))
 def sample_shape(request):
     return request.param
-
-
-def test_reward_fn(env):
-    obs = env.reset()
-    act = env.action_space.sample()
-    _obs, rew, _, _ = env.step(act)
-
-    obs_t, act_t, _obs_t = map(
-        partial(convert_to_tensor, device="cpu"), (obs, act, _obs)
-    )
-    rew_t = env.reward_fn(obs_t, act_t, _obs_t)
-
-    assert np.allclose(rew, rew_t.numpy(), atol=1e-6)
 
 
 def test_transition_fn(env, sample_shape):

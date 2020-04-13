@@ -4,7 +4,6 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.modules import RewardFn
 from raylab.policy import AdaptiveKLCoeffMixin
 import raylab.utils.pytorch as torch_util
 from .svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
@@ -38,17 +37,6 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
             dict(params=self.module[k].parameters(), **options[k]) for k in options
         ]
         return optim_cls(params)
-
-    @override(SVGBaseTorchPolicy)
-    def set_reward_fn(self, reward_fn):
-        torch_script = self.config["module"]["torch_script"]
-        reward_fn = RewardFn(
-            self.observation_space,
-            self.action_space,
-            reward_fn,
-            torch_script=torch_script,
-        )
-        self.reward = torch.jit.script(reward_fn) if torch_script else reward_fn
 
     def update_old_policy(self):
         """Copy params of current policy into old one for future KL computation."""

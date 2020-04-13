@@ -18,14 +18,6 @@ class CartPoleSwingUpEnv(_CartPoleSwingUpEnv):
     def _reward_fn(state, action, next_state):  # pylint: disable=unused-argument
         return (1 + np.cos(next_state.theta, dtype=np.float32)) / 2
 
-    @staticmethod
-    def reward_fn(state, action, next_state):  # pylint: disable=unused-argument
-        """
-        Compute the reward function given a possibly batched transition.
-        Assumes all but the last dimension are batch ones.
-        """
-        return (1 + next_state[..., 2]) / 2
-
     def transition_fn(self, state, action, sample_shape=()):
         """Compute the next state and its log-probability.
 

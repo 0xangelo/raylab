@@ -47,11 +47,6 @@ class SVGBaseTrainer(Trainer):
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
         )
-        self.workers.foreach_worker(
-            lambda w: w.foreach_trainable_policy(
-                lambda p, _: p.set_reward_fn(w.env.reward_fn)
-            )
-        )
         # Dummy optimizer to log stats since Trainer.collect_metrics is coupled with it
         self.optimizer = PolicyOptimizer(self.workers)
         self.replay = ReplayBuffer(config["buffer_size"], extra_keys=[ACTION_LOGP])

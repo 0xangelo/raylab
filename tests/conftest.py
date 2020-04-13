@@ -44,7 +44,7 @@ def policy_cls(trainer_cls):
     return trainer_cls._policy
 
 
-ENV_IDS = ("MockEnv", "Navigation", "Reservoir", "HVAC")
+ENV_IDS = ("MockEnv", "Navigation", "Reservoir", "HVAC", "MountainCarContinuous-v0")
 
 
 @pytest.fixture(params=ENV_IDS)

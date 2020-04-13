@@ -9,9 +9,9 @@ from ray.rllib.policy.sample_batch import SampleBatch
 
 import raylab.policy as raypi
 
+from raylab.envs.rewards import get_reward_fn
 from raylab.utils.exploration import ParameterNoise
 import raylab.utils.pytorch as torch_util
-from raylab.modules import RewardFn
 
 
 OptimizerCollection = collections.namedtuple(
@@ -25,10 +25,11 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     # pylint: disable=abstract-method
 
     def __init__(self, observation_space, action_space, config):
-        config.setdefault("module", {})
-        config["module"]["torch_script"] = False
+        assert (
+            config.get("module", {}).get("torch_script", False) is False
+        ), "MAPO uses operations incompatible with TorchScript."
         super().__init__(observation_space, action_space, config)
-        self.reward = None
+        self.reward = get_reward_fn(self.config["env"], self.config["env_config"])
         self.transition = None
 
     @staticmethod
@@ -84,17 +85,6 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return OptimizerCollection(
             policy=policy_optim, critic=critic_optim, model=model_optim
         )
-
-    def set_reward_fn(self, reward_fn):
-        """Set the reward function to use when unrolling the policy and model."""
-        torch_script = self.config["module"]["torch_script"]
-        reward_fn = RewardFn(
-            self.observation_space,
-            self.action_space,
-            reward_fn,
-            torch_script=torch_script,
-        )
-        self.reward = torch.jit.script(reward_fn) if torch_script else reward_fn
 
     def set_transition_fn(self, transition_fn):
         """Set the transition function to use when unrolling the policy and model."""

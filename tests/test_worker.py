@@ -4,16 +4,12 @@ from ray.rllib import RolloutWorker
 from ray.rllib.policy.sample_batch import SampleBatch
 
 
-# @pytest.fixture(params=[True, False])
-# def env_creator(request, navigation_env, reservoir_env):
-#     return navigation_env if request.param else reservoir_env
-
-
 @pytest.fixture
-def worker(env_creator, policy_cls):
+def worker(envs, env_name, policy_cls):
     return RolloutWorker(
-        env_creator=env_creator,
+        env_creator=envs[env_name],
         policy=policy_cls,
+        policy_config={"env": env_name},
         rollout_fragment_length=1,
         batch_mode="complete_episodes",
     )

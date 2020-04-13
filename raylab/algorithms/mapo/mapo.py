@@ -51,7 +51,7 @@ DEFAULT_CONFIG = with_common_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
-        "module": {"name": "MAPOModule"},
+        "module": {"name": "MAPOModule", "torch_script": False},
         # === Rollout Worker ===
         "num_workers": 0,
         "rollout_fragment_length": 1,
@@ -108,16 +108,12 @@ class MAPOTrainer(Trainer):
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
         )
-        self.workers.foreach_worker(
-            lambda w: w.foreach_trainable_policy(
-                lambda p, _: (
-                    p.set_reward_fn(w.env.reward_fn),
-                    p.set_transition_fn(w.env.transition_fn)
-                    if config["true_model"]
-                    else None,
+        if config["true_model"]:
+            self.workers.foreach_worker(
+                lambda w: w.foreach_trainable_policy(
+                    lambda p, _: p.set_transition_fn(w.env.transition_fn)
                 )
             )
-        )
         # Dummy optimizer to log stats
         self.optimizer = PolicyOptimizer(self.workers)
         self.replay = ReplayBuffer(config["buffer_size"])

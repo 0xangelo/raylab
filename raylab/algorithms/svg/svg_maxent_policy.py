@@ -6,7 +6,6 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.modules import RewardFn
 import raylab.utils.pytorch as ptu
 from .svg_base_policy import SVGBaseTorchPolicy
 
@@ -51,17 +50,6 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
             for cls, k in zip(optim_clss, components)
         }
         return OptimizerCollection(**optims)
-
-    @override(SVGBaseTorchPolicy)
-    def set_reward_fn(self, reward_fn):
-        torch_script = self.config["module"]["torch_script"]
-        reward_fn = RewardFn(
-            self.observation_space,
-            self.action_space,
-            reward_fn,
-            torch_script=torch_script,
-        )
-        self.reward = torch.jit.script(reward_fn) if torch_script else reward_fn
 
     @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):

@@ -3,8 +3,7 @@ import functools
 
 from gym.wrappers import TimeLimit
 
-from .time_aware_env import AddRelativeTimestep
-from .gaussian_random_walks import GaussianRandomWalks
+from .wrappers import AddRelativeTimestep, GaussianRandomWalks
 
 
 def wrap_if_needed(env_creator):
@@ -12,11 +11,13 @@ def wrap_if_needed(env_creator):
 
     @functools.wraps(env_creator)
     def wrapped(config):
+        time_limit = (config.pop(k, None) for k in ("time_aware", "max_episode_steps"))
+        random_walks = config.pop("random_walks", None)
+
         env = env_creator(config)
-        env = wrap_time_limit(
-            env, config.get("time_aware"), config.get("max_episode_steps")
-        )
-        env = wrap_gaussian_random_walks(env, config.get("random_walks"))
+
+        env = wrap_time_limit(env, *time_limit)
+        env = wrap_gaussian_random_walks(env, random_walks)
         return env
 
     return wrapped

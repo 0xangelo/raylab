@@ -5,6 +5,7 @@ from ray.rllib.policy.policy import ACTION_LOGP
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
+from raylab.envs.rewards import get_reward_fn
 from raylab.policy import TorchPolicy, TargetNetworksMixin
 
 
@@ -17,10 +18,7 @@ class SVGBaseTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self.reward = None
-
-    def set_reward_fn(self, reward_fn):
-        """Set the reward function to use when unrolling the policy and model."""
+        self.reward = get_reward_fn(self.config["env"], self.config["env_config"])
 
     @override(TorchPolicy)
     def compute_module_ouput(self, input_dict, state=None, seq_lens=None):

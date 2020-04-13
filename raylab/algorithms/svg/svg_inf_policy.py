@@ -8,7 +8,6 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as torch_util
-from raylab.modules import RewardFn
 from raylab.policy import AdaptiveKLCoeffMixin
 from .svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
 from .rollout_module import ReproduceRollout
@@ -28,7 +27,11 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         super().__init__(observation_space, action_space, config)
         # Flag for off-policy learning
         self._off_policy_learning = False
-        self.rollout = None
+
+        # Add recurrent policy-model combination
+        torch_script = self.config["module"]["torch_script"]
+        rollout = ReproduceRollout(self.module.actor, self.module.model, self.reward)
+        self.rollout = torch.jit.script(rollout) if torch_script else rollout
 
     @staticmethod
     @override(SVGBaseTorchPolicy)
@@ -56,22 +59,6 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         return OptimizerCollection(
             on_policy=on_policy_optim, off_policy=off_policy_optim
         )
-
-    @override(SVGBaseTorchPolicy)
-    def set_reward_fn(self, reward_fn):
-        # Add recurrent policy-model combination
-        torch_script = self.config["module"]["torch_script"]
-        module = self.module
-        reward_fn = RewardFn(
-            self.observation_space,
-            self.action_space,
-            reward_fn,
-            torch_script=torch_script,
-        )
-        reward_fn = torch.jit.script(reward_fn) if torch_script else reward_fn
-        rollout = ReproduceRollout(module.actor, module.model, reward_fn)
-        self.reward = reward_fn
-        self.rollout = torch.jit.script(rollout) if torch_script else rollout
 
     @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):

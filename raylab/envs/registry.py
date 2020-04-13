@@ -10,7 +10,7 @@ from .utils import wrap_if_needed
 IDS = set(s.id for s in gym.envs.registry.all())
 # kwarg trick from:
 # https://github.com/satwikkansal/wtfpython#-the-sticky-output-function
-ENVS = {i: wrap_if_needed(lambda _, i=i: gym.make(i)) for i in IDS}
+ENVS = {i: wrap_if_needed(lambda config, i=i: gym.make(i, **config)) for i in IDS}
 
 
 @wrap_if_needed
@@ -63,31 +63,6 @@ ENVS.update(
 
 
 try:
-    import mujoco_py  # pylint:disable=unused-import,import-error
-
-    @wrap_if_needed
-    def _mujoco_reacher_maker(_):
-        from raylab.envs.reacher import ReacherEnv
-
-        return ReacherEnv()
-
-    @wrap_if_needed
-    def _mujoco_half_cheetah_maker(_):
-        from raylab.envs.half_cheetah import HalfCheetahEnv
-
-        return HalfCheetahEnv()
-
-    ENVS.update(
-        {
-            "MujocoReacher": _mujoco_reacher_maker,
-            "MujocoHalfCheetah": _mujoco_half_cheetah_maker,
-        }
-    )
-except Exception:  # pylint: disable=broad-except
-    pass
-
-
-try:
     import gym_cartpole_swingup  # pylint:disable=unused-import,import-error
 
     @wrap_if_needed
@@ -111,11 +86,11 @@ try:
     for id_ in NEW_IDS:
 
         @wrap_if_needed
-        def _pybullet_env_maker(_, id_=id_):
+        def _pybullet_env_maker(config, id_=id_):
             # pylint:disable=redefined-outer-name,reimported,unused-import
             import pybullet_envs  # noqa:F811
 
-            return gym.make(id_)
+            return gym.make(id_, **config)
 
         ENVS[id_] = _pybullet_env_maker
     IDS.update(NEW_IDS)
