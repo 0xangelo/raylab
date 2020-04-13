@@ -33,7 +33,7 @@ class CondAffine1DHalfFlow(ConditionalTransform):
         self.shift = DummyCond() if shift_module is None else shift_module
 
     @override(ConditionalTransform)
-    def _encode(self, inputs, params: Dict[str, torch.Tensor]):
+    def encode(self, inputs, params: Dict[str, torch.Tensor]):
         z_0, z_1 = torch.chunk(inputs, 2, dim=-1)
         if self.parity:
             z_0, z_1 = z_1, z_0
@@ -54,7 +54,7 @@ class CondAffine1DHalfFlow(ConditionalTransform):
         return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
     @override(ConditionalTransform)
-    def _decode(self, inputs, params: Dict[str, torch.Tensor]):
+    def decode(self, inputs, params: Dict[str, torch.Tensor]):
         x_0, x_1 = inputs[..., ::2], inputs[..., 1::2]
         if self.parity:
             x_0, x_1 = x_1, x_0

@@ -41,7 +41,7 @@ class Affine1DHalfFlow(Transform):
         self.shift = shift_module or Dummy()
 
     @override(Transform)
-    def _encode(self, inputs):
+    def encode(self, inputs):
         z_0, z_1 = torch.chunk(inputs, 2, dim=-1)
         if self.parity:
             z_0, z_1 = z_1, z_0
@@ -61,7 +61,7 @@ class Affine1DHalfFlow(Transform):
         return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
     @override(Transform)
-    def _decode(self, inputs):
+    def decode(self, inputs):
         x_0, x_1 = inputs[..., ::2], inputs[..., 1::2]
         if self.parity:
             x_0, x_1 = x_1, x_0

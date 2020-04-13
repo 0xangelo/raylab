@@ -61,7 +61,7 @@ class MAF(Transform):
         self.net = net_class(size, size * 2, hidden_size)
         self.parity = parity
 
-    def _encode(self, inputs):
+    def encode(self, inputs):
         # we have to decode the x one at a time, sequentially
         out = torch.empty_like(inputs)
         log_abs_det_jacobian = torch.zeros(inputs.shape[:-1])
@@ -77,7 +77,7 @@ class MAF(Transform):
             log_abs_det_jacobian += -scale[..., idx]
         return out, log_abs_det_jacobian
 
-    def _decode(self, inputs):
+    def decode(self, inputs):
         # here we see that we are evaluating all of out in parallel,
         # so density estimation will be fast
         scale_shift = self.net(inputs)
@@ -98,7 +98,7 @@ class IAF(MAF):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._encode, self._decode = self._decode, self._encode
+        self.encode, self.decode = self.decode, self.encode
 
 
 class SlowMAF(Transform):
@@ -115,7 +115,7 @@ class SlowMAF(Transform):
             self.layers.append(net_class(idx, 2, hidden_size))
         self.order = list(range(size)) if parity else list(range(size))[::-1]
 
-    def _encode(self, inputs):
+    def encode(self, inputs):
         out = torch.zeros_like(inputs)
         log_abs_det_jacobian = torch.zeros(inputs.size(0))
         for idx, layer in enumerate(self.layers):
@@ -125,7 +125,7 @@ class SlowMAF(Transform):
             log_abs_det_jacobian += scale
         return out, log_abs_det_jacobian
 
-    def _decode(self, inputs):
+    def decode(self, inputs):
         out = torch.zeros_like(inputs)
         log_abs_det_jacobian = torch.zeros(inputs.size(0))
         for idx, layer in enumerate(self.layers):

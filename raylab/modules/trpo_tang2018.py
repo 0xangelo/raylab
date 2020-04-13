@@ -104,12 +104,12 @@ class AddStateFlow(ConditionalTransform):
         self.state_encoder = MLP(obs_size, act_size, hidden_size=64)
 
     @override(ConditionalTransform)
-    def _encode(self, inputs, params: Dict[str, torch.Tensor]):
+    def encode(self, inputs, params: Dict[str, torch.Tensor]):
         encoded = self.state_encoder(params["state"])
         return inputs + encoded, torch.zeros(inputs.shape[: -self.event_dim])
 
     @override(ConditionalTransform)
-    def _decode(self, inputs, params: Dict[str, torch.Tensor]):
+    def decode(self, inputs, params: Dict[str, torch.Tensor]):
         encoded = self.state_encoder(params["state"])
         return inputs - encoded, torch.zeros(inputs.shape[: -self.event_dim])
 

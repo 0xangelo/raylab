@@ -19,12 +19,12 @@ class Basic1DFlow(Transform):
         super().__init__(event_dim=1)
         self.distribution = distribution
 
-    def _encode(self, inputs):
+    def encode(self, inputs):
         out = self.distribution.cdf(inputs)
         log_abs_det_jacobian = self.distribution.log_prob(inputs)
         return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
-    def _decode(self, inputs):
+    def decode(self, inputs):
         out = self.distribution.icdf(inputs)
         log_abs_det_jacobian = -self.distribution.log_prob(out)
         return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)

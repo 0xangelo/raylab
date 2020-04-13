@@ -25,14 +25,14 @@ class AffineConstantFlow(Transform):
             self.register_buffer("loc", torch.zeros(shape))
 
     @override(Transform)
-    def _encode(self, inputs):
+    def encode(self, inputs):
         out = inputs * torch.exp(self.scale) + self.loc
         # log |dy/dx| = log |torch.exp(scale)| = scale
         log_abs_det_jacobian = self.scale
         return out, log_abs_det_jacobian
 
     @override(Transform)
-    def _decode(self, inputs):
+    def decode(self, inputs):
         out = (inputs - self.loc) * torch.exp(-self.scale)
         # log |dx/dy| = - log |dy/dx| = - scale
         log_abs_det_jacobian = -self.scale
@@ -55,7 +55,7 @@ class ActNorm(Transform):
         )
 
     @override(Transform)
-    def _encode(self, inputs):
+    def encode(self, inputs):
         # first batch is used for init
         if not self.data_dep_init_done:
             scale = self.affine_const.scale
@@ -70,8 +70,8 @@ class ActNorm(Transform):
             loc.data.copy_(mean)
 
             self.data_dep_init_done = True
-        return self.affine_const._encode(inputs)  # pylint:disable=protected-access
+        return self.affine_const.encode(inputs)
 
     @override(Transform)
-    def _decode(self, inputs):
-        return self.affine_const._decode(inputs)  # pylint:disable=protected-access
+    def decode(self, inputs):
+        return self.affine_const.decode(inputs)
