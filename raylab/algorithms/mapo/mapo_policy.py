@@ -11,7 +11,7 @@ import raylab.policy as raypi
 
 from raylab.envs.rewards import get_reward_fn
 from raylab.utils.exploration import ParameterNoise
-import raylab.utils.pytorch as torch_util
+import raylab.utils.pytorch as ptu
 
 
 OptimizerCollection = collections.namedtuple(
@@ -59,14 +59,14 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     @override(raypi.TorchPolicy)
     def optimizer(self):
         policy_optim_name = self.config["policy_optimizer"]["name"]
-        policy_optim_cls = torch_util.get_optimizer_class(policy_optim_name)
+        policy_optim_cls = ptu.get_optimizer_class(policy_optim_name)
         policy_optim_options = self.config["policy_optimizer"]["options"]
         policy_optim = policy_optim_cls(
             self.module.actor.parameters(), **policy_optim_options
         )
 
         critic_optim_name = self.config["critic_optimizer"]["name"]
-        critic_optim_cls = torch_util.get_optimizer_class(critic_optim_name)
+        critic_optim_cls = ptu.get_optimizer_class(critic_optim_name)
         critic_optim_options = self.config["critic_optimizer"]["options"]
         critic_optim = critic_optim_cls(
             self.module.critics.parameters(), **critic_optim_options
@@ -76,7 +76,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             model_optim = None
         else:
             model_optim_name = self.config["model_optimizer"]["name"]
-            model_optim_cls = torch_util.get_optimizer_class(model_optim_name)
+            model_optim_cls = ptu.get_optimizer_class(model_optim_name)
             model_optim_options = self.config["model_optimizer"]["options"]
             model_optim = model_optim_cls(
                 self.module.model.parameters(), **model_optim_options

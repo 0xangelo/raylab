@@ -7,7 +7,7 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.utils.exploration import ParameterNoise
-import raylab.utils.pytorch as torch_util
+import raylab.utils.pytorch as ptu
 import raylab.policy as raypi
 
 OptimizerCollection = collections.namedtuple("OptimizerCollection", "policy critic")
@@ -42,14 +42,14 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     @override(raypi.TorchPolicy)
     def optimizer(self):
         policy_optim_name = self.config["policy_optimizer"]["name"]
-        policy_optim_cls = torch_util.get_optimizer_class(policy_optim_name)
+        policy_optim_cls = ptu.get_optimizer_class(policy_optim_name)
         policy_optim_options = self.config["policy_optimizer"]["options"]
         policy_optim = policy_optim_cls(
             self.module.actor.parameters(), **policy_optim_options
         )
 
         critic_optim_name = self.config["critic_optimizer"]["name"]
-        critic_optim_cls = torch_util.get_optimizer_class(critic_optim_name)
+        critic_optim_cls = ptu.get_optimizer_class(critic_optim_name)
         critic_optim_options = self.config["critic_optimizer"]["options"]
         critic_optim = critic_optim_cls(
             self.module.critics.parameters(), **critic_optim_options

@@ -7,7 +7,7 @@ from ray.rllib.policy.policy import ACTION_LOGP
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-import raylab.utils.pytorch as torch_util
+import raylab.utils.pytorch as ptu
 from raylab.policy import TorchPolicy
 
 from . import hf_util
@@ -78,7 +78,7 @@ class TRPOTorchPolicy(TorchPolicy):
 
         # Compute Policy Gradient
         surr_loss = -(self.module.actor.log_prob(cur_obs, actions) * advantages).mean()
-        pol_grad = torch_util.flat_grad(surr_loss, self.module.actor.parameters())
+        pol_grad = ptu.flat_grad(surr_loss, self.module.actor.parameters())
         info["grad_norm(pg)"] = pol_grad.norm().item()
 
         # Compute Natural Gradient

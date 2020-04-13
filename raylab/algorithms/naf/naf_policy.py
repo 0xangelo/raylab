@@ -6,7 +6,7 @@ from ray.rllib.utils.annotations import override
 
 from raylab.utils.exploration import ParameterNoise
 from raylab.modules.catalog import get_module
-import raylab.utils.pytorch as torch_util
+import raylab.utils.pytorch as ptu
 import raylab.policy as raypi
 
 
@@ -35,7 +35,7 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     @override(raypi.TorchPolicy)
     def optimizer(self):
-        cls = torch_util.get_optimizer_class(self.config["torch_optimizer"]["name"])
+        cls = ptu.get_optimizer_class(self.config["torch_optimizer"]["name"])
         options = self.config["torch_optimizer"]["options"]
         return cls(self.module.critics.parameters(), **options)
 

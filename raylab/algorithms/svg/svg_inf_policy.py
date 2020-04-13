@@ -7,7 +7,7 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-import raylab.utils.pytorch as torch_util
+import raylab.utils.pytorch as ptu
 from raylab.policy import AdaptiveKLCoeffMixin
 from .svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
 from .rollout_module import ReproduceRollout
@@ -45,13 +45,13 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
     @override(SVGBaseTorchPolicy)
     def optimizer(self):
         """PyTorch optimizers to use."""
-        optim_cls = torch_util.get_optimizer_class(self.config["off_policy_optimizer"])
+        optim_cls = ptu.get_optimizer_class(self.config["off_policy_optimizer"])
         params = [p for k in ("model", "critic") for p in self.module[k].parameters()]
         off_policy_optim = optim_cls(
             params, **self.config["off_policy_optimizer_options"]
         )
 
-        optim_cls = torch_util.get_optimizer_class(self.config["on_policy_optimizer"])
+        optim_cls = ptu.get_optimizer_class(self.config["on_policy_optimizer"])
         on_policy_optim = optim_cls(
             self.module.actor.parameters(), **self.config["on_policy_optimizer_options"]
         )
