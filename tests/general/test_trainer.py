@@ -2,7 +2,7 @@
 import pytest
 import ray
 
-from .mock_env import MockEnv
+from ..mock_env import MockEnv
 
 
 def setup_module():
