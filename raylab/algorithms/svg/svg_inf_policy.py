@@ -67,6 +67,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
             info = self._learn_off_policy(batch_tensors)
         else:
             info = self._learn_on_policy(batch_tensors, samples)
+        info.update(self.extra_grad_info(batch_tensors))
         return self._learner_stats(info)
 
     @contextmanager
@@ -88,7 +89,6 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
 
         self._optimizer.off_policy.zero_grad()
         loss.backward()
-        info.update(self.extra_grad_info(batch_tensors, off_policy=True))
         self._optimizer.off_policy.step()
 
         self.update_targets("critic", "target_critic")
@@ -104,7 +104,6 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
 
         self._optimizer.on_policy.zero_grad()
         loss.backward()
-        info.update(self.extra_grad_info(batch_tensors, off_policy=False))
         self._optimizer.on_policy.step()
 
         info.update(self.update_kl_coeff(samples))
@@ -137,9 +136,9 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         return torch.mean(batch_tensors[ACTION_LOGP] - logp)
 
     @torch.no_grad()
-    def extra_grad_info(self, batch_tensors, off_policy=False):
+    def extra_grad_info(self, batch_tensors):
         """Compute gradient norm for components. Also clips on-policy gradient."""
-        if off_policy:
+        if self._off_policy_learning:
             model_params = self.module.model.parameters()
             value_params = self.module.critic.parameters()
             fetches = {
@@ -152,13 +151,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
                 "policy_grad_norm": nn.utils.clip_grad_norm_(
                     policy_params, max_norm=self.config["max_grad_norm"]
                 ),
-                "policy_entropy": self.module.actor.log_prob(
-                    batch_tensors[SampleBatch.CUR_OBS],
-                    batch_tensors[SampleBatch.ACTIONS],
-                )
-                .mean()
-                .neg()
-                .item(),
+                "policy_entropy": -batch_tensors[ACTION_LOGP].mean().item(),
                 "curr_kl_coeff": self.curr_kl_coeff,
             }
         return fetches
