@@ -47,11 +47,41 @@ class RealNVPActorMixin:
         config = deep_update(
             BASE_CONFIG, config.get("actor", {}), False, ["obs_encoder", "flow_mlp"]
         )
-        return {"actor": RealNVPPolicy(obs_space, action_space, config)}
+        assert isinstance(
+            action_space, spaces.Box
+        ), f"RealNVPPolicy is incompatible with action space type {type(action_space)}"
+
+        # OBSERVATION ENCODER ==========================================================
+        params_module = RealNVPParams(obs_space, action_space, config)
+
+        # RealNVP ======================================================================
+        act_size = action_space.shape[0]
+
+        def make_mod(parity):
+            return CondMLP(
+                parity, act_size, params_module.state_size, config["flow_mlp"]
+            )
+
+        parities = [bool(i % 2) for i in range(config["num_flows"])]
+        couplings = [
+            CondAffine1DHalfFlow(p, make_mod(p), make_mod(p)) for p in parities
+        ]
+        squash = TanhSquashTransform(
+            low=torch.as_tensor(action_space.low),
+            high=torch.as_tensor(action_space.high),
+            event_dim=1,
+        )
+        transforms = couplings + [squash]
+        dist_module = TransformedDistribution(
+            base_dist=Independent(Normal(), reinterpreted_batch_ndims=1),
+            transform=ComposeTransform(transforms),
+        )
+
+        return {"actor": StochasticPolicy(params_module, dist_module)}
 
 
 class CondMLP(nn.Module):
-    # pylint:disable=missing-docstring
+    # pylint:disable=missing-class-docstring
 
     def __init__(self, parity, action_size, state_size, config):
         super().__init__()
@@ -72,46 +102,19 @@ class CondMLP(nn.Module):
         return self.linear(self.encoder(inputs, state))
 
 
-class RealNVPPolicy(StochasticPolicy):
-    """Stochastic policy architecture with RealNVP density."""
+class RealNVPParams(nn.Module):
+    """Maps inputs to distribution parameters for RealNVP."""
 
     def __init__(self, obs_space, action_space, config):
         super().__init__()
-        assert isinstance(
-            action_space, spaces.Box
-        ), f"RealNVPPolicy is incompatible with action space type {type(action_space)}"
-
-        self.obs_shape = obs_space.shape
+        self.obs_dim = len(obs_space.shape)
         self.act_shape = action_space.shape
-        obs_size = self.obs_shape[0]
-        act_size = self.act_shape[0]
-
-        # OBSERVATION ENCODER ========================================================
+        obs_size = obs_space.shape[0]
         self.obs_encoder = FullyConnected(obs_size, **config["obs_encoder"])
-
-        # RealNVP ====================================================================
-        def make_mod(parity):
-            return CondMLP(
-                parity, act_size, self.obs_encoder.out_features, config["flow_mlp"]
-            )
-
-        parities = [bool(i % 2) for i in range(config["num_flows"])]
-        couplings = [
-            CondAffine1DHalfFlow(p, make_mod(p), make_mod(p)) for p in parities
-        ]
-        squash = TanhSquashTransform(
-            low=torch.as_tensor(action_space.low),
-            high=torch.as_tensor(action_space.high),
-            event_dim=1,
-        )
-        transforms = couplings + [squash]
-        self.dist = TransformedDistribution(
-            base_dist=Independent(Normal(), reinterpreted_batch_ndims=1),
-            transform=ComposeTransform(transforms),
-        )
+        self.state_size = self.obs_encoder.out_features
 
     @override(nn.Module)
     def forward(self, obs):  # pylint:disable=arguments-differ
-        shape = obs.shape[: -len(self.obs_shape)] + self.act_shape
+        shape = obs.shape[: -self.obs_dim] + self.act_shape
         state = self.obs_encoder(obs)
         return {"loc": torch.zeros(shape), "scale": torch.ones(shape), "state": state}

@@ -38,7 +38,11 @@ BASE_CONFIG = {
 
 
 class TRPOTang2018(StochasticActorMixin, StateValueMixin, AbstractActorCritic):
-    """Actor-Critic module with stochastic actor and state-value critics."""
+    """Actor-Critic module with stochastic actor and state-value critics.
+
+    Stochastic policy architecture used in
+    http://arxiv.org/abs/1809.10326
+    """
 
     # pylint:disable=abstract-method
 
@@ -47,26 +51,17 @@ class TRPOTang2018(StochasticActorMixin, StateValueMixin, AbstractActorCritic):
 
     @override(StochasticActorMixin)
     def _make_actor(self, obs_space, action_space, config):
-        actor_config = config["actor"]
-        return {"actor": TransformsPolicy(obs_space, action_space, actor_config)}
-
-
-class TransformsPolicy(StochasticPolicy):
-    """
-    Stochastic policy architecture used in
-    http://arxiv.org/abs/1809.10326
-    """
-
-    def __init__(self, obs_space, action_space, config):
-        super().__init__()
+        config = config["actor"]
         assert isinstance(
             action_space, spaces.Box
         ), f"Normalizing Flows incompatible with action space type {type(action_space)}"
 
-        self.obs_shape = obs_space.shape
-        self.act_shape = action_space.shape
-        obs_size = self.obs_shape[0]
-        act_size = self.act_shape[0]
+        # PARAMS MODULE ================================================================
+        params_module = StateNormalParams(obs_space, action_space)
+
+        # FLOW MODULES =================================================================
+        obs_size = obs_space.shape[0]
+        act_size = action_space.shape[0]
 
         def make_mod(parity):
             nout = act_size // 2
@@ -84,15 +79,25 @@ class TransformsPolicy(StochasticPolicy):
             event_dim=1,
         )
         transforms = couplings[:1] + [add_state] + couplings[1:] + [squash]
-
-        self.dist = TransformedDistribution(
+        dist_module = TransformedDistribution(
             base_dist=Independent(Normal(), reinterpreted_batch_ndims=1),
             transform=ComposeTransform(transforms),
         )
 
+        return {"actor": StochasticPolicy(params_module, dist_module)}
+
+
+class StateNormalParams(nn.Module):
+    """Maps observations to standard normal parameters and forwards observations."""
+
+    def __init__(self, obs_space, action_space):
+        super().__init__()
+        self.obs_dim = len(obs_space.shape)
+        self.act_shape = action_space.shape
+
     @override(nn.Module)
     def forward(self, obs):  # pylint:disable=arguments-differ
-        shape = obs.shape[: -len(self.obs_shape)] + self.act_shape
+        shape = obs.shape[: -self.obs_dim] + self.act_shape
         return {"loc": torch.zeros(shape), "scale": torch.ones(shape), "state": obs}
 
 

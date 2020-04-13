@@ -27,6 +27,10 @@ BASE_CONFIG = {
 }
 
 
+def _build_fully_connected(obs_space, config):
+    return FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
+
+
 class StochasticActorMixin:
     """Adds constructor for modules with stochastic policies."""
 
@@ -36,10 +40,30 @@ class StochasticActorMixin:
     def _make_actor(obs_space, action_space, config):
         config = deep_update(BASE_CONFIG, config.get("actor", {}), False, ["encoder"])
         if isinstance(action_space, spaces.Discrete):
-            return {"actor": CategoricalPolicy(obs_space, action_space, config)}
-        if isinstance(action_space, spaces.Box):
-            return {"actor": GaussianPolicy(obs_space, action_space, config)}
-        raise ValueError(f"Unsopported action space type {type(action_space)}")
+            logits = _build_fully_connected(obs_space, config)
+            params = CategoricalParams(logits.out_features, action_space.n)
+            params_module = nn.Sequential(logits, params)
+            dist_module = Categorical()
+        elif isinstance(action_space, spaces.Box):
+            logits = _build_fully_connected(obs_space, config)
+            params = NormalParams(
+                logits.out_features,
+                action_space.shape[0],
+                input_dependent_scale=config["input_dependent_scale"],
+            )
+            params_module = nn.Sequential(logits, params)
+            dist_module = TransformedDistribution(
+                Independent(Normal(), reinterpreted_batch_ndims=1),
+                TanhSquashTransform(
+                    low=torch.as_tensor(action_space.low),
+                    high=torch.as_tensor(action_space.high),
+                    event_dim=1,
+                ),
+            )
+        else:
+            raise ValueError(f"Unsopported action space type {type(action_space)}")
+
+        return {"actor": StochasticPolicy(params_module, dist_module)}
 
 
 class MaximumEntropyMixin:
@@ -56,6 +80,15 @@ class StochasticPolicy(nn.Module):
     """Represents a stochastic policy as a conditional distribution module."""
 
     # pylint:disable=abstract-method
+
+    def __init__(self, params_module, dist_module):
+        super().__init__()
+        self.params = params_module
+        self.dist = dist_module
+
+    @override(nn.Module)
+    def forward(self, obs):  # pylint:disable=arguments-differ
+        return self.params(obs)
 
     @torch.jit.export
     def sample(self, obs, sample_shape: List[int] = ()):
@@ -123,51 +156,6 @@ class StochasticPolicy(nn.Module):
         """
         params = self(obs)
         return self.dist.deterministic(params)
-
-
-class CategoricalPolicy(StochasticPolicy):
-    """StochasticPolicy as a conditional Categorical distribution."""
-
-    def __init__(self, obs_space, action_space, config):
-        super().__init__()
-        self.logits = _build_fully_connected(obs_space, config)
-        self.params = CategoricalParams(self.logits.out_features, action_space.n)
-        self.sequential = nn.Sequential(self.logits, self.params)
-        self.dist = Categorical()
-
-    @override(nn.Module)
-    def forward(self, obs):  # pylint:disable=arguments-differ
-        return self.sequential(obs)
-
-
-class GaussianPolicy(StochasticPolicy):
-    """StochasticPolicy as a conditional Gaussian distribution."""
-
-    def __init__(self, obs_space, action_space, config):
-        super().__init__()
-        self.logits = _build_fully_connected(obs_space, config)
-        self.params = NormalParams(
-            self.logits.out_features,
-            action_space.shape[0],
-            input_dependent_scale=config["input_dependent_scale"],
-        )
-        self.sequential = nn.Sequential(self.logits, self.params)
-        self.dist = TransformedDistribution(
-            Independent(Normal(), reinterpreted_batch_ndims=1),
-            TanhSquashTransform(
-                low=torch.as_tensor(action_space.low),
-                high=torch.as_tensor(action_space.high),
-                event_dim=1,
-            ),
-        )
-
-    @override(nn.Module)
-    def forward(self, obs):  # pylint:disable=arguments-differ
-        return self.sequential(obs)
-
-
-def _build_fully_connected(obs_space, config):
-    return FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
 
 
 class Alpha(nn.Module):
