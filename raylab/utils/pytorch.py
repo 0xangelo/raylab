@@ -8,6 +8,14 @@ import torch.nn as nn
 from torch.autograd import grad
 
 
+def cbrt(value):
+    """Cube root. Equivalent to torch.pow(value, 1/3), but numerically stable.
+
+    Source: https://github.com/bayesiains/nsf/blob/master/utils/torchutils.py
+    """
+    return torch.sign(value) * torch.exp(torch.log(torch.abs(value)) / 3.0)
+
+
 def flat_grad(outputs, inputs, *args, **kwargs):
     """Compute gradients and return a flattened array."""
     params = list(inputs)
