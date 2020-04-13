@@ -113,12 +113,22 @@ class ComposeTransform(ConditionalTransform):
             "ComposeTransform cannot have an event_dim smaller than any "
             "of its components'"
         )
-        trans = [
-            (ConditionalTransform(transform=t) if isinstance(t, Transform) else t)
-            for t in transforms
-        ]
-        self.transforms = nn.ModuleList(trans)
-        self.inv_transforms = nn.ModuleList(trans[::-1])
+        transforms = self.unpack(transforms)
+        self.transforms = nn.ModuleList(transforms)
+        self.inv_transforms = nn.ModuleList(transforms[::-1])
+
+    @staticmethod
+    def unpack(transforms):
+        """Recursively unfold ComposeTransforms in a list."""
+        result = []
+        for trans in transforms:
+            if isinstance(trans, ComposeTransform):
+                result.extend(trans.unpack(trans.transforms))
+            elif isinstance(trans, Transform):
+                result += [ConditionalTransform(transform=trans)]
+            else:
+                result += [trans]
+        return result
 
     @override(ConditionalTransform)
     def _encode(self, inputs, params: Dict[str, torch.Tensor]):
