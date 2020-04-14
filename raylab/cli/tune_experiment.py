@@ -81,6 +81,13 @@ from .utils import initialize_raylab
     help="Logging level for the trial executor process. This is independent from each "
     "trainer's logging level.",
 )
+@click.option(
+    "--restore",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True),
+    default=None,
+    show_default=True,
+    help="Path to checkpoint. Only makes sense to set if running 1 trial.",
+)
 @click.pass_context
 @initialize_raylab
 def experiment(ctx, **args):
@@ -124,5 +131,6 @@ def experiment(ctx, **args):
         config=config,
         checkpoint_freq=args["checkpoint_freq"],
         checkpoint_at_end=args["checkpoint_at_end"],
+        restore=args["restore"],
         loggers=CUSTOM_LOGGERS if args["custom_loggers"] else None,
     )
