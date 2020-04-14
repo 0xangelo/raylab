@@ -26,6 +26,19 @@ def dashboard(paths):
     _main_run(experiment_dashboard.__file__, paths)
 
 
+@cli.command()
+@click.argument(
+    "path",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True),
+)
+def episodes(path):
+    """Launch the episode dashboard to monitor state and action distributions."""
+    from streamlit.cli import _main_run
+    from . import episode_dashboard
+
+    _main_run(episode_dashboard.__file__, [path])
+
+
 cli.add_command(experiment)
 cli.add_command(find_best)
 cli.add_command(rollout)
