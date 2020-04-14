@@ -30,7 +30,7 @@ DEFAULT_CONFIG = with_base_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy, value function and model. No layers means the component is
         # linear in states and/or actions.
-        "module": {"name": "SVGModule", "torch_script": False},
+        "module": {"type": "SVGModule", "torch_script": False},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

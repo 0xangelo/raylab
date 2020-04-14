@@ -30,7 +30,7 @@ MODULES = {
 
 def get_module(obs_space, action_space, config):
     """Retrieve and construct module of given name."""
-    name = config.pop("name")
+    type_ = config.pop("type")
     torch_script = config.get("torch_script")
-    module = MODULES[name](obs_space, action_space, config)
+    module = MODULES[type_](obs_space, action_space, config)
     return torch.jit.script(module) if torch_script else module

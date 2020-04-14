@@ -28,7 +28,7 @@ DEFAULT_CONFIG = with_base_config(
         # for the policy, value function and model. No layers means the component is
         # linear in states and/or actions.
         "module": {
-            "name": "MaxEntModelBased",
+            "type": "MaxEntModelBased",
             "torch_script": True,
             "critic": {"target_vf": True},
         },
