@@ -1,10 +1,8 @@
 """Experiment monitoring with Streamlit."""
 import streamlit as st
-import numpy as np
-import bokeh
-from bokeh.plotting import figure
-from bokeh.models import HoverTool
+
 from raylab.utils import exp_data as exp_util
+from raylab.cli.utils import time_series
 
 # pylint:disable=invalid-name,missing-docstring,pointless-string-statement
 # pylint:disable=no-value-for-parameter
@@ -39,48 +37,6 @@ def dict_value_multiselect(mapping, name=None):
                 items.append((key, val))
 
     return items
-
-
-def time_series(x_key, y_key, groups, labels, individual=False):
-    # pylint:disable=too-many-locals,too-many-function-args
-    p = figure(title="Plot")
-    p.xaxis.axis_label = x_key
-    p.yaxis.axis_label = y_key
-    p.add_tools(HoverTool(tooltips=[("y", "@y"), ("x", "@x{a}")]))
-    palette = bokeh.palettes.cividis(len(labels))
-
-    for idx, (label, group) in enumerate(zip(labels, groups)):
-        data = group.extract()
-        progresses = [d.progress for d in data]
-        # Filter NaN values from plots
-        masks = [~np.isnan(p[y_key]) for p in progresses]
-        xs_ = [p[x_key][m] for m, p in zip(masks, progresses)]
-        ys_ = [p[y_key][m] for m, p in zip(masks, progresses)]
-        x_all = np.unique(np.sort(np.concatenate(xs_)))
-        all_ys = [
-            np.interp(x_all, x, y, left=np.nan, right=np.nan) for x, y in zip(xs_, ys_)
-        ]
-
-        if individual:
-            for datum, y_i in zip(data, all_ys):
-                legend_label = label + "-" + str(datum.params["id"])
-                p.line(x_all, y_i, legend_label=legend_label, color=palette[idx])
-        else:
-            y_mean = np.nanmean(all_ys, axis=0)
-            p.line(x_all, y_mean, legend_label=label, color=palette[idx])
-            y_std = np.nanstd(all_ys, axis=0)
-            p.varea(
-                x_all,
-                y1=y_mean - y_std,
-                y2=y_mean + y_std,
-                fill_alpha=0.25,
-                legend_label=label,
-                color=palette[idx],
-            )
-
-        p.legend.location = "bottom_left"
-        p.legend.click_policy = "hide"
-    return p
 
 
 def main():
