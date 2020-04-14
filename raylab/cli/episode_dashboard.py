@@ -63,6 +63,7 @@ def main():
             fill_alpha=0.25,
         )
         # pylint:enable=too-many-function-args
+
         pics += [[pic]]
 
     st.bokeh_chart(
