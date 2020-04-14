@@ -176,11 +176,18 @@ class TorchPolicy(Policy):
 
     @override(Policy)
     def get_weights(self):
-        return {k: v.cpu() for k, v in self.module.state_dict().items()}
+        module_state = {k: v.cpu() for k, v in self.module.state_dict().items()}
+        optim = () if self._optimizer is None else self._optimizer
+        optims = optim if isinstance(optim, tuple) else [optim]
+        return [module_state] + [p.state_dict() for p in optims]
 
     @override(Policy)
     def set_weights(self, weights):
-        self.module.load_state_dict(weights)
+        optim = () if self._optimizer is None else self._optimizer
+        optims = optim if isinstance(optim, tuple) else [optim]
+        self.module.load_state_dict(weights[0])
+        for optim, state in zip(optims, weights[1:]):
+            optim.load_state_dict(state)
 
     @override(Policy)
     def _create_exploration(self, action_space, config):

@@ -17,3 +17,9 @@ def teardown_module():
 def test_trainer_step(trainer_cls):
     trainer = trainer_cls(env=MockEnv, config={"num_workers": 0})
     trainer.train()
+
+
+def test_trainer_restore(trainer_cls):
+    trainer = trainer_cls(env=MockEnv, config={"num_workers": 0})
+    obj = trainer.save_to_object()
+    trainer.restore_from_object(obj)
