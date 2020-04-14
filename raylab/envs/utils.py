@@ -11,7 +11,7 @@ def wrap_if_needed(env_creator):
 
     @functools.wraps(env_creator)
     def wrapped(config):
-        time_limit = (config.pop(k, None) for k in ("time_aware", "max_episode_steps"))
+        time_limit = [config.pop(k, None) for k in ("time_aware", "max_episode_steps")]
         random_walks = config.pop("random_walks", None)
 
         env = env_creator(config)
