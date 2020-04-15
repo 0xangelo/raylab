@@ -7,6 +7,7 @@ from ray.rllib.utils.annotations import override
 import torch
 import torch.nn as nn
 
+from raylab.utils.pytorch import initialize_
 from ..basic import FullyConnected, NormalParams
 from ..distributions import (
     ComposeTransform,
@@ -70,7 +71,9 @@ class NormalizingFlowActorMixin:
     def _make_transforms(action_space, state_size, config):
         def transform_net(in_size, out_size):
             logits = FullyConnected(in_size, **config["flow_mlp"])
-            return nn.Sequential(logits, nn.Linear(logits.out_features, out_size))
+            linear = nn.Linear(logits.out_features, out_size)
+            linear.apply(initialize_("orthogonal", gain=0.1))
+            return nn.Sequential(logits, linear)
 
         act_size = action_space.shape[0]
 
