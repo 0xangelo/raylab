@@ -1,10 +1,8 @@
 """MAPO Architecture with disjoint model, actor, and critic."""
 from ray.rllib.utils import deep_update
 
-from .model_actor_critic import AbstractModelActorCritic
-from .stochastic_model_mixin import StochasticModelMixin
-from .deterministic_actor_mixin import DeterministicActorMixin
-from .action_value_mixin import ActionValueMixin
+from .abstract import AbstractModelActorCritic
+from .mixins import StochasticModelMixin, DeterministicActorMixin, ActionValueMixin
 
 
 BASE_CONFIG = {

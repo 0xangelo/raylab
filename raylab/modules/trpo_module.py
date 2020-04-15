@@ -1,9 +1,8 @@
 """Actor-Critic architecture used in Trust-Region Policy Optimization (TRPO)."""
 from ray.rllib.utils import merge_dicts
 
-from .actor_critic import AbstractActorCritic
-from .stochastic_actor_mixin import StochasticActorMixin
-from .state_value_mixin import StateValueMixin
+from .abstract import AbstractActorCritic
+from .mixins import StochasticActorMixin, StateValueMixin
 
 
 BASE_CONFIG = {

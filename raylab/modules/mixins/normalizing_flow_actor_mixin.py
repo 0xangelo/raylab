@@ -1,4 +1,4 @@
-"""Trust-Region Policy Optimization with RealNVP density approximation."""
+"""Stochastic Actor with Normalizing Flows density approximation."""
 from typing import Dict
 
 import gym.spaces as spaces
@@ -8,19 +8,20 @@ import torch
 import torch.nn as nn
 
 from raylab.utils.pytorch import initialize_
-from .basic import FullyConnected, StateActionEncoder
-from .distributions import (
+from ..basic import FullyConnected, NormalParams, StateActionEncoder
+from ..distributions import (
     ComposeTransform,
     Independent,
     Normal,
     TanhSquashTransform,
     TransformedDistribution,
 )
-from .flows import CondAffine1DHalfFlow
+from ..flows import CondAffine1DHalfFlow
 from .stochastic_actor_mixin import StochasticPolicy
 
 
 BASE_CONFIG = {
+    "obs_dependent_prior": True,
     "obs_encoder": {
         "units": (64, 64),
         "activation": "ELU",
@@ -37,8 +38,8 @@ BASE_CONFIG = {
 }
 
 
-class RealNVPActorMixin:
-    """Stochastic actor module with RealNVP density estimator."""
+class NormalizingFlowActorMixin:
+    """Stochastic actor module with Normalizing Flow density estimator."""
 
     # pylint:disable=too-few-public-methods
 
@@ -49,12 +50,13 @@ class RealNVPActorMixin:
         )
         assert isinstance(
             action_space, spaces.Box
-        ), f"RealNVPPolicy is incompatible with action space type {type(action_space)}"
+        ), f"Normalizing Flow incompatible with action space type {type(action_space)}"
 
-        # OBSERVATION ENCODER ==========================================================
-        params_module = RealNVPParams(obs_space, action_space, config)
+        # PRIOR ========================================================================
+        obs_encoder = FullyConnected(obs_space.shape[0], **config["obs_encoder"])
+        params_module = NFNormalParams(obs_encoder, action_space, config)
 
-        # RealNVP ======================================================================
+        # NormalizingFlow ==============================================================
         act_size = action_space.shape[0]
 
         def make_mod(parity):
@@ -102,19 +104,39 @@ class CondMLP(nn.Module):
         return self.linear(self.encoder(inputs, state))
 
 
-class RealNVPParams(nn.Module):
-    """Maps inputs to distribution parameters for RealNVP."""
+class NFNormalParams(nn.Module):
+    """Maps inputs to distribution parameters for Normalizing Flows."""
 
-    def __init__(self, obs_space, action_space, config):
+    def __init__(self, obs_encoder, action_space, config):
         super().__init__()
-        self.obs_dim = len(obs_space.shape)
         self.act_shape = action_space.shape
-        obs_size = obs_space.shape[0]
-        self.obs_encoder = FullyConnected(obs_size, **config["obs_encoder"])
-        self.state_size = self.obs_encoder.out_features
+        self.obs_encoder = obs_encoder
+
+        act_size = self.act_shape[0]
+        state_size = self.obs_encoder.out_features
+        if config["obs_dependent_prior"]:
+            self.params = NormalParams(state_size, act_size)
+        else:
+            self.params = StdNormalParams(1, act_size)
 
     @override(nn.Module)
     def forward(self, obs):  # pylint:disable=arguments-differ
-        shape = obs.shape[: -self.obs_dim] + self.act_shape
         state = self.obs_encoder(obs)
-        return {"loc": torch.zeros(shape), "scale": torch.ones(shape), "state": state}
+        params = self.params(state)
+        # For use in conditional flows later
+        params["state"] = state
+        return params
+
+
+class StdNormalParams(nn.Module):
+    """Produces standard Normal parameters and expands on input."""
+
+    def __init__(self, input_dim, event_size):
+        super().__init__()
+        self.input_dim = input_dim
+        self.event_shape = (event_size,)
+
+    @override(nn.Module)
+    def forward(self, inputs):  # pylint:disable=arguments-differ
+        shape = inputs.shape[: -self.input_dim] + self.event_shape
+        return {"loc": torch.zeros(shape), "scale": torch.ones(shape)}

@@ -10,7 +10,7 @@ from .svg_realnvp_actor import SVGRealNVPActor
 from .mapo_module import MAPOModule
 from .maxent_model_based import MaxEntModelBased
 from .trpo_module import TRPOModule
-from .trpo_realnvp import TRPORealNVP
+from .trpo_flows import TRPOFlows
 from .trpo_tang2018 import TRPOTang2018
 
 MODULES = {
@@ -22,7 +22,7 @@ MODULES = {
     "MAPOModule": MAPOModule,
     "MaxEntModelBased": MaxEntModelBased,
     "TRPOModule": TRPOModule,
-    "TRPORealNVP": TRPORealNVP,
+    "TRPOFlows": TRPOFlows,
     "TRPOTang2018": TRPOTang2018,
     "SVGRealNVPActor": SVGRealNVPActor,
 }

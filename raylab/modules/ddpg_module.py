@@ -1,9 +1,8 @@
 """Actor-Critic architecture popularized by DDPG."""
 from ray.rllib.utils import deep_update
 
-from .actor_critic import AbstractActorCritic
-from .deterministic_actor_mixin import DeterministicActorMixin
-from .action_value_mixin import ActionValueMixin
+from .abstract import AbstractActorCritic
+from .mixins import ActionValueMixin, DeterministicActorMixin
 
 
 BASE_CONFIG = {

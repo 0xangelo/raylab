@@ -5,7 +5,7 @@ import pytest
 from ray.rllib.policy.sample_batch import SampleBatch
 import torch
 
-from raylab.modules.catalog import TRPORealNVP, TRPOTang2018
+from raylab.modules.catalog import TRPOFlows, TRPOTang2018
 
 from .utils import make_batch, make_module
 
@@ -18,7 +18,7 @@ def cont_space(request):
     return request.param
 
 
-@pytest.fixture(params=(TRPORealNVP, TRPOTang2018))
+@pytest.fixture(params=(TRPOFlows, TRPOTang2018))
 def nf_agent(request):
     return request.param
 

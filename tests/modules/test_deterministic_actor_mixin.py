@@ -5,7 +5,7 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils import merge_dicts
 
-from raylab.modules.deterministic_actor_mixin import DeterministicActorMixin
+from raylab.modules.mixins import DeterministicActorMixin
 
 
 BASE_CONFIG = {

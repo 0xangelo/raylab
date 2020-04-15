@@ -1,9 +1,8 @@
 """Actor-Critic architecture used in Soft Actor-Critic (SAC)."""
 from ray.rllib.utils import deep_update
 
-from .actor_critic import AbstractActorCritic
-from .stochastic_actor_mixin import MaximumEntropyMixin, StochasticActorMixin
-from .action_value_mixin import ActionValueMixin
+from .abstract import AbstractActorCritic
+from .mixins import MaximumEntropyMixin, StochasticActorMixin, ActionValueMixin
 
 
 BASE_CONFIG = {
