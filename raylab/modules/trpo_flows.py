@@ -5,7 +5,7 @@ from .abstract import AbstractActorCritic
 from .mixins import StateValueMixin, NormalizingFlowActorMixin
 
 
-BASE_CONFIG = {"torch_script": True}
+BASE_CONFIG = {"torch_script": True, "critic": {}}
 
 
 class TRPOFlows(NormalizingFlowActorMixin, StateValueMixin, AbstractActorCritic):

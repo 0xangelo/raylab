@@ -113,9 +113,9 @@ class NFNormalParams(nn.Module):
         self.obs_encoder = obs_encoder
 
         act_size = self.act_shape[0]
-        state_size = self.obs_encoder.out_features
+        self.state_size = self.obs_encoder.out_features
         if config["obs_dependent_prior"]:
-            self.params = NormalParams(state_size, act_size)
+            self.params = NormalParams(self.state_size, act_size)
         else:
             self.params = StdNormalParams(1, act_size)
 
