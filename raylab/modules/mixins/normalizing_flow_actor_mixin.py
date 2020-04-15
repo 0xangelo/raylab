@@ -72,7 +72,7 @@ class NormalizingFlowActorMixin:
         def transform_net(in_size, out_size):
             logits = FullyConnected(in_size, **config["flow_mlp"])
             linear = nn.Linear(logits.out_features, out_size)
-            linear.apply(initialize_("orthogonal", gain=0.1))
+            linear.apply(initialize_("orthogonal", gain=0.01))
             return nn.Sequential(logits, linear)
 
         act_size = action_space.shape[0]
