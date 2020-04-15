@@ -1,4 +1,4 @@
-"""Trust-Region Policy Optimization with RealNVP density approximation."""
+"""On-policy Actor-Critic with Normalizing Flows density approximation."""
 from ray.rllib.utils import deep_update
 
 from .abstract import AbstractActorCritic
@@ -8,7 +8,7 @@ from .mixins import StateValueMixin, NormalizingFlowActorMixin
 BASE_CONFIG = {"torch_script": True, "critic": {}}
 
 
-class TRPOFlows(NormalizingFlowActorMixin, StateValueMixin, AbstractActorCritic):
+class OnPolicyNFAC(NormalizingFlowActorMixin, StateValueMixin, AbstractActorCritic):
     """Actor-Critic module with stochastic actor and state-value critics."""
 
     # pylint:disable=abstract-method
