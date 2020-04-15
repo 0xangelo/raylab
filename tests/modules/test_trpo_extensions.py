@@ -5,27 +5,27 @@ import pytest
 from ray.rllib.policy.sample_batch import SampleBatch
 import torch
 
-from raylab.modules.catalog import TRPOFlows, TRPOTang2018
+from raylab.modules.catalog import TRPOTang2018
 
 from .utils import make_batch, make_module
 
 
-CONT_SPACES = (Box(-1, 1, shape=(2,)), Box(-1, 1, shape=(3,)))
+ACTION_SPACES = (Box(-1, 1, shape=(2,)), Box(-1, 1, shape=(3,)))
 
 
-@pytest.fixture(params=CONT_SPACES, ids=(repr(a) for a in CONT_SPACES))
-def cont_space(request):
+@pytest.fixture(params=ACTION_SPACES, ids=(repr(a) for a in ACTION_SPACES))
+def action_space(request):
     return request.param
 
 
-@pytest.fixture(params=(TRPOFlows, TRPOTang2018))
+@pytest.fixture(params=(TRPOTang2018,))
 def nf_agent(request):
     return request.param
 
 
-def test_continuous_sampler(nf_agent, obs_space, cont_space, torch_script):
-    module = make_module(nf_agent, obs_space, cont_space, {}, torch_script)
-    batch = make_batch(obs_space, cont_space)
+def test_sampler(nf_agent, obs_space, action_space, torch_script):
+    module = make_module(nf_agent, obs_space, action_space, {}, torch_script)
+    batch = make_batch(obs_space, action_space)
     action = batch[SampleBatch.ACTIONS]
 
     sampler = module.actor.rsample
@@ -41,16 +41,16 @@ def test_continuous_sampler(nf_agent, obs_space, cont_space, torch_script):
     assert torch.allclose(logp, logp_)
 
 
-def test_flow_params(nf_agent, obs_space, cont_space, torch_script):
-    module = make_module(nf_agent, obs_space, cont_space, {}, torch_script,)
-    batch = make_batch(obs_space, cont_space)
+def test_flow_params(nf_agent, obs_space, action_space, torch_script):
+    module = make_module(nf_agent, obs_space, action_space, {}, torch_script,)
+    batch = make_batch(obs_space, action_space)
     params = module.actor(batch[SampleBatch.CUR_OBS])
     assert "state" in params
 
 
-def test_reproduce(nf_agent, obs_space, cont_space, torch_script):
-    module = make_module(nf_agent, obs_space, cont_space, {}, torch_script)
-    batch = make_batch(obs_space, cont_space)
+def test_reproduce(nf_agent, obs_space, action_space, torch_script):
+    module = make_module(nf_agent, obs_space, action_space, {}, torch_script)
+    batch = make_batch(obs_space, action_space)
 
     acts = batch[SampleBatch.ACTIONS]
     acts_, logp_ = module.actor.reproduce(batch[SampleBatch.CUR_OBS], acts)

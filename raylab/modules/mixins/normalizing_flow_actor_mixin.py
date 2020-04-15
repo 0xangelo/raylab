@@ -7,8 +7,7 @@ from ray.rllib.utils.annotations import override
 import torch
 import torch.nn as nn
 
-from raylab.utils.pytorch import initialize_
-from ..basic import FullyConnected, NormalParams, StateActionEncoder
+from ..basic import FullyConnected, NormalParams
 from ..distributions import (
     ComposeTransform,
     Independent,
@@ -16,25 +15,16 @@ from ..distributions import (
     TanhSquashTransform,
     TransformedDistribution,
 )
-from ..flows import CondAffine1DHalfFlow
+from ..flows import Affine1DHalfFlow, CondAffine1DHalfFlow
 from .stochastic_actor_mixin import StochasticPolicy
 
 
 BASE_CONFIG = {
     "obs_dependent_prior": True,
-    "obs_encoder": {
-        "units": (64, 64),
-        "activation": "ELU",
-        "layer_norm": False,
-        "initializer_options": {"name": "xavier_uniform"},
-    },
+    "obs_encoder": {"units": (64, 64), "activation": "ELU"},
     "num_flows": 4,
-    "flow_mlp": {
-        "units": (24,) * 4,
-        "activation": "ELU",
-        "layer_norm": False,
-        "initializer_options": {"name": "xavier_uniform"},
-    },
+    "state_cond_flow": False,
+    "flow_mlp": {"units": (24,) * 4, "activation": "ELU"},
 }
 
 
@@ -43,8 +33,7 @@ class NormalizingFlowActorMixin:
 
     # pylint:disable=too-few-public-methods
 
-    @staticmethod
-    def _make_actor(obs_space, action_space, config):
+    def _make_actor(self, obs_space, action_space, config):
         config = deep_update(
             BASE_CONFIG, config.get("actor", {}), False, ["obs_encoder", "flow_mlp"]
         )
@@ -53,55 +42,81 @@ class NormalizingFlowActorMixin:
         ), f"Normalizing Flow incompatible with action space type {type(action_space)}"
 
         # PRIOR ========================================================================
-        obs_encoder = FullyConnected(obs_space.shape[0], **config["obs_encoder"])
-        params_module = NFNormalParams(obs_encoder, action_space, config)
+        params_module, base_dist = self._make_prior(obs_space, action_space, config)
 
         # NormalizingFlow ==============================================================
+        transforms = self._make_transforms(
+            action_space, params_module.state_size, config
+        )
+        dist_module = TransformedDistribution(
+            base_dist=base_dist, transform=ComposeTransform(transforms),
+        )
+
+        return {"actor": StochasticPolicy(params_module, dist_module)}
+
+    @staticmethod
+    def _make_prior(obs_space, action_space, config):
+        # Ensure we're not encoding the observation for nothing
+        if config["obs_dependent_prior"] or config["state_cond_flow"]:
+            obs_encoder = FullyConnected(obs_space.shape[0], **config["obs_encoder"])
+        else:
+            # WARNING: This effectively means the policy is blind to the observations
+            obs_encoder = FullyConnected(obs_space.shape[0], units=())
+        params_module = NFNormalParams(obs_encoder, action_space, config)
+        base_dist = Independent(Normal(), reinterpreted_batch_ndims=1)
+        return params_module, base_dist
+
+    @staticmethod
+    def _make_transforms(action_space, state_size, config):
+        def transform_net(in_size, out_size):
+            logits = FullyConnected(in_size, **config["flow_mlp"])
+            return nn.Sequential(logits, nn.Linear(logits.out_features, out_size))
+
         act_size = action_space.shape[0]
 
         def make_mod(parity):
-            return CondMLP(
-                parity, act_size, params_module.state_size, config["flow_mlp"]
-            )
+            in_size = (act_size + 1) // 2
+            out_size = act_size // 2
+            if parity:
+                in_size, out_size = out_size, in_size
 
+            if config["state_cond_flow"]:
+                return CombineAndForward(
+                    in_size, state_size, lambda s: transform_net(s, out_size)
+                )
+            return transform_net(in_size, out_size)
+
+        flow_cls = (
+            CondAffine1DHalfFlow if config["state_cond_flow"] else Affine1DHalfFlow
+        )
         parities = [bool(i % 2) for i in range(config["num_flows"])]
-        couplings = [
-            CondAffine1DHalfFlow(p, make_mod(p), make_mod(p)) for p in parities
-        ]
+        couplings = [flow_cls(p, make_mod(p), make_mod(p)) for p in parities]
         squash = TanhSquashTransform(
             low=torch.as_tensor(action_space.low),
             high=torch.as_tensor(action_space.high),
             event_dim=1,
         )
         transforms = couplings + [squash]
-        dist_module = TransformedDistribution(
-            base_dist=Independent(Normal(), reinterpreted_batch_ndims=1),
-            transform=ComposeTransform(transforms),
-        )
-
-        return {"actor": StochasticPolicy(params_module, dist_module)}
+        return transforms
 
 
-class CondMLP(nn.Module):
-    # pylint:disable=missing-class-docstring
+class CombineAndForward(nn.Module):
+    """
+    Combine inputs with 'state' value from dict and forward result to submodule.
+    """
 
-    def __init__(self, parity, action_size, state_size, config):
+    def __init__(self, in_size, state_size, module_fn):
         super().__init__()
-        in_size = (action_size + 1) // 2
-        out_size = action_size // 2
-        if parity:
-            in_size, out_size = out_size, in_size
+        combined_size = in_size + state_size
+        self.module = module_fn(combined_size)
 
-        self.encoder = StateActionEncoder(
-            in_size, state_size, delay_action=False, **config
-        )
-        self.linear = nn.Linear(self.encoder.out_features, out_size)
-        self.linear.apply(initialize_("orthogonal", gain=0.01))
-
-    def forward(self, inputs, cond: Dict[str, torch.Tensor]):
+    @override(nn.Module)
+    def forward(self, inputs, params: Dict[str, torch.Tensor]):
         # pylint:disable=arguments-differ
-        state = cond["state"].expand(inputs.shape[:-1] + cond["state"].shape[-1:])
-        return self.linear(self.encoder(inputs, state))
+        # Expand in case sample_shape in base dist is non-singleton
+        state = params["state"].expand(inputs.shape[:-1] + params["state"].shape[-1:])
+        out = torch.cat([inputs, state], dim=-1)
+        return self.module(out)
 
 
 class NFNormalParams(nn.Module):
@@ -109,11 +124,10 @@ class NFNormalParams(nn.Module):
 
     def __init__(self, obs_encoder, action_space, config):
         super().__init__()
-        self.act_shape = action_space.shape
         self.obs_encoder = obs_encoder
-
-        act_size = self.act_shape[0]
         self.state_size = self.obs_encoder.out_features
+
+        act_size = action_space.shape[0]
         if config["obs_dependent_prior"]:
             self.params = NormalParams(self.state_size, act_size)
         else:
