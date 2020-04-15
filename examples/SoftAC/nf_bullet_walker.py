@@ -24,9 +24,15 @@ def get_config():
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
         "module": {
-            "type": "SACModule",
+            "type": "OffPolicyNFAC",
             "torch_script": True,
-            "actor": {"encoder": {"units": (128, 128)}},
+            "actor": {
+                "obs_dependent_prior": True,
+                "obs_encoder": {"units": (128, 64), "activation": "ReLU"},
+                "num_flows": 5,
+                "state_cond_flow": False,
+                "flow_mlp": {"units": (6,), "activation": "ReLU"},
+            },
             "critic": {"encoder": {"units": (128, 128)}},
         },
         # === Trainer ===
@@ -52,7 +58,7 @@ def get_config():
             # optimization step happens) to decrease dependence of exploration &
             # optimization on initial policy parameters. Note that this will be
             # disabled when the action noise scale is set to 0 (e.g during evaluation).
-            "pure_exploration_steps": 5000,
+            "pure_exploration_steps": 10000,
         },
         # === Evaluation ===
         # Evaluate with every `evaluation_interval` training iterations.
