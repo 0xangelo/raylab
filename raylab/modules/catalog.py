@@ -9,8 +9,9 @@ from .svg_module import SVGModule
 from .svg_realnvp_actor import SVGRealNVPActor
 from .mapo_module import MAPOModule
 from .maxent_model_based import MaxEntModelBased
-from .trpo_module import TRPOModule
-from .trpo_realnvp import TRPORealNVP
+from .on_policy_actor_critic import OnPolicyActorCritic
+from .on_policy_nfac import OnPolicyNFAC
+from .off_policy_nfac import OffPolicyNFAC
 from .trpo_tang2018 import TRPOTang2018
 
 MODULES = {
@@ -21,8 +22,9 @@ MODULES = {
     "SVGModule": SVGModule,
     "MAPOModule": MAPOModule,
     "MaxEntModelBased": MaxEntModelBased,
-    "TRPOModule": TRPOModule,
-    "TRPORealNVP": TRPORealNVP,
+    "OnPolicyActorCritic": OnPolicyActorCritic,
+    "OnPolicyNFAC": OnPolicyNFAC,
+    "OffPolicyNFAC": OffPolicyNFAC,
     "TRPOTang2018": TRPOTang2018,
     "SVGRealNVPActor": SVGRealNVPActor,
 }

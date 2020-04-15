@@ -35,7 +35,7 @@ def get_config():
         # for the policy and value function. No layers means the component is
         # linear in states or actions.
         "module": {
-            "name": "TRPOModule",
+            "name": "OnPolicyActorCritic",
             "torch_script": True,
             "actor": {
                 "units": (32, 32),

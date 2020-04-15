@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 
 from raylab.utils.pytorch import initialize_
-from .actor_critic import AbstractActorCritic
+from .abstract import AbstractActorCritic
 from .basic import FullyConnected
 from .distributions import (
     ComposeTransform,
@@ -18,8 +18,7 @@ from .distributions import (
     TransformedDistribution,
 )
 from .flows import Affine1DHalfFlow, ConditionalTransform
-from .state_value_mixin import StateValueMixin
-from .stochastic_actor_mixin import StochasticActorMixin, StochasticPolicy
+from .mixins import StateValueMixin, StochasticActorMixin, StochasticPolicy
 
 
 # Defaults for Hopper-v1

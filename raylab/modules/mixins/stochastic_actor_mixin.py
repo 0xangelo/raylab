@@ -7,8 +7,8 @@ from ray.rllib.utils import deep_update
 from ray.rllib.utils.annotations import override
 import gym.spaces as spaces
 
-from .basic import CategoricalParams, FullyConnected, NormalParams
-from .distributions import (
+from ..basic import CategoricalParams, FullyConnected, NormalParams
+from ..distributions import (
     Categorical,
     Independent,
     Normal,

@@ -2,12 +2,21 @@
 # pylint: disable=too-many-arguments,too-many-locals
 import pytest
 import torch
+import torch.nn as nn
 from gym.spaces import Box, Discrete
 from ray.rllib.policy.sample_batch import SampleBatch
 
-from raylab.modules.catalog import SACModule, SVGModule, TRPOModule
+from raylab.modules.mixins import StochasticActorMixin
 
 from .utils import make_batch, make_module
+
+
+class DummyModule(StochasticActorMixin, nn.ModuleDict):
+    # pylint:disable=abstract-method
+    def __init__(self, obs_space, action_space, config):
+        super().__init__()
+        self.update(self._make_actor(obs_space, action_space, config))
+
 
 DISC_SPACES = (Discrete(2), Discrete(8))
 CONT_SPACES = (Box(-1, 1, shape=(1,)), Box(-1, 1, shape=(3,)))
@@ -29,17 +38,7 @@ def action_space(request):
     return request.param
 
 
-@pytest.fixture(params=(SACModule, SVGModule, TRPOModule))
-def continuous_agent(request):
-    return request.param
-
-
-@pytest.fixture(params=(TRPOModule,))
-def discrete_agent(request):
-    return request.param
-
-
-@pytest.fixture(params=(SACModule, SVGModule, TRPOModule))
+@pytest.fixture(params=(DummyModule,))
 def agent(request):
     return request.param
 
@@ -49,29 +48,8 @@ def input_dependent_scale(request):
     return request.param
 
 
-@pytest.fixture(params=(True, False), ids=("MeanAction", "SampleAction"))
-def mean_action_only(request):
-    return request.param
-
-
-def test_discrete_sampler(
-    discrete_agent,
-    obs_space,
-    disc_space,
-    input_dependent_scale,
-    mean_action_only,
-    torch_script,
-):
-    module = make_module(
-        discrete_agent,
-        obs_space,
-        disc_space,
-        {
-            "mean_action_only": mean_action_only,
-            "actor": {"input_dependent_scale": input_dependent_scale},
-        },
-        torch_script,
-    )
+def test_discrete_sampler(agent, obs_space, disc_space, torch_script):
+    module = make_module(agent, obs_space, disc_space, {}, torch_script)
     batch = make_batch(obs_space, disc_space)
     action = batch[SampleBatch.ACTIONS]
 
@@ -82,14 +60,12 @@ def test_discrete_sampler(
     assert samples.dtype == action.dtype
     assert logp.shape == batch[SampleBatch.REWARDS].shape
     assert logp.dtype == batch[SampleBatch.REWARDS].dtype
-    assert mean_action_only or not torch.allclose(samples, samples_)
+    assert not torch.allclose(samples, samples_)
 
 
-def test_continuous_sampler(
-    continuous_agent, obs_space, cont_space, mean_action_only, torch_script,
-):
+def test_continuous_sampler(agent, obs_space, cont_space, torch_script):
     module = make_module(
-        continuous_agent,
+        agent,
         obs_space,
         cont_space,
         {"actor": {"input_dependent_scale": input_dependent_scale}},
@@ -105,11 +81,11 @@ def test_continuous_sampler(
     assert samples.dtype == action.dtype
     assert logp.shape == batch[SampleBatch.REWARDS].shape
     assert logp.dtype == batch[SampleBatch.REWARDS].dtype
-    assert mean_action_only or not torch.allclose(samples, samples_)
+    assert not torch.allclose(samples, samples_)
 
 
-def test_discrete_params(discrete_agent, obs_space, disc_space, torch_script):
-    module = make_module(discrete_agent, obs_space, disc_space, {}, torch_script)
+def test_discrete_params(agent, obs_space, disc_space, torch_script):
+    module = make_module(agent, obs_space, disc_space, {}, torch_script)
     batch = make_batch(obs_space, disc_space)
 
     params = module.actor(batch[SampleBatch.CUR_OBS])
@@ -126,10 +102,10 @@ def test_discrete_params(discrete_agent, obs_space, disc_space, torch_script):
 
 
 def test_continuous_params(
-    continuous_agent, obs_space, cont_space, input_dependent_scale, torch_script
+    agent, obs_space, cont_space, input_dependent_scale, torch_script
 ):
     module = make_module(
-        continuous_agent,
+        agent,
         obs_space,
         cont_space,
         {"actor": {"input_dependent_scale": input_dependent_scale}},
@@ -161,8 +137,14 @@ def test_continuous_params(
     assert all(p.grad is None for p in set(module.parameters()) - pi_params)
 
 
-def test_reproduce(continuous_agent, obs_space, cont_space, torch_script):
-    module = make_module(continuous_agent, obs_space, cont_space, {}, torch_script)
+def test_reproduce(agent, obs_space, cont_space, input_dependent_scale, torch_script):
+    module = make_module(
+        agent,
+        obs_space,
+        cont_space,
+        {"actor": {"input_dependent_scale": input_dependent_scale}},
+        torch_script,
+    )
     batch = make_batch(obs_space, cont_space)
 
     acts = batch[SampleBatch.ACTIONS]

@@ -6,7 +6,7 @@ import torch.nn as nn
 from ray.rllib.utils import deep_update
 from ray.rllib.utils.annotations import override
 
-from raylab.modules import (
+from ..basic import (
     FullyConnected,
     NormalizedLinear,
     TanhSquash,

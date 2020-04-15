@@ -6,8 +6,8 @@ import torch.nn as nn
 from ray.rllib.utils import deep_update
 from ray.rllib.utils.annotations import override
 
-from .basic import StateActionEncoder, NormalParams
-from .distributions import Independent, Normal
+from ..basic import StateActionEncoder, NormalParams
+from ..distributions import Independent, Normal
 
 
 BASE_CONFIG = {

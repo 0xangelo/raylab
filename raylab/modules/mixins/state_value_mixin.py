@@ -2,7 +2,7 @@
 import torch.nn as nn
 from ray.rllib.utils import deep_update
 
-from raylab.modules import FullyConnected
+from ..basic import FullyConnected
 
 
 BASE_CONFIG = {

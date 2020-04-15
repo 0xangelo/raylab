@@ -1,8 +1,6 @@
 """Model-based architecture with disjoint model, actor, and critic."""
-from .model_actor_critic import AbstractModelActorCritic
-from .stochastic_model_mixin import StochasticModelMixin
-from .stochastic_actor_mixin import StochasticActorMixin
-from .state_value_mixin import StateValueMixin
+from .abstract import AbstractModelActorCritic
+from .mixins import StochasticModelMixin, StochasticActorMixin, StateValueMixin
 
 
 # pylint:disable=abstract-method

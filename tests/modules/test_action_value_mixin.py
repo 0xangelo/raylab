@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 
-from raylab.modules.action_value_mixin import ActionValueMixin
+from raylab.modules.mixins import ActionValueMixin
 
 
 class DummyModule(ActionValueMixin, nn.ModuleDict):
