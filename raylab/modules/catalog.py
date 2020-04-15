@@ -9,7 +9,7 @@ from .svg_module import SVGModule
 from .svg_realnvp_actor import SVGRealNVPActor
 from .mapo_module import MAPOModule
 from .maxent_model_based import MaxEntModelBased
-from .trpo_module import TRPOModule
+from .on_policy_actor_critic import OnPolicyActorCritic
 from .trpo_flows import TRPOFlows
 from .trpo_tang2018 import TRPOTang2018
 
@@ -21,7 +21,7 @@ MODULES = {
     "SVGModule": SVGModule,
     "MAPOModule": MAPOModule,
     "MaxEntModelBased": MaxEntModelBased,
-    "TRPOModule": TRPOModule,
+    "OnPolicyActorCritic": OnPolicyActorCritic,
     "TRPOFlows": TRPOFlows,
     "TRPOTang2018": TRPOTang2018,
     "SVGRealNVPActor": SVGRealNVPActor,

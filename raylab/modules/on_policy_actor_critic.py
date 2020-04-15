@@ -1,4 +1,4 @@
-"""Actor-Critic architecture used in Trust-Region Policy Optimization (TRPO)."""
+"""Actor-Critic architecture used in most on-policy PG algorithms."""
 from ray.rllib.utils import merge_dicts
 
 from .abstract import AbstractActorCritic
@@ -8,25 +8,17 @@ from .mixins import StochasticActorMixin, StateValueMixin
 BASE_CONFIG = {
     "torch_script": True,
     "actor": {
-        "encoder": {
-            "units": (32, 32),
-            "activation": "Tanh",
-            "initializer_options": {"name": "xavier_uniform"},
-        },
+        "encoder": {"units": (32, 32), "activation": "Tanh"},
         "input_dependent_scale": False,
     },
     "critic": {
-        "encoder": {
-            "units": (32, 32),
-            "activation": "Tanh",
-            "initializer_options": {"name": "xavier_uniform"},
-        },
+        "encoder": {"units": (32, 32), "activation": "Tanh"},
         "target_vf": False,
     },
 }
 
 
-class TRPOModule(
+class OnPolicyActorCritic(
     StochasticActorMixin, StateValueMixin, AbstractActorCritic,
 ):
     """Actor-Critic module with stochastic actor and state-value critics."""
