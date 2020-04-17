@@ -72,14 +72,19 @@ class CouplingTransform(ConditionalTransform, metaclass=ABCMeta):
         super().__init__(event_dim=event_dim)
 
         self.features = len(mask)
-        self.register_buffer("identity_features", mask <= 0)
+        indexes = torch.arange(self.features)
+        self.register_buffer("identity_features", indexes.masked_select(mask <= 0))
+        self.register_buffer("transform_features", indexes.masked_select(mask > 0))
+        # Number of features that condition the transform.
+        self.num_identity_features = len(self.identity_features)
+        # Number of features that are conditionally transformed.
+        self.num_transform_features = len(self.transform_features)
         assert self.num_identity_features + self.num_transform_features == self.features
 
         self.transform_net = transform_net_create_fn(
             self.num_identity_features,
             self.num_transform_features * self.transform_dim_multiplier,
         )
-
         if unconditional_transform is None:
             self.unconditional_transform = None
         else:
@@ -87,22 +92,10 @@ class CouplingTransform(ConditionalTransform, metaclass=ABCMeta):
                 features=self.num_identity_features
             )
 
-    @property
-    def num_identity_features(self):
-        """Number of features that condition the transform."""
-        return self.identity_features.sum().item()
-
-    @property
-    def num_transform_features(self):
-        """Number of features that are conditionally transformed."""
-        return (~self.identity_features).sum().item()
-
     @override(ConditionalTransform)
     def encode(self, inputs, params: Dict[str, torch.Tensor]):
-        identity_mask = self.identity_features.expand_as(inputs)
-        transform_mask = ~identity_mask
-        identity_split = inputs[identity_mask]
-        transform_split = inputs[transform_mask]
+        identity_split = inputs.index_select(-1, self.identity_features)
+        transform_split = inputs.index_select(-1, self.transform_features)
 
         transform_params = self.transform_net(identity_split, params)
         transform_split, logabsdet = self.coupling_transform_forward(
@@ -116,17 +109,15 @@ class CouplingTransform(ConditionalTransform, metaclass=ABCMeta):
             logabsdet += logabsdet_identity
 
         outputs = torch.empty_like(inputs)
-        outputs[identity_mask] = identity_split
-        outputs[transform_mask] = transform_split
+        outputs.index_copy_(-1, self.identity_features, identity_split)
+        outputs.index_copy_(-1, self.transform_features, transform_split)
 
         return outputs, logabsdet
 
     @override(ConditionalTransform)
     def decode(self, inputs, params: Dict[str, torch.Tensor]):
-        identity_mask = self.identity_features.expand_as(inputs)
-        transform_mask = ~identity_mask
-        identity_split = inputs[identity_mask]
-        transform_split = inputs[transform_mask]
+        identity_split = inputs.index_select(-1, self.identity_features)
+        transform_split = inputs.index_select(-1, self.transform_features)
 
         logabsdet = 0.0
         if self.unconditional_transform is not None:
@@ -141,8 +132,8 @@ class CouplingTransform(ConditionalTransform, metaclass=ABCMeta):
         logabsdet += logabsdet_split
 
         outputs = torch.empty_like(inputs)
-        outputs[identity_mask] = identity_split
-        outputs[transform_mask] = transform_split
+        outputs.index_copy_(-1, self.identity_features, identity_split)
+        outputs.index_copy_(-1, self.transform_features, transform_split)
 
         return outputs, logabsdet
 
@@ -221,7 +212,7 @@ class AdditiveCouplingTransform(AffineCouplingTransform):
     def _scale_and_shift(self, transform_params):
         shift = transform_params
         scale = torch.ones_like(shift)
-        return scale, shift
+        return scale, shift, torch.zeros_like(scale)
 
 
 class PiecewiseCouplingTransform(CouplingTransform):
