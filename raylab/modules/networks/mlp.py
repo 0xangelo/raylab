@@ -23,8 +23,8 @@ class MLP(nn.Module):
         # pylint:disable=too-many-arguments
         super().__init__()
         activation = ptu.get_activation(activation)
-
-        if state_features is not None:
+        self.stateful = bool(state_features)
+        if self.stateful:
             self.initial_layer = nn.Linear(
                 in_features + state_features, hidden_features
             )
@@ -46,9 +46,11 @@ class MLP(nn.Module):
 
     def forward(self, inputs, params: Optional[Dict[str, torch.Tensor]] = None):
         # pylint:disable=arguments-differ
-        if params is None:
-            out = self.initial_layer(inputs)
-        else:
+        if self.stateful:
+            if params is None:
+                raise ValueError("Parameters required for stateful mlp.")
             out = self.initial_layer(torch.cat([inputs, params["state"]], dim=-1))
+        else:
+            out = self.initial_layer(inputs)
 
         return self.sequential(out)

@@ -100,7 +100,8 @@ class ResidualNet(nn.Module):
         # pylint:disable=too-many-arguments
         super().__init__()
         self.hidden_features = hidden_features
-        if state_features is not None:
+        self.stateful = bool(state_features)
+        if self.stateful:
             self.initial_layer = nn.Linear(
                 in_features + state_features, hidden_features
             )
@@ -122,10 +123,12 @@ class ResidualNet(nn.Module):
 
     def forward(self, inputs, params: Optional[Dict[str, torch.Tensor]] = None):
         # pylint:disable=arguments-differ
-        if params is None:
-            temps = self.initial_layer(inputs)
-        else:
+        if self.stateful:
+            if params is None:
+                raise ValueError("Parameters required for stateful resnet.")
             temps = self.initial_layer(torch.cat((inputs, params["state"]), dim=-1))
+        else:
+            temps = self.initial_layer(inputs)
         for block in self.blocks:
             temps = block(temps, params)
         outputs = self.final_layer(temps)
