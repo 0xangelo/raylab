@@ -26,12 +26,12 @@ Implementations of various coupling layers.
 Slightly modified from:
 https://github.com/bayesiains/nsf/blob/master/nde/transforms/coupling.py
 """
-# pylint:disable=missing-docstring
 from typing import Dict
 import warnings
 
 import numpy as np
 import torch
+from ray.rllib.utils.annotations import override
 
 from ..distributions import ConditionalTransform
 from ..distributions.utils import _sum_rightmost
@@ -76,7 +76,7 @@ class CouplingTransform(ConditionalTransform):
 
         self.transform_net = transform_net_create_fn(
             self.num_identity_features,
-            self.num_transform_features * self._transform_dim_multiplier(),
+            self.num_transform_features * self.transform_dim_multiplier,
         )
 
         if unconditional_transform is None:
@@ -88,12 +88,15 @@ class CouplingTransform(ConditionalTransform):
 
     @property
     def num_identity_features(self):
+        """Number of features that condition the transform."""
         return self.identity_features.sum().item()
 
     @property
     def num_transform_features(self):
+        """Number of features that are conditionally transformed."""
         return (~self.identity_features).sum().item()
 
+    @override(ConditionalTransform)
     def encode(self, inputs, params: Dict[str, torch.Tensor]):
         identity_mask = self.identity_features.expand_as(inputs)
         transform_mask = ~identity_mask
@@ -117,6 +120,7 @@ class CouplingTransform(ConditionalTransform):
 
         return outputs, logabsdet
 
+    @override(ConditionalTransform)
     def decode(self, inputs, params: Dict[str, torch.Tensor]):
         identity_mask = self.identity_features.expand_as(inputs)
         transform_mask = ~identity_mask
@@ -141,17 +145,15 @@ class CouplingTransform(ConditionalTransform):
 
         return outputs, logabsdet
 
-    def _transform_dim_multiplier(self):
+    @property
+    def transform_dim_multiplier(self):
         """Number of features to output for each transform dimension."""
-        raise NotImplementedError()
 
-    def _coupling_transform_forward(self, inputs, transform_params):
+    def coupling_transform_forward(self, inputs, transform_params):
         """Forward pass of the coupling transform."""
-        raise NotImplementedError()
 
-    def _coupling_transform_inverse(self, inputs, transform_params):
+    def coupling_transform_inverse(self, inputs, transform_params):
         """Inverse of the coupling transform."""
-        raise NotImplementedError()
 
 
 class AffineCouplingTransform(CouplingTransform):
@@ -160,7 +162,9 @@ class AffineCouplingTransform(CouplingTransform):
     > L. Dinh et al., Density estimation using Real NVP, ICLR 2017.
     """
 
-    def _transform_dim_multiplier(self):
+    @property
+    @override(CouplingTransform)
+    def transform_dim_multiplier(self):
         return 2
 
     def _scale_and_shift(self, transform_params):
@@ -182,13 +186,15 @@ class AffineCouplingTransform(CouplingTransform):
 
         return scale, shift, log_scale
 
-    def _coupling_transform_forward(self, inputs, transform_params):
+    @override(CouplingTransform)
+    def coupling_transform_forward(self, inputs, transform_params):
         scale, shift, log_scale = self._scale_and_shift(transform_params)
         outputs = inputs * scale + shift
         logabsdet = _sum_rightmost(log_scale, self.event_dim)
         return outputs, logabsdet
 
-    def _coupling_transform_inverse(self, inputs, transform_params):
+    @override(CouplingTransform)
+    def coupling_transform_inverse(self, inputs, transform_params):
         scale, shift, log_scale = self._scale_and_shift(transform_params)
         outputs = (inputs - shift) / scale
         logabsdet = -_sum_rightmost(log_scale, self.event_dim)
@@ -202,9 +208,12 @@ class AdditiveCouplingTransform(AffineCouplingTransform):
     > arXiv:1410.8516, 2014.
     """
 
-    def _transform_dim_multiplier(self):
+    @property
+    @override(CouplingTransform)
+    def transform_dim_multiplier(self):
         return 1
 
+    @override(AffineCouplingTransform)
     def _scale_and_shift(self, transform_params):
         shift = transform_params
         scale = torch.ones_like(shift)
@@ -212,13 +221,20 @@ class AdditiveCouplingTransform(AffineCouplingTransform):
 
 
 class PiecewiseCouplingTransform(CouplingTransform):
-    def _coupling_transform_forward(self, inputs, transform_params):
+    """
+    Base class for piecewise coupling transforms, which define their inverse externally.
+    """
+
+    @override(CouplingTransform)
+    def coupling_transform_forward(self, inputs, transform_params):
         return self._coupling_transform(inputs, transform_params, reverse=False)
 
-    def _coupling_transform_inverse(self, inputs, transform_params):
+    @override(CouplingTransform)
+    def coupling_transform_inverse(self, inputs, transform_params):
         return self._coupling_transform(inputs, transform_params, reverse=True)
 
     def _coupling_transform(self, inputs, transform_params, reverse: bool = False):
+
         # For batched 1D data, reshape transform_params from (*, D*?) to (*, D, ?)
         transform_params = torch.reshape(transform_params, inputs.shape + (-1,))
 
@@ -232,7 +248,9 @@ class PiecewiseCouplingTransform(CouplingTransform):
         raise NotImplementedError()
 
 
-class PiecewiseRationalQuadraticCouplingTransform(PiecewiseCouplingTransform):
+class PiecewiseRQSCouplingTransform(PiecewiseCouplingTransform):
+    """Piecewise Rational Quadratic Spline Coupling Transform."""
+
     def __init__(
         self,
         mask,
@@ -283,7 +301,9 @@ class PiecewiseRationalQuadraticCouplingTransform(PiecewiseCouplingTransform):
                 "Inputs to the softmax are not scaled down: init might be bad."
             )
 
-    def _transform_dim_multiplier(self):
+    @property
+    @override(CouplingTransform)
+    def transform_dim_multiplier(self):
         # Always use linear tails
         return self.num_bins * 3 - 1
 
