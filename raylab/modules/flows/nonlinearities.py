@@ -160,8 +160,8 @@ class Sigmoid(Transform):
         return outputs, logabsdet
 
     def decode(self, inputs):
-        # if torch.min(inputs) < 0 or torch.max(inputs) > 1:
-        #     raise InputOutsideDomain()
+        if torch.min(inputs) < 0 or torch.max(inputs) > 1:
+            raise ValueError("Input outside domain")
 
         inputs = torch.clamp(inputs, self.eps, 1 - self.eps)
 
@@ -189,8 +189,8 @@ class CauchyCDF(Transform):
         return outputs, logabsdet
 
     def decode(self, inputs):
-        # if torch.min(inputs) < 0 or torch.max(inputs) > 1:
-        #     raise InputOutsideDomain()
+        if torch.min(inputs) < 0 or torch.max(inputs) > 1:
+            raise ValueError("Input outside domain")
 
         outputs = torch.tan(np.pi * (inputs - 0.5))
         logabsdet = -_sum_rightmost(
@@ -247,7 +247,7 @@ class PiecewiseRationalQuadraticCDF(Transform):
                 torch.rand(*shape, num_bins - 1)
             )
 
-    def _spline(self, inputs, inverse=False):
+    def _spline(self, inputs, inverse: bool = False):
         batch_shape = inputs.shape[: -self.event_dim]
         unnormalized_widths = self.unnormalized_widths.expand(
             batch_shape + self.unnormalized_widths.shape

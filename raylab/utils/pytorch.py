@@ -67,7 +67,7 @@ def get_activation(activation):
         activation (str, dict or None): the activation function's description
     """
     if activation is None:
-        return None
+        return nn.Identity()
 
     if isinstance(activation, dict):
         name = activation["name"]

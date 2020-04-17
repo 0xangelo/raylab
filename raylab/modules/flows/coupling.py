@@ -69,16 +69,9 @@ class CouplingTransform(ConditionalTransform):
             raise ValueError("Mask can't be empty.")
 
         super().__init__(event_dim=event_dim)
+
         self.features = len(mask)
-        features_vector = torch.arange(self.features)
-
-        self.register_buffer(
-            "identity_features", features_vector.masked_select(mask <= 0)
-        )
-        self.register_buffer(
-            "transform_features", features_vector.masked_select(mask > 0)
-        )
-
+        self.register_buffer("identity_features", mask <= 0)
         assert self.num_identity_features + self.num_transform_features == self.features
 
         self.transform_net = transform_net_create_fn(
@@ -95,15 +88,17 @@ class CouplingTransform(ConditionalTransform):
 
     @property
     def num_identity_features(self):
-        return len(self.identity_features)
+        return self.identity_features.sum().item()
 
     @property
     def num_transform_features(self):
-        return len(self.transform_features)
+        return (~self.identity_features).sum().item()
 
     def encode(self, inputs, params: Dict[str, torch.Tensor]):
-        identity_split = inputs[..., self.identity_features]
-        transform_split = inputs[..., self.transform_features]
+        identity_mask = self.identity_features.expand_as(inputs)
+        transform_mask = ~identity_mask
+        identity_split = inputs[identity_mask]
+        transform_split = inputs[transform_mask]
 
         transform_params = self.transform_net(identity_split, params)
         transform_split, logabsdet = self._coupling_transform_forward(
@@ -117,14 +112,16 @@ class CouplingTransform(ConditionalTransform):
             logabsdet += logabsdet_identity
 
         outputs = torch.empty_like(inputs)
-        outputs[..., self.identity_features] = identity_split
-        outputs[..., self.transform_features] = transform_split
+        outputs[identity_mask] = identity_split
+        outputs[transform_mask] = transform_split
 
         return outputs, logabsdet
 
     def decode(self, inputs, params: Dict[str, torch.Tensor]):
-        identity_split = inputs[..., self.identity_features]
-        transform_split = inputs[..., self.transform_features]
+        identity_mask = self.identity_features.expand_as(inputs)
+        transform_mask = ~identity_mask
+        identity_split = inputs[identity_mask]
+        transform_split = inputs[transform_mask]
 
         logabsdet = 0.0
         if self.unconditional_transform is not None:
@@ -139,8 +136,8 @@ class CouplingTransform(ConditionalTransform):
         logabsdet += logabsdet_split
 
         outputs = torch.empty_like(inputs)
-        outputs[..., self.identity_features] = identity_split
-        outputs[..., self.transform_features] = transform_split
+        outputs[identity_mask] = identity_split
+        outputs[transform_mask] = transform_split
 
         return outputs, logabsdet
 
@@ -169,20 +166,30 @@ class AffineCouplingTransform(CouplingTransform):
     def _scale_and_shift(self, transform_params):
         unconstrained_scale = transform_params[..., self.num_transform_features :]
         shift = transform_params[..., : self.num_transform_features]
+
+        # Obtain Scale
+        # Option 1: use exp()
+        # log_scale = unconstrained_scale * 0.01
+        # scale = log_scale.exp()
+
+        # Option 2: use softplus()
         # scale = (F.softplus(unconstrained_scale) + 1e-3).clamp(0, 3)
+        # log_scale = scale.log()
+
+        # Option 3: use sigmoid()
         scale = torch.sigmoid(unconstrained_scale + 2) + 1e-3
-        return scale, shift
+        log_scale = scale.log()
+
+        return scale, shift, log_scale
 
     def _coupling_transform_forward(self, inputs, transform_params):
-        scale, shift = self._scale_and_shift(transform_params)
-        log_scale = torch.log(scale)
+        scale, shift, log_scale = self._scale_and_shift(transform_params)
         outputs = inputs * scale + shift
         logabsdet = _sum_rightmost(log_scale, self.event_dim)
         return outputs, logabsdet
 
     def _coupling_transform_inverse(self, inputs, transform_params):
-        scale, shift = self._scale_and_shift(transform_params)
-        log_scale = torch.log(scale)
+        scale, shift, log_scale = self._scale_and_shift(transform_params)
         outputs = (inputs - shift) / scale
         logabsdet = -_sum_rightmost(log_scale, self.event_dim)
         return outputs, logabsdet
@@ -221,7 +228,7 @@ class PiecewiseCouplingTransform(CouplingTransform):
 
         return outputs, _sum_rightmost(logabsdet, self.event_dim)
 
-    def _piecewise_cdf(self, inputs, transform_params, reverse=False):
+    def _piecewise_cdf(self, inputs, transform_params, reverse: bool = False):
         raise NotImplementedError()
 
 
@@ -268,25 +275,25 @@ class PiecewiseRationalQuadraticCouplingTransform(PiecewiseCouplingTransform):
             **kwargs,
         )
 
+        if hasattr(self.transform_net, "hidden_features"):
+            self.scale = 1.0 / np.sqrt(self.transform_net.hidden_features)
+        else:
+            self.scale = 1.0
+            warnings.warn(
+                "Inputs to the softmax are not scaled down: init might be bad."
+            )
+
     def _transform_dim_multiplier(self):
         # Always use linear tails
         return self.num_bins * 3 - 1
 
-    def _piecewise_cdf(self, inputs, transform_params, reverse=False):
+    def _piecewise_cdf(self, inputs, transform_params, reverse: bool = False):
         unnormalized_widths = transform_params[..., : self.num_bins]
         unnormalized_heights = transform_params[..., self.num_bins : 2 * self.num_bins]
         unnormalized_derivatives = transform_params[..., 2 * self.num_bins :]
 
-        if hasattr(self.transform_net, "hidden_features"):
-            unnormalized_widths /= np.sqrt(self.transform_net.hidden_features)
-            unnormalized_heights /= np.sqrt(self.transform_net.hidden_features)
-        elif hasattr(self.transform_net, "hidden_channels"):
-            unnormalized_widths /= np.sqrt(self.transform_net.hidden_channels)
-            unnormalized_heights /= np.sqrt(self.transform_net.hidden_channels)
-        else:
-            warnings.warn(
-                "Inputs to the softmax are not scaled down: init might be bad."
-            )
+        unnormalized_widths *= self.scale
+        unnormalized_heights *= self.scale
 
         # Always use linear tails
         return unconstrained_rational_quadratic_spline(
