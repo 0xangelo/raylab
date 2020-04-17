@@ -26,6 +26,7 @@ Implementations of various coupling layers.
 Slightly modified from:
 https://github.com/bayesiains/nsf/blob/master/nde/transforms/coupling.py
 """
+from abc import ABCMeta, abstractmethod
 from typing import Dict
 import warnings
 
@@ -44,7 +45,7 @@ from .splines import (
 )
 
 
-class CouplingTransform(ConditionalTransform):
+class CouplingTransform(ConditionalTransform, metaclass=ABCMeta):
     """A base class for coupling layers. Supports 1D inputs (*, D)."""
 
     def __init__(
@@ -104,7 +105,7 @@ class CouplingTransform(ConditionalTransform):
         transform_split = inputs[transform_mask]
 
         transform_params = self.transform_net(identity_split, params)
-        transform_split, logabsdet = self._coupling_transform_forward(
+        transform_split, logabsdet = self.coupling_transform_forward(
             inputs=transform_split, transform_params=transform_params
         )
 
@@ -134,7 +135,7 @@ class CouplingTransform(ConditionalTransform):
             )
 
         transform_params = self.transform_net(identity_split, params)
-        transform_split, logabsdet_split = self._coupling_transform_inverse(
+        transform_split, logabsdet_split = self.coupling_transform_inverse(
             inputs=transform_split, transform_params=transform_params
         )
         logabsdet += logabsdet_split
@@ -146,12 +147,15 @@ class CouplingTransform(ConditionalTransform):
         return outputs, logabsdet
 
     @property
+    @abstractmethod
     def transform_dim_multiplier(self):
         """Number of features to output for each transform dimension."""
 
+    @abstractmethod
     def coupling_transform_forward(self, inputs, transform_params):
         """Forward pass of the coupling transform."""
 
+    @abstractmethod
     def coupling_transform_inverse(self, inputs, transform_params):
         """Inverse of the coupling transform."""
 
@@ -244,8 +248,9 @@ class PiecewiseCouplingTransform(CouplingTransform):
 
         return outputs, _sum_rightmost(logabsdet, self.event_dim)
 
+    @abstractmethod
     def _piecewise_cdf(self, inputs, transform_params, reverse: bool = False):
-        raise NotImplementedError()
+        pass
 
 
 class PiecewiseRQSCouplingTransform(PiecewiseCouplingTransform):
