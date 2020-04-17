@@ -10,7 +10,7 @@ import torch.nn as nn
 from raylab.utils.pytorch import initialize_
 from ..basic import FullyConnected, NormalParams
 from ..distributions import (
-    ComposeTransform,
+    CompositeTransform,
     Independent,
     Normal,
     TanhSquashTransform,
@@ -50,7 +50,7 @@ class NormalizingFlowActorMixin:
             action_space, params_module.state_size, config
         )
         dist_module = TransformedDistribution(
-            base_dist=base_dist, transform=ComposeTransform(transforms),
+            base_dist=base_dist, transform=CompositeTransform(transforms),
         )
 
         return {"actor": StochasticPolicy(params_module, dist_module)}

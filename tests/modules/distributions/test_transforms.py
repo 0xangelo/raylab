@@ -4,9 +4,9 @@ import pytest
 
 from raylab.modules.distributions import (
     AffineTransform,
-    ComposeTransform,
+    CompositeTransform,
     Independent,
-    InvTransform,
+    InverseTransform,
     Normal,
     SigmoidTransform,
     TanhTransform,
@@ -39,14 +39,14 @@ def transform(request):
 
 @pytest.fixture
 def inv_transform(transform):
-    return InvTransform(transform)
+    return InverseTransform(transform)
 
 
 def test_transformed_distribution(dist_params, sample_shape, torch_script):
     base_dist, params = dist_params
     dist = TransformedDistribution(
         base_dist,
-        ComposeTransform(
+        CompositeTransform(
             [TanhTransform(), AffineTransform(-torch.ones(2), torch.ones(2))],
             event_dim=1,
         ),

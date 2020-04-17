@@ -11,7 +11,7 @@ from raylab.utils.pytorch import initialize_
 from .abstract import AbstractActorCritic
 from .basic import FullyConnected
 from .distributions import (
-    ComposeTransform,
+    CompositeTransform,
     Independent,
     Normal,
     TanhSquashTransform,
@@ -80,7 +80,7 @@ class TRPOTang2018(StochasticActorMixin, StateValueMixin, AbstractActorCritic):
         transforms = couplings[:1] + [add_state] + couplings[1:] + [squash]
         dist_module = TransformedDistribution(
             base_dist=Independent(Normal(), reinterpreted_batch_ndims=1),
-            transform=ComposeTransform(transforms),
+            transform=CompositeTransform(transforms),
         )
 
         return {"actor": StochasticPolicy(params_module, dist_module)}
