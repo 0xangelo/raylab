@@ -168,16 +168,16 @@ class AffineCouplingTransform(CouplingTransform):
 
         # Obtain Scale
         # Option 1: use exp()
-        # log_scale = unconstrained_scale * 0.01
-        # scale = log_scale.exp()
+        log_scale = unconstrained_scale * 0.01
+        scale = log_scale.exp()
 
         # Option 2: use softplus()
         # scale = (F.softplus(unconstrained_scale) + 1e-3).clamp(0, 3)
         # log_scale = scale.log()
 
         # Option 3: use sigmoid()
-        scale = torch.sigmoid(unconstrained_scale + 2) + 1e-3
-        log_scale = scale.log()
+        # scale = torch.sigmoid(unconstrained_scale + 2) + 1e-3
+        # log_scale = scale.log()
 
         return scale, shift, log_scale
 

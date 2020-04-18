@@ -38,7 +38,7 @@ def test_sampler(nf_agent, obs_space, action_space, torch_script):
     assert not torch.allclose(samples, samples_)
 
     logp_ = module.actor.log_prob(batch[SampleBatch.CUR_OBS], samples)
-    assert torch.allclose(logp, logp_)
+    assert torch.allclose(logp, logp_, atol=1e-6)
 
 
 def test_flow_params(nf_agent, obs_space, action_space, torch_script):
