@@ -8,7 +8,6 @@ from .lambd import Lambda
 from .normal_params import NormalParams
 from .normalized_linear import NormalizedLinear
 from .masked_linear import MaskedLinear
-from .reward_function import RewardFn
 from .state_action_encoder import StateActionEncoder
 from .tanh_squash import TanhSquash
 from .tril_matrix import TrilMatrix
@@ -23,7 +22,6 @@ __all__ = [
     "NormalParams",
     "NormalizedLinear",
     "MaskedLinear",
-    "RewardFn",
     "StateActionEncoder",
     "TanhSquash",
     "TrilMatrix",
