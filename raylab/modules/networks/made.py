@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
-from .basic import MaskedLinear
+from .. import MaskedLinear
 
 
 class MADE(nn.Module):

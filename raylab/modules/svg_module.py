@@ -1,5 +1,5 @@
 """SVG Architecture with disjoint model, actor, and critic."""
-from ray.rllib.utils import deep_update
+from raylab.utils.dictionaries import deep_merge
 
 from .abstract import AbstractModelActorCritic
 from .mixins import SVGModelMixin, StochasticActorMixin, StateValueMixin
@@ -38,7 +38,7 @@ class SVGModule(
     # pylint:disable=abstract-method
 
     def __init__(self, obs_space, action_space, config):
-        config = deep_update(BASE_CONFIG, config, False, ["actor", "critic", "model"])
+        config = deep_merge(BASE_CONFIG, config, False, ["actor", "critic", "model"])
         super().__init__(obs_space, action_space, config)
 
         if config.get("replay_kl") is False:

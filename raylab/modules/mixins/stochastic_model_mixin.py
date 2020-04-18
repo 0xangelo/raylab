@@ -3,9 +3,9 @@ from typing import List
 
 import torch
 import torch.nn as nn
-from ray.rllib.utils import deep_update
 from ray.rllib.utils.annotations import override
 
+from raylab.utils.dictionaries import deep_merge
 from ..basic import StateActionEncoder, NormalParams
 from ..distributions import Independent, Normal
 
@@ -29,7 +29,7 @@ class StochasticModelMixin:
 
     @staticmethod
     def _make_model(obs_space, action_space, config):
-        config = deep_update(BASE_CONFIG, config.get("model", {}), False, ["encoder"])
+        config = deep_merge(BASE_CONFIG, config.get("model", {}), False, ["encoder"])
 
         params_module = GaussianDynamicsParams(obs_space, action_space, config)
         dist_module = Independent(Normal(), reinterpreted_batch_ndims=1)

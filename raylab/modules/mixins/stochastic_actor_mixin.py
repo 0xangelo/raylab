@@ -3,10 +3,10 @@ from typing import List
 
 import torch
 import torch.nn as nn
-from ray.rllib.utils import deep_update
 from ray.rllib.utils.annotations import override
 import gym.spaces as spaces
 
+from raylab.utils.dictionaries import deep_merge
 from ..basic import CategoricalParams, FullyConnected, NormalParams
 from ..distributions import (
     Categorical,
@@ -38,7 +38,7 @@ class StochasticActorMixin:
 
     @staticmethod
     def _make_actor(obs_space, action_space, config):
-        config = deep_update(BASE_CONFIG, config.get("actor", {}), False, ["encoder"])
+        config = deep_merge(BASE_CONFIG, config.get("actor", {}), False, ["encoder"])
         if isinstance(action_space, spaces.Discrete):
             logits = _build_fully_connected(obs_space, config)
             params = CategoricalParams(logits.out_features, action_space.n)

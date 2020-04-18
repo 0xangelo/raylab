@@ -1,7 +1,7 @@
 """Support for modules with state value functions as critics."""
 import torch.nn as nn
-from ray.rllib.utils import deep_update
 
+from raylab.utils.dictionaries import deep_merge
 from ..basic import FullyConnected
 
 
@@ -28,7 +28,7 @@ class StateValueMixin:
     def _make_critic(obs_space, action_space, config):
         # pylint:disable=unused-argument
         modules = {}
-        config = deep_update(BASE_CONFIG, config.get("critic", {}), False, ["encoder"])
+        config = deep_merge(BASE_CONFIG, config.get("critic", {}), False, ["encoder"])
 
         def make_vf():
             logits_mod = FullyConnected(

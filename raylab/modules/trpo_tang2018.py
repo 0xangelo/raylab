@@ -11,14 +11,15 @@ from raylab.utils.pytorch import initialize_
 from .abstract import AbstractActorCritic
 from .basic import FullyConnected
 from .distributions import (
-    ComposeTransform,
+    CompositeTransform,
     Independent,
     Normal,
     TanhSquashTransform,
     TransformedDistribution,
 )
-from .flows import Affine1DHalfFlow, ConditionalTransform
 from .mixins import StateValueMixin, StochasticActorMixin, StochasticPolicy
+from . import flows
+from . import networks
 
 
 # Defaults for Hopper-v1
@@ -62,15 +63,20 @@ class TRPOTang2018(StochasticActorMixin, StateValueMixin, AbstractActorCritic):
         obs_size = obs_space.shape[0]
         act_size = action_space.shape[0]
 
-        def make_mod(parity):
-            nout = act_size // 2
-            nin = act_size - nout
-            if parity:
-                nin, nout = nout, nin
-            return MLP(nin, nout, hidden_size=config["hidden_size"])
+        def transform_net_fn(in_features, out_features):
+            return networks.MLP(
+                in_features,
+                out_features,
+                hidden_features=config["hidden_size"],
+                num_blocks=2,
+                activation="ReLU",
+            )
 
-        parities = [bool(i % 2) for i in range(config["num_flows"])]
-        couplings = [Affine1DHalfFlow(p, make_mod(p), make_mod(p)) for p in parities]
+        masks = [
+            flows.masks.create_alternating_binary_mask(act_size, bool(i % 2))
+            for i in range(config["num_flows"])
+        ]
+        couplings = [flows.AffineCouplingTransform(m, transform_net_fn) for m in masks]
         add_state = AddStateFlow(obs_size, act_size)
         squash = TanhSquashTransform(
             low=torch.as_tensor(action_space.low),
@@ -80,7 +86,7 @@ class TRPOTang2018(StochasticActorMixin, StateValueMixin, AbstractActorCritic):
         transforms = couplings[:1] + [add_state] + couplings[1:] + [squash]
         dist_module = TransformedDistribution(
             base_dist=Independent(Normal(), reinterpreted_batch_ndims=1),
-            transform=ComposeTransform(transforms),
+            transform=CompositeTransform(transforms),
         )
 
         return {"actor": StochasticPolicy(params_module, dist_module)}
@@ -100,19 +106,19 @@ class StateNormalParams(nn.Module):
         return {"loc": torch.zeros(shape), "scale": torch.ones(shape), "state": obs}
 
 
-class AddStateFlow(ConditionalTransform):
+class AddStateFlow(flows.ConditionalTransform):
     """Incorporates state information by adding a state embedding."""
 
     def __init__(self, obs_size, act_size):
         super().__init__(event_dim=1)
         self.state_encoder = MLP(obs_size, act_size, hidden_size=64)
 
-    @override(ConditionalTransform)
+    @override(flows.ConditionalTransform)
     def encode(self, inputs, params: Dict[str, torch.Tensor]):
         encoded = self.state_encoder(params["state"])
         return inputs + encoded, torch.zeros(inputs.shape[: -self.event_dim])
 
-    @override(ConditionalTransform)
+    @override(flows.ConditionalTransform)
     def decode(self, inputs, params: Dict[str, torch.Tensor]):
         encoded = self.state_encoder(params["state"])
         return inputs - encoded, torch.zeros(inputs.shape[: -self.event_dim])

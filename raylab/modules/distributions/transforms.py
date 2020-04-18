@@ -81,7 +81,7 @@ class ConditionalTransform(nn.Module):
         return self.transform.decode(inputs)
 
 
-class InvTransform(ConditionalTransform):
+class InverseTransform(ConditionalTransform):
     """Invert the transform, effectively swapping the encoding/decoding directions."""
 
     def __init__(self, transform):
@@ -103,14 +103,14 @@ class InvTransform(ConditionalTransform):
         return self.transform.encode(inputs, params)
 
 
-class ComposeTransform(ConditionalTransform):
+class CompositeTransform(ConditionalTransform):
     # pylint:disable=missing-docstring
 
     def __init__(self, transforms, event_dim=None):
         event_dim = event_dim or max(t.event_dim for t in transforms)
         super().__init__(event_dim=event_dim)
         assert self.event_dim >= max(t.event_dim for t in transforms), (
-            "ComposeTransform cannot have an event_dim smaller than any "
+            "CompositeTransform cannot have an event_dim smaller than any "
             "of its components'"
         )
         transforms = self.unpack(transforms)
@@ -119,10 +119,10 @@ class ComposeTransform(ConditionalTransform):
 
     @staticmethod
     def unpack(transforms):
-        """Recursively unfold ComposeTransforms in a list."""
+        """Recursively unfold CompositeTransforms in a list."""
         result = []
         for trans in transforms:
-            if isinstance(trans, ComposeTransform):
+            if isinstance(trans, CompositeTransform):
                 result.extend(trans.unpack(trans.transforms))
             elif isinstance(trans, Transform):
                 result += [ConditionalTransform(transform=trans)]
@@ -229,7 +229,7 @@ class TanhSquashTransform(Transform):
         divide = AffineTransform(loc=torch.zeros_like(low), scale=2 / (high - low))
         squash = TanhTransform()
         shift = AffineTransform(loc=(high + low) / 2, scale=(high - low) / 2)
-        compose = ComposeTransform([divide, squash, shift], event_dim=event_dim)
+        compose = CompositeTransform([divide, squash, shift], event_dim=event_dim)
         super().__init__(cond_transform=compose)
 
 
@@ -240,5 +240,5 @@ class SigmoidSquashTransform(Transform):
         divide = AffineTransform(loc=torch.zeros_like(low), scale=1 / (high - low))
         squash = SigmoidTransform()
         shift = AffineTransform(loc=low, scale=(high - low))
-        compose = ComposeTransform([divide, squash, shift], event_dim=event_dim)
+        compose = CompositeTransform([divide, squash, shift], event_dim=event_dim)
         super().__init__(cond_transform=compose)

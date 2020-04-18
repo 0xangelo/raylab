@@ -32,21 +32,21 @@ def action_space(request):
 
 
 @pytest.fixture(params=(True, False), ids=("StateCondPrior", "StatelessPrior"))
-def obs_dependent_prior(request):
+def conditional_prior(request):
     return request.param
 
 
 @pytest.fixture(params=(True, False), ids=("StateCondFlow", "StatelessFlow"))
-def state_cond_flow(request):
+def conditional_flow(request):
     return request.param
 
 
 @pytest.fixture
-def config(obs_dependent_prior, state_cond_flow):
+def config(conditional_prior, conditional_flow):
     return {
         "actor": {
-            "obs_dependent_prior": obs_dependent_prior,
-            "state_cond_flow": state_cond_flow,
+            "conditional_prior": conditional_prior,
+            "conditional_flow": conditional_flow,
         }
     }
 
@@ -82,7 +82,7 @@ def test_params(agent, obs_space, action_space, config, torch_script):
     assert loc.dtype == torch.float32
     assert scale.dtype == torch.float32
 
-    if config["actor"]["obs_dependent_prior"]:
+    if config["actor"]["conditional_prior"]:
         prior_params = set(module.actor.params.parameters())
         for par in prior_params:
             par.grad = None
