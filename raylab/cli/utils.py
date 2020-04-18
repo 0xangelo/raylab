@@ -22,9 +22,9 @@ def initialize_raylab(func):
     return wrapped
 
 
-def time_series(x_key, y_key, groups, labels, individual=False):
+def time_series(x_key, y_key, groups, labels, individual=False, standard_error=False):
     """Plot time series with error bands per group."""
-    # pylint:disable=too-many-locals,too-many-function-args
+    # pylint:disable=too-many-locals,too-many-function-args,too-many-arguments
     pic = figure(title="Plot")
     pic.xaxis.axis_label = x_key
     pic.yaxis.axis_label = y_key
@@ -50,11 +50,13 @@ def time_series(x_key, y_key, groups, labels, individual=False):
         else:
             y_mean = np.nanmean(all_ys, axis=0)
             pic.line(x_all, y_mean, legend_label=label, color=palette[idx])
-            y_std = np.nanstd(all_ys, axis=0)
+            dispersion = np.nanstd(all_ys, axis=0)
+            if standard_error:
+                dispersion /= np.sqrt(np.sum(1 - np.isnan(y_mean), axis=0))
             pic.varea(
                 x_all,
-                y1=y_mean - y_std,
-                y2=y_mean + y_std,
+                y1=y_mean - dispersion,
+                y2=y_mean + dispersion,
                 fill_alpha=0.25,
                 legend_label=label,
                 color=palette[idx],

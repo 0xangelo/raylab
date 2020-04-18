@@ -90,7 +90,15 @@ def main():
                 groups = [selector]
 
             individual = st.checkbox("Show individual curves")
-            chart = time_series(x_key, y_key, groups, labels, individual=individual)
+            standard_error = st.checkbox("Use standard error")
+            chart = time_series(
+                x_key,
+                y_key,
+                groups,
+                labels,
+                individual=individual,
+                standard_error=standard_error,
+            )
             st.bokeh_chart(chart)
 
 
