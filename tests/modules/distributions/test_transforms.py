@@ -68,7 +68,7 @@ def test_transforms(dist_params, transform, sample_shape, torch_script):
     assert log_det.shape == sample_shape
     decoded, log_det = transform(encoded, reverse=True)
     assert log_det.shape == sample_shape
-    assert torch.allclose(decoded, rsample, atol=1e-7)
+    assert torch.allclose(decoded, rsample, atol=1e-6)
 
 
 def test_inv_transforms(inv_transform, torch_script):
@@ -80,4 +80,4 @@ def test_inv_transforms(inv_transform, torch_script):
     assert log_det.shape == inputs.shape[: -transform.event_dim]
     decoded, log_det = transform(encoded, {}, reverse=True)
     assert log_det.shape == inputs.shape[: -transform.event_dim]
-    assert torch.allclose(decoded, inputs, atol=1e-7)
+    assert torch.allclose(decoded, inputs, atol=1e-6)

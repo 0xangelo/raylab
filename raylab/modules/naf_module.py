@@ -3,17 +3,10 @@ import warnings
 
 import torch
 import torch.nn as nn
-import torch.distributions as dists
-from ray.rllib.utils import merge_dicts
 from ray.rllib.utils.annotations import override
 
-from raylab.modules import (
-    FullyConnected,
-    TrilMatrix,
-    NormalizedLinear,
-    TanhSquash,
-    DistRSample,
-)
+from raylab.utils.dictionaries import deep_merge
+from raylab.modules import FullyConnected, TrilMatrix, NormalizedLinear, TanhSquash
 
 
 BASE_CONFIG = {
@@ -41,7 +34,7 @@ class NAFModule(nn.ModuleDict):
 
     def __init__(self, obs_space, action_space, config):
         super().__init__()
-        config = merge_dicts(BASE_CONFIG, config)
+        config = deep_merge(BASE_CONFIG, config, False, ["encoder"])
         self.update(self._make_critic(obs_space, action_space, config))
         self.update(self._make_actor(obs_space, action_space, config))
 
@@ -133,31 +126,6 @@ class AdvantageFunction(nn.Module):
         vec = tril_matrix.matmul(action_diff)  # column vector [..., N, 1]
         advantage = -0.5 * vec.transpose(-1, -2).matmul(vec).squeeze(-1)
         return advantage
-
-
-class MultivariateNormalSampler(nn.Sequential):
-    """Neural network module mapping inputs to MultivariateNormal parameters.
-
-    This module is initialized to be close to a standard Normal distribution.
-    """
-
-    def __init__(self, action_space, logits_mod, mu_mod, tril_mod, *, script=False):
-        params_module = MultivariateNormalParams(logits_mod, mu_mod, tril_mod)
-        rsample_module = DistRSample(
-            dists.MultivariateNormal,
-            low=torch.as_tensor(action_space.low),
-            high=torch.as_tensor(action_space.high),
-        )
-
-        if script:
-            act_dim = action_space.shape[0]
-            rsample_module = rsample_module.traced(
-                {
-                    "loc": torch.zeros(1, act_dim),
-                    "scale_tril": torch.eye(act_dim).unsqueeze(0),
-                }
-            )
-        super().__init__(params_module, rsample_module)
 
 
 class MultivariateNormalParams(nn.Module):

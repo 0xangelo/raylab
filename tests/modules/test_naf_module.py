@@ -7,22 +7,14 @@ import torch
 from raylab.modules.naf_module import NAFModule
 
 
-@pytest.fixture(params=(None, "diag_gaussian", "full_gaussian", "parameter_noise"))
-def exploration(request):
-    return request.param
-
-
 @pytest.fixture(params=(True, False), ids=("Double Q", "Single Q"))
 def double_q(request):
     return request.param
 
 
 @pytest.fixture
-def config(exploration, double_q):
-    return {
-        "exploration": exploration,
-        "double_q": double_q,
-    }
+def config(double_q):
+    return {"double_q": double_q}
 
 
 @pytest.fixture
