@@ -17,16 +17,6 @@ from ..distributions import (
 )
 
 
-BASE_CONFIG = {
-    "encoder": {
-        "units": (32, 32),
-        "activation": "Tanh",
-        "initializer_options": {"name": "xavier_uniform"},
-    },
-    "input_dependent_scale": False,
-}
-
-
 def _build_fully_connected(obs_space, config):
     return FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
 
@@ -35,10 +25,24 @@ class StochasticActorMixin:
     """Adds constructor for modules with stochastic policies."""
 
     # pylint:disable=too-few-public-methods
+    BASE_CONFIG = {
+        "encoder": {
+            "units": (32, 32),
+            "activation": "Tanh",
+            "initializer_options": {"name": "xavier_uniform"},
+        },
+        "input_dependent_scale": False,
+    }
 
     @staticmethod
     def _make_actor(obs_space, action_space, config):
-        config = deep_merge(BASE_CONFIG, config.get("actor", {}), False, ["encoder"])
+        config = deep_merge(
+            StochasticActorMixin.BASE_CONFIG,
+            config.get("actor", {}),
+            False,
+            ["encoder"],
+        )
+
         if isinstance(action_space, spaces.Discrete):
             logits = _build_fully_connected(obs_space, config)
             params = CategoricalParams(logits.out_features, action_space.n)
@@ -70,10 +74,14 @@ class MaximumEntropyMixin:
     """Adds entropy coefficient parameter to module."""
 
     # pylint:disable=too-few-public-methods
+    BASE_CONFIG = {"initial_alpha": 1.0}
 
     def __init__(self, obs_space, action_space, config):
         super().__init__(obs_space, action_space, config)
-        self.alpha = Alpha()
+        config = deep_merge(
+            MaximumEntropyMixin.BASE_CONFIG, config.get("entropy", {}), False
+        )
+        self.alpha = Alpha(config["initial_alpha"])
 
 
 class StochasticPolicy(nn.Module):
@@ -161,9 +169,9 @@ class StochasticPolicy(nn.Module):
 class Alpha(nn.Module):
     # pylint:disable=missing-class-docstring
 
-    def __init__(self):
+    def __init__(self, initial_alpha):
         super().__init__()
-        self.log_alpha = nn.Parameter(torch.zeros([]))
+        self.log_alpha = nn.Parameter(torch.as_tensor(initial_alpha).log())
 
     def forward(self):  # pylint:disable=arguments-differ
         return self.log_alpha.exp()
