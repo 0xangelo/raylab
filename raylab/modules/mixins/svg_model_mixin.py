@@ -1,9 +1,9 @@
 """SVG model architecture."""
 import torch
 import torch.nn as nn
-from ray.rllib.utils import deep_update
 from ray.rllib.utils.annotations import override
 
+from raylab.utils.dictionaries import deep_merge
 from ..basic import NormalParams, StateActionEncoder
 from ..distributions import Independent, Normal
 from .stochastic_model_mixin import StochasticModel
@@ -25,7 +25,7 @@ class SVGModelMixin:
     # pylint:disable=missing-docstring,too-few-public-methods
     @staticmethod
     def _make_model(obs_space, action_space, config):
-        config = deep_update(BASE_CONFIG, config.get("model", {}), False, ["encoder"])
+        config = deep_merge(BASE_CONFIG, config.get("model", {}), False, ["encoder"])
 
         params_module = SVGDynamicsParams(obs_space, action_space, config)
         dist_module = Independent(Normal(), reinterpreted_batch_ndims=1)

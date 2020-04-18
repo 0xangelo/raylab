@@ -1,8 +1,8 @@
 """Support for modules with action value functions as critics."""
 import torch.nn as nn
-from ray.rllib.utils import deep_update
 from ray.rllib.utils.annotations import override
 
+from raylab.utils.dictionaries import deep_merge
 from ..basic import StateActionEncoder
 
 
@@ -28,7 +28,7 @@ class ActionValueMixin:
 
     @staticmethod
     def _make_critic(obs_space, action_space, config):
-        config = deep_update(BASE_CONFIG, config.get("critic", {}), False, ["encoder"])
+        config = deep_merge(BASE_CONFIG, config.get("critic", {}), False, ["encoder"])
         obs_size, act_size = obs_space.shape[0], action_space.shape[0]
 
         def make_critic():

@@ -1,5 +1,5 @@
 """Off-policy Actor-Critic with Normalizing Flows density approximation."""
-from ray.rllib.utils import deep_update
+from raylab.utils.dictionaries import deep_merge
 
 from .abstract import AbstractActorCritic
 from .mixins import ActionValueMixin, NormalizingFlowActorMixin, MaximumEntropyMixin
@@ -19,5 +19,5 @@ class OffPolicyNFAC(
     # pylint:disable=abstract-method
 
     def __init__(self, obs_space, action_space, config):
-        config = deep_update(BASE_CONFIG, config, False, ["actor", "critic"])
+        config = deep_merge(BASE_CONFIG, config, False, ["actor", "critic"])
         super().__init__(obs_space, action_space, config)
