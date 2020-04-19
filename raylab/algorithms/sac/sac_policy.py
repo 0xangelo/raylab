@@ -22,7 +22,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        if self.config["target_entropy"] is None:
+        if self.config["target_entropy"] == "auto":
             self.config["target_entropy"] = -action_space.shape[0]
 
     @staticmethod
@@ -66,7 +66,8 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
         info.update(self._update_critic(batch_tensors, module, config))
         info.update(self._update_actor(batch_tensors, module, config))
-        info.update(self._update_alpha(batch_tensors, module, config))
+        if config["target_entropy"] is not None:
+            info.update(self._update_alpha(batch_tensors, module, config))
 
         info.update(self.extra_grad_info(batch_tensors))
         self.update_targets("critics", "target_critics")

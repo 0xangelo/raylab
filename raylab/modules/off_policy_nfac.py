@@ -5,7 +5,7 @@ from .abstract import AbstractActorCritic
 from .mixins import ActionValueMixin, NormalizingFlowActorMixin, MaximumEntropyMixin
 
 
-BASE_CONFIG = {"torch_script": True, "actor": {}, "critic": {}}
+BASE_CONFIG = {"torch_script": True, "actor": {}, "critic": {}, "entropy": {}}
 
 
 class OffPolicyNFAC(
@@ -19,5 +19,5 @@ class OffPolicyNFAC(
     # pylint:disable=abstract-method
 
     def __init__(self, obs_space, action_space, config):
-        config = deep_merge(BASE_CONFIG, config, False, ["actor", "critic"])
+        config = deep_merge(BASE_CONFIG, config, False, ["actor", "critic", "entropy"])
         super().__init__(obs_space, action_space, config)

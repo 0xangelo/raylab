@@ -11,7 +11,7 @@ DEFAULT_CONFIG = with_common_config(
     {
         # === Entropy ===
         # Target entropy to optimize the temperature parameter towards
-        # If None, will use the heuristic provided in the SAC paper:
+        # If "auto", will use the heuristic provided in the SAC paper:
         # H = -dim(A), where A is the action space
         "target_entropy": None,
         # === Twin Delayed DDPG (TD3) tricks ===

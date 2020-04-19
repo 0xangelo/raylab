@@ -24,6 +24,7 @@ BASE_CONFIG = {
             "delay_action": True,
         },
     },
+    "entropy": {"initial_alpha": 0.05},
 }
 
 
@@ -35,5 +36,5 @@ class SACModule(
     # pylint:disable=abstract-method
 
     def __init__(self, obs_space, action_space, config):
-        config = deep_merge(BASE_CONFIG, config, False, ["actor", "critic"])
+        config = deep_merge(BASE_CONFIG, config, False, ["actor", "critic", "entropy"])
         super().__init__(obs_space, action_space, config)
