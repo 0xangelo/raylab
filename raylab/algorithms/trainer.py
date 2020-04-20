@@ -20,10 +20,11 @@ class Trainer(_Trainer):
 
     @override(_Trainer)
     def train(self):
-        super().train()
+        result = super().train()
         # Update global_vars after training so that the info is saved if checkpointing
         if self._has_policy_optimizer():
             self.global_vars["timestep"] = self.optimizer.num_steps_sampled
+        return result
 
     @override(_Trainer)
     def __getstate__(self):
@@ -35,6 +36,10 @@ class Trainer(_Trainer):
     def __setstate__(self, state):
         self.global_vars = state["global_vars"]
         super().__setstate__(state)
+        if self._has_policy_optimizer():
+            self.optimizer.workers.local_worker().set_global_vars(self.global_vars)
+            for worker in self.optimizer.workers.remote_workers():
+                worker.set_global_vars.remote(self.global_vars)
 
     def _iteration_done(self):
         return self.optimizer.num_steps_sampled - self.global_vars["timestep"] >= max(
