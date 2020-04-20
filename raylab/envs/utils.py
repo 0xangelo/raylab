@@ -2,8 +2,16 @@
 import functools
 
 from gym.wrappers import TimeLimit
+from ray.tune.registry import ENV_CREATOR, _global_registry
 
 from .wrappers import AddRelativeTimestep, GaussianRandomWalks
+
+
+def get_env_creator(env_id):
+    """Return the environment creator funtion for the given environment id."""
+    if not _global_registry.contains(ENV_CREATOR, env_id):
+        raise ValueError(f"Environment id {env_id} not registered in Tune")
+    return _global_registry.get(ENV_CREATOR, env_id)
 
 
 def wrap_if_needed(env_creator):

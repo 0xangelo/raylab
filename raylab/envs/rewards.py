@@ -2,24 +2,33 @@
 import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
-
+from ray.tune.registry import ENV_CREATOR, _global_registry
 
 REWARDS = {}
 
 
 def get_reward_fn(env_id, env_config=None):
-    """Return the reward funtion for the given environment name and configuration."""
+    """Return the reward funtion for the given environment name and configuration.
+
+    Only returns reward functions for environments which have been registered with Tune.
+    """
     assert env_id in REWARDS, f"{env_id} environment reward not registered."
+    assert _global_registry.contains(
+        ENV_CREATOR, env_id
+    ), f"{env_id} environment not registered with Tune."
+
     env_config = env_config or {}
-    return REWARDS[env_id](env_config)
+    reward_fn = REWARDS[env_id](env_config)
+    if env_config.get("time_aware", False):
+        reward_fn = TimeAwareRewardFn(reward_fn)
+    return reward_fn
 
 
 def register(*ids):
     """Register reward function class for environments with given ids."""
 
     def librarian(cls):
-        for id_ in ids:
-            REWARDS[id_] = cls
+        REWARDS.update({i: cls for i in ids})
         return cls
 
     return librarian
@@ -36,7 +45,19 @@ class RewardFn(nn.Module):
         raise NotImplementedError
 
 
-@register("CartPoleSwingUp", "CartPoleSwingUp-v0")
+class TimeAwareRewardFn(RewardFn):
+    """Wraps a reward function and removes time dimension before forwarding."""
+
+    def __init__(self, reward_fn):
+        super().__init__(None)
+        self.reward_fn = reward_fn
+
+    @override(RewardFn)
+    def forward(self, state, action, next_state):
+        return self.reward_fn(state[..., :-1], action, next_state[..., :-1])
+
+
+@register("CartPoleSwingUp")
 class CartPoleSwingUpReward(RewardFn):
     """
     Compute CartPoleSwingUp's reward given a possibly batched transition.
@@ -96,7 +117,7 @@ class HVACReward(RewardFn):
     @override(RewardFn)
     def forward(self, state, action, next_state):
         air = action * self.air_max
-        temp = state[..., :-1]
+        temp = next_state[..., :-1]
 
         reward = -(
             self.is_room
@@ -182,7 +203,7 @@ class ReservoirReward(RewardFn):
 
     @override(RewardFn)
     def forward(self, state, action, next_state):
-        rlevel = state[..., :-1]
+        rlevel = next_state[..., :-1]
 
         penalty = torch.where(
             (rlevel >= self.lower_bound) & (rlevel <= self.upper_bound),
@@ -199,7 +220,7 @@ class ReservoirReward(RewardFn):
 
 @register("MountainCarContinuous-v0")
 class MountainCarContinuousReward(RewardFn):
-    "MountainCarContinuous' reward function."
+    """MountainCarContinuous' reward function."""
 
     def __init__(self, config):
         super().__init__(config)
@@ -209,8 +230,37 @@ class MountainCarContinuousReward(RewardFn):
 
     @override(RewardFn)
     def forward(self, state, action, next_state):
-        done = next_state >= self.goal
+        done = (next_state >= self.goal).all(-1)
         shape = state.shape[:-1]
         reward = torch.where(done, torch.empty(shape).fill_(200), torch.zeros(shape))
         reward -= torch.pow(action, 2).squeeze(-1) * 0.1
         return reward
+
+
+@register("ReacherBulletEnv-v0")
+class ReacherBulletEnvReward(RewardFn):
+    """ReacherBulletEnv-v0's reward function."""
+
+    @override(RewardFn)
+    def forward(self, state, action, next_state):
+        to_target_vec_old = state[..., 2:4]
+        to_target_vec_new = next_state[..., 2:4]
+        potential_old = -100 * to_target_vec_old.norm(p=2, dim=-1)
+        potential_new = -100 * to_target_vec_new.norm(p=2, dim=-1)
+
+        theta_dot = next_state[..., -3]
+        gamma = next_state[..., -2]
+        gamma_dot = next_state[..., -1]
+
+        electricity_cost = -0.10 * (
+            (action[..., 0] * theta_dot).abs() + (action[..., 1] * gamma_dot).abs()
+        ) - 0.01 * (action[..., 0].abs() + action[..., 1].abs())
+
+        stuck_joint_cost = torch.where(
+            (gamma.abs() - 1).abs() < 0.01,
+            torch.empty_like(electricity_cost).fill_(-0.1),
+            torch.zeros_like(electricity_cost),
+        )
+
+        rewards = (potential_new - potential_old) + electricity_cost + stuck_joint_cost
+        return rewards
