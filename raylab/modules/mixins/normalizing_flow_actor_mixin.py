@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 from raylab.utils.dictionaries import deep_merge
-from ..basic import FullyConnected, NormalParams
+from ..basic import FullyConnected, NormalParams, StdNormalParams
 from ..distributions import (
     CompositeTransform,
     Independent,
@@ -132,17 +132,3 @@ class NFNormalParams(nn.Module):
         # For use in conditional flows later
         params["state"] = state
         return params
-
-
-class StdNormalParams(nn.Module):
-    """Produces standard Normal parameters and expands on input."""
-
-    def __init__(self, input_dim, event_size):
-        super().__init__()
-        self.input_dim = input_dim
-        self.event_shape = (event_size,)
-
-    @override(nn.Module)
-    def forward(self, inputs):  # pylint:disable=arguments-differ
-        shape = inputs.shape[: -self.input_dim] + self.event_shape
-        return {"loc": torch.zeros(shape), "scale": torch.ones(shape)}

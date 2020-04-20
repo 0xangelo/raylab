@@ -9,6 +9,7 @@ from .normal_params import NormalParams
 from .normalized_linear import NormalizedLinear
 from .masked_linear import MaskedLinear
 from .state_action_encoder import StateActionEncoder
+from .std_normal_params import StdNormalParams
 from .tanh_squash import TanhSquash
 from .tril_matrix import TrilMatrix
 
@@ -23,6 +24,7 @@ __all__ = [
     "NormalizedLinear",
     "MaskedLinear",
     "StateActionEncoder",
+    "StdNormalParams",
     "TanhSquash",
     "TrilMatrix",
 ]
