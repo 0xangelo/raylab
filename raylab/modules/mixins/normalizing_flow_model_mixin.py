@@ -49,10 +49,13 @@ class NormalizingFlowModelMixin:
         ), f"Normalizing Flow incompatible with observation space {type(obs_space)}"
 
         # PRIOR ========================================================================
-        params_module, base_dist = self._make_prior(obs_space, action_space, config)
-
+        params_module, base_dist = self._make_model_prior(
+            obs_space, action_space, config
+        )
         # NormalizingFlow ==============================================================
-        transforms = self._make_transforms(obs_space, params_module.state_size, config)
+        transforms = self._make_model_transforms(
+            obs_space, params_module.state_size, config
+        )
         dist_module = TransformedDistribution(
             base_dist=base_dist, transform=CompositeTransform(transforms),
         )
@@ -60,7 +63,7 @@ class NormalizingFlowModelMixin:
         return {"model": StochasticModel.assemble(params_module, dist_module, config)}
 
     @staticmethod
-    def _make_prior(obs_space, action_space, config):
+    def _make_model_prior(obs_space, action_space, config):
         # Ensure we're not encoding the inputs for nothing
         obs_size, act_size = obs_space.shape[0], action_space.shape[0]
         if config["conditional_prior"] or config["conditional_flow"]:
@@ -76,7 +79,7 @@ class NormalizingFlowModelMixin:
         return params_module, base_dist
 
     @staticmethod
-    def _make_transforms(obs_space, state_size, config):
+    def _make_model_transforms(obs_space, state_size, config):
         obs_size = obs_space.shape[0]
         flow_config = config["flow"].copy()
         cls = getattr(flows, flow_config.pop("type"))

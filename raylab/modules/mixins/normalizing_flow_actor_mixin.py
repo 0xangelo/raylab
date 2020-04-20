@@ -50,10 +50,11 @@ class NormalizingFlowActorMixin:
         ), f"Normalizing Flow incompatible with action space type {type(action_space)}"
 
         # PRIOR ========================================================================
-        params_module, base_dist = self._make_prior(obs_space, action_space, config)
-
+        params_module, base_dist = self._make_actor_prior(
+            obs_space, action_space, config
+        )
         # NormalizingFlow ==============================================================
-        transforms = self._make_transforms(
+        transforms = self._make_actor_transforms(
             action_space, params_module.state_size, config
         )
         dist_module = TransformedDistribution(
@@ -63,7 +64,7 @@ class NormalizingFlowActorMixin:
         return {"actor": StochasticPolicy(params_module, dist_module)}
 
     @staticmethod
-    def _make_prior(obs_space, action_space, config):
+    def _make_actor_prior(obs_space, action_space, config):
         # Ensure we're not encoding the observation for nothing
         if config["conditional_prior"] or config["conditional_flow"]:
             obs_encoder = FullyConnected(obs_space.shape[0], **config["obs_encoder"])
@@ -76,7 +77,7 @@ class NormalizingFlowActorMixin:
         return params_module, base_dist
 
     @staticmethod
-    def _make_transforms(action_space, state_size, config):
+    def _make_actor_transforms(action_space, state_size, config):
         act_size = action_space.shape[0]
         flow_config = config["flow"].copy()
         cls = getattr(flows, flow_config.pop("type"))
