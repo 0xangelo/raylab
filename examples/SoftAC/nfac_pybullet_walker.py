@@ -6,7 +6,7 @@ def get_config():
     return {
         # === Environment ===
         "env": "Walker2DBulletEnv-v0",
-        "env_config": {"max_episode_steps": 250, "time_aware": False},
+        "env_config": {"max_episode_steps": 1000, "time_aware": True},
         # === Entropy ===
         # Target entropy to optimize the temperature parameter towards
         # If "auto", will use the heuristic provided in the SAC paper:
@@ -16,7 +16,7 @@ def get_config():
         # Clipped Double Q-Learning
         "clipped_double_q": True,
         # === Replay Buffer ===
-        "buffer_size": int(2e5),
+        "buffer_size": int(1e6),
         # === Optimization ===
         # PyTorch optimizers to use
         "torch_optimizer": {
@@ -33,7 +33,7 @@ def get_config():
             "torch_script": True,
             "actor": {
                 "conditional_prior": True,
-                "obs_encoder": {"units": (128, 64), "activation": "ReLU"},
+                "obs_encoder": {"units": (256,), "activation": "ReLU"},
                 "num_flows": 4,
                 "conditional_flow": False,
                 "flow": {
@@ -45,11 +45,11 @@ def get_config():
                     },
                 },
             },
-            "critic": {"encoder": {"units": (128, 128)}},
+            "critic": {"encoder": {"units": (256, 256)}},
             "entropy": {"initial_alpha": 0.05},
         },
         # === Trainer ===
-        "train_batch_size": 128,
+        "train_batch_size": 256,
         "timesteps_per_iteration": 1000,
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
@@ -82,6 +82,6 @@ def get_config():
         # and to disable exploration by computing deterministic actions
         "evaluation_config": {
             "explore": False,
-            "env_config": {"max_episode_steps": 1000, "time_aware": False},
+            "env_config": {"max_episode_steps": 1000, "time_aware": True},
         },
     }
