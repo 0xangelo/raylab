@@ -18,7 +18,8 @@ def mapo_policy(mapo_trainer):
 
 
 @pytest.fixture
-def policy_and_batch_fn(policy_and_batch_, mapo_policy):
+def policy_and_batch_fn(policy_and_batch_, mapo_policy, envs):
+    # pylint:disable=unused-argument
     def make_policy_and_batch(config):
         config["env"] = "MockEnv"
         policy, batch = policy_and_batch_(mapo_policy, config)
