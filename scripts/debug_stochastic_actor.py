@@ -35,7 +35,6 @@ from raylab.cli.utils import initialize_raylab
     type=click.Path(exists=None, file_okay=False, dir_okay=True),
     default="runs/",
 )
-@click.option("--unconstrained/--constrained", default=False)
 @click.option("--eval/--no-eval", default=False)
 @initialize_raylab
 def main(**args):
@@ -52,7 +51,6 @@ def main(**args):
         args["eval"],
         args["script"],
     )
-    unconstrain_if_necessary(agent.get_policy(), args["unconstrained"], args["script"])
 
     test_init(agent.get_policy(), verbose=args["verbose"])
     test_sampler(agent.get_policy())
@@ -60,7 +58,6 @@ def main(**args):
     rollout = produce_rollout(agent)
     test_rollout(agent.get_policy(), rollout, writer)
 
-    # print(" PLOT GRAPH ".center(80, "="))
     # if not script:
     #     tensorboard_graph(policy, obs_space, writer)
     writer.close()
@@ -101,17 +98,6 @@ def prepare_tensorboard_dir(tensorboard_dir):
 
     if os.path.exists(tensorboard_dir):
         shutil.rmtree(tensorboard_dir)
-
-
-def unconstrain_if_necessary(policy, unconstrained, script):
-    assert not unconstrained or not script
-    if unconstrained:
-        from raylab.modules.distributions import CompositeTransform
-
-        actor = policy.module.actor
-        transform = actor.dist.transform
-        # Assume transform is composite and squash is last
-        actor.dist.transform = CompositeTransform(transform.transforms[:-1])
 
 
 def test_init(policy, verbose=False):
@@ -186,6 +172,9 @@ def produce_rollout(agent):
     worker.batch_mode = "complete_episodes"
     worker.rollout_fragment_length = 4000
 
+    print("global_vars:", agent.global_vars)
+    print("policy_timestep:", agent.get_policy().global_timestep)
+    print("worker_vars:", worker.global_vars)
     episode = worker.sample()
     return agent.get_policy()._lazy_tensor_dict(episode)
 
@@ -242,6 +231,7 @@ def test_rollout(policy, rollout, writer):
 def tensorboard_graph(policy, obs_space, writer):
     # pylint:disable=arguments-differ,too-many-locals
     # pylint:disable=c-extension-no-member,protected-access
+    print(" PLOT GRAPH ".center(80, "="))
     import torch
     import torch.nn as nn
     from torch.utils.tensorboard._pytorch_graph import (
