@@ -50,7 +50,7 @@ def input_dependent_scale(request):
 
 def test_discrete_sampler(agent, obs_space, disc_space, torch_script):
     module = make_module(agent, obs_space, disc_space, {}, torch_script)
-    batch = make_batch(obs_space, disc_space)
+    batch = make_batch(obs_space, disc_space, batch_size=100)
     action = batch[SampleBatch.ACTIONS]
 
     sampler = module.actor.sample
