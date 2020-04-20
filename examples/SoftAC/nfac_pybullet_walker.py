@@ -7,6 +7,11 @@ def get_config():
         # === Environment ===
         "env": "Walker2DBulletEnv-v0",
         "env_config": {"max_episode_steps": 250, "time_aware": False},
+        # === Entropy ===
+        # Target entropy to optimize the temperature parameter towards
+        # If "auto", will use the heuristic provided in the SAC paper:
+        # H = -dim(A), where A is the action space
+        "target_entropy": None,
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning
         "clipped_double_q": True,
@@ -27,13 +32,21 @@ def get_config():
             "type": "OffPolicyNFAC",
             "torch_script": True,
             "actor": {
-                "obs_dependent_prior": True,
+                "conditional_prior": True,
                 "obs_encoder": {"units": (128, 64), "activation": "ReLU"},
-                "num_flows": 5,
-                "state_cond_flow": False,
-                "flow_mlp": {"units": (6,), "activation": "ReLU"},
+                "num_flows": 4,
+                "conditional_flow": False,
+                "flow": {
+                    "type": "AffineCouplingTransform",
+                    "transform_net": {
+                        "type": "MLP",
+                        "num_blocks": 0,
+                        "activation": "ReLU",
+                    },
+                },
             },
             "critic": {"encoder": {"units": (128, 128)}},
+            "entropy": {"initial_alpha": 0.05},
         },
         # === Trainer ===
         "train_batch_size": 128,
