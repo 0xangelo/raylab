@@ -9,6 +9,7 @@ from .svg_module import SVGModule
 from .svg_realnvp_actor import SVGRealNVPActor
 from .mapo_module import MAPOModule
 from .maxent_model_based import MaxEntModelBased
+from .nfmbrl import NFMBRL
 from .on_policy_actor_critic import OnPolicyActorCritic
 from .on_policy_nfac import OnPolicyNFAC
 from .off_policy_nfac import OffPolicyNFAC
@@ -22,6 +23,7 @@ MODULES = {
     "SVGModule": SVGModule,
     "MAPOModule": MAPOModule,
     "MaxEntModelBased": MaxEntModelBased,
+    "NFMBRL": NFMBRL,
     "OnPolicyActorCritic": OnPolicyActorCritic,
     "OnPolicyNFAC": OnPolicyNFAC,
     "OffPolicyNFAC": OffPolicyNFAC,
