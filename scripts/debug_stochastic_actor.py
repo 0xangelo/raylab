@@ -36,6 +36,12 @@ from raylab.cli.utils import initialize_raylab
     default="runs/",
 )
 @click.option("--eval/--no-eval", default=False)
+@click.option(
+    "--component",
+    type=click.Choice(["actor", "model"]),
+    default="actor",
+    show_default=True,
+)
 @initialize_raylab
 def main(**args):
     """Print stochastic policy statistics given a config."""
@@ -53,10 +59,10 @@ def main(**args):
     )
 
     test_init(agent.get_policy(), verbose=args["verbose"])
-    test_sampler(agent.get_policy())
+    test_sampler(agent.get_policy(), args)
     writer = SummaryWriter(log_dir=args["tensorboard_dir"])
     rollout = produce_rollout(agent)
-    test_rollout(agent.get_policy(), rollout, writer)
+    test_rollout(agent.get_policy(), rollout, writer, args)
 
     # if not script:
     #     tensorboard_graph(policy, obs_space, writer)
@@ -114,51 +120,59 @@ def test_init(policy, verbose=False):
     print("Parameters".ljust(12), "|", sum(p.numel() for p in module.parameters()))
 
 
-def test_sampler(policy):
+def test_sampler(policy, args):
     # pylint:disable=no-member,invalid-name
     print(" TEST SAMPLER ".center(80, "="))
     import torch
 
-    module = policy.module
-    obs_space = policy.observation_space
+    obs_space, action_space = policy.observation_space, policy.action_space
 
-    obs = policy.convert_to_tensor([obs_space.sample()])
-    act, logp = module.actor.rsample(obs)
-    act.detach_()
-    print("OBSERVATION".ljust(12), "|", obs)
-    print("RSAMPLE".ljust(12), "|", act)
+    if args["component"] == "actor":
+        module = policy.module.actor
+        inputs = (policy.convert_to_tensor([obs_space.sample()]),)
+    elif args["component"] == "model":
+        module = policy.module.model
+        inputs = (
+            policy.convert_to_tensor([obs_space.sample()]),
+            policy.convert_to_tensor([action_space.sample()]),
+        )
+    else:
+        raise ValueError
+
+    rsamp, logp = module.rsample(*inputs)
+    rsamp.detach_()
+    print("INPUTS".ljust(12), "|", *inputs)
+    print("RSAMPLE".ljust(12), "|", rsamp)
     print("RSAMPLE_LOGP".ljust(12), "|", logp)
-    print("MAX_ACT".ljust(12), "|", act.abs().max())
+    print("MAX_SAMPLE".ljust(12), "|", rsamp.abs().max())
 
     print("-" * 60)
-    logp_ = module.actor.log_prob(obs, act)
+    logp_ = module.log_prob(*inputs, rsamp)
     print("EXT_LOGP".ljust(12), "|", logp_)
 
     print("-" * 60)
-    z, log_det = module.actor.dist.transform(act, module.actor(obs), reverse=True)
+    z, log_det = module.dist.transform(rsamp, module(*inputs), reverse=True)
     print("Z".ljust(12), "|", z)
     print("LOG_DET".ljust(12), "|", log_det)
     print(
-        "LOGP_Z".ljust(12),
-        "|",
-        module.actor.dist.base_dist.log_prob(z, module.actor(obs)),
+        "LOGP_Z".ljust(12), "|", module.dist.base_dist.log_prob(z, module(*inputs)),
     )
-    act_, logp_ = module.actor.reproduce(obs, act)
-    print("REPR_ACT".ljust(12), "|", act_)
+    samp_, logp_ = module.reproduce(*inputs, rsamp)
+    print("REPR_SAMP".ljust(12), "|", samp_)
     print("REPR_LOGP".ljust(12), "|", logp_)
 
     print("-" * 60)
     sample_shape = (2,)
     print("SAMP_SHAPE".ljust(12), "|", sample_shape)
-    act, logp = module.actor.sample(obs, sample_shape)
+    samp, logp = module.sample(*inputs, sample_shape)
     logp.mean().backward()
-    print("SAMPLE".ljust(12), "|", act)
+    print("SAMPLE".ljust(12), "|", samp)
     print("SAMPLE_LOGP".ljust(12), "|", logp)
-    print("EXT_LOGP".ljust(12), "|", module.actor.log_prob(obs, act))
+    print("EXT_LOGP".ljust(12), "|", module.log_prob(*inputs, samp))
     print(
         "EXT_NORM".ljust(12),
         "|",
-        torch.cat([p.grad.reshape((-1,)) for p in module.actor.parameters()]).norm(),
+        torch.cat([p.grad.flatten() for p in module.parameters()]).norm(),
     )
 
 
@@ -179,34 +193,56 @@ def produce_rollout(agent):
     return agent.get_policy()._lazy_tensor_dict(episode)
 
 
-def test_rollout(policy, rollout, writer):
-    # pylint:disable=no-member,too-many-locals
-    print(" TEST ROLLOUT ".center(80, "="))
-    import torch
+def test_rollout(policy, rollout, writer, args):
+    # pylint:disable=no-member
     from ray.rllib.policy.policy import ACTION_LOGP
     from ray.rllib.policy.sample_batch import SampleBatch
     from raylab.utils.pytorch import flat_grad
 
-    module = policy.module
-    params = list(module.actor.parameters())
+    print(" TEST ROLLOUT ".center(80, "="))
+    if args["component"] == "actor":
+        module = policy.module.actor
+        inputs = (rollout[SampleBatch.CUR_OBS],)
+        samps, logp = rollout[SampleBatch.ACTIONS], rollout[ACTION_LOGP]
+    elif args["component"] == "model":
+        module = policy.module.model
+        inputs = (
+            rollout[SampleBatch.CUR_OBS],
+            rollout[SampleBatch.ACTIONS],
+        )
+        samps, logp = policy.module.model.sample(
+            rollout[SampleBatch.CUR_OBS], rollout[SampleBatch.ACTIONS],
+        )
+    else:
+        raise ValueError
 
-    obs = rollout[SampleBatch.CUR_OBS]
-    acts, logp = rollout[SampleBatch.ACTIONS], rollout[ACTION_LOGP]
-    for idx in range(acts.size(-1)):
-        writer.add_histogram(f"Actions/{idx}", acts[..., idx], 0)
-    writer.add_histogram("Log Probs", logp, 0)
+    test_samples(module, inputs, samps, logp, args["component"], writer)
 
-    idxs = torch.randperm(obs.size(0))[:10]
+    loss = -module.log_prob(*inputs, samps.detach()).mean()
+    nll_grad = flat_grad(loss, module.parameters())
+    print("NLL grad:", nll_grad)
+    print("grad_norm(nll):", nll_grad.norm(p=2))
+
+
+def test_samples(module, inputs, samps, logp, label, writer):
+    # pylint:disable=no-member,too-many-arguments
+    import torch
+
+    for idx in range(samps.size(-1)):
+        writer.add_histogram(f"{label}/{idx}", samps[..., idx], 0)
+    writer.add_histogram(f"{label}_log_probs", logp, 0)
+
+    idxs = torch.randperm(samps.size(0))[:10]
     print(" SAMPLES ".center(60, "-"))
-    print("Acts".ljust(16), acts[idxs])
-    print("Shape".ljust(16), acts.shape)
-    print("Abs Max".ljust(16), acts.abs().max())
-    print("Mean".ljust(16), acts.mean())
+    print("Samps".ljust(16), samps[idxs])
+    print("Shape".ljust(16), samps.shape)
+    print("Abs Max".ljust(16), samps.abs().max())
+    print("Mean".ljust(16), samps.mean())
     print("Logp".ljust(16), logp[idxs])
     isnan = torch.isnan(logp)
     print("NaNs".ljust(16), isnan.sum())
 
-    logp_ex = module.actor.log_prob(obs, acts)
+    logp_ex = module.log_prob(*inputs, samps)
     isnan = torch.isnan(logp_ex)
     print(" EXT_LOGP ".center(60, "-"))
     print(logp_ex[idxs])
@@ -220,12 +256,6 @@ def test_rollout(policy, rollout, writer):
     entropy = -logp_ex.mean()
     print()
     print("ENTROPY:", entropy)
-
-    acts = rollout[SampleBatch.ACTIONS]
-    advs = torch.randn_like(obs[..., 0])
-    pol_grad = flat_grad(-(module.actor.log_prob(obs, acts) * advs).mean(), params)
-    print("pol_grad:", pol_grad)
-    print("grad_norm(pg):", pol_grad.norm(p=2))
 
 
 def tensorboard_graph(policy, obs_space, writer):
