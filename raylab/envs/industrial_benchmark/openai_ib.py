@@ -147,7 +147,7 @@ class IBEnv(gym.Env):
         else:
             raise ValueError(
                 "Invalid reward function specification. Use 'classic' for the original "
-                "cost function or 'delta' for the change in the cost fucntion between "
+                "cost function or 'delta' for the change in the cost function between "
                 "steps."
             )
 
