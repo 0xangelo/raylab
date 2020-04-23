@@ -12,15 +12,14 @@ class Trainer(_Trainer):
     # pylint: disable=abstract-method,no-member
 
     @override(_Trainer)
-    def _setup(self, config):
-        super()._setup(config)
+    def train(self):
         # Evaluate first, before any optimization is done
         if self.config.get("evaluation_interval"):
+            # pylint:disable=attribute-defined-outside-init
             self.evaluation_metrics = self._evaluate()
 
-    @override(_Trainer)
-    def train(self):
         result = super().train()
+
         # Update global_vars after training so that the info is saved if checkpointing
         if self._has_policy_optimizer():
             self.global_vars["timestep"] = self.optimizer.num_steps_sampled
