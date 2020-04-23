@@ -23,8 +23,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-import logging
-
 import numpy as np
 import torch
 import gym
@@ -33,8 +31,6 @@ from gym import spaces
 from .ids import IDS
 from .dynamics import fatigue, op_cost
 from .goldstone.torch.environment import TorchGSEnvironment
-
-logger = logging.getLogger(__name__)
 
 
 class IBEnv(gym.Env):
@@ -150,13 +146,6 @@ class IBEnv(gym.Env):
                 "cost function or 'delta' for the change in the cost function between "
                 "steps."
             )
-
-        logger.info(
-            "Cost smoothed: %(cost)s, State (v, g, s): %(state)s, Action: %(action)s",
-            cost=-self.smoothed_cost,
-            state=np.around(self._ib.visible_state()[1:4], 0),
-            action=action,
-        )
 
         # reward is divided by 100 to improve learning
         return self._get_obs(), return_reward / 100, False, self.minimal_markov_state()
