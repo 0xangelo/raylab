@@ -6,7 +6,7 @@ def get_config():
     return {
         # === Environment ===
         "env": "Walker2DBulletEnv-v0",
-        "env_config": {"max_episode_steps": 250, "time_aware": False},
+        "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === Entropy ===
         # Target entropy to optimize the temperature parameter towards
         # If "auto", will use the heuristic provided in the SAC paper:
@@ -16,7 +16,7 @@ def get_config():
         # Clipped Double Q-Learning
         "clipped_double_q": True,
         # === Replay Buffer ===
-        "buffer_size": int(2e5),
+        "buffer_size": int(4e5),
         # === Optimization ===
         # PyTorch optimizers to use
         "torch_optimizer": {
@@ -31,12 +31,16 @@ def get_config():
         "module": {
             "type": "SACModule",
             "torch_script": True,
-            "actor": {"encoder": {"units": (128, 128)}},
-            "critic": {"encoder": {"units": (128, 128)}},
-            "entropy": {"initial_alpha": 0.05},
+            "actor": {"encoder": {"units": (256, 256)}},
+            "critic": {"encoder": {"units": (256, 256)}},
+            "entropy": {
+                "initial_alpha": tune.sample_from(
+                    lambda _: np.random.uniform(0.01, 0.5)
+                )
+            },
         },
         # === Trainer ===
-        "train_batch_size": 128,
+        "train_batch_size": 256,
         "timesteps_per_iteration": 1000,
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
