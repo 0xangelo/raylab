@@ -5,10 +5,12 @@ import sys
 from bokeh.layouts import gridplot
 from bokeh.models import ColumnDataSource, DataRange1d
 from bokeh.plotting import figure
+import numpy as np
 import pandas as pd
 import ray
 from ray.rllib.policy.sample_batch import SampleBatch
 import streamlit as st
+import torch
 
 import raylab
 from raylab.algorithms.registry import ALGORITHMS
@@ -62,28 +64,24 @@ def scatter_matrix(dataset, target_dataset=None):
         assert len(target_dataset.columns) == len(columns)
         target_source = ColumnDataSource(data=target_dataset)
 
-    y_max = len(columns) - 1
+    y_max = len(columns)
     scatter_plots = []
     for yidx, y_col in enumerate(columns):
         scatter_plots += [[]]
-        for xidx in range(yidx):
+        scatter_plots[yidx] += [None] * yidx
+        for xidx in range(yidx, y_max):
             x_col = columns[xidx]
-            yax = xidx == 0
-            xax = yidx == y_max
-            mbl = 40 if yax else 0
-            mbb = 40 if xax else 0
 
             pic = figure(
                 x_range=xdr,
                 y_range=ydr,
-                x_axis_label=x_col,
-                y_axis_label=y_col,
-                plot_width=200 + mbl,
-                plot_height=200 + mbb,
-                min_border_left=2 + mbl,
+                plot_width=200,
+                plot_height=200,
+                min_border_left=2,
                 min_border_right=2,
                 min_border_top=2,
-                min_border_bottom=2 + mbb,
+                min_border_bottom=2,
+                tools="",
             )
             rend = pic.circle(
                 source=dataset_source,
@@ -112,22 +110,58 @@ def scatter_matrix(dataset, target_dataset=None):
                 ydr.renderers.append(rend)
                 # pylint:enable=no-member
 
-            if not yax:
-                pic.yaxis.axis_label = ""
-                pic.yaxis.visible = False
-            if not xax:
-                pic.xaxis.axis_label = ""
-                pic.xaxis.visible = False
+            pic.yaxis.axis_label = ""
+            pic.yaxis.visible = False
+            pic.xaxis.axis_label = ""
+            pic.xaxis.visible = False
 
-            scatter_plots[yidx].append(pic)
-        scatter_plots[yidx] += [None] * (y_max - yidx)
+            scatter_plots[yidx] += [pic]
 
-    return gridplot(
-        scatter_plots,
-        # ncols=len(columns),
-        # sizing_mode="scale_both",
-        toolbar_location="right",
-    )
+    return gridplot(scatter_plots, sizing_mode="scale_both")
+
+
+def make_histograms(dataset, bins):
+    columns = dataset.columns
+
+    xdr = DataRange1d(bounds=None)
+    ydr = DataRange1d(bounds=None)
+    ydr.start = 0
+
+    row = []
+    for col in columns:
+        hist, edges = np.histogram(dataset[col], density=True, bins=bins)
+        pic = figure(
+            title=col,
+            x_range=xdr,
+            y_range=ydr,
+            plot_width=200,
+            plot_height=240,
+            min_border_left=2,
+            min_border_right=2,
+            min_border_top=2,
+            min_border_bottom=42,
+            tools="",
+        )
+        rend = pic.quad(
+            top=hist,
+            bottom=0,
+            left=edges[:-1],
+            right=edges[1:],
+            fill_color="navy",
+            line_color="white",
+            alpha=0.5,
+        )
+        # pylint:disable=no-member
+        xdr.renderers.append(rend)
+        ydr.renderers.append(rend)
+        # pylint:enable=no-member
+
+        pic.grid.grid_line_color = "white"
+        pic.yaxis.axis_label = ""
+        pic.yaxis.visible = False
+        row += [pic]
+
+    return gridplot([row], sizing_mode="scale_width")
 
 
 # https://discuss.streamlit.io/t/how-can-i-clear-a-specific-cache-only/1963/6
@@ -154,19 +188,38 @@ def plot_distributions(policy, rollout, timestep):
         plot_model_distributions(policy.module.model, obs, act, new_obs)
 
 
-def plot_actor_distributions(actor, obs):
-    if st.checkbox("Deterministic"):
-        acts, _ = actor.deterministic(obs)
-        acts.unsqueeze_(0)
-    else:
-        n_samples = st.number_input("Number of action samples", min_value=1, step=1)
-        acts, _ = actor.sample(obs, (n_samples,))
+@st.cache(
+    max_entries=1,
+    # pylint:disable=protected-access
+    hash_funcs={torch.jit.RecursiveScriptModule: hash, torch._C._TensorBase: hash},
+    # pylint:enable=protected-access
+)
+def get_actor_samples(actor, obs, n_samples):
+    return actor.sample(obs, (n_samples,))
 
+
+def plot_actor_distributions(actor, obs):
+    n_samples = st.number_input("Number of action samples", min_value=1, step=1)
+    acts, _ = get_actor_samples(actor, obs, n_samples)
+
+    bins = st.number_input(
+        "Histogram bins",
+        min_value=1,
+        max_value=n_samples,
+        value=(1 + n_samples) // 2,
+        step=1,
+    )
     acts = acts.detach().numpy()
     data = {f"act[{i}]": acts[..., i] for i in range(acts.shape[-1])}
     dataset = pd.DataFrame(data)
-    chart = scatter_matrix(dataset)
-    st.bokeh_chart(chart)
+
+    det, _ = actor.deterministic(obs)
+    det.unsqueeze_(0).detach_()
+    det_data = {f"det[{i}]": det[..., i] for i in range(det.shape[-1])}
+    det_dataset = pd.DataFrame(det_data)
+
+    st.bokeh_chart(make_histograms(dataset, bins))
+    st.bokeh_chart(scatter_matrix(dataset, det_dataset))
 
 
 def plot_model_distributions(model, obs, act, new_obs):
@@ -200,11 +253,6 @@ def main():
 
         rollout = rollout_wrapper[0]
         timestep = st.slider("Timestep", min_value=0, max_value=rollout.count - 1)
-
-        st.write("Observation", "Action")
-        obs = rollout[SampleBatch.CUR_OBS][timestep]
-        act = rollout[SampleBatch.ACTIONS][timestep]
-        st.write(obs, act)
 
         plot_distributions(agent.get_policy(), rollout, timestep)
 
