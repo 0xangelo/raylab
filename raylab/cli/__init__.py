@@ -39,6 +39,19 @@ def episodes(path):
     _main_run(episode_dashboard.__file__, [path])
 
 
+@cli.command()
+@click.argument(
+    "checkpoint",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True),
+)
+def test_module(checkpoint):
+    """Launch dashboard to test generative models from a checkpoint."""
+    from streamlit.cli import _main_run
+    from . import test_stochastic_module
+
+    _main_run(test_stochastic_module.__file__, [checkpoint])
+
+
 cli.add_command(experiment)
 cli.add_command(find_best)
 cli.add_command(rollout)
