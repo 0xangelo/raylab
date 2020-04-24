@@ -13,8 +13,8 @@ import streamlit as st
 import torch
 
 import raylab
-from raylab.algorithms.registry import ALGORITHMS
 from raylab.utils.checkpoints import get_agent_from_checkpoint
+import raylab.utils.pytorch as ptu
 
 # pylint:disable=invalid-name,missing-docstring,pointless-string-statement
 # pylint:disable=no-value-for-parameter
@@ -120,20 +120,21 @@ def scatter_matrix(dataset, target_dataset=None):
     return gridplot(scatter_plots, sizing_mode="scale_both")
 
 
-def make_histograms(dataset, bins):
+def make_histograms(dataset, bins, ranges=()):
     columns = dataset.columns
+    limits = tuple(zip(*ranges)) if ranges else (None,) * len(columns)
 
     xdr = DataRange1d(bounds=None)
-    ydr = DataRange1d(bounds=None)
-    ydr.start = 0
+    # ydr = DataRange1d(bounds=None)
+    # ydr.start = 0
 
     row = []
-    for col in columns:
-        hist, edges = np.histogram(dataset[col], density=True, bins=bins)
+    for col, limit in zip(columns, limits):
+        hist, edges = np.histogram(dataset[col], density=True, bins=bins, range=limit)
         pic = figure(
             title=col,
             x_range=xdr,
-            y_range=ydr,
+            # y_range=ydr,
             plot_width=200,
             plot_height=240,
             min_border_left=2,
@@ -142,6 +143,7 @@ def make_histograms(dataset, bins):
             min_border_bottom=42,
             tools="",
         )
+        pic.y_range.start = 0
         rend = pic.quad(
             top=hist,
             bottom=0,
@@ -153,7 +155,7 @@ def make_histograms(dataset, bins):
         )
         # pylint:disable=no-member
         xdr.renderers.append(rend)
-        ydr.renderers.append(rend)
+        # ydr.renderers.append(rend)
         # pylint:enable=no-member
 
         pic.grid.grid_line_color = "white"
@@ -164,16 +166,86 @@ def make_histograms(dataset, bins):
     return gridplot([row], sizing_mode="scale_width")
 
 
-# https://discuss.streamlit.io/t/how-can-i-clear-a-specific-cache-only/1963/6
-@st.cache(allow_output_mutation=True)
-def get_rollout(agent):
-    return [produce_rollout(agent)]
+@st.cache(
+    max_entries=1,
+    # pylint:disable=protected-access
+    hash_funcs={torch.jit.RecursiveScriptModule: hash},
+    # pylint:enable=protected-access
+)
+def get_model_samples(module, row, n_samples):
+    obs = ptu.convert_to_tensor(row[SampleBatch.CUR_OBS], "cpu")
+    act = ptu.convert_to_tensor(row[SampleBatch.ACTIONS], "cpu")
+    new_obs, _ = module.sample(obs, act, (n_samples,))
+    return new_obs.detach().numpy()
+
+
+def plot_model_distributions(policy, row):
+    model = policy.module.model
+    n_samples = st.number_input("Number of observation samples", min_value=1, step=1)
+    samples = get_model_samples(model, row, n_samples)
+
+    data = {f"obs[{i}]": samples[..., i] for i in range(samples.shape[-1])}
+    dataset = pd.DataFrame(data)
+
+    new_obs = row[SampleBatch.NEXT_OBS]
+    target_data = {f"new_obs[{i}]": new_obs[i][None] for i in range(new_obs.shape[-1])}
+    target_dataset = pd.DataFrame(target_data)
+
+    bins = st.number_input(
+        "Histogram bins",
+        min_value=1,
+        max_value=n_samples,
+        value=(1 + n_samples) // 2,
+        step=1,
+    )
+    st.bokeh_chart(make_histograms(dataset, bins))
+    st.bokeh_chart(scatter_matrix(dataset, target_dataset))
+
+
+@st.cache(
+    max_entries=1,
+    # pylint:disable=protected-access
+    hash_funcs={torch.jit.RecursiveScriptModule: hash},
+    # pylint:enable=protected-access
+)
+def get_actor_samples(module, row, n_samples):
+    obs = ptu.convert_to_tensor(row[SampleBatch.CUR_OBS], "cpu")
+    acts, _ = module.sample(obs, (n_samples,))
+    return acts.detach().numpy()
+
+
+def plot_actor_distributions(policy, row):
+    actor = policy.module.actor
+    n_samples = st.number_input("Number of action samples", min_value=1, step=1)
+    acts = get_actor_samples(actor, row, n_samples)
+
+    bins = st.number_input(
+        "Histogram bins",
+        min_value=1,
+        max_value=n_samples,
+        value=(1 + n_samples) // 2,
+        step=1,
+    )
+    data = {f"act[{i}]": acts[..., i] for i in range(acts.shape[-1])}
+    dataset = pd.DataFrame(data)
+
+    det, _ = policy.module.actor.deterministic(
+        policy.convert_to_tensor(row[SampleBatch.CUR_OBS])
+    )
+    det.unsqueeze_(0).detach_()
+    det_data = {f"det[{i}]": det[..., i] for i in range(det.shape[-1])}
+    det_dataset = pd.DataFrame(det_data)
+
+    st.bokeh_chart(
+        make_histograms(
+            dataset, bins, ranges=(policy.action_space.low, policy.action_space.high)
+        )
+    )
+    st.bokeh_chart(scatter_matrix(dataset, det_dataset))
 
 
 def plot_distributions(policy, rollout, timestep):
-    obs = policy.convert_to_tensor(rollout[SampleBatch.CUR_OBS][timestep])
-    act = policy.convert_to_tensor(rollout[SampleBatch.ACTIONS][timestep])
-    new_obs = rollout[SampleBatch.NEXT_OBS][timestep]
+    row = list(rollout.rows())[timestep]
 
     components = []
     if "actor" in policy.module:
@@ -183,78 +255,33 @@ def plot_distributions(policy, rollout, timestep):
 
     component = st.selectbox("Inspect module:", options=components)
     if component == "actor":
-        plot_actor_distributions(policy.module.actor, obs)
+        plot_actor_distributions(policy, row)
     elif component == "model":
-        plot_model_distributions(policy.module.model, obs, act, new_obs)
+        plot_model_distributions(policy, row)
 
 
-@st.cache(
-    max_entries=1,
-    # pylint:disable=protected-access
-    hash_funcs={torch.jit.RecursiveScriptModule: hash, torch._C._TensorBase: hash},
-    # pylint:enable=protected-access
-)
-def get_actor_samples(actor, obs, n_samples):
-    return actor.sample(obs, (n_samples,))
-
-
-def plot_actor_distributions(actor, obs):
-    n_samples = st.number_input("Number of action samples", min_value=1, step=1)
-    acts, _ = get_actor_samples(actor, obs, n_samples)
-
-    bins = st.number_input(
-        "Histogram bins",
-        min_value=1,
-        max_value=n_samples,
-        value=(1 + n_samples) // 2,
-        step=1,
-    )
-    acts = acts.detach().numpy()
-    data = {f"act[{i}]": acts[..., i] for i in range(acts.shape[-1])}
-    dataset = pd.DataFrame(data)
-
-    det, _ = actor.deterministic(obs)
-    det.unsqueeze_(0).detach_()
-    det_data = {f"det[{i}]": det[..., i] for i in range(det.shape[-1])}
-    det_dataset = pd.DataFrame(det_data)
-
-    st.bokeh_chart(make_histograms(dataset, bins))
-    st.bokeh_chart(scatter_matrix(dataset, det_dataset))
-
-
-def plot_model_distributions(model, obs, act, new_obs):
-    n_samples = st.number_input("Number of observation samples", min_value=1, step=1)
-    samples, _ = model.sample(obs, act, (n_samples,))
-    samples = samples.numpy()
-
-    data = {f"obs[{i}]": samples[..., i] for i in range(samples.shape[-1])}
-    target_data = {f"new_obs[{i}]": new_obs[i][None] for i in range(new_obs.shape[-1])}
-
-    dataset = pd.DataFrame(data)
-    target_dataset = pd.DataFrame(target_data)
-    chart = scatter_matrix(dataset, target_dataset)
-    st.bokeh_chart(chart)
+# https://discuss.streamlit.io/t/how-can-i-clear-a-specific-cache-only/1963/6
+@st.cache(allow_output_mutation=True)
+def get_rollout(agent):
+    return [produce_rollout(agent)]
 
 
 def main():
     setup()
-    checkpoint = sys.argv[1]
-    options = list(ALGORITHMS.keys()) + [""]
-    agent_id = st.selectbox("Algorithm:", options, index=len(options) - 1)
+    agent_id, checkpoint = sys.argv[1], sys.argv[2]
 
-    if agent_id:
-        evaluate = st.checkbox("Use evaluation config")
-        agent = load_agent(checkpoint, agent_id, evaluate)
+    evaluate = st.checkbox("Use evaluation config")
+    agent = load_agent(checkpoint, agent_id, evaluate)
 
-        rollout_wrapper = get_rollout(agent)
-        if st.button("Sample new episode"):
-            rollout_wrapper.clear()
-            rollout_wrapper.append(produce_rollout(agent))
+    rollout_wrapper = get_rollout(agent)
+    if st.button("Sample new episode"):
+        rollout_wrapper.clear()
+        rollout_wrapper.append(produce_rollout(agent))
 
-        rollout = rollout_wrapper[0]
-        timestep = st.slider("Timestep", min_value=0, max_value=rollout.count - 1)
+    rollout = rollout_wrapper[0]
+    timestep = st.slider("Timestep", min_value=0, max_value=rollout.count - 1)
 
-        plot_distributions(agent.get_policy(), rollout, timestep)
+    plot_distributions(agent.get_policy(), rollout, timestep)
 
 
 if __name__ == "__main__":
