@@ -7,9 +7,9 @@ from ray.tune.registry import TRAINABLE_CLASS, _global_registry
 from ray.rllib.utils import merge_dicts
 
 
-def get_agent_from_checkpoint(checkpoint, agent_name, env, use_eval_config=True):
+def get_agent_from_checkpoint(checkpoint, agent_name, env=None, **config_kwargs):
     """Instatiate and restore agent class from checkpoint."""
-    config = get_config_from_checkpoint(checkpoint, use_eval_config)
+    config = get_config_from_checkpoint(checkpoint, **config_kwargs)
     agent_cls = get_agent_cls(agent_name)
 
     agent = agent_cls(env=env, config=config)
@@ -17,7 +17,7 @@ def get_agent_from_checkpoint(checkpoint, agent_name, env, use_eval_config=True)
     return agent
 
 
-def get_config_from_checkpoint(checkpoint, use_eval_config):
+def get_config_from_checkpoint(checkpoint, use_eval_config=True, config_overrides=None):
     """Find and load configuration for checkpoint file."""
     config = {}
     # Load configuration from file
@@ -39,6 +39,8 @@ def get_config_from_checkpoint(checkpoint, use_eval_config):
         eval_conf = config["evaluation_config"]
         config = merge_dicts(config, eval_conf)
 
+    if config_overrides:
+        config = merge_dicts(config, config_overrides)
     return config
 
 

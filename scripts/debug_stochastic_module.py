@@ -1,10 +1,13 @@
 # pylint:disable=missing-module-docstring,missing-function-docstring,import-outside-toplevel
+import logging
 from pprint import pprint
 import warnings
 
 import click
 
 from raylab.cli.utils import initialize_raylab
+
+logging.getLogger("ray.rllib").setLevel(logging.DEBUG)
 
 
 @click.command()
@@ -85,9 +88,18 @@ def get_agent(agent_name, config_path, checkpoint, evaluate, script):
             else:
                 eval_conf = config["evaluation_config"]
                 config = merge_dicts(config, eval_conf)
+        config = merge_dicts(
+            config, {"batch_mode": "complete_episodes", "rollout_fragment_length": 1}
+        )
     else:
-
-        config = get_config_from_checkpoint(checkpoint, evaluate)
+        config = get_config_from_checkpoint(
+            checkpoint,
+            use_eval_config=evaluate,
+            config_overrides={
+                "batch_mode": "complete_episodes",
+                "rollout_fragment_length": 1,
+            },
+        )
 
     config["num_workers"] = 0
     config["module"]["torch_script"] = script
@@ -179,12 +191,7 @@ def test_sampler(policy, args):
 def produce_rollout(agent):
     # pylint:disable=protected-access
     print(" PRODUCE ROLLOUT ".center(80, "="))
-    import logging
-
-    logging.getLogger("ray.rllib").setLevel(logging.DEBUG)
     worker = agent.workers.local_worker()
-    worker.batch_mode = "complete_episodes"
-    worker.rollout_fragment_length = 4000
 
     print("global_vars:", agent.global_vars)
     print("policy_timestep:", agent.get_policy().global_timestep)

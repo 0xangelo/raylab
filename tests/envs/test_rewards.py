@@ -39,5 +39,4 @@ def test_reproduce_rewards(env_reward):
     obs, action, new_obs, rew = map(torch.Tensor, (obs, action, new_obs, rew))
 
     rew_ = reward_fn(obs, action, new_obs)
-    print((rew - rew_).abs().max())
     assert torch.allclose(rew, rew_, atol=1e-5)
