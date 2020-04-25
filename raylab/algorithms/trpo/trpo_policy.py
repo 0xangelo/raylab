@@ -7,10 +7,11 @@ from ray.rllib.policy.policy import ACTION_LOGP
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
+from raylab.utils import hf_util
+from raylab.utils.dictionaries import get_keys
+from raylab.utils.explained_variance import explained_variance
 import raylab.utils.pytorch as ptu
 from raylab.policy import TorchPolicy
-
-from . import hf_util
 
 
 class TRPOTorchPolicy(TorchPolicy):
@@ -67,7 +68,7 @@ class TRPOTorchPolicy(TorchPolicy):
         batch_tensors = self._lazy_tensor_dict(samples)
         info = {}
 
-        cur_obs, actions, old_logp, advantages = _get_keys(
+        cur_obs, actions, old_logp, advantages = get_keys(
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,
@@ -145,7 +146,7 @@ class TRPOTorchPolicy(TorchPolicy):
     def _perform_line_search(self, pol_grad, descent_step, surr_loss, batch_tensors):
         expected_improvement = pol_grad.dot(descent_step).item()
 
-        cur_obs, actions, old_logp, advantages = _get_keys(
+        cur_obs, actions, old_logp, advantages = get_keys(
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,
@@ -187,7 +188,7 @@ class TRPOTorchPolicy(TorchPolicy):
         info = {}
         mse = torch.nn.MSELoss()
 
-        cur_obs, value_targets, value_preds = _get_keys(
+        cur_obs, value_targets, value_preds = get_keys(
             batch_tensors,
             SampleBatch.CUR_OBS,
             Postprocessing.VALUE_TARGETS,
@@ -205,15 +206,3 @@ class TRPOTorchPolicy(TorchPolicy):
             value_targets.numpy(), value_preds.numpy()
         )
         return info
-
-
-def explained_variance(targets, pred):
-    """Compute the explained variance given targets and predictions."""
-    # pylint:disable=invalid-name
-    targets_var = np.var(targets, axis=0)
-    diff_var = np.var(targets - pred, axis=0)
-    return np.maximum(-1.0, 1.0 - (diff_var / targets_var))
-
-
-def _get_keys(mapping, *keys):
-    return (mapping[k] for k in keys)

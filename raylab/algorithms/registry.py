@@ -49,6 +49,12 @@ def _import_svg_maxent():
     return SVGMaxEntTrainer
 
 
+def _import_acktr():
+    from raylab.algorithms.acktr.acktr import ACKTRTrainer
+
+    return ACKTRTrainer
+
+
 ALGORITHMS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
@@ -58,4 +64,5 @@ ALGORITHMS = {
     "MAPO": _import_mapo,
     "TRPO": _import_trpo,
     "SVGMaxEnt": _import_svg_maxent,
+    "ACKTR": _import_acktr,
 }
