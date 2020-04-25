@@ -69,7 +69,6 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         if config["target_entropy"] is not None:
             info.update(self._update_alpha(batch_tensors, module, config))
 
-        info.update(self.extra_grad_info(batch_tensors))
         self.update_targets("critics", "target_critics")
         return self._learner_stats(info)
 
@@ -78,6 +77,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
         self._optimizer.critics.zero_grad()
         critic_loss.backward()
+        info.update(self.extra_grad_info("critics", batch_tensors))
         self._optimizer.critics.step()
 
         return info
@@ -122,6 +122,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
         self._optimizer.actor.zero_grad()
         actor_loss.backward()
+        info.update(self.extra_grad_info("actor", batch_tensors))
         self._optimizer.actor.step()
 
         return info
@@ -150,6 +151,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
         self._optimizer.alpha.zero_grad()
         alpha_loss.backward()
+        info.update(self.extra_grad_info("alpha", batch_tensors))
         self._optimizer.alpha.step()
 
         return info
@@ -165,11 +167,11 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return entropy_diff, info
 
     @torch.no_grad()
-    def extra_grad_info(self, batch_tensors):  # pylint:disable=unused-argument
+    def extra_grad_info(self, component, batch_tensors):
         """Return statistics right after components are updated."""
+        # pylint:disable=unused-argument
         return {
-            f"grad_norm({k})": nn.utils.clip_grad_norm_(
-                self.module[k].parameters(), float("inf")
+            f"grad_norm({component})": nn.utils.clip_grad_norm_(
+                self.module[component].parameters(), float("inf")
             )
-            for k in "actor critics alpha".split()
         }
