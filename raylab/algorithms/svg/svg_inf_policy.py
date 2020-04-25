@@ -13,11 +13,6 @@ from .svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
 from .rollout_module import ReproduceRollout
 
 
-OptimizerCollection = collections.namedtuple(
-    "OptimizerCollection", "on_policy off_policy"
-)
-
-
 class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
     """Stochastic Value Gradients policy for full trajectories."""
 
@@ -56,7 +51,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
             self.module.actor.parameters(), **self.config["on_policy_optimizer_options"]
         )
 
-        return OptimizerCollection(
+        return collections.namedtuple("OptimizerCollection", "on_policy off_policy")(
             on_policy=on_policy_optim, off_policy=off_policy_optim
         )
 

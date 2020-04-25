@@ -10,11 +10,6 @@ import raylab.utils.pytorch as ptu
 from .svg_base_policy import SVGBaseTorchPolicy
 
 
-OptimizerCollection = collections.namedtuple(
-    "OptimizerCollection", "model actor critic alpha"
-)
-
-
 class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
 
@@ -49,7 +44,7 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
             k: cls(self.module[k].parameters(), **config[k])
             for cls, k in zip(optim_clss, components)
         }
-        return OptimizerCollection(**optims)
+        return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):

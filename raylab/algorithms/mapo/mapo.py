@@ -39,12 +39,12 @@ DEFAULT_CONFIG = with_common_config(
         # each worker will have a replay buffer of this size.
         "buffer_size": 500000,
         # === Optimization ===
-        # PyTorch optimizer to use for policy
-        "policy_optimizer": {"name": "Adam", "options": {"lr": 1e-3}},
-        # PyTorch optimizer to use for critic
-        "critic_optimizer": {"name": "Adam", "options": {"lr": 1e-3}},
-        # PyTorch optimizer to use for model
-        "model_optimizer": {"name": "Adam", "options": {"lr": 1e-3}},
+        # PyTorch optimizers to use
+        "torch_optimizer": {
+            "model": {"type": "Adam", "lr": 1e-3},
+            "actor": {"type": "Adam", "lr": 1e-3},
+            "critics": {"type": "Adam", "lr": 1e-3},
+        },
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
         # === Network ===

@@ -14,11 +14,6 @@ from raylab.utils.exploration import ParameterNoise
 import raylab.utils.pytorch as ptu
 
 
-OptimizerCollection = collections.namedtuple(
-    "OptimizerCollection", "policy critic model"
-)
-
-
 class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     """Model-Aware Policy Optimization policy in PyTorch to use with RLlib."""
 
@@ -58,33 +53,18 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     @override(raypi.TorchPolicy)
     def optimizer(self):
-        policy_optim_name = self.config["policy_optimizer"]["name"]
-        policy_optim_cls = ptu.get_optimizer_class(policy_optim_name)
-        policy_optim_options = self.config["policy_optimizer"]["options"]
-        policy_optim = policy_optim_cls(
-            self.module.actor.parameters(), **policy_optim_options
-        )
-
-        critic_optim_name = self.config["critic_optimizer"]["name"]
-        critic_optim_cls = ptu.get_optimizer_class(critic_optim_name)
-        critic_optim_options = self.config["critic_optimizer"]["options"]
-        critic_optim = critic_optim_cls(
-            self.module.critics.parameters(), **critic_optim_options
-        )
-
+        config = self.config["torch_optimizer"]
+        components = "model actor critics".split()
         if self.config["true_model"]:
-            model_optim = None
-        else:
-            model_optim_name = self.config["model_optimizer"]["name"]
-            model_optim_cls = ptu.get_optimizer_class(model_optim_name)
-            model_optim_options = self.config["model_optimizer"]["options"]
-            model_optim = model_optim_cls(
-                self.module.model.parameters(), **model_optim_options
-            )
-
-        return OptimizerCollection(
-            policy=policy_optim, critic=critic_optim, model=model_optim
-        )
+            components = components[1:]
+        optim_clss = [
+            ptu.get_optimizer_class(config[k].pop("type")) for k in components
+        ]
+        optims = {
+            k: cls(self.module[k].parameters(), **config[k])
+            for cls, k in zip(optim_clss, components)
+        }
+        return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     def set_transition_fn(self, transition_fn):
         """Set the transition function to use when unrolling the policy and model."""
@@ -138,7 +118,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     def _update_critic(self, batch_tensors, module, config):
         critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
-        self._optimizer.critic.zero_grad()
+        self._optimizer.critics.zero_grad()
         critic_loss.backward()
         grad_stats = {
             "critic_grad_norm": nn.utils.clip_grad_norm_(
@@ -147,7 +127,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         }
         info.update(grad_stats)
 
-        self._optimizer.critic.step()
+        self._optimizer.critics.step()
         return info
 
     def compute_critic_loss(self, batch_tensors, module, config):
@@ -307,11 +287,11 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     def _update_policy(self, batch_tensors, module, config):
         policy_loss, info = self.compute_madpg_loss(batch_tensors, module, config)
-        self._optimizer.policy.zero_grad()
+        self._optimizer.actor.zero_grad()
         policy_loss.backward()
         info.update(self.extra_policy_grad_info())
 
-        self._optimizer.policy.step()
+        self._optimizer.actor.step()
         return info
 
     def extra_policy_grad_info(self):

@@ -11,18 +11,33 @@ DEFAULT_CONFIG = with_common_config(
         "lambda": 0.97,
         # Whether to use Generalized Advantage Estimation
         "use_gae": True,
-        # Value function loss weight
-        "vf_loss_coeff": 1.0,
-        # Arguments for KFACOptimizer
-        "kfac": {
-            "eps": 1e-3,
-            "sua": False,
-            "pi": True,
-            "update_freq": 1,
-            "alpha": 0.95,
-            "kl_clip": 1e-2,
-            "eta": 1.0,
-            "lr": 1.0,
+        # Value function iterations per actor step
+        "vf_iters": 20,
+        # PyTorch optimizers to use
+        "torch_optimizer": {
+            "actor": {
+                # Arguments for KFACOptimizer
+                "eps": 1e-3,
+                "sua": False,
+                "pi": True,
+                "update_freq": 1,
+                "alpha": 0.95,
+                "kl_clip": 1e-2,
+                "eta": 1.0,
+                "lr": 1.0,
+            },
+            "critic": {
+                # Can choose different optimizer
+                "type": "KFAC",
+                "eps": 1e-3,
+                "sua": False,
+                "pi": True,
+                "update_freq": 1,
+                "alpha": 0.95,
+                "kl_clip": 1e-2,
+                "eta": 1.0,
+                "lr": 1.0,
+            },
         },
         # Whether to use a line search to calculate policy update.
         # Effectively turns ACKTR into Natural PG when turned off.

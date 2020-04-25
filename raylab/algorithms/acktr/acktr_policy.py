@@ -1,4 +1,6 @@
 """ACKTR policy implemented in PyTorch."""
+import collections
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -11,6 +13,7 @@ from raylab.utils import hf_util
 from raylab.utils.dictionaries import get_keys
 from raylab.utils.explained_variance import explained_variance
 from raylab.utils.kfac import KFACOptimizer
+import raylab.utils.pytorch as ptu
 from raylab.modules.distributions import Normal
 from raylab.policy import TorchPolicy
 
@@ -31,9 +34,21 @@ class ACKTRTorchPolicy(TorchPolicy):
 
     @override(TorchPolicy)
     def optimizer(self):
-        return KFACOptimizer(
-            nn.ModuleList([self.module.actor, self.module.critic]),
-            **self.config["kfac"],
+        config = self.config["torch_optimizer"]
+        components = ["actor", "critic"]
+
+        actor_optim = KFACOptimizer(self.module.actor, **config["actor"])
+
+        optim_type = config["critic"].pop("type")
+        if optim_type == "KFAC":
+            critic_optim = KFACOptimizer(self.module.critic, **config["critic"])
+        else:
+            critic_optim = ptu.get_optimizer_class(optim_type)(
+                self.module.critic.parameters(), **config["critic"]
+            )
+
+        return collections.namedtuple("OptimizerCollection", components)(
+            actor_optim, critic_optim
         )
 
     @override(TorchPolicy)
@@ -70,68 +85,46 @@ class ACKTRTorchPolicy(TorchPolicy):
         batch_tensors = self._lazy_tensor_dict(samples)
         info = {}
 
-        cur_obs, actions, old_logp, advantages, value_targets = get_keys(
+        info.update(self._update_actor(batch_tensors))
+        info.update(self._update_critic(batch_tensors))
+        info.update(self.extra_grad_info(batch_tensors))
+
+        return self._learner_stats(info)
+
+    def _update_actor(self, batch_tensors):
+        info = {}
+        cur_obs, actions, advantages = get_keys(
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,
-            ACTION_LOGP,
             Postprocessing.ADVANTAGES,
-            Postprocessing.VALUE_TARGETS,
         )
 
         # Compute whitening matrices
-        self._compute_precond_matrices(cur_obs)
-
-        # Compute joint loss
-        self._optimizer.zero_grad()
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-        surr_loss = -(self.module.actor.log_prob(cur_obs, actions) * advantages).mean()
-        info["loss(actor)"] = surr_loss.item()
-
-        mse = nn.MSELoss()
-        mse_loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
-        info["loss(critic)"] = mse_loss.item()
-
-        joint_loss = surr_loss + self.config["vf_loss_coeff"] * mse_loss
-        joint_loss.backward()
-        info.update(self.extra_grad_info(batch_tensors))
-        pol_grad = [p.grad.clone() for p in self.module.actor.parameters()]
-        self._optimizer.step()
-
-        if self.config["line_search"]:
-            info.update(self._perform_line_search(pol_grad, surr_loss, batch_tensors))
-
-        with torch.no_grad():
-            info["kl_divergence"] = torch.mean(
-                old_logp - self.module.actor.log_prob(cur_obs, actions)
-            ).item()
-            info["entropy"] = torch.mean(-old_logp).item()
-            info["perplexity"] = torch.mean(-old_logp).exp().item()
-            info["explained_variance"] = explained_variance(
-                value_targets.numpy(), batch_tensors[SampleBatch.VF_PREDS].numpy()
-            )
-        return self._learner_stats(info)
-
-    def _compute_precond_matrices(self, cur_obs):
         n_samples = self.config["logp_samples"]
-        optimizer = self._optimizer
-        with optimizer.record_stats():
-            optimizer.zero_grad()
+        with self._optimizer.actor.record_stats():
+            self._optimizer.actor.zero_grad()
 
             _, log_prob = self.module.actor.sample(cur_obs, (n_samples,))
             log_prob.mean().backward()
 
-            fake_dist = Normal()
-            values = self.module.critic(cur_obs).squeeze(-1)
-            fake_samples = values + torch.randn_like(values)
-            log_prob = fake_dist.log_prob(
-                fake_samples.detach(), {"loc": values, "scale": torch.ones_like(values)}
-            )
-            log_prob.mean().backward()
+        # Compute surrogate loss
+        self._optimizer.actor.zero_grad()
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        surr_loss = -(self.module.actor.log_prob(cur_obs, actions) * advantages).mean()
+        info["loss(actor)"] = surr_loss.item()
+        surr_loss.backward()
+        pol_grad = [p.grad.clone() for p in self.module.actor.parameters()]
+        self._optimizer.actor.step()
+
+        if self.config["line_search"]:
+            info.update(self._perform_line_search(pol_grad, surr_loss, batch_tensors))
+
+        return info
 
     def _perform_line_search(self, pol_grad, surr_loss, batch_tensors):
         # pylint:disable=too-many-locals
-        kl_clip = self._optimizer.state["kl_clip"]
+        kl_clip = self._optimizer.actor.state["kl_clip"]
         expected_improvement = sum(
             (g * p.grad.data).sum()
             for g, p in zip(pol_grad, self.module.actor.parameters())
@@ -180,9 +173,54 @@ class ACKTRTorchPolicy(TorchPolicy):
     def _compute_surr_loss(old_logp, new_logp, advantages):
         return -torch.mean(torch.exp(new_logp - old_logp) * advantages)
 
+    def _update_critic(self, batch_tensors):
+        cur_obs, value_targets = get_keys(
+            batch_tensors, SampleBatch.CUR_OBS, Postprocessing.VALUE_TARGETS,
+        )
+        mse = nn.MSELoss()
+        fake_dist = Normal()
+        fake_scale = torch.ones_like(value_targets)
+
+        for _ in range(self.config["vf_iters"]):
+            if isinstance(self._optimizer.critic, KFACOptimizer):
+                # Compute whitening matrices
+                with self._optimizer.critic.record_stats():
+                    self._optimizer.critic.zero_grad()
+                    values = self.module.critic(cur_obs).squeeze(-1)
+                    fake_samples = values + torch.randn_like(values)
+                    log_prob = fake_dist.log_prob(
+                        fake_samples.detach(), {"loc": values, "scale": fake_scale}
+                    )
+                    log_prob.mean().backward()
+
+            self._optimizer.critic.zero_grad()
+            mse_loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
+            self._optimizer.critic.step()
+
+        return {"loss(critic)": mse_loss.item()}
+
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):  # pylint:disable=unused-argument
         """Return statistics right after components are updated."""
+        info = {}
+        cur_obs, actions, old_logp, value_targets, value_preds = get_keys(
+            batch_tensors,
+            SampleBatch.CUR_OBS,
+            SampleBatch.ACTIONS,
+            ACTION_LOGP,
+            Postprocessing.VALUE_TARGETS,
+            SampleBatch.VF_PREDS,
+        )
+
+        info["kl_divergence"] = torch.mean(
+            old_logp - self.module.actor.log_prob(cur_obs, actions)
+        ).item()
+        info["entropy"] = torch.mean(-old_logp).item()
+        info["perplexity"] = torch.mean(-old_logp).exp().item()
+        info["explained_variance"] = explained_variance(
+            value_targets.numpy(), value_preds.numpy()
+        )
+
         return {
             f"grad_norm({k})": nn.utils.clip_grad_norm_(
                 self.module[k].parameters(), float("inf")

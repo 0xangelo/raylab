@@ -10,11 +10,6 @@ import raylab.utils.pytorch as ptu
 from raylab.policy import TorchPolicy, TargetNetworksMixin
 
 
-OptimizerCollection = collections.namedtuple(
-    "OptimizerCollection", "actor critics alpha"
-)
-
-
 class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
     """Soft Actor-Critic policy in PyTorch to use with RLlib."""
 
@@ -52,7 +47,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
             k: cls(self.module[k].parameters(), **config[k])
             for cls, k in zip(optim_clss, components)
         }
-        return OptimizerCollection(**optims)
+        return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @override(TorchPolicy)
     def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
