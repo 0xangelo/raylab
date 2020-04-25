@@ -19,10 +19,11 @@ def wrap_if_needed(env_creator):
 
     @functools.wraps(env_creator)
     def wrapped(config):
-        time_limit = [config.pop(k, None) for k in ("time_aware", "max_episode_steps")]
-        random_walks = config.pop("random_walks", None)
+        tmp = config.copy()
+        time_limit = [tmp.pop(k, None) for k in ("time_aware", "max_episode_steps")]
+        random_walks = tmp.pop("random_walks", None)
 
-        env = env_creator(config)
+        env = env_creator(tmp)
 
         env = wrap_time_limit(env, *time_limit)
         env = wrap_gaussian_random_walks(env, random_walks)
