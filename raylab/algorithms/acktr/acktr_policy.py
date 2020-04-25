@@ -195,6 +195,7 @@ class ACKTRTorchPolicy(TorchPolicy):
 
             self._optimizer.critic.zero_grad()
             mse_loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
+            mse_loss.backward()
             self._optimizer.critic.step()
 
         return {"loss(critic)": mse_loss.item()}
@@ -220,10 +221,12 @@ class ACKTRTorchPolicy(TorchPolicy):
         info["explained_variance"] = explained_variance(
             value_targets.numpy(), value_preds.numpy()
         )
-
-        return {
-            f"grad_norm({k})": nn.utils.clip_grad_norm_(
-                self.module[k].parameters(), float("inf")
-            )
-            for k in ("actor", "critic")
-        }
+        info.update(
+            {
+                f"grad_norm({k})": nn.utils.clip_grad_norm_(
+                    self.module[k].parameters(), float("inf")
+                )
+                for k in ("actor", "critic")
+            }
+        )
+        return info
