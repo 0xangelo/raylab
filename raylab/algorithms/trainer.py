@@ -2,7 +2,7 @@
 from ray.rllib.agents.trainer import Trainer as _Trainer
 from ray.rllib.utils.annotations import override
 
-_Trainer._allow_unknown_subkeys += ["module"]
+_Trainer._allow_unknown_subkeys += ["module", "torch_optimizer"]
 _Trainer._override_all_subkeys_if_type_changes += ["module"]
 
 
