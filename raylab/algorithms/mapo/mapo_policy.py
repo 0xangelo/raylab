@@ -117,17 +117,16 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return self._learner_stats(info)
 
     def _update_critic(self, batch_tensors, module, config):
-        critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
-        self._optimizer.critics.zero_grad()
-        critic_loss.backward()
+        with self._optimizer.critics.optimize():
+            critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
+            critic_loss.backward()
+
         grad_stats = {
             "critic_grad_norm": nn.utils.clip_grad_norm_(
                 module.critics.parameters(), float("inf")
             )
         }
         info.update(grad_stats)
-
-        self._optimizer.critics.step()
         return info
 
     def compute_critic_loss(self, batch_tensors, module, config):
@@ -162,23 +161,21 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return torch.where(dones, rewards, rewards + config["gamma"] * next_vals)
 
     def _update_model(self, batch_tensors, module, config):
-        if config["model_loss"] == "decision_aware":
-            model_loss, info = self.compute_decision_aware_loss(
-                batch_tensors, module, config
-            )
-        elif config["model_loss"] == "mle":
-            model_loss, info = self.compute_mle_loss(batch_tensors, module)
+        with self._optimizer.model.optimize():
+            if config["model_loss"] == "decision_aware":
+                model_loss, info = self.compute_decision_aware_loss(
+                    batch_tensors, module, config
+                )
+            elif config["model_loss"] == "mle":
+                model_loss, info = self.compute_mle_loss(batch_tensors, module)
+            model_loss.backward()
 
-        self._optimizer.model.zero_grad()
-        model_loss.backward()
         grad_stats = {
             "model_grad_norm": nn.utils.clip_grad_norm_(
                 module.model.parameters(), float("inf")
             )
         }
         info.update(grad_stats)
-
-        self._optimizer.model.step()
         return info
 
     def compute_decision_aware_loss(self, batch_tensors, module, config):
@@ -286,12 +283,11 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return loss, info
 
     def _update_policy(self, batch_tensors, module, config):
-        policy_loss, info = self.compute_madpg_loss(batch_tensors, module, config)
-        self._optimizer.actor.zero_grad()
-        policy_loss.backward()
-        info.update(self.extra_policy_grad_info())
+        with self._optimizer.actor.optimize():
+            policy_loss, info = self.compute_madpg_loss(batch_tensors, module, config)
+            policy_loss.backward()
 
-        self._optimizer.actor.step()
+        info.update(self.extra_policy_grad_info())
         return info
 
     def extra_policy_grad_info(self):

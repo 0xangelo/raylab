@@ -46,22 +46,22 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
         batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
-        self._optimizer.zero_grad()
 
-        model_value_loss, stats = self.compute_joint_model_value_loss(batch_tensors)
-        info.update(stats)
-        model_value_loss.backward()
-
-        with self.freeze_nets("model", "critic"):
-            svg_loss, stats = self.compute_stochastic_value_gradient_loss(batch_tensors)
+        with self._optimizer.optimize():
+            model_value_loss, stats = self.compute_joint_model_value_loss(batch_tensors)
             info.update(stats)
-            kl_loss = self.curr_kl_coeff * self._avg_kl_divergence(batch_tensors)
-            (svg_loss + kl_loss).backward()
+            model_value_loss.backward()
+
+            with self.freeze_nets("model", "critic"):
+                svg_loss, stats = self.compute_stochastic_value_gradient_loss(
+                    batch_tensors
+                )
+                info.update(stats)
+                kl_loss = self.curr_kl_coeff * self._avg_kl_divergence(batch_tensors)
+                (svg_loss + kl_loss).backward()
 
         info.update(self.extra_grad_info(batch_tensors))
-        self._optimizer.step()
         self.update_targets("critic", "target_critic")
-
         return self._learner_stats(info)
 
     def compute_stochastic_value_gradient_loss(self, batch_tensors):

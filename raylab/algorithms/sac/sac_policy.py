@@ -68,13 +68,11 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return self._learner_stats(info)
 
     def _update_critic(self, batch_tensors, module, config):
-        critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
+        with self._optimizer.critics.optimize():
+            critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
+            critic_loss.backward()
 
-        self._optimizer.critics.zero_grad()
-        critic_loss.backward()
         info.update(self.extra_grad_info("critics", batch_tensors))
-        self._optimizer.critics.step()
-
         return info
 
     def compute_critic_loss(self, batch_tensors, module, config):
@@ -113,13 +111,11 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         )
 
     def _update_actor(self, batch_tensors, module, config):
-        actor_loss, info = self.compute_actor_loss(batch_tensors, module, config)
+        with self._optimizer.actor.optimize():
+            actor_loss, info = self.compute_actor_loss(batch_tensors, module, config)
+            actor_loss.backward()
 
-        self._optimizer.actor.zero_grad()
-        actor_loss.backward()
         info.update(self.extra_grad_info("actor", batch_tensors))
-        self._optimizer.actor.step()
-
         return info
 
     @staticmethod
@@ -142,13 +138,11 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return max_objective.neg(), info
 
     def _update_alpha(self, batch_tensors, module, config):
-        alpha_loss, info = self.compute_alpha_loss(batch_tensors, module, config)
+        with self._optimizer.alpha.optimize():
+            alpha_loss, info = self.compute_alpha_loss(batch_tensors, module, config)
+            alpha_loss.backward()
 
-        self._optimizer.alpha.zero_grad()
-        alpha_loss.backward()
         info.update(self.extra_grad_info("alpha", batch_tensors))
-        self._optimizer.alpha.step()
-
         return info
 
     @staticmethod

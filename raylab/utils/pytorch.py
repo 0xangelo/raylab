@@ -1,4 +1,5 @@
 """PyTorch related utilities."""
+import contextlib
 import functools
 import inspect
 
@@ -6,6 +7,21 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.autograd import grad
+
+
+def wrap_optim_cls(base):
+    """Return PyTorch optimizer with additional context manager."""
+
+    class ContextManagerOptim(base):
+        # pylint:disable=missing-class-docstring,too-few-public-methods
+        @contextlib.contextmanager
+        def optimize(self):
+            """Zero grads before yielding and step the optimizer upon exit."""
+            self.zero_grad()
+            yield
+            self.step()
+
+    return ContextManagerOptim
 
 
 def cbrt(value):
@@ -56,7 +72,7 @@ def get_optimizer_class(name):
     if name in dir(torch.optim):
         cls = getattr(torch.optim, name)
         if issubclass(cls, torch.optim.Optimizer) and cls is not torch.optim.Optimizer:
-            return cls
+            return wrap_optim_cls(cls)
     raise ValueError(f"Couldn't find optimizer with name '{name}'")
 
 

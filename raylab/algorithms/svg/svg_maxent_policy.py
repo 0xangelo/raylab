@@ -60,13 +60,9 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
         return self._learner_stats(info)
 
     def _update_model_and_critic(self, batch_tensors):
-        model_value_loss, info = self.compute_joint_model_value_loss(batch_tensors)
-
-        self._optimizer.model.zero_grad()
-        self._optimizer.critic.zero_grad()
-        model_value_loss.backward()
-        self._optimizer.model.step()
-        self._optimizer.critic.step()
+        with self._optimizer.model.optimize(), self._optimizer.critic.optimize():
+            model_value_loss, info = self.compute_joint_model_value_loss(batch_tensors)
+            model_value_loss.backward()
 
         return info
 
@@ -88,11 +84,9 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
         return targets
 
     def _update_actor(self, batch_tensors):
-        svg_loss, info = self.compute_stochastic_value_gradient_loss(batch_tensors)
-
-        self._optimizer.actor.zero_grad()
-        svg_loss.backward()
-        self._optimizer.actor.step()
+        with self._optimizer.actor.optimize():
+            svg_loss, info = self.compute_stochastic_value_gradient_loss(batch_tensors)
+            svg_loss.backward()
 
         return info
 
@@ -124,11 +118,9 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
         )
 
     def _update_alpha(self, batch_tensors):
-        alpha_loss, info = self.compute_alpha_loss(batch_tensors)
-
-        self._optimizer.alpha.zero_grad()
-        alpha_loss.backward()
-        self._optimizer.alpha.step()
+        with self._optimizer.alpha.optimize():
+            alpha_loss, info = self.compute_alpha_loss(batch_tensors)
+            alpha_loss.backward()
 
         return info
 

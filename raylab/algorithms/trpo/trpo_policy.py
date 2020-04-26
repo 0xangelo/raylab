@@ -1,6 +1,7 @@
 """TRPO policy implemented in PyTorch."""
 import numpy as np
 import torch
+import torch.nn as nn
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from ray.rllib.evaluation.postprocessing import Postprocessing, compute_advantages
 from ray.rllib.policy.policy import ACTION_LOGP
@@ -30,7 +31,7 @@ class TRPOTorchPolicy(TorchPolicy):
 
     @override(TorchPolicy)
     def optimizer(self):
-        return torch.optim.Adam(
+        return ptu.get_optimizer_class("Adam")(
             self.module.critic.parameters(), lr=self.config["val_lr"]
         )
 
@@ -68,11 +69,18 @@ class TRPOTorchPolicy(TorchPolicy):
         batch_tensors = self._lazy_tensor_dict(samples)
         info = {}
 
-        cur_obs, actions, old_logp, advantages = get_keys(
+        info.update(self._update_actor(batch_tensors))
+        info.update(self._update_critic(batch_tensors))
+        info.update(self.extra_grad_info(batch_tensors))
+
+        return self._learner_stats(info)
+
+    def _update_actor(self, batch_tensors):
+        info = {}
+        cur_obs, actions, advantages = get_keys(
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,
-            ACTION_LOGP,
             Postprocessing.ADVANTAGES,
         )
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
@@ -97,16 +105,9 @@ class TRPOTorchPolicy(TorchPolicy):
             new_params = (
                 parameters_to_vector(self.module.actor.parameters()) - descent_step
             )
-        vector_to_parameters(new_params, self.module.actor.parameters())
 
-        info.update(self._fit_value_funtion(batch_tensors))
-        with torch.no_grad():
-            info["kl_divergence"] = torch.mean(
-                old_logp - self.module.actor.log_prob(cur_obs, actions)
-            ).item()
-            info["entropy"] = torch.mean(-old_logp).item()
-            info["perplexity"] = torch.mean(-old_logp).exp().item()
-        return self._learner_stats(info)
+        vector_to_parameters(new_params, self.module.actor.parameters())
+        return info
 
     def _compute_descent_step(self, pol_grad, obs):
         """Approximately compute the Natural gradient using samples.
@@ -184,9 +185,9 @@ class TRPOTorchPolicy(TorchPolicy):
     def _compute_surr_loss(old_logp, new_logp, advantages):
         return -torch.mean(torch.exp(new_logp - old_logp) * advantages)
 
-    def _fit_value_funtion(self, batch_tensors):
+    def _update_critic(self, batch_tensors):
         info = {}
-        mse = torch.nn.MSELoss()
+        mse = nn.MSELoss()
 
         cur_obs, value_targets, value_preds = get_keys(
             batch_tensors,
@@ -196,13 +197,44 @@ class TRPOTorchPolicy(TorchPolicy):
         )
 
         for _ in range(self.config["val_iters"]):
-            self._optimizer.zero_grad()
-            loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
-            loss.backward()
-            self._optimizer.step()
+            with self._optimizer.optimize():
+                loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
+                loss.backward()
 
         info["vf_loss"] = loss.item()
         info["explained_variance"] = explained_variance(
             value_targets.numpy(), value_preds.numpy()
+        )
+        return info
+
+    @torch.no_grad()
+    def extra_grad_info(self, batch_tensors):  # pylint:disable=unused-argument
+        """Return statistics right after components are updated."""
+        cur_obs, actions, old_logp, value_targets, value_preds = get_keys(
+            batch_tensors,
+            SampleBatch.CUR_OBS,
+            SampleBatch.ACTIONS,
+            ACTION_LOGP,
+            Postprocessing.VALUE_TARGETS,
+            SampleBatch.VF_PREDS,
+        )
+
+        info = {
+            "kl_divergence": torch.mean(
+                old_logp - self.module.actor.log_prob(cur_obs, actions)
+            ).item(),
+            "entropy": torch.mean(-old_logp).item(),
+            "perplexity": torch.mean(-old_logp).exp().item(),
+            "explained_variance": explained_variance(
+                value_targets.numpy(), value_preds.numpy()
+            ),
+        }
+        info.update(
+            {
+                f"grad_norm({k})": nn.utils.clip_grad_norm_(
+                    self.module[k].parameters(), float("inf")
+                )
+                for k in ("actor", "critic")
+            }
         )
         return info

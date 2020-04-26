@@ -92,14 +92,10 @@ class KFACOptimizer(Optimizer):
     @contextlib.contextmanager
     def record_stats(self):
         """Activate registered forward and backward hooks."""
-        try:
-            self.zero_grad()
-            self._recording = True
-            yield
-        except Exception as excep:
-            raise excep
-        finally:
-            self._recording = False
+        self.zero_grad()
+        self._recording = True
+        yield
+        self._recording = False
 
     def save_input(self, mod, inputs):
         """Saves input of layer to compute covariance."""

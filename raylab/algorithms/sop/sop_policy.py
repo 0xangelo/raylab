@@ -67,17 +67,11 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return self._learner_stats(info)
 
     def _update_critic(self, batch_tensors, module, config):
-        critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
-        self._optimizer.critics.zero_grad()
-        critic_loss.backward()
-        grad_stats = {
-            "critic_grad_norm": nn.utils.clip_grad_norm_(
-                module.critics.parameters(), float("inf")
-            )
-        }
-        info.update(grad_stats)
+        with self._optimizer.critics.optimize():
+            critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
+            critic_loss.backward()
 
-        self._optimizer.critics.step()
+        info.update(self.extra_grad_info("critics", batch_tensors))
         return info
 
     def compute_critic_loss(self, batch_tensors, module, config):
@@ -112,12 +106,11 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return torch.where(dones, rewards, rewards + config["gamma"] * next_vals)
 
     def _update_policy(self, batch_tensors, module, config):
-        policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
-        self._optimizer.actor.zero_grad()
-        policy_loss.backward()
-        info.update(self.extra_policy_grad_info())
+        with self._optimizer.actor.optimize():
+            policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
+            policy_loss.backward()
 
-        self._optimizer.actor.step()
+        info.update(self.extra_grad_info("actor", batch_tensors))
         return info
 
     @staticmethod
@@ -138,10 +131,12 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         }
         return max_objective.neg(), stats
 
-    def extra_policy_grad_info(self):
-        """Return dict of extra info on policy gradient."""
+    @torch.no_grad()
+    def extra_grad_info(self, component, batch_tensors):
+        """Return statistics right after components are updated."""
+        # pylint:disable=unused-argument
         return {
-            "policy_grad_norm": nn.utils.clip_grad_norm_(
-                self.module.actor.parameters(), float("inf")
-            ),
+            f"grad_norm({component})": nn.utils.clip_grad_norm_(
+                self.module[component].parameters(), float("inf")
+            )
         }

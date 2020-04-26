@@ -48,12 +48,11 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
 
-        loss, info = self.compute_loss(batch_tensors, self.module, self.config)
-        self._optimizer.zero_grad()
-        loss.backward()
-        info.update(self.extra_grad_info())
-        self._optimizer.step()
+        with self._optimizer.optimize():
+            loss, info = self.compute_loss(batch_tensors, self.module, self.config)
+            loss.backward()
 
+        info.update(self.extra_grad_info())
         self.update_targets("critics", "target_critics")
         return self._learner_stats(info)
 

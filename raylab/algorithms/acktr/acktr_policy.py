@@ -37,11 +37,15 @@ class ACKTRTorchPolicy(TorchPolicy):
         config = self.config["torch_optimizer"]
         components = ["actor", "critic"]
 
-        actor_optim = KFACOptimizer(self.module.actor, **config["actor"])
+        actor_optim = ptu.wrap_optim_cls(KFACOptimizer)(
+            self.module.actor, **config["actor"]
+        )
 
         optim_type = config["critic"].pop("type")
         if optim_type == "KFAC":
-            critic_optim = KFACOptimizer(self.module.critic, **config["critic"])
+            critic_optim = ptu.wrap_optim_cls(KFACOptimizer)(
+                self.module.critic, **config["critic"]
+            )
         else:
             critic_optim = ptu.get_optimizer_class(optim_type)(
                 self.module.critic.parameters(), **config["critic"]
@@ -99,6 +103,7 @@ class ACKTRTorchPolicy(TorchPolicy):
             SampleBatch.ACTIONS,
             Postprocessing.ADVANTAGES,
         )
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
         # Compute whitening matrices
         n_samples = self.config["logp_samples"]
@@ -107,13 +112,13 @@ class ACKTRTorchPolicy(TorchPolicy):
             log_prob.mean().backward()
 
         # Compute surrogate loss
-        self._optimizer.actor.zero_grad()
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-        surr_loss = -(self.module.actor.log_prob(cur_obs, actions) * advantages).mean()
-        info["loss(actor)"] = surr_loss.item()
-        surr_loss.backward()
-        pol_grad = [p.grad.clone() for p in self.module.actor.parameters()]
-        self._optimizer.actor.step()
+        with self._optimizer.actor.optimize():
+            surr_loss = -(
+                self.module.actor.log_prob(cur_obs, actions) * advantages
+            ).mean()
+            info["loss(actor)"] = surr_loss.item()
+            surr_loss.backward()
+            pol_grad = [p.grad.clone() for p in self.module.actor.parameters()]
 
         if self.config["line_search"]:
             info.update(self._perform_line_search(pol_grad, surr_loss, batch_tensors))
@@ -190,17 +195,15 @@ class ACKTRTorchPolicy(TorchPolicy):
                     )
                     log_prob.mean().backward()
 
-            self._optimizer.critic.zero_grad()
-            mse_loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
-            mse_loss.backward()
-            self._optimizer.critic.step()
+            with self._optimizer.critic.optimize():
+                mse_loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
+                mse_loss.backward()
 
         return {"loss(critic)": mse_loss.item()}
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):  # pylint:disable=unused-argument
         """Return statistics right after components are updated."""
-        info = {}
         cur_obs, actions, old_logp, value_targets, value_preds = get_keys(
             batch_tensors,
             SampleBatch.CUR_OBS,
@@ -210,14 +213,16 @@ class ACKTRTorchPolicy(TorchPolicy):
             SampleBatch.VF_PREDS,
         )
 
-        info["kl_divergence"] = torch.mean(
-            old_logp - self.module.actor.log_prob(cur_obs, actions)
-        ).item()
-        info["entropy"] = torch.mean(-old_logp).item()
-        info["perplexity"] = torch.mean(-old_logp).exp().item()
-        info["explained_variance"] = explained_variance(
-            value_targets.numpy(), value_preds.numpy()
-        )
+        info = {
+            "kl_divergence": torch.mean(
+                old_logp - self.module.actor.log_prob(cur_obs, actions)
+            ).item(),
+            "entropy": torch.mean(-old_logp).item(),
+            "perplexity": torch.mean(-old_logp).exp().item(),
+            "explained_variance": explained_variance(
+                value_targets.numpy(), value_preds.numpy()
+            ),
+        }
         info.update(
             {
                 f"grad_norm({k})": nn.utils.clip_grad_norm_(

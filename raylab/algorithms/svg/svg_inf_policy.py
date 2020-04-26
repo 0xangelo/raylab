@@ -68,23 +68,19 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
     @contextmanager
     def learning_off_policy(self):
         """Signal to policy to use samples for updating off-policy components."""
-        try:
-            old = self._off_policy_learning
-            self._off_policy_learning = True
-            yield
-        finally:
-            self._off_policy_learning = old
+        old = self._off_policy_learning
+        self._off_policy_learning = True
+        yield
+        self._off_policy_learning = old
 
     def _learn_off_policy(self, batch_tensors):
         """Update off-policy components."""
         batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
 
-        loss, _info = self.compute_joint_model_value_loss(batch_tensors)
-        info.update(_info)
-
-        self._optimizer.off_policy.zero_grad()
-        loss.backward()
-        self._optimizer.off_policy.step()
+        with self._optimizer.off_policy.optimize():
+            loss, _info = self.compute_joint_model_value_loss(batch_tensors)
+            info.update(_info)
+            loss.backward()
 
         self.update_targets("critic", "target_critic")
         return self._learner_stats(info)
@@ -93,13 +89,11 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         """Update on-policy components."""
         episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
 
-        loss, info = self.compute_stochastic_value_gradient_loss(episodes)
-        kl_div = self._avg_kl_divergence(batch_tensors)
-        loss = loss + kl_div * self.curr_kl_coeff
-
-        self._optimizer.on_policy.zero_grad()
-        loss.backward()
-        self._optimizer.on_policy.step()
+        with self._optimizer.on_policy.optimize():
+            loss, info = self.compute_stochastic_value_gradient_loss(episodes)
+            kl_div = self._avg_kl_divergence(batch_tensors)
+            loss = loss + kl_div * self.curr_kl_coeff
+            loss.backward()
 
         info.update(self.update_kl_coeff(samples))
         return info
