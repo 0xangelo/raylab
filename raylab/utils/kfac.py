@@ -164,7 +164,7 @@ class KFACOptimizer(Optimizer):
                 x = x.view(x.shape[0], x.shape[1], -1)
             x = x.data.permute(1, 0, 2).reshape(x.shape[1], -1)
         else:
-            x = x.data.t()
+            x = x.data.T
         batch_size = x.shape[1]
 
         if len(group["params"]) == 2:
@@ -172,7 +172,7 @@ class KFACOptimizer(Optimizer):
             x = torch.cat([x, ones], dim=0)
 
         # Computation of xxt
-        xxt = torch.mm(x, x.t()) / batch_size
+        xxt = x @ x.T / batch_size
         if "xxt" in state:
             xxt = state["xxt"] * (1.0 - self.alpha) + xxt * self.alpha
 
@@ -182,10 +182,10 @@ class KFACOptimizer(Optimizer):
             num_locations = gy.shape[2] * gy.shape[3]
             gy = gy.reshape(gy.shape[0], -1)
         else:
-            gy = gy.data.t()
+            gy = gy.data.T
             num_locations = 1
 
-        ggt = torch.mm(gy, gy.t()) / batch_size
+        ggt = gy @ gy.T / batch_size
         if "ggt" in state:
             ggt = state["ggt"] * (1.0 - self.alpha) + ggt * self.alpha
 
@@ -203,9 +203,6 @@ class KFACOptimizer(Optimizer):
         eps = self.eps / num_locations
         diag_xxt = torch.diag(torch.empty(xxt.shape[0]).fill_(torch.sqrt(eps * pi)))
         diag_ggt = torch.diag(torch.empty(ggt.shape[0]).fill_(torch.sqrt(eps / pi)))
-        # sa, ua = torch.symeig(xxt + diag_xxt, eigenvectors=True)
-        # sb, ub = torch.symeig(ggt + diag_ggt, eigenvectors=True)
-        # return {"ua": ua, "sa": sa, "ub": ub, "sb": sb}
         ixxt = (xxt + diag_xxt).inverse()
         iggt = (ggt + diag_ggt).inverse()
         return {"ixxt": ixxt, "iggt": iggt}
@@ -222,10 +219,6 @@ class KFACOptimizer(Optimizer):
             gb = bias.grad.data
             g = torch.cat([g, gb.view(gb.shape[0], 1)], dim=1)
 
-        # ua, sa, ub, sb = (state[k] for k in "ua sa ub sb".split())
-        # projected = ub @ g @ ua.T
-        # scaled = torch.diag(1 / sb) @ projected @ torch.diag(1 / sa)
-        # g = ub.T @ scaled @ ua
         ixxt, iggt = state["ixxt"], state["iggt"]
         g = iggt @ g @ ixxt
         if group["layer_type"] == "Conv2d":
@@ -243,8 +236,6 @@ class KFACOptimizer(Optimizer):
     @staticmethod
     def _precond_sua(weight, bias, state):
         """Preconditioning for KFAC SUA."""
-        ixxt = state["ixxt"]
-        iggt = state["iggt"]
         g = weight.grad.data
         s = g.shape
         g = g.permute(1, 0, 2, 3).contiguous()
@@ -252,10 +243,11 @@ class KFACOptimizer(Optimizer):
             gb = bias.grad.view(1, -1, 1, 1).expand(1, -1, s[2], s[3])
             g = torch.cat([g, gb], dim=0)
 
-        g = torch.mm(ixxt, g.contiguous().view(-1, s[0] * s[2] * s[3]))
-        g = g.view(-1, s[0], s[2], s[3]).permute(1, 0, 2, 3).contiguous()
-        g = torch.mm(iggt, g.view(s[0], -1)).view(s[0], -1, s[2], s[3])
-        g /= state["num_locations"]
+        ixxt, iggt = state["ixxt"], state["iggt"]
+        g = ixxt @ g.reshape(-1, s[0] * s[2] * s[3])
+        g = g.reshape(-1, s[0], s[2], s[3]).permute(1, 0, 2, 3)
+        g = iggt @ g.reshape(s[0], -1)
+        g = g.reshape(s[0], -1, s[2], s[3]) / state["num_locations"]
         if bias is not None:
             gb = g[:, -1, s[2] // 2, s[3] // 2]
             g = g[:, :-1]
