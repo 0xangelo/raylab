@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.autograd import grad
 
 from .dictionaries import all_except
-from .kfac import KFAC
+from .kfac import KFACMixin, KFAC, EKFAC
 
 
 OPTIMIZERS = {
@@ -18,7 +18,7 @@ OPTIMIZERS = {
     for name, cls in [(k, getattr(torch.optim, k)) for k in dir(torch.optim)]
     if isinstance(cls, type) and issubclass(cls, Optimizer) and cls is not Optimizer
 }
-OPTIMIZERS["KFAC"] = KFAC
+OPTIMIZERS.update({"KFAC": KFAC, "EKFAC": EKFAC})
 
 
 def build_optimizer(module, config):
@@ -30,7 +30,7 @@ def build_optimizer(module, config):
             kwargs.
     """
     cls = get_optimizer_class(config["type"], wrap=True)
-    if issubclass(cls, KFAC):
+    if issubclass(cls, KFACMixin):
         return cls(module, **all_except(config, "type"))
     return cls(module.parameters(), **all_except(config, "type"))
 

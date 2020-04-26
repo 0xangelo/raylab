@@ -64,7 +64,8 @@ class KFACMixin:
             state["step"] += 1
 
             # Preconditionning
-            gw, gb = self._precond(weight, bias, group, state)
+            gw, gb, new_state = self._precond(weight, bias, group, state)
+            state.update(new_state)
             # Updating gradients
             fisher_norm += (weight.grad * gw).sum()
             weight.grad.data = gw
@@ -110,7 +111,7 @@ class KFAC(KFACMixin, Optimizer):
     Args:
         net (torch.nn.Module): Network to optimize.
         eps (float): Tikhonov regularization parameter for the inverses.
-        sua (bool): Applies SUA approximation.
+        sua (bool): Applies SUA (Spatially Uncorrelated Activations) approximation.
         pi (bool): Computes pi correction for Tikhonov regularization.
         update_freq (int): Perform inverses every update_freq updates.
         alpha (float): Running average parameter (if == 1, no r. ave.).
@@ -246,7 +247,7 @@ class KFAC(KFACMixin, Optimizer):
             gb = None
 
         g = g.reshape_as(weight)
-        return g, gb
+        return g, gb, {}
 
     @staticmethod
     def _precond_sua(weight, bias, state):
@@ -269,4 +270,121 @@ class KFAC(KFACMixin, Optimizer):
         else:
             gb = None
 
-        return g, gb
+        return g, gb, {}
+
+
+class EKFAC(KFACMixin, Optimizer):
+    """EKFAC Optimizer for Linear layers.
+
+    It works for Linear layers and silently skip other layers.
+    Note: unlike the paper's pseudocode, we maintain running averages of the
+    Kronecker-factored covariance matrices.
+
+    Args:
+        net (torch.nn.Module): Network to optimize.
+        eps (float): Tikhonov regularization parameter for the inverses.
+        update_freq (int): Perform inverses every update_freq updates.
+        alpha (float): Running average parameter (if == 1, no r. ave.).
+        kl_clip (float): Scale the gradients by the squared fisher norm.
+        eta (float): upper bound for gradient scaling.
+    """
+
+    # pylint:disable=invalid-name
+
+    def __init__(
+        self, net, eps, update_freq=1, alpha=1.0, kl_clip=1e-3, eta=1.0, lr=1.0,
+    ):
+        # pylint:disable=too-many-arguments
+        assert isinstance(net, nn.Module), "EKFAC needs access to module structure."
+        self.eps = eps
+        self.update_freq = update_freq
+        self.alpha = alpha
+        self.eta = eta
+        self._fwd_handles = []
+        self._bwd_handles = []
+        self._recording = False
+
+        param_groups = []
+        param_set = set()
+        for mod in net.modules():
+            mod_class = type(mod).__name__
+            if mod_class in ["Linear"]:
+                self._fwd_handles += [mod.register_forward_pre_hook(self.save_input)]
+                self._bwd_handles += [mod.register_backward_hook(self.save_grad_out)]
+                info = None
+                params = [mod.weight]
+                if mod.bias is not None:
+                    params.append(mod.bias)
+                param_groups.append(
+                    {"params": params, "info": info, "layer_type": mod_class}
+                )
+                param_set.update(set(params))
+
+        param_groups.append(
+            {"params": [p for p in net.parameters() if p not in param_set]}
+        )
+        super().__init__(param_groups, {"lr": lr})
+        self.state["kl_clip"] = kl_clip
+
+    def _compute_covs(self, group, state):
+        x, gy = state["x"], state["gy"]
+
+        # Computation of xxt
+        x = x.data.T
+        batch_size = x.shape[1]
+        if len(group["params"]) == 2:
+            x = torch.cat([x, torch.ones_like(x[:1])], dim=0)
+
+        xxt = x @ x.T / batch_size
+        if "xxt" in state:
+            xxt = state["xxt"] * (1.0 - self.alpha) + xxt * self.alpha
+
+        # Computation of ggt
+        gy = gy.data.T
+        num_locations = 1
+
+        ggt = gy @ gy.T / batch_size
+        if "ggt" in state:
+            ggt = state["ggt"] * (1.0 - self.alpha) + ggt * self.alpha
+
+        return {"xxt": xxt, "ggt": ggt, "num_locations": num_locations}
+
+    def _process_covs(self, state):
+        xxt, ggt = state["xxt"], state["ggt"]
+
+        # Regularizes and inverts
+        pi = (torch.trace(xxt) * ggt.shape[0]) / (torch.trace(ggt) * xxt.shape[0])
+        eps = self.eps
+        diag_xxt = torch.diag(torch.empty(xxt.shape[0]).fill_(torch.sqrt(eps * pi)))
+        diag_ggt = torch.diag(torch.empty(ggt.shape[0]).fill_(torch.sqrt(eps / pi)))
+
+        sa, ua = torch.symeig(xxt + diag_xxt, eigenvectors=True)
+        sb, ub = torch.symeig(ggt + diag_ggt, eigenvectors=True)
+        m2 = sb.unsqueeze(1) * sa.unsqueeze(0)
+        return {"ua": ua, "ub": ub, "m2": m2}
+
+    def _precond(self, weight, bias, group, state):
+        g = weight.grad.data
+        if bias is not None:
+            gb = bias.grad.data
+            g = torch.cat([g, gb.view(gb.shape[0], 1)], dim=1)
+        bs = state["x"].size(0)
+
+        ua, ub = state["ua"], state["ub"]
+        projected = ub.T @ g @ ua
+
+        m2 = projected ** 2
+        if "m2" in state:
+            m2 = state["m2"] * self.alpha + (1.0 - self.alpha) * bs * m2
+
+        scaled = projected / (m2 + self.eps)
+        g = ub @ scaled @ ua.T
+
+        if bias is not None:
+            gb = g[:, -1].reshape_as(bias)
+            g = g[:, :-1]
+        else:
+            gb = None
+
+        g = g.reshape_as(weight)
+        return g, gb, {"m2": m2}
