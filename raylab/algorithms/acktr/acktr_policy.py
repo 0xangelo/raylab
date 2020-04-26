@@ -10,12 +10,40 @@ from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.utils import hf_util
-from raylab.utils.dictionaries import get_keys
+import raylab.utils.dictionaries as dutil
 from raylab.utils.explained_variance import explained_variance
-from raylab.utils.kfac import KFACOptimizer
+from raylab.utils.kfac import KFAC
 import raylab.utils.pytorch as ptu
 from raylab.modules.distributions import Normal
 from raylab.policy import TorchPolicy
+
+
+DEFAULT_OPTIM_CONFIG = {
+    "actor": {
+        # Arguments for KFAC
+        "type": "KFAC",
+        "eps": 1e-3,
+        "sua": False,
+        "pi": True,
+        "update_freq": 1,
+        "alpha": 0.95,
+        "kl_clip": 1e-2,
+        "eta": 1.0,
+        "lr": 1.0,
+    },
+    "critic": {
+        # Can choose different optimizer
+        "type": "KFAC",
+        "eps": 1e-3,
+        "sua": False,
+        "pi": True,
+        "update_freq": 1,
+        "alpha": 0.95,
+        "kl_clip": 1e-2,
+        "eta": 1.0,
+        "lr": 1.0,
+    },
+}
 
 
 class ACKTRTorchPolicy(TorchPolicy):
@@ -34,26 +62,16 @@ class ACKTRTorchPolicy(TorchPolicy):
 
     @override(TorchPolicy)
     def optimizer(self):
-        config = self.config["torch_optimizer"]
         components = ["actor", "critic"]
-
-        actor_optim = ptu.wrap_optim_cls(KFACOptimizer)(
-            self.module.actor, **config["actor"]
+        config = dutil.deep_merge(
+            DEFAULT_OPTIM_CONFIG, self.config["torch_optimizer"], False, [], components
         )
+        assert (
+            config["actor"]["type"] == "KFAC"
+        ), "ACKTR must use optimizer with Kronecker Factored curvature estimation."
 
-        optim_type = config["critic"].pop("type")
-        if optim_type == "KFAC":
-            critic_optim = ptu.wrap_optim_cls(KFACOptimizer)(
-                self.module.critic, **config["critic"]
-            )
-        else:
-            critic_optim = ptu.get_optimizer_class(optim_type)(
-                self.module.critic.parameters(), **config["critic"]
-            )
-
-        return collections.namedtuple("OptimizerCollection", components)(
-            actor_optim, critic_optim
-        )
+        optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
+        return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @override(TorchPolicy)
     def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
@@ -97,7 +115,7 @@ class ACKTRTorchPolicy(TorchPolicy):
 
     def _update_actor(self, batch_tensors):
         info = {}
-        cur_obs, actions, advantages = get_keys(
+        cur_obs, actions, advantages = dutil.get_keys(
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,
@@ -133,7 +151,7 @@ class ACKTRTorchPolicy(TorchPolicy):
             for g, p in zip(pol_grad, self.module.actor.parameters())
         ).item()
 
-        cur_obs, actions, old_logp, advantages = get_keys(
+        cur_obs, actions, old_logp, advantages = dutil.get_keys(
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,
@@ -177,7 +195,7 @@ class ACKTRTorchPolicy(TorchPolicy):
         return -torch.mean(torch.exp(new_logp - old_logp) * advantages)
 
     def _update_critic(self, batch_tensors):
-        cur_obs, value_targets = get_keys(
+        cur_obs, value_targets = dutil.get_keys(
             batch_tensors, SampleBatch.CUR_OBS, Postprocessing.VALUE_TARGETS,
         )
         mse = nn.MSELoss()
@@ -185,7 +203,7 @@ class ACKTRTorchPolicy(TorchPolicy):
         fake_scale = torch.ones_like(value_targets)
 
         for _ in range(self.config["vf_iters"]):
-            if isinstance(self._optimizer.critic, KFACOptimizer):
+            if isinstance(self._optimizer.critic, KFAC):
                 # Compute whitening matrices
                 with self._optimizer.critic.record_stats():
                     values = self.module.critic(cur_obs).squeeze(-1)
@@ -204,7 +222,7 @@ class ACKTRTorchPolicy(TorchPolicy):
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):  # pylint:disable=unused-argument
         """Return statistics right after components are updated."""
-        cur_obs, actions, old_logp, value_targets, value_preds = get_keys(
+        cur_obs, actions, old_logp, value_targets, value_preds = dutil.get_keys(
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,

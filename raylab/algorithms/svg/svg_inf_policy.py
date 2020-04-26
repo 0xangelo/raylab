@@ -40,20 +40,15 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
     @override(SVGBaseTorchPolicy)
     def optimizer(self):
         """PyTorch optimizers to use."""
-        optim_cls = ptu.get_optimizer_class(self.config["off_policy_optimizer"])
-        params = [p for k in ("model", "critic") for p in self.module[k].parameters()]
-        off_policy_optim = optim_cls(
-            params, **self.config["off_policy_optimizer_options"]
-        )
+        config = self.config["torch_optimizer"]
+        components = ["on_policy", "off_policy"]
+        module = {
+            "on_policy": self.module.actor,
+            "off_policy": nn.ModuleList([self.module.model, self.module.critic]),
+        }
 
-        optim_cls = ptu.get_optimizer_class(self.config["on_policy_optimizer"])
-        on_policy_optim = optim_cls(
-            self.module.actor.parameters(), **self.config["on_policy_optimizer_options"]
-        )
-
-        return collections.namedtuple("OptimizerCollection", "on_policy off_policy")(
-            on_policy=on_policy_optim, off_policy=off_policy_optim
-        )
+        optims = {k: ptu.build_optimizer(module[k], config[k]) for k in components}
+        return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):

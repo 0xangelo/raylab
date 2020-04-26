@@ -31,9 +31,7 @@ class TRPOTorchPolicy(TorchPolicy):
 
     @override(TorchPolicy)
     def optimizer(self):
-        return ptu.get_optimizer_class("Adam")(
-            self.module.critic.parameters(), lr=self.config["val_lr"]
-        )
+        return ptu.build_optimizer(self.module.critic, self.config["torch_optimizer"])
 
     @override(TorchPolicy)
     def compute_module_ouput(self, input_dict, state=None, seq_lens=None):

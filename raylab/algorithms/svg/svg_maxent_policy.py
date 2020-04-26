@@ -37,13 +37,8 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
         """PyTorch optimizer to use."""
         config = self.config["torch_optimizer"]
         components = "model actor critic alpha".split()
-        optim_clss = [
-            ptu.get_optimizer_class(config[k].pop("type")) for k in components
-        ]
-        optims = {
-            k: cls(self.module[k].parameters(), **config[k])
-            for cls, k in zip(optim_clss, components)
-        }
+
+        optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @override(SVGBaseTorchPolicy)

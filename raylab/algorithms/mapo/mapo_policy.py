@@ -57,13 +57,8 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         components = "model actor critics".split()
         if self.config["true_model"]:
             components = components[1:]
-        optim_clss = [
-            ptu.get_optimizer_class(config[k].pop("type")) for k in components
-        ]
-        optims = {
-            k: cls(self.module[k].parameters(), **config[k])
-            for cls, k in zip(optim_clss, components)
-        }
+
+        optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     def set_transition_fn(self, transition_fn):

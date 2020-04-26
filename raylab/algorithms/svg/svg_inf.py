@@ -11,14 +11,11 @@ DEFAULT_CONFIG = with_base_config(
     SVG_BASE_CONFIG,
     {
         # === Optimization ===
-        # Name of Pytorch optimizer class for dynamics model and value function
-        "off_policy_optimizer": "Adam",
-        # Keyword arguments to be passed to the off-policy optimizer
-        "off_policy_optimizer_options": {"lr": 1e-3},
-        # Name of Pytorch optimizer class for paremetrized policy
-        "on_policy_optimizer": "Adam",
-        # Keyword arguments to be passed to the on-policy optimizer
-        "on_policy_optimizer_options": {"lr": 3e-4},
+        # PyTorch optimizers to use
+        "torch_optimizer": {
+            "on_policy": {"type": "Adam", "lr": 1e-3},
+            "off_policy": {"type": "Adam", "lr": 1e-3},
+        },
         # Model and Value function updates per step in the environment
         "updates_per_step": 1.0,
         # === Regularization ===

@@ -35,9 +35,7 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     @override(raypi.TorchPolicy)
     def optimizer(self):
-        cls = ptu.get_optimizer_class(self.config["torch_optimizer"]["name"])
-        options = self.config["torch_optimizer"]["options"]
-        return cls(self.module.critics.parameters(), **options)
+        return ptu.build_optimizer(self.module.critics, self.config["torch_optimizer"])
 
     @override(raypi.TorchPolicy)
     def compute_module_ouput(self, input_dict, state=None, seq_lens=None):

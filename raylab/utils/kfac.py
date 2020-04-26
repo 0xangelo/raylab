@@ -17,77 +17,15 @@ Adapted from: https://github.com/Thrandis/EKFAC-pytorch
 """
 import contextlib
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import Optimizer
 
 
-class KFACOptimizer(Optimizer):
-    """K-FAC Optimizer for Linear and Conv2d layers.
+class KFACMixin:
+    """Adds methods for forward hooks, covariance computation and updating."""
 
-    Computes the K-FAC of the second moment of the gradients.
-    It works for Linear and Conv2d layers and silently skip other layers.
-
-    Args:
-        net (torch.nn.Module): Network to optimize.
-        eps (float): Tikhonov regularization parameter for the inverses.
-        sua (bool): Applies SUA approximation.
-        pi (bool): Computes pi correction for Tikhonov regularization.
-        update_freq (int): Perform inverses every update_freq updates.
-        alpha (float): Running average parameter (if == 1, no r. ave.).
-        kl_clip (float): Scale the gradients by the squared fisher norm.
-        eta (float): upper bound for gradient scaling.
-    """
-
-    # pylint:disable=invalid-name,too-many-instance-attributes
-
-    def __init__(
-        self,
-        net,
-        eps,
-        sua=False,
-        pi=False,
-        update_freq=1,
-        alpha=1.0,
-        kl_clip=1e-3,
-        eta=1.0,
-        lr=1.0,
-    ):
-        # pylint:disable=too-many-arguments,too-many-locals
-        self.eps = eps
-        self.sua = sua
-        self.pi = pi
-        self.update_freq = update_freq
-        self.alpha = alpha
-        self.eta = eta
-        self._fwd_handles = []
-        self._bwd_handles = []
-        self._recording = False
-
-        param_groups = []
-        param_set = set()
-        for mod in net.modules():
-            mod_class = type(mod).__name__
-            if mod_class in ["Linear", "Conv2d"]:
-                self._fwd_handles += [mod.register_forward_pre_hook(self.save_input)]
-                self._bwd_handles += [mod.register_backward_hook(self.save_grad_out)]
-                info = (
-                    (mod.kernel_size, mod.padding, mod.stride)
-                    if mod_class == "Conv2d"
-                    else None
-                )
-                params = [mod.weight]
-                if mod.bias is not None:
-                    params.append(mod.bias)
-                param_groups.append(
-                    {"params": params, "info": info, "layer_type": mod_class}
-                )
-                param_set.update(set(params))
-
-        param_groups.append(
-            {"params": [p for p in net.parameters() if p not in param_set]}
-        )
-        super(KFACOptimizer, self).__init__(param_groups, {"lr": lr})
-        self.state["kl_clip"] = kl_clip
+    # pylint:disable=assignment-from-no-return,invalid-name
 
     @contextlib.contextmanager
     def record_stats(self):
@@ -151,6 +89,88 @@ class KFACOptimizer(Optimizer):
 
     def _compute_covs(self, group, state):
         """Computes the covariances."""
+
+    def _process_covs(self, state):
+        """Process the covariances for preconditioning gradients later."""
+
+    def _precond(self, weight, bias, group, state):
+        """Applies preconditioning."""
+
+    def __del__(self):
+        for handle in self._fwd_handles + self._bwd_handles:
+            handle.remove()
+
+
+class KFAC(KFACMixin, Optimizer):
+    """K-FAC Optimizer for Linear and Conv2d layers.
+
+    Computes the K-FAC of the second moment of the gradients.
+    It works for Linear and Conv2d layers and silently skip other layers.
+
+    Args:
+        net (torch.nn.Module): Network to optimize.
+        eps (float): Tikhonov regularization parameter for the inverses.
+        sua (bool): Applies SUA approximation.
+        pi (bool): Computes pi correction for Tikhonov regularization.
+        update_freq (int): Perform inverses every update_freq updates.
+        alpha (float): Running average parameter (if == 1, no r. ave.).
+        kl_clip (float): Scale the gradients by the squared fisher norm.
+        eta (float): upper bound for gradient scaling.
+    """
+
+    # pylint:disable=invalid-name,too-many-instance-attributes
+
+    def __init__(
+        self,
+        net,
+        eps,
+        sua=False,
+        pi=False,
+        update_freq=1,
+        alpha=1.0,
+        kl_clip=1e-3,
+        eta=1.0,
+        lr=1.0,
+    ):
+        # pylint:disable=too-many-arguments,too-many-locals
+        assert isinstance(net, nn.Module), "KFAC needs access to module structure."
+        self.eps = eps
+        self.sua = sua
+        self.pi = pi
+        self.update_freq = update_freq
+        self.alpha = alpha
+        self.eta = eta
+        self._fwd_handles = []
+        self._bwd_handles = []
+        self._recording = False
+
+        param_groups = []
+        param_set = set()
+        for mod in net.modules():
+            mod_class = type(mod).__name__
+            if mod_class in ["Linear", "Conv2d"]:
+                self._fwd_handles += [mod.register_forward_pre_hook(self.save_input)]
+                self._bwd_handles += [mod.register_backward_hook(self.save_grad_out)]
+                info = (
+                    (mod.kernel_size, mod.padding, mod.stride)
+                    if mod_class == "Conv2d"
+                    else None
+                )
+                params = [mod.weight]
+                if mod.bias is not None:
+                    params.append(mod.bias)
+                param_groups.append(
+                    {"params": params, "info": info, "layer_type": mod_class}
+                )
+                param_set.update(set(params))
+
+        param_groups.append(
+            {"params": [p for p in net.parameters() if p not in param_set]}
+        )
+        super().__init__(param_groups, {"lr": lr})
+        self.state["kl_clip"] = kl_clip
+
+    def _compute_covs(self, group, state):
         x, gy = state["x"], state["gy"]
         # Computation of xxt
         if group["layer_type"] == "Conv2d":
@@ -189,7 +209,6 @@ class KFACOptimizer(Optimizer):
         return {"xxt": xxt, "ggt": ggt, "num_locations": num_locations}
 
     def _process_covs(self, state):
-        """Process the covariances for preconditioning gradients later."""
         xxt, ggt, num_locations = (state[k] for k in "xxt ggt num_locations".split())
         # Computes pi
         pi = 1.0
@@ -205,7 +224,6 @@ class KFACOptimizer(Optimizer):
         return {"ixxt": ixxt, "iggt": iggt}
 
     def _precond(self, weight, bias, group, state):
-        """Applies preconditioning."""
         if group["layer_type"] == "Conv2d" and self.sua:
             return self._precond_sua(weight, bias, state)
 
@@ -252,7 +270,3 @@ class KFACOptimizer(Optimizer):
             gb = None
 
         return g, gb
-
-    def __del__(self):
-        for handle in self._fwd_handles + self._bwd_handles:
-            handle.remove()

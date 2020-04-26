@@ -15,8 +15,8 @@ DEFAULT_CONFIG = with_common_config(
         "lambda": 0.97,
         # Number of iterations to fit value function
         "val_iters": 80,
-        # Learning rate for critic optimizer
-        "val_lr": 1e-3,
+        # Options for critic optimizer
+        "torch_optimizer": {"type": "Adam", "lr": 1e-3},
         # Whether to use Generalized Advantage Estimation
         "use_gae": True,
         # Configuration for Conjugate Gradient

@@ -40,14 +40,9 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     @override(raypi.TorchPolicy)
     def optimizer(self):
         config = self.config["torch_optimizer"]
-        components = "actor critics".split()
-        optim_clss = [
-            ptu.get_optimizer_class(config[k].pop("type")) for k in components
-        ]
-        optims = {
-            k: cls(self.module[k].parameters(), **config[k])
-            for cls, k in zip(optim_clss, components)
-        }
+        components = ["actor", "critics"]
+
+        optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @override(raypi.TorchPolicy)

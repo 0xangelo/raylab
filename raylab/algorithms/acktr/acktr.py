@@ -16,7 +16,8 @@ DEFAULT_CONFIG = with_common_config(
         # PyTorch optimizers to use
         "torch_optimizer": {
             "actor": {
-                # Arguments for KFACOptimizer
+                # Arguments for KFAC
+                "type": "KFAC",
                 "eps": 1e-3,
                 "sua": False,
                 "pi": True,
@@ -29,13 +30,6 @@ DEFAULT_CONFIG = with_common_config(
             "critic": {
                 # Can choose different optimizer
                 "type": "KFAC",
-                "eps": 1e-3,
-                "sua": False,
-                "pi": True,
-                "update_freq": 1,
-                "alpha": 0.95,
-                "kl_clip": 1e-2,
-                "eta": 1.0,
                 "lr": 1.0,
             },
         },
