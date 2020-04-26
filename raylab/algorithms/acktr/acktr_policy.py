@@ -12,7 +12,7 @@ from ray.rllib.utils.annotations import override
 from raylab.utils import hf_util
 import raylab.utils.dictionaries as dutil
 from raylab.utils.explained_variance import explained_variance
-from raylab.utils.kfac import KFAC
+from raylab.utils.kfac import KFACMixin
 import raylab.utils.pytorch as ptu
 from raylab.modules.distributions import Normal
 from raylab.policy import TorchPolicy
@@ -66,9 +66,10 @@ class ACKTRTorchPolicy(TorchPolicy):
         config = dutil.deep_merge(
             DEFAULT_OPTIM_CONFIG, self.config["torch_optimizer"], False, [], components
         )
-        assert (
-            config["actor"]["type"] == "KFAC"
-        ), "ACKTR must use optimizer with Kronecker Factored curvature estimation."
+        assert config["actor"]["type"] in [
+            "KFAC",
+            "EKFAC",
+        ], "ACKTR must use optimizer with Kronecker Factored curvature estimation."
 
         optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
@@ -203,7 +204,7 @@ class ACKTRTorchPolicy(TorchPolicy):
         fake_scale = torch.ones_like(value_targets)
 
         for _ in range(self.config["vf_iters"]):
-            if isinstance(self._optimizer.critic, KFAC):
+            if isinstance(self._optimizer.critic, KFACMixin):
                 # Compute whitening matrices
                 with self._optimizer.critic.record_stats():
                     values = self.module.critic(cur_obs).squeeze(-1)
