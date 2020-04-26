@@ -93,6 +93,7 @@ class KFACOptimizer(Optimizer):
     def record_stats(self):
         """Activate registered forward and backward hooks."""
         try:
+            self.zero_grad()
             self._recording = True
             yield
         except Exception as excep:

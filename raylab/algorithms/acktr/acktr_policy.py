@@ -103,8 +103,6 @@ class ACKTRTorchPolicy(TorchPolicy):
         # Compute whitening matrices
         n_samples = self.config["logp_samples"]
         with self._optimizer.actor.record_stats():
-            self._optimizer.actor.zero_grad()
-
             _, log_prob = self.module.actor.sample(cur_obs, (n_samples,))
             log_prob.mean().backward()
 
@@ -185,7 +183,6 @@ class ACKTRTorchPolicy(TorchPolicy):
             if isinstance(self._optimizer.critic, KFACOptimizer):
                 # Compute whitening matrices
                 with self._optimizer.critic.record_stats():
-                    self._optimizer.critic.zero_grad()
                     values = self.module.critic(cur_obs).squeeze(-1)
                     fake_samples = values + torch.randn_like(values)
                     log_prob = fake_dist.log_prob(
