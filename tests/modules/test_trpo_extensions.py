@@ -38,7 +38,7 @@ def test_sampler(nf_agent, obs_space, action_space, torch_script):
     assert not torch.allclose(samples, samples_)
 
     logp_ = module.actor.log_prob(batch[SampleBatch.CUR_OBS], samples)
-    assert torch.allclose(logp, logp_, atol=1e-6)
+    assert torch.allclose(logp, logp_, atol=1e-5)
 
 
 def test_flow_params(nf_agent, obs_space, action_space, torch_script):
@@ -56,7 +56,7 @@ def test_reproduce(nf_agent, obs_space, action_space, torch_script):
     acts_, logp_ = module.actor.reproduce(batch[SampleBatch.CUR_OBS], acts)
     assert acts_.shape == acts.shape
     assert acts_.dtype == acts.dtype
-    assert torch.allclose(acts_, acts, atol=1e-6)
+    assert torch.allclose(acts_, acts, atol=1e-5)
     assert logp_.shape == batch[SampleBatch.REWARDS].shape
 
     acts_.mean().backward()
