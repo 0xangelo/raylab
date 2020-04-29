@@ -17,7 +17,7 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        if self.config["target_entropy"] is None:
+        if self.config["target_entropy"] == "auto":
             self.config["target_entropy"] = -action_space.shape[0]
         assert (
             "target_critic" in self.module
@@ -48,9 +48,9 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
 
         info.update(self._update_model_and_critic(batch_tensors))
         info.update(self._update_actor(batch_tensors))
-        info.update(self._update_alpha(batch_tensors))
+        if self.config["target_entropy"] is not None:
+            info.update(self._update_alpha(batch_tensors))
 
-        info.update(self.extra_grad_info(batch_tensors))
         self.update_targets("critic", "target_critic")
         return self._learner_stats(info)
 
@@ -59,6 +59,8 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
             model_value_loss, info = self.compute_joint_model_value_loss(batch_tensors)
             model_value_loss.backward()
 
+        info.update(self.extra_grad_info("model", batch_tensors))
+        info.update(self.extra_grad_info("critic", batch_tensors))
         return info
 
     @override(SVGBaseTorchPolicy)
@@ -83,6 +85,7 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
             svg_loss, info = self.compute_stochastic_value_gradient_loss(batch_tensors)
             svg_loss.backward()
 
+        info.update(self.extra_grad_info("actor", batch_tensors))
         return info
 
     def compute_stochastic_value_gradient_loss(self, batch_tensors):
@@ -117,6 +120,7 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
             alpha_loss, info = self.compute_alpha_loss(batch_tensors)
             alpha_loss.backward()
 
+        info.update(self.extra_grad_info("actor", batch_tensors))
         return info
 
     def compute_alpha_loss(self, batch_tensors):
@@ -132,14 +136,14 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
         return entropy_diff, info
 
     @torch.no_grad()
-    def extra_grad_info(self, batch_tensors):
-        """Return statistics right after components are updated."""
+    def extra_grad_info(self, component, batch_tensors):
+        """Return gradient statistics for component."""
         fetches = {
-            f"grad_norm({k})": nn.utils.clip_grad_norm_(
-                self.module[k].parameters(), float("inf")
+            f"grad_norm({component})": nn.utils.clip_grad_norm_(
+                self.module[component].parameters(), float("inf")
             )
-            for k in "model actor critic alpha".split()
         }
-        _, logp = self.module.actor.sample(batch_tensors[SampleBatch.CUR_OBS])
-        fetches["entropy"] = -logp.mean().item()
+        if component == "actor":
+            _, logp = self.module.actor.sample(batch_tensors[SampleBatch.CUR_OBS])
+            fetches["entropy"] = -logp.mean().item()
         return fetches
