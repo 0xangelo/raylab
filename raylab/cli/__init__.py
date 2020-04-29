@@ -48,9 +48,9 @@ def episodes(path):
 def test_module(agent_id, checkpoint):
     """Launch dashboard to test generative models from a checkpoint."""
     from streamlit.cli import _main_run
-    from . import test_stochastic_module
+    from . import module_dashboard
 
-    _main_run(test_stochastic_module.__file__, [agent_id, checkpoint])
+    _main_run(module_dashboard.__file__, [agent_id, checkpoint])
 
 
 cli.add_command(experiment)
