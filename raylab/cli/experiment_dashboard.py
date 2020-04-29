@@ -2,7 +2,7 @@
 import streamlit as st
 
 from raylab.utils import exp_data as exp_util
-from raylab.cli.utils import time_series
+from raylab.cli.viz import time_series
 
 # pylint:disable=invalid-name,missing-docstring,pointless-string-statement
 # pylint:disable=no-value-for-parameter
