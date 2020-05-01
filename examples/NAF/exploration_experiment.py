@@ -45,6 +45,7 @@ def get_config():
             "encoder": {
                 "units": (128, 128),
                 "activation": "ReLU",
+                "layer_norm": True,
                 "initializer_options": {"name": "xavier_uniform"},
             },
         },
