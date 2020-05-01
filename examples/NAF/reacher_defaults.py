@@ -6,7 +6,7 @@ from ray import tune
 def get_config():
     return {
         # === Environment ===
-        "env": "MujocoReacher",
+        "env": "Reacher-v2",
         "env_config": {"max_episode_steps": 50, "time_aware": True},
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning
@@ -18,6 +18,7 @@ def get_config():
             "encoder": {
                 "units": (400, 300),
                 "activation": "ELU",
+                "layer_norm": True,
                 "initializer_options": {"name": "orthogonal"},
             }
         },
