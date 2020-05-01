@@ -14,25 +14,24 @@ def get_config():
         # === Replay Buffer ===
         "buffer_size": int(2e4),
         # === Network ===
-        # Size and activation of the fully connected network computing the logits
-        # for the normalized advantage function. No layers means the Q function is
-        # linear in states and actions.
         "module": {
-            "layers": [400, 300],
-            "activation": "ELU",
-            "initializer": "orthogonal",
-            "initializer_options": {"gain": np.sqrt(2)},
+            "encoder": {
+                "units": (400, 300),
+                "activation": "ELU",
+                "initializer_options": {"name": "orthogonal"},
+            }
         },
-        # === Exploration ===
-        # Which type of exploration to use. Possible types include
-        # None: use the greedy policy to act
-        # parameter_noise: use parameter space noise
-        # diag_gaussian: use i.i.d gaussian action space noise independently for each
-        #     action dimension
-        # full_gaussian: use gaussian action space noise where the precision matrix is
-        #     given by the advantage function P matrix
-        "exploration": "parameter_noise",
-        "pure_exploration_steps": 500,
+        # === Exploration Settings ===
+        # Provide a dict specifying the Exploration object's config.
+        "exploration_config": {
+            "type": "raylab.utils.exploration.ParameterNoise",
+            "param_noise_spec": {
+                "initial_stddev": 0.1,
+                "desired_action_stddev": 0.3,
+                "adaptation_coeff": 1.01,
+            },
+            "pure_exploration_steps": 500,
+        },
         # === RolloutWorker ===
         "rollout_fragment_length": 1,
         "batch_mode": "complete_episodes",
@@ -43,10 +42,4 @@ def get_config():
         # Evaluate with every `evaluation_interval` training iterations.
         # The evaluation stats will be reported under the "evaluation" metric key.
         "evaluation_interval": 1,
-        # === Debugging ===
-        # Set the ray.rllib.* log level for the agent process and its workers.
-        # Should be one of DEBUG, INFO, WARN, or ERROR. The DEBUG level will also
-        # periodically print out summaries of relevant internal dataflow (this is
-        # also printed out once at startup at the INFO level).
-        "log_level": "WARN",
     }
