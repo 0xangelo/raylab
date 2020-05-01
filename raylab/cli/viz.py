@@ -13,13 +13,9 @@ def time_series(x_key, y_key, groups, labels, individual=False, standard_error=F
     pic.xaxis.axis_label = x_key
     pic.yaxis.axis_label = y_key
     if individual:
-        pic.add_tools(
-            HoverTool(tooltips=[("y", "@y"), ("x", "@x{a}"), ("label", "@label")])
-        )
+        pic.add_tools(HoverTool(tooltips=[("y", "@y"), ("x", "@x{a}"), ("id", "@id")]))
     else:
-        pic.add_tools(
-            HoverTool(tooltips=[("y", "@y_mean"), ("x", "@x{a}"), ("label", "@label")])
-        )
+        pic.add_tools(HoverTool(tooltips=[("y", "@y_mean"), ("x", "@x{a}")]))
 
     for label, group, color in zip(labels, groups, bokeh.palettes.cividis(len(labels))):
         data = group.extract()
@@ -55,8 +51,8 @@ def filter_and_interpolate(x_key, y_key, progresses):
 def plot_individual(pic, x_all, all_ys, data, label, color):
     # pylint:disable=missing-function-docstring,too-many-arguments
     for datum, y_i in zip(data, all_ys):
-        legend_label = label + "-" + str(datum.params["id"])
-        dataframe = pd.DataFrame({"x": x_all, "y": y_i, "label": legend_label})
+        identifier = str(datum.params["id"])
+        dataframe = pd.DataFrame({"x": x_all, "y": y_i, "id": identifier})
         source = ColumnDataSource(data=dataframe)
         pic.line(
             x="x", y="y", source=source, legend_label=label, color=color,
