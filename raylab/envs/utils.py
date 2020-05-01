@@ -2,9 +2,16 @@
 import functools
 
 from gym.wrappers import TimeLimit
+from ray.tune.registry import ENV_CREATOR, _global_registry
 
-from .time_aware_env import AddRelativeTimestep
-from .gaussian_random_walks import GaussianRandomWalks
+from .wrappers import AddRelativeTimestep, GaussianRandomWalks
+
+
+def get_env_creator(env_id):
+    """Return the environment creator funtion for the given environment id."""
+    if not _global_registry.contains(ENV_CREATOR, env_id):
+        raise ValueError(f"Environment id {env_id} not registered in Tune")
+    return _global_registry.get(ENV_CREATOR, env_id)
 
 
 def wrap_if_needed(env_creator):
@@ -12,11 +19,14 @@ def wrap_if_needed(env_creator):
 
     @functools.wraps(env_creator)
     def wrapped(config):
-        env = env_creator(config)
-        env = wrap_time_limit(
-            env, config.get("time_aware"), config.get("max_episode_steps")
-        )
-        env = wrap_gaussian_random_walks(env, config.get("random_walks"))
+        tmp = config.copy()
+        time_limit = [tmp.pop(k, None) for k in ("time_aware", "max_episode_steps")]
+        random_walks = tmp.pop("random_walks", None)
+
+        env = env_creator(tmp)
+
+        env = wrap_time_limit(env, *time_limit)
+        env = wrap_gaussian_random_walks(env, random_walks)
         return env
 
     return wrapped

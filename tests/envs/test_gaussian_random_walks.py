@@ -4,7 +4,7 @@ from functools import partial
 import pytest
 import numpy as np
 
-from raylab.envs.gaussian_random_walks import GaussianRandomWalks
+from raylab.envs.wrappers import GaussianRandomWalks
 from raylab.utils.pytorch import convert_to_tensor
 
 
@@ -43,6 +43,8 @@ def test_basic(env):
 
 
 def test_reward_fn(env):
+    if not hasattr(env, "reward_fn"):
+        pytest.skip("Environment does not have a reward function. Skipping...")
     obs = env.reset()
     act = env.action_space.sample()
     _obs, rew, _, _ = env.step(act)

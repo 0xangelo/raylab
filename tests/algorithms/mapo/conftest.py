@@ -1,9 +1,10 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
-import torch
 from ray.rllib.policy.sample_batch import SampleBatch
 
 from raylab.algorithms.registry import ALGORITHMS as ALGS
+
+from ...mock_env import MockReward
 
 
 @pytest.fixture
@@ -17,20 +18,12 @@ def mapo_policy(mapo_trainer):
 
 
 @pytest.fixture
-def reward_fn():
-    def rew_fn(_, actions, next_obs):
-        reward_dist = -torch.norm(next_obs, dim=-1)
-        reward_ctrl = -torch.sum(actions ** 2, dim=-1)
-        return reward_dist + reward_ctrl
-
-    return rew_fn
-
-
-@pytest.fixture
-def policy_and_batch_fn(policy_and_batch_, mapo_policy, reward_fn):
+def policy_and_batch_fn(policy_and_batch_, mapo_policy, envs):
+    # pylint:disable=unused-argument
     def make_policy_and_batch(config):
+        config["env"] = "MockEnv"
         policy, batch = policy_and_batch_(mapo_policy, config)
-        policy.set_reward_fn(reward_fn)
+        reward_fn = MockReward({})
         batch[SampleBatch.REWARDS] = reward_fn(
             batch[SampleBatch.CUR_OBS],
             batch[SampleBatch.ACTIONS],

@@ -6,24 +6,18 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.modules.catalog import get_module
-import raylab.utils.pytorch as torch_util
-from raylab.policy import TorchPolicy, PureExplorationMixin, TargetNetworksMixin
+import raylab.utils.pytorch as ptu
+from raylab.policy import TorchPolicy, TargetNetworksMixin
 
 
-OptimizerCollection = collections.namedtuple(
-    "OptimizerCollection", "policy critic alpha"
-)
-
-
-class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
+class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
     """Soft Actor-Critic policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        if self.config["target_entropy"] is None:
+        if self.config["target_entropy"] == "auto":
             self.config["target_entropy"] = -action_space.shape[0]
 
     @staticmethod
@@ -38,59 +32,21 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
     @override(TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
-        module_config["double_q"] = config["clipped_double_q"]
-        module_config["mean_action_only"] = config["mean_action_only"]
-        module = get_module(
-            module_config["name"], obs_space, action_space, module_config
-        )
-        return torch.jit.script(module) if module_config["torch_script"] else module
+        module_config.setdefault("critic", {})
+        module_config["critic"]["double_q"] = config["clipped_double_q"]
+        return super().make_module(obs_space, action_space, config)
 
     @override(TorchPolicy)
     def optimizer(self):
-        policy_optim_name = self.config["policy_optimizer"]["name"]
-        policy_optim_cls = torch_util.get_optimizer_class(policy_optim_name)
-        policy_optim_options = self.config["policy_optimizer"]["options"]
-        policy_optim = policy_optim_cls(
-            self.module.actor.parameters(), **policy_optim_options
-        )
+        config = self.config["torch_optimizer"]
+        components = "actor critics alpha".split()
 
-        critic_optim_name = self.config["critic_optimizer"]["name"]
-        critic_optim_cls = torch_util.get_optimizer_class(critic_optim_name)
-        critic_optim_options = self.config["critic_optimizer"]["options"]
-        critic_optim = critic_optim_cls(
-            self.module.critics.parameters(), **critic_optim_options
-        )
+        optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
+        return collections.namedtuple("OptimizerCollection", components)(**optims)
 
-        alpha_optim_name = self.config["alpha_optimizer"]["name"]
-        alpha_optim_cls = torch_util.get_optimizer_class(alpha_optim_name)
-        alpha_optim_options = self.config["alpha_optimizer"]["options"]
-        alpha_optim = alpha_optim_cls([self.module.log_alpha], **alpha_optim_options)
-
-        return OptimizerCollection(
-            policy=policy_optim, critic=critic_optim, alpha=alpha_optim
-        )
-
-    @torch.no_grad()
     @override(TorchPolicy)
-    def compute_actions(
-        self,
-        obs_batch,
-        state_batches,
-        prev_action_batch=None,
-        prev_reward_batch=None,
-        info_batch=None,
-        episodes=None,
-        **kwargs
-    ):
-        # pylint: disable=too-many-arguments,unused-argument
-        obs_batch = self.convert_to_tensor(obs_batch)
-
-        if self.is_uniform_random:
-            actions = self._uniform_random_actions(obs_batch)
-        else:
-            actions, _ = self.module.actor.rsample(obs_batch)
-
-        return actions.cpu().numpy(), state_batches, {}
+    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
+        return input_dict[SampleBatch.CUR_OBS], state
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
@@ -99,24 +55,19 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         info = {}
 
         info.update(self._update_critic(batch_tensors, module, config))
-        info.update(self._update_policy(batch_tensors, module, config))
-        info.update(self._update_alpha(batch_tensors, module, config))
+        info.update(self._update_actor(batch_tensors, module, config))
+        if config["target_entropy"] is not None:
+            info.update(self._update_alpha(batch_tensors, module, config))
 
         self.update_targets("critics", "target_critics")
         return self._learner_stats(info)
 
     def _update_critic(self, batch_tensors, module, config):
-        critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
-        self._optimizer.critic.zero_grad()
-        critic_loss.backward()
-        grad_stats = {
-            "critic_grad_norm": nn.utils.clip_grad_norm_(
-                module.critics.parameters(), float("inf")
-            )
-        }
-        info.update(grad_stats)
+        with self._optimizer.critics.optimize():
+            critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
+            critic_loss.backward()
 
-        self._optimizer.critic.step()
+        info.update(self.extra_grad_info("critics", batch_tensors))
         return info
 
     def compute_critic_loss(self, batch_tensors, module, config):
@@ -130,13 +81,13 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         values = torch.cat([m(obs, actions) for m in module.critics], dim=-1)
         critic_loss = loss_fn(values, target_values.unsqueeze(-1).expand_as(values))
 
-        stats = {
+        info = {
             "q_mean": values.mean().item(),
             "q_max": values.max().item(),
             "q_min": values.min().item(),
-            "td_error": critic_loss.item(),
+            "loss(critics)": critic_loss.item(),
         }
-        return critic_loss, stats
+        return critic_loss, info
 
     @staticmethod
     def _compute_critic_targets(batch_tensors, module, config):
@@ -151,27 +102,19 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         return torch.where(
             dones,
             rewards,
-            rewards + config["gamma"] * (next_vals - module.log_alpha.exp() * logp),
+            rewards + config["gamma"] * (next_vals - module.alpha() * logp),
         )
 
-    def _update_policy(self, batch_tensors, module, config):
-        policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
-        self._optimizer.policy.zero_grad()
-        policy_loss.backward()
-        grad_stats = {
-            "policy_grad_norm": nn.utils.clip_grad_norm_(
-                module.actor.parameters(), float("inf")
-            )
-        }
-        info.update(grad_stats)
+    def _update_actor(self, batch_tensors, module, config):
+        with self._optimizer.actor.optimize():
+            actor_loss, info = self.compute_actor_loss(batch_tensors, module, config)
+            actor_loss.backward()
 
-        self._optimizer.policy.step()
-        apply_stats = {}
-        info.update(apply_stats)
+        info.update(self.extra_grad_info("actor", batch_tensors))
         return info
 
     @staticmethod
-    def compute_policy_loss(batch_tensors, module, config):
+    def compute_actor_loss(batch_tensors, module, config):
         """Compute Soft Policy Iteration loss for reparameterized stochastic policy."""
         # pylint: disable=unused-argument
         obs = batch_tensors[SampleBatch.CUR_OBS]
@@ -180,26 +123,21 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         action_values, _ = torch.cat(
             [m(obs, actions) for m in module.critics], dim=-1
         ).min(dim=-1)
-        max_objective = torch.mean(action_values - module.log_alpha.exp() * logp)
+        max_objective = torch.mean(action_values - module.alpha() * logp)
 
-        stats = {
-            "policy_loss": max_objective.neg().item(),
+        info = {
+            "loss(actor)": max_objective.neg().item(),
             "qpi_mean": action_values.mean().item(),
-            "logp_mean": logp.mean().item(),
+            "entropy": -logp.mean().item(),
         }
-        return max_objective.neg(), stats
+        return max_objective.neg(), info
 
     def _update_alpha(self, batch_tensors, module, config):
-        alpha_loss, info = self.compute_alpha_loss(batch_tensors, module, config)
-        self._optimizer.alpha.zero_grad()
-        alpha_loss.backward()
-        grad_stats = {
-            "alpha_grad_norm": self.module.log_alpha.grad.norm().item(),
-            "curr_alpha": self.module.log_alpha.exp().item(),
-        }
-        info.update(grad_stats)
+        with self._optimizer.alpha.optimize():
+            alpha_loss, info = self.compute_alpha_loss(batch_tensors, module, config)
+            alpha_loss.backward()
 
-        self._optimizer.alpha.step()
+        info.update(self.extra_grad_info("alpha", batch_tensors))
         return info
 
     @staticmethod
@@ -207,6 +145,17 @@ class SACTorchPolicy(PureExplorationMixin, TargetNetworksMixin, TorchPolicy):
         """Compute entropy coefficient loss."""
         with torch.no_grad():
             _, logp = module.actor.rsample(batch_tensors[SampleBatch.CUR_OBS])
-        alpha = module.log_alpha.exp()
+        alpha = module.alpha()
         entropy_diff = torch.mean(-alpha * logp - alpha * config["target_entropy"])
-        return entropy_diff, {"alpha_loss": entropy_diff.item()}
+        info = {"loss(alpha)": entropy_diff.item(), "curr_alpha": alpha.item()}
+        return entropy_diff, info
+
+    @torch.no_grad()
+    def extra_grad_info(self, component, batch_tensors):
+        """Return statistics right after components are updated."""
+        # pylint:disable=unused-argument
+        return {
+            f"grad_norm({component})": nn.utils.clip_grad_norm_(
+                self.module[component].parameters(), float("inf")
+            )
+        }

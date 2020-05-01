@@ -6,10 +6,9 @@ from ray.rllib.optimizers import PolicyOptimizer
 
 from raylab.algorithms import Trainer
 from raylab.utils.replay_buffer import ReplayBuffer
-from raylab.algorithms.mixins import ExplorationPhaseMixin
 
 
-class GenericOffPolicyTrainer(ExplorationPhaseMixin, Trainer):
+class GenericOffPolicyTrainer(Trainer):
     """Generic trainer for off-policy agents."""
 
     # pylint: disable=attribute-defined-outside-init
@@ -34,8 +33,6 @@ class GenericOffPolicyTrainer(ExplorationPhaseMixin, Trainer):
         policy = worker.get_policy()
 
         while not self._iteration_done():
-            self.update_exploration_phase()
-
             samples = worker.sample()
             self.optimizer.num_steps_sampled += samples.count
             for row in samples.rows():
@@ -52,7 +49,7 @@ class GenericOffPolicyTrainer(ExplorationPhaseMixin, Trainer):
     def _validate_config(config):
         assert config["num_workers"] == 0, "No point in using additional workers."
         assert (
-            config["sample_batch_size"] >= 1
+            config["rollout_fragment_length"] >= 1
         ), "At least one sample must be collected."
         assert (
             config["batch_mode"] == "complete_episodes"

@@ -1,27 +1,30 @@
 """Actor-Critic architecture used in Soft Actor-Critic (SAC)."""
-from ray.rllib.utils import merge_dicts
+from raylab.utils.dictionaries import deep_merge
 
-from .actor_critic import AbstractActorCritic
-from .stochastic_actor_mixin import MaximumEntropyMixin, StochasticActorMixin
-from .action_value_mixin import ActionValueMixin
+from .abstract import AbstractActorCritic
+from .mixins import MaximumEntropyMixin, StochasticActorMixin, ActionValueMixin
 
 
 BASE_CONFIG = {
-    "double_q": True,
-    "mean_action_only": False,
     "torch_script": False,
     "actor": {
-        "units": (32, 32),
-        "activation": "ReLU",
-        "initializer_options": {"name": "xavier_uniform"},
+        "encoder": {
+            "units": (400, 300),
+            "activation": "ReLU",
+            "initializer_options": {"name": "xavier_uniform"},
+        },
         "input_dependent_scale": True,
     },
     "critic": {
-        "units": (32, 32),
-        "activation": "ReLU",
-        "initializer_options": {"name": "xavier_uniform"},
-        "delay_action": True,
+        "double_q": False,
+        "encoder": {
+            "units": (400, 300),
+            "activation": "ReLU",
+            "initializer_options": {"name": "xavier_uniform"},
+            "delay_action": True,
+        },
     },
+    "entropy": {"initial_alpha": 0.05},
 }
 
 
@@ -33,4 +36,5 @@ class SACModule(
     # pylint:disable=abstract-method
 
     def __init__(self, obs_space, action_space, config):
-        super().__init__(obs_space, action_space, merge_dicts(BASE_CONFIG, config))
+        config = deep_merge(BASE_CONFIG, config, False, ["actor", "critic", "entropy"])
+        super().__init__(obs_space, action_space, config)

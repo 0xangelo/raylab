@@ -5,7 +5,7 @@ from .utils import initialize_raylab
 
 
 @click.command()
-@click.argument("run", type=str)
+@click.argument("run_or_experiment", type=str)
 @click.option("--name", default=None, help="Name of experiment")
 @click.option(
     "--local-dir",
@@ -81,6 +81,13 @@ from .utils import initialize_raylab
     help="Logging level for the trial executor process. This is independent from each "
     "trainer's logging level.",
 )
+@click.option(
+    "--restore",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True),
+    default=None,
+    show_default=True,
+    help="Path to checkpoint. Only makes sense to set if running 1 trial.",
+)
 @click.pass_context
 @initialize_raylab
 def experiment(ctx, **args):
@@ -95,34 +102,29 @@ def experiment(ctx, **args):
     from raylab.logger import DEFAULT_LOGGERS as CUSTOM_LOGGERS
     from raylab.utils.dynamic_import import import_module_from_path
 
-    if not osp.exists(args["local_dir"]) and click.confirm(
-        "Provided `local_dir` does not exist. Create it?"
-    ):
+    msg = "Provided `local_dir` does not exist. Create it?"
+    if not osp.exists(args["local_dir"]) and click.confirm(msg):
         os.makedirs(args["local_dir"])
-        click.echo("Created directory {}".format(args["local_dir"]))
+        click.echo(f"Created directory {args['local_dir']}")
 
     exp_dir = osp.join(args["local_dir"], args["name"])
-    if osp.exists(exp_dir) and not click.confirm(
-        f"Experiment directory {exp_dir} already exists. Proceed anyway?"
-    ):
-        ctx.exit()
+    if osp.exists(exp_dir):
+        msg = f"Experiment directory {exp_dir} already exists. Remove and proceed?"
+        if not click.confirm(msg):
+            ctx.exit()
 
-    if args["config"] is None:
-        config = {}
-    else:
-        module = import_module_from_path(args["config"])
-        config = module.get_config()
+        import shutil
 
-    ray.init(object_store_memory=args["object_store_memory"])
-    logging.getLogger("ray.tune").setLevel(args["tune_log_level"])
-    tune.run(
-        args["run"],
-        name=args["name"],
-        local_dir=args["local_dir"],
-        num_samples=args["num_samples"],
-        stop={k: v for k, v in args["stop"]},
-        config=config,
-        checkpoint_freq=args["checkpoint_freq"],
-        checkpoint_at_end=args["checkpoint_at_end"],
-        loggers=CUSTOM_LOGGERS if args["custom_loggers"] else None,
-    )
+        shutil.rmtree(exp_dir)
+        click.echo(f"Removed directory {exp_dir}")
+
+    config = args.pop("config", {})
+    if config:
+        config = import_module_from_path(config).get_config()
+
+    ray.init(object_store_memory=args.pop("object_store_memory"))
+    logging.getLogger("ray.tune").setLevel(args.pop("tune_log_level"))
+
+    args["stop"] = dict(args["stop"])
+    loggers = CUSTOM_LOGGERS if args.pop("custom_loggers") else None
+    tune.run(config=config, loggers=loggers, **args)

@@ -3,14 +3,18 @@ import pytest
 import torch
 
 
-@pytest.fixture(params=(None, -4))
+@pytest.fixture(params=("auto", -4))
 def config(request):
     return {"target_entropy": request.param}
 
 
 def test_alpha_init(policy_and_batch_fn, config):
     policy, _ = policy_and_batch_fn(config)
-    target = config["target_entropy"] or -policy.action_space.shape[0]
+    target = (
+        -policy.action_space.shape[0]
+        if config["target_entropy"] == "auto"
+        else config["target_entropy"]
+    )
 
     assert policy.config["target_entropy"] is not None
     assert policy.config["target_entropy"] == target
@@ -24,4 +28,4 @@ def test_alpha_loss(policy_and_batch_fn, config):
     assert loss.dtype == torch.float32
 
     loss.backward()
-    assert policy.module.log_alpha.grad is not None
+    assert all(p.grad is not None for p in policy.module.alpha.parameters())

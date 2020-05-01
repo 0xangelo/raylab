@@ -11,7 +11,7 @@ repos:
         stages: [commit, push]
       - id: check-docstring-first       # Checks for a common error of placing code before the docstring.
         stages: [commit, push]
-        exclude: raylab/cli/experiment_dashboard.py
+        exclude: raylab/cli/
       - id: check-executables-have-shebangs # Checks that non-binary executables have a proper shebang.
         stages: [commit, push]
       - id: check-json                  # Attempts to load all json files to verify syntax.
@@ -67,3 +67,4 @@ repos:
         types: [python]
         stages: [commit]
         args: [-j 0]
+        exclude: "examples*"

@@ -1,9 +1,8 @@
 """Experiment monitoring with Streamlit."""
 import streamlit as st
-import numpy as np
-import bokeh
-from bokeh.plotting import figure
+
 from raylab.utils import exp_data as exp_util
+from raylab.cli.viz import time_series
 
 # pylint:disable=invalid-name,missing-docstring,pointless-string-statement
 # pylint:disable=no-value-for-parameter
@@ -40,48 +39,6 @@ def dict_value_multiselect(mapping, name=None):
     return items
 
 
-def time_series(x_key, y_key, groups, labels):
-    # pylint:disable=too-many-locals,too-many-function-args
-    p = figure(title="Plot")
-    p.xaxis.axis_label = x_key
-    p.yaxis.axis_label = y_key
-    palette = bokeh.palettes.cividis(len(labels))
-
-    individual = st.checkbox("Show individual curves")
-    print(labels)
-    for idx, (label, group) in enumerate(zip(labels, groups)):
-        data = group.extract()
-        progresses = [d.progress for d in data]
-        x_all = np.unique(
-            np.sort(np.concatenate([p.get(x_key, []) for p in progresses]))
-        )
-        all_ys = [
-            np.interp(x_all, p[x_key], p[y_key], left=np.nan, right=np.nan)
-            for p in progresses
-        ]
-
-        if individual:
-            for datum, y_i in zip(data, all_ys):
-                legend_label = label + "-" + str(datum.params["id"])
-                p.line(x_all, y_i, legend_label=legend_label, color=palette[idx])
-        else:
-            y_mean = np.nanmean(all_ys, axis=0)
-            y_std = np.nanstd(all_ys, axis=0)
-            p.line(x_all, y_mean, legend_label=label, color=palette[idx])
-            p.varea(
-                x_all,
-                y1=y_mean - y_std,
-                y2=y_mean + y_std,
-                fill_alpha=0.25,
-                legend_label=label,
-                color=palette[idx],
-            )
-
-        p.legend.location = "bottom_left"
-        p.legend.click_policy = "hide"
-    return p
-
-
 def main():
     # pylint:disable=too-many-locals
     import sys
@@ -95,7 +52,6 @@ def main():
 
     if folders:
         exps_data = load_data(tuple(folders), include_errors=include_errors)
-        selector = exp_util.Selector(exps_data)
         distinct_params = dict(sorted(exp_util.extract_distinct_params(exps_data)))
 
         include = dict_value_multiselect(distinct_params, name="Include")
@@ -108,8 +64,16 @@ def main():
         if exps_data:
             plottable_keys = exp_util.get_plottable_keys(exps_data)
             x_plottable_keys = exp_util.get_x_plottable_keys(plottable_keys, exps_data)
-            x_key = st.selectbox("X axis:", x_plottable_keys)
-            y_key = st.selectbox("Y axis:", plottable_keys)
+            x_key = st.selectbox(
+                "X axis:",
+                x_plottable_keys,
+                index=x_plottable_keys.index("timesteps_total"),
+            )
+            y_key = st.selectbox(
+                "Y axis:",
+                plottable_keys,
+                index=plottable_keys.index("episode_reward_mean"),
+            )
 
             distinct_params = dict(sorted(exp_util.extract_distinct_params(exps_data)))
             split = st.selectbox(
@@ -125,7 +89,17 @@ def main():
                 labels = ["experiment"]
                 groups = [selector]
 
-            st.bokeh_chart(time_series(x_key, y_key, groups, labels))
+            individual = st.checkbox("Show individual curves")
+            standard_error = st.checkbox("Use standard error")
+            chart = time_series(
+                x_key,
+                y_key,
+                groups,
+                labels,
+                individual=individual,
+                standard_error=standard_error,
+            )
+            st.bokeh_chart(chart)
 
 
 if __name__ == "__main__":

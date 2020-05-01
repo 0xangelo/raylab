@@ -7,7 +7,7 @@ from raylab.utils.debug import fake_batch
 
 @pytest.fixture
 def config():
-    return {"true_model": True}
+    return {"true_model": True, "env": "Navigation"}
 
 
 @pytest.fixture
@@ -19,7 +19,6 @@ def navigation_env(envs):
 def policy_and_env(mapo_policy, navigation_env, config):
     env = navigation_env({})
     policy = mapo_policy(env.observation_space, env.action_space, config)
-    policy.set_reward_fn(env.reward_fn)
     policy.set_transition_fn(env.transition_fn)
     return policy, env
 
@@ -59,5 +58,5 @@ def test_madpg_loss(policy_and_env):
         p.grad is not None
         and torch.isfinite(p.grad).all()
         and not torch.isnan(p.grad).all()
-        for p in policy.module.actor.policy.parameters()
+        for p in policy.module.actor.parameters()
     )

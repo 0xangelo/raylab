@@ -1,47 +1,46 @@
-"""Tune experiment configuration to test SAC in HalfCheetah-v3."""
-import numpy as np
 from ray import tune
 
 
 def get_config():
     return {
         # === Environment ===
-        "env": "HalfCheetah-v3",
-        "env_config": {"max_episode_steps": 250, "time_aware": False},
-        # === Twin Delayed DDPG (TD3) tricks ===
-        # Clipped Double Q-Learning
-        "clipped_double_q": True,
+        "env": "HalfCheetahBulletEnv-v0",
+        "env_config": {"max_episode_steps": 1000, "time_aware": False},
         # === Replay Buffer ===
-        "buffer_size": int(1e5),
-        # === Exploration ===
-        "pure_exploration_steps": 5000,
+        "buffer_size": int(2e5),
+        # === Optimization ===
+        # PyTorch optimizers to use
+        "torch_optimizer": {
+            "actor": {"type": "Adam", "lr": 3e-4},
+            "critics": {"type": "Adam", "lr": 3e-4},
+            "alpha": {"type": "Adam", "lr": 3e-4},
+        },
         # === Network ===
-        # Size and activation of the fully connected networks computing the logits
-        # for the policy and action-value function. No layers means the component is
-        # linear in states and/or actions.
         "module": {
-            "policy": {
-                "activation": "ELU",
-                "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
+            "actor": {
                 "input_dependent_scale": True,
+                "encoder": {
+                    "units": (256, 256),
+                    "activation": "ELU",
+                    "layer_norm": True,
+                    "initializer_options": {"name": "orthogonal"},
+                },
             },
             "critic": {
-                "activation": "ELU",
-                "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
-                "delay_action": True,
+                "encoder": {
+                    "units": (256, 256),
+                    "activation": "ELU",
+                    "initializer_options": {"name": "orthogonal"},
+                },
             },
         },
+        # === Exploration Settings ===
+        "exploration_config": {"pure_exploration_steps": 10000},
         # === Trainer ===
-        "train_batch_size": 128,
+        "train_batch_size": 256,
         "timesteps_per_iteration": 1000,
         # === Evaluation ===
         # Evaluate with every `evaluation_interval` training iterations.
         # The evaluation stats will be reported under the "evaluation" metric key.
-        "evaluation_interval": 20,
-        # === Debugging ===
-        # Set the ray.rllib.* log level for the agent process and its workers.
-        # Should be one of DEBUG, INFO, WARN, or ERROR. The DEBUG level will also
-        # periodically print out summaries of relevant internal dataflow (this is
-        # also printed out once at startup at the INFO level).
-        "log_level": "WARN",
+        "evaluation_interval": 5,
     }

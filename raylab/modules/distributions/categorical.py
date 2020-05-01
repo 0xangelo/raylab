@@ -7,10 +7,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ray.rllib.utils.annotations import override
 
-from .abstract import DistributionModule
+from .abstract import ConditionalDistribution
 
 
-class Categorical(DistributionModule):
+class Categorical(ConditionalDistribution):
     r"""
     Creates a categorical distribution parameterized by `logits`.
 
@@ -33,7 +33,7 @@ class Categorical(DistributionModule):
     def forward(self, inputs):  # pylint:disable=arguments-differ
         return {"logits": inputs - inputs.logsumexp(dim=-1, keepdim=True)}
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         logits = self._unpack_params(params)
@@ -43,24 +43,31 @@ class Categorical(DistributionModule):
         probs_2d = probs.reshape(-1, logits.shape[-1])
         sample_2d = torch.multinomial(probs_2d, 1, True)
         out = sample_2d.reshape(sample_shape)
-        return out, self.log_prob(params, out)
+        return out, self.log_prob(out, params)
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
-    def log_prob(self, params: Dict[str, torch.Tensor], value):
+    def log_prob(self, value, params: Dict[str, torch.Tensor]):
         logits = self._unpack_params(params)
         value = value.long().unsqueeze(-1)
         value, log_pmf = torch.broadcast_tensors(value, logits)
         value = value[..., :1]
         return log_pmf.gather(-1, value).squeeze(-1)
 
-    @override(DistributionModule)
+    @override(ConditionalDistribution)
     @torch.jit.export
     def entropy(self, params: Dict[str, torch.Tensor]):
         logits = self._unpack_params(params)
         probs = F.softmax(logits, dim=-1)
         p_log_p = logits * probs
         return -p_log_p.sum(-1)
+
+    @override(ConditionalDistribution)
+    @torch.jit.export
+    def deterministic(self, params: Dict[str, torch.Tensor]):
+        logits = self._unpack_params(params)
+        sample = torch.argmax(logits, dim=-1)
+        return sample, self.log_prob(sample, params)
 
     def _unpack_params(self, params: Dict[str, torch.Tensor]):
         # pylint:disable=no-self-use

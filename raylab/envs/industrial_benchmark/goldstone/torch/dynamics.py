@@ -4,6 +4,7 @@ import math
 import torch
 from ray.rllib.utils.annotations import override
 
+import raylab.utils.pytorch as ptu
 from ..dynamics import Dynamics
 
 
@@ -84,7 +85,7 @@ class TorchDynamics(Dynamics):
         """Compute u resulting from Equation (45)."""
         # pylint:disable=invalid-name
         base = -varrho * q + torch.sqrt(q ** 2 - (1 / 27))
-        return base.sign() * base.abs().pow(1 / 3)
+        return ptu.cbrt(base)
 
     @staticmethod
     def _compute_r_min2(q, varrho):

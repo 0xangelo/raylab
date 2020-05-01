@@ -4,7 +4,7 @@ import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
 from raylab.utils.pytorch import initialize_
-from .expand_vector import ExpandVector
+from .leaf_parameter import LeafParameter
 
 
 class NormalParams(nn.Module):
@@ -17,13 +17,13 @@ class NormalParams(nn.Module):
     LOG_STD_MAX = 2
     LOG_STD_MIN = -20
 
-    def __init__(self, in_features, event_dim, input_dependent_scale=True):
+    def __init__(self, in_features, event_size, input_dependent_scale=True):
         super().__init__()
-        self.loc_module = nn.Linear(in_features, event_dim)
+        self.loc_module = nn.Linear(in_features, event_size)
         if input_dependent_scale:
-            self.log_scale_module = nn.Linear(in_features, event_dim)
+            self.log_scale_module = nn.Linear(in_features, event_size)
         else:
-            self.log_scale_module = ExpandVector(event_dim)
+            self.log_scale_module = LeafParameter(event_size)
         self.apply(initialize_("orthogonal", gain=0.01))
 
     @override(nn.Module)

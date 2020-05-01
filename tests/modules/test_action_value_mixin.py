@@ -3,19 +3,32 @@ from functools import partial
 
 import pytest
 import torch
+import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 
-from raylab.modules.catalog import DDPGModule, MAPOModule
+from raylab.modules.mixins import ActionValueMixin
 
 
-@pytest.fixture(params=(DDPGModule, MAPOModule))
+class DummyModule(ActionValueMixin, nn.ModuleDict):
+    # pylint:disable=abstract-method
+    def __init__(self, obs_space, action_space, config):
+        super().__init__()
+        self.update(self._make_critic(obs_space, action_space, config))
+
+
+@pytest.fixture(params=(DummyModule,))
 def module_cls(request):
     return request.param
 
 
-@pytest.fixture(params=(True, False), ids=("Double Q", "Single Q"))
+@pytest.fixture(params=(True, False), ids=("DoubleQ", "SingleQ"))
 def double_q(request):
     return request.param
+
+
+@pytest.fixture
+def config(double_q):
+    return {"critic": {"double_q": double_q}}
 
 
 @pytest.fixture
@@ -23,8 +36,9 @@ def module_batch_fn(module_and_batch_fn, module_cls):
     return partial(module_and_batch_fn, module_cls)
 
 
-def test_module_creation(module_batch_fn, double_q):
-    module, batch = module_batch_fn({"double_q": double_q})
+def test_module_creation(module_batch_fn, config):
+    module, batch = module_batch_fn(config)
+    double_q = config["critic"]["double_q"]
 
     assert "critics" in module
     assert "target_critics" in module

@@ -3,6 +3,9 @@ import gym
 from gym.spaces import Box
 import numpy as np
 import torch
+from ray.rllib.utils.annotations import override
+
+from raylab.envs.rewards import register, RewardFn
 
 
 class MockEnv(gym.Env):  # pylint: disable=abstract-method
@@ -18,11 +21,13 @@ class MockEnv(gym.Env):  # pylint: disable=abstract-method
         self.goal = torch.zeros(self.observation_space.shape)
         self.state = None
 
+    @override(gym.Env)
     def reset(self):
         self.time = 0
         self.state = self.observation_space.sample()
         return self.state
 
+    @override(gym.Env)
     def step(self, action):
         self.time += 1
         self.state = np.clip(
@@ -34,3 +39,10 @@ class MockEnv(gym.Env):  # pylint: disable=abstract-method
     def reward_fn(self, state, action, next_state):
         # pylint: disable=missing-docstring,unused-argument
         return torch.norm(next_state - self.goal, dim=-1)
+
+
+@register("MockEnv")
+class MockReward(RewardFn):  # pylint:disable=missing-class-docstring
+    @override(RewardFn)
+    def forward(self, state, action, next_state):
+        return torch.norm(next_state, p=2, dim=-1)

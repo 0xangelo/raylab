@@ -23,7 +23,7 @@ def get_config():
         "use_pytorch": True,
         # === RolloutWorker ===
         "num_workers": 0,
-        "sample_batch_size": 1000,
+        "rollout_fragment_length": 1000,
         "batch_mode": "complete_episodes",
         # === Model ===
         "model": {

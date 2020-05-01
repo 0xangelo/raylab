@@ -4,17 +4,13 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
+from raylab.utils.exploration import ParameterNoise
 from raylab.modules.catalog import get_module
-import raylab.utils.pytorch as torch_util
+import raylab.utils.pytorch as ptu
 import raylab.policy as raypi
 
 
-class NAFTorchPolicy(
-    raypi.AdaptiveParamNoiseMixin,
-    raypi.PureExplorationMixin,
-    raypi.TargetNetworksMixin,
-    raypi.TorchPolicy,
-):
+class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     """Normalized Advantage Function policy in Pytorch to use with RLlib."""
 
     # pylint: disable=abstract-method
@@ -31,64 +27,31 @@ class NAFTorchPolicy(
     @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
+        module_config["type"] = "NAFModule"
         module_config["double_q"] = config["clipped_double_q"]
-        for key in ("exploration", "diag_gaussian_stddev"):
-            module_config[key] = config[key]
+        module_config["perturbed_policy"] = isinstance(self.exploration, ParameterNoise)
 
-        module = get_module("NAFModule", obs_space, action_space, module_config)
-        return torch.jit.script(module) if module_config["torch_script"] else module
+        return get_module(obs_space, action_space, module_config)
 
     @override(raypi.TorchPolicy)
     def optimizer(self):
-        cls = torch_util.get_optimizer_class(self.config["torch_optimizer"]["name"])
-        options = self.config["torch_optimizer"]["options"]
-        return cls(self.module.naf.parameters(), **options)
+        return ptu.build_optimizer(self.module.critics, self.config["torch_optimizer"])
 
-    @torch.no_grad()
     @override(raypi.TorchPolicy)
-    def compute_actions(
-        self,
-        obs_batch,
-        state_batches,
-        prev_action_batch=None,
-        prev_reward_batch=None,
-        info_batch=None,
-        episodes=None,
-        **kwargs,
-    ):
-        # pylint: disable=too-many-arguments,unused-argument
-        obs_batch = self.convert_to_tensor(obs_batch)
-
-        if self.config["greedy"]:
-            actions = self.module.policy(obs_batch)
-        elif self.is_uniform_random:
-            actions = self._uniform_random_actions(obs_batch)
-        else:
-            actions = self.module.sampler(obs_batch)
-
-        return actions.cpu().numpy(), state_batches, {}
-
-    @override(raypi.AdaptiveParamNoiseMixin)
-    def _compute_noise_free_actions(self, sample_batch):
-        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.actor.policy[:-1](obs_tensors).numpy()
-
-    @override(raypi.AdaptiveParamNoiseMixin)
-    def _compute_noisy_actions(self, sample_batch):
-        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.actor.behavior[:-1](obs_tensors).numpy()
+    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
+        # pylint:disable=unused-argument
+        return input_dict[SampleBatch.CUR_OBS], state
 
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
 
-        loss, info = self.compute_loss(batch_tensors, self.module, self.config)
-        self._optimizer.zero_grad()
-        loss.backward()
-        info.update(self.extra_grad_info())
-        self._optimizer.step()
+        with self._optimizer.optimize():
+            loss, info = self.compute_loss(batch_tensors, self.module, self.config)
+            loss.backward()
 
-        self.update_targets("value", "target_value")
+        info.update(self.extra_grad_info())
+        self.update_targets("vcritics", "target_vcritics")
         return self._learner_stats(info)
 
     def compute_loss(self, batch_tensors, module, config):
@@ -108,7 +71,7 @@ class NAFTorchPolicy(
 
         obs = batch_tensors[SampleBatch.CUR_OBS]
         actions = batch_tensors[SampleBatch.ACTIONS]
-        action_values = torch.cat([m(obs, actions) for m in module.naf], dim=-1)
+        action_values = torch.cat([m(obs, actions) for m in module.critics], dim=-1)
         loss_fn = torch.nn.MSELoss()
         td_error = loss_fn(
             action_values, target_values.unsqueeze(-1).expand_as(action_values)
@@ -129,18 +92,15 @@ class NAFTorchPolicy(
         dones = batch_tensors[SampleBatch.DONES]
 
         next_vals, _ = torch.cat(
-            [m(next_obs) for m in module.target_value], dim=-1
+            [m(next_obs) for m in module.target_vcritics], dim=-1
         ).min(dim=-1)
         return torch.where(dones, rewards, rewards + config["gamma"] * next_vals)
 
     @torch.no_grad()
     def extra_grad_info(self):
         """Compute gradient norm for components."""
-        info = {
+        return {
             "grad_norm": nn.utils.clip_grad_norm_(
-                self.module.naf.parameters(), float("inf")
-            ),
+                self.module.critics.parameters(), float("inf")
+            )
         }
-        if self.config["exploration"] == "parameter_noise":
-            info["param_noise_stddev"] = self.curr_param_stddev
-        return info

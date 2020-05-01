@@ -136,7 +136,7 @@ class Dynamics:
         """Compute u resulting from Equation (45)."""
         # pylint:disable=invalid-name
         base = -varrho * q + np.sqrt(q ** 2 - (1 / 27))
-        return np.sign(base) * np.abs(base) ** (1 / 3)
+        return np.sign(base) * np.exp(np.log(np.abs(base)) / 3.0)
 
     @staticmethod
     def _compute_r_min2(q, varrho):

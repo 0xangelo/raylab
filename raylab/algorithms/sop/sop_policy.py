@@ -6,19 +6,12 @@ import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-import raylab.utils.pytorch as torch_util
+from raylab.utils.exploration import ParameterNoise
+import raylab.utils.pytorch as ptu
 import raylab.policy as raypi
-from raylab.modules.catalog import get_module
-
-OptimizerCollection = collections.namedtuple("OptimizerCollection", "policy critic")
 
 
-class SOPTorchPolicy(
-    raypi.AdaptiveParamNoiseMixin,
-    raypi.PureExplorationMixin,
-    raypi.TargetNetworksMixin,
-    raypi.TorchPolicy,
-):
+class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     """Streamlined Off-Policy policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
@@ -35,70 +28,27 @@ class SOPTorchPolicy(
     @override(raypi.TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
-        module_config["double_q"] = config["clipped_double_q"]
-        for key in (
-            "exploration",
-            "exploration_gaussian_sigma",
-            "smooth_target_policy",
-            "target_gaussian_sigma",
-        ):
-            module_config[key] = config[key]
-        module = get_module(
-            module_config["name"], obs_space, action_space, module_config
+        module_config.setdefault("critic", {})
+        module_config["critic"]["double_q"] = config["clipped_double_q"]
+        module_config.setdefault("actor", {})
+        module_config["actor"]["perturbed_policy"] = isinstance(
+            self.exploration, ParameterNoise
         )
-        return torch.jit.script(module) if module_config["torch_script"] else module
+        # pylint:disable=no-member
+        return super().make_module(obs_space, action_space, config)
 
     @override(raypi.TorchPolicy)
     def optimizer(self):
-        policy_optim_name = self.config["policy_optimizer"]["name"]
-        policy_optim_cls = torch_util.get_optimizer_class(policy_optim_name)
-        policy_optim_options = self.config["policy_optimizer"]["options"]
-        policy_optim = policy_optim_cls(
-            self.module.actor.parameters(), **policy_optim_options
-        )
+        config = self.config["torch_optimizer"]
+        components = ["actor", "critics"]
 
-        critic_optim_name = self.config["critic_optimizer"]["name"]
-        critic_optim_cls = torch_util.get_optimizer_class(critic_optim_name)
-        critic_optim_options = self.config["critic_optimizer"]["options"]
-        critic_optim = critic_optim_cls(
-            self.module.critics.parameters(), **critic_optim_options
-        )
+        optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
+        return collections.namedtuple("OptimizerCollection", components)(**optims)
 
-        return OptimizerCollection(policy=policy_optim, critic=critic_optim,)
-
-    @override(raypi.AdaptiveParamNoiseMixin)
-    def _compute_noise_free_actions(self, sample_batch):
-        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.actor.policy[:-1](obs_tensors).numpy()
-
-    @override(raypi.AdaptiveParamNoiseMixin)
-    def _compute_noisy_actions(self, sample_batch):
-        obs_tensors = self.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
-        return self.module.actor.behavior[:-1](obs_tensors).numpy()
-
-    @torch.no_grad()
     @override(raypi.TorchPolicy)
-    def compute_actions(
-        self,
-        obs_batch,
-        state_batches,
-        prev_action_batch=None,
-        prev_reward_batch=None,
-        info_batch=None,
-        episodes=None,
-        **kwargs
-    ):
-        # pylint: disable=too-many-arguments,unused-argument
-        obs_batch = self.convert_to_tensor(obs_batch)
-
-        if self.is_uniform_random:
-            actions = self._uniform_random_actions(obs_batch)
-        elif self.config["greedy"]:
-            actions = self.module.actor.policy(obs_batch)
-        else:
-            actions = self.module.actor.behavior(obs_batch)
-
-        return actions.cpu().numpy(), state_batches, {}
+    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
+        # pylint:disable=unused-argument
+        return input_dict[SampleBatch.CUR_OBS], state
 
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
@@ -112,17 +62,11 @@ class SOPTorchPolicy(
         return self._learner_stats(info)
 
     def _update_critic(self, batch_tensors, module, config):
-        critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
-        self._optimizer.critic.zero_grad()
-        critic_loss.backward()
-        grad_stats = {
-            "critic_grad_norm": nn.utils.clip_grad_norm_(
-                module.critics.parameters(), float("inf")
-            )
-        }
-        info.update(grad_stats)
+        with self._optimizer.critics.optimize():
+            critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
+            critic_loss.backward()
 
-        self._optimizer.critic.step()
+        info.update(self.extra_grad_info("critics", batch_tensors))
         return info
 
     def compute_critic_loss(self, batch_tensors, module, config):
@@ -150,19 +94,18 @@ class SOPTorchPolicy(
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
         dones = batch_tensors[SampleBatch.DONES]
 
-        next_acts = module.actor.target_policy(next_obs)
+        next_acts = module.target_actor(next_obs)
         next_vals, _ = torch.cat(
             [m(next_obs, next_acts) for m in module.target_critics], dim=-1
         ).min(dim=-1)
         return torch.where(dones, rewards, rewards + config["gamma"] * next_vals)
 
     def _update_policy(self, batch_tensors, module, config):
-        policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
-        self._optimizer.policy.zero_grad()
-        policy_loss.backward()
-        info.update(self.extra_policy_grad_info())
+        with self._optimizer.actor.optimize():
+            policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
+            policy_loss.backward()
 
-        self._optimizer.policy.step()
+        info.update(self.extra_grad_info("actor", batch_tensors))
         return info
 
     @staticmethod
@@ -171,7 +114,7 @@ class SOPTorchPolicy(
         # pylint: disable=unused-argument
         obs = batch_tensors[SampleBatch.CUR_OBS]
 
-        actions = module.actor.policy(obs)
+        actions = module.actor(obs)
         action_values, _ = torch.cat(
             [m(obs, actions) for m in module.critics], dim=-1
         ).min(dim=-1)
@@ -183,13 +126,12 @@ class SOPTorchPolicy(
         }
         return max_objective.neg(), stats
 
-    def extra_policy_grad_info(self):
-        """Return dict of extra info on policy gradient."""
-        info = {
-            "policy_grad_norm": nn.utils.clip_grad_norm_(
-                self.module.actor.policy.parameters(), float("inf")
-            ),
+    @torch.no_grad()
+    def extra_grad_info(self, component, batch_tensors):
+        """Return statistics right after components are updated."""
+        # pylint:disable=unused-argument
+        return {
+            f"grad_norm({component})": nn.utils.clip_grad_norm_(
+                self.module[component].parameters(), float("inf")
+            )
         }
-        if self.config["exploration"] == "parameter_noise":
-            info["param_noise_stddev"] = self.curr_param_stddev
-        return info

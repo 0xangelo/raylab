@@ -1,12 +1,20 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 import torch
+import torch.nn as nn
 from ray.rllib.policy.sample_batch import SampleBatch
 
-from raylab.modules.catalog import MAPOModule, SVGModule
+from raylab.modules.mixins import StochasticModelMixin
 
 
-@pytest.fixture(scope="module", params=(MAPOModule, SVGModule))
+class DummyModule(StochasticModelMixin, nn.ModuleDict):
+    # pylint:disable=abstract-method
+    def __init__(self, obs_space, action_space, config):
+        super().__init__()
+        self.update(self._make_model(obs_space, action_space, config))
+
+
+@pytest.fixture(scope="module", params=(DummyModule,))
 def module_cls(request):
     return request.param
 
@@ -28,8 +36,7 @@ def residual(request):
 @pytest.fixture(scope="module")
 def config(input_dependent_scale, residual):
     return {
-        "model": {"input_dependent_scale": input_dependent_scale},
-        "residual": residual,
+        "model": {"residual": residual, "input_dependent_scale": input_dependent_scale},
     }
 
 
@@ -102,14 +109,15 @@ def test_model_reproduce(module_batch_config):
     module, batch, _ = module_batch_config
 
     next_obs = batch[SampleBatch.NEXT_OBS]
-    _next_obs = module.model.reproduce(
+    next_obs_, logp_ = module.model.reproduce(
         batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS], next_obs
     )
-    assert _next_obs.shape == next_obs.shape
-    assert _next_obs.dtype == next_obs.dtype
-    assert torch.allclose(_next_obs, next_obs, atol=1e-6)
+    assert next_obs_.shape == next_obs.shape
+    assert next_obs_.dtype == next_obs.dtype
+    assert torch.allclose(next_obs_, next_obs, atol=1e-5)
+    assert logp_.shape == batch[SampleBatch.REWARDS].shape
 
-    _next_obs.mean().backward()
+    next_obs_.mean().backward()
     model_params = set(module.model.parameters())
     assert all(p.grad is not None for p in model_params)
     assert all(p.grad is None for p in set(module.parameters()) - model_params)

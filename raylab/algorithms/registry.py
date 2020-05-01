@@ -43,6 +43,18 @@ def _import_trpo():
     return TRPOTrainer
 
 
+def _import_svg_maxent():
+    from raylab.algorithms.svg.svg_maxent import SVGMaxEntTrainer
+
+    return SVGMaxEntTrainer
+
+
+def _import_acktr():
+    from raylab.algorithms.acktr.acktr import ACKTRTrainer
+
+    return ACKTRTrainer
+
+
 ALGORITHMS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
@@ -51,4 +63,6 @@ ALGORITHMS = {
     "SOP": _import_sop,
     "MAPO": _import_mapo,
     "TRPO": _import_trpo,
+    "SVGMaxEnt": _import_svg_maxent,
+    "ACKTR": _import_acktr,
 }

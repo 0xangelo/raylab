@@ -1,62 +1,28 @@
 """Base Policy with common methods for all SVG variations."""
 import torch
 import torch.nn as nn
+from ray.rllib.policy.policy import ACTION_LOGP
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.policy import TorchPolicy, AdaptiveKLCoeffMixin, TargetNetworksMixin
-from raylab.modules.catalog import get_module
+from raylab.envs.rewards import get_reward_fn
+from raylab.policy import TorchPolicy, TargetNetworksMixin
 
 
-class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy):
+class SVGBaseTorchPolicy(TargetNetworksMixin, TorchPolicy):
     """Stochastic Value Gradients policy using PyTorch."""
 
     # pylint: disable=abstract-method
 
-    ACTION_LOGP = "action_logp"
     IS_RATIOS = "is_ratios"
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self.reward = None
-
-    def set_reward_fn(self, reward_fn):
-        """Set the reward function to use when unrolling the policy and model."""
-
-    @torch.no_grad()
-    @override(TorchPolicy)
-    def compute_actions(
-        self,
-        obs_batch,
-        state_batches,
-        prev_action_batch=None,
-        prev_reward_batch=None,
-        info_batch=None,
-        episodes=None,
-        **kwargs
-    ):
-        # pylint: disable=too-many-arguments,unused-argument
-        obs_batch = self.convert_to_tensor(obs_batch)
-        actions, logp = self.module.actor.rsample(obs_batch)
-
-        extra_fetches = {self.ACTION_LOGP: logp.cpu().numpy()}
-        return actions.cpu().numpy(), state_batches, extra_fetches
+        self.reward = get_reward_fn(self.config["env"], self.config["env_config"])
 
     @override(TorchPolicy)
-    def make_module(self, obs_space, action_space, config):
-        module_config = config["module"]
-        module = get_module(
-            module_config["name"], obs_space, action_space, module_config
-        )
-        return torch.jit.script(module) if module_config["torch_script"] else module
-
-    @torch.no_grad()
-    @override(AdaptiveKLCoeffMixin)
-    def _kl_divergence(self, sample_batch):
-        return self._avg_kl_divergence(self._lazy_tensor_dict(sample_batch)).item()
-
-    def _avg_kl_divergence(self, batch_tensors):
-        """Compute the empirical average KL divergence given sample tensors."""
+    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
+        return input_dict[SampleBatch.CUR_OBS], state
 
     @torch.no_grad()
     def add_importance_sampling_ratios(self, batch_tensors):
@@ -70,7 +36,7 @@ class SVGBaseTorchPolicy(AdaptiveKLCoeffMixin, TargetNetworksMixin, TorchPolicy)
         curr_logp = self.module.actor.log_prob(
             batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
         )
-        is_ratio = torch.exp(curr_logp - batch_tensors[self.ACTION_LOGP])
+        is_ratio = torch.exp(curr_logp - batch_tensors[ACTION_LOGP])
         return is_ratio
 
     def compute_joint_model_value_loss(self, batch_tensors):

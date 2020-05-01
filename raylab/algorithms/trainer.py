@@ -1,26 +1,44 @@
 """Primitives for all Trainers."""
 from ray.rllib.agents.trainer import Trainer as _Trainer
 from ray.rllib.utils.annotations import override
-from ray.tune.registry import _global_registry, ENV_CREATOR, register_env
 
-from raylab.envs.utils import wrap_if_needed
+_Trainer._allow_unknown_subkeys += ["module", "torch_optimizer"]
+_Trainer._override_all_subkeys_if_type_changes += ["module"]
 
 
 class Trainer(_Trainer):
     """Base Trainer for all algorithms. This should not be instantiated."""
 
     # pylint: disable=abstract-method,no-member
-    _allow_unknown_subkeys = _Trainer._allow_unknown_subkeys + ["module"]
 
     @override(_Trainer)
-    def _register_if_needed(self, env_object):
-        if isinstance(env_object, str) and not _global_registry.contains(
-            ENV_CREATOR, env_object
-        ):
-            import gym
+    def train(self):
+        # Evaluate first, before any optimization is done
+        if self.config.get("evaluation_interval"):
+            # pylint:disable=attribute-defined-outside-init
+            self.evaluation_metrics = self._evaluate()
 
-            register_env(env_object, wrap_if_needed(lambda _: gym.make(env_object)))
-        return super()._register_if_needed(env_object)
+        result = super().train()
+
+        # Update global_vars after training so that the info is saved if checkpointing
+        if self._has_policy_optimizer():
+            self.global_vars["timestep"] = self.optimizer.num_steps_sampled
+        return result
+
+    @override(_Trainer)
+    def __getstate__(self):
+        state = super().__getstate__()
+        state["global_vars"] = self.global_vars
+        return state
+
+    @override(_Trainer)
+    def __setstate__(self, state):
+        self.global_vars = state["global_vars"]
+        super().__setstate__(state)
+        if self._has_policy_optimizer():
+            self.optimizer.workers.local_worker().set_global_vars(self.global_vars)
+            for worker in self.optimizer.workers.remote_workers():
+                worker.set_global_vars.remote(self.global_vars)
 
     def _iteration_done(self):
         return self.optimizer.num_steps_sampled - self.global_vars["timestep"] >= max(

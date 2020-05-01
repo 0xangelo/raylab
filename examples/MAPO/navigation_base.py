@@ -1,8 +1,7 @@
-"""Tune experiment configuration for MAPO on Navigation."""
-from ray import tune  # pylint: disable=unused-import
+from ray import tune
 
 
-def get_config():  # pylint: disable=missing-docstring
+def get_config():
     return {
         # === Environment ===
         "env": "Navigation",
@@ -12,18 +11,13 @@ def get_config():  # pylint: disable=missing-docstring
         # Clipped Double Q-Learning: use the minimun of two target Q functions
         # as the next action-value in the target for fitted Q iteration
         "clipped_double_q": True,
-        # Add gaussian noise to the action when calculating the Deterministic
-        # Policy Gradient
-        "target_policy_smoothing": True,
-        # Additive Gaussian i.i.d. noise to add to actions inputs to target Q function
-        "target_gaussian_sigma": 0.3,
         # === Optimization ===
-        # PyTorch optimizer to use for policy
-        "policy_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
-        # PyTorch optimizer to use for critic
-        "critic_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
-        # PyTorch optimizer to use for model
-        "model_optimizer": {"name": "Adam", "options": {"lr": 3e-4}},
+        # PyTorch optimizers to use
+        "torch_optimizer": {
+            "model": {"type": "Adam", "lr": 3e-4},
+            "actor": {"type": "Adam", "lr": 3e-4},
+            "critics": {"type": "Adam", "lr": 3e-4},
+        },
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
         # === Network ===
@@ -31,54 +25,68 @@ def get_config():  # pylint: disable=missing-docstring
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
         "module": {
-            "policy": {
-                "units": (64, 64),
-                "activation": "ReLU",
-                "initializer_options": {"name": "xavier_uniform"},
+            "type": "MAPOModule",
+            "actor": {
+                "smooth_target_policy": True,
+                "target_gaussian_sigma": 0.3,
+                "encoder": {
+                    "units": (64, 64),
+                    "activation": "ReLU",
+                    "initializer_options": {"name": "xavier_uniform"},
+                },
             },
             "critic": {
-                "units": (64, 64),
-                "activation": "ReLU",
-                "initializer_options": {"name": "xavier_uniform"},
-                "delay_action": True,
+                "encoder": {
+                    "units": (64, 64),
+                    "activation": "ReLU",
+                    "delay_action": True,
+                    "initializer_options": {"name": "xavier_uniform"},
+                },
             },
             "model": {
-                "units": (64, 64),
-                "activation": "ReLU",
-                "initializer_options": {"name": "xavier_uniform"},
-                "delay_action": True,
                 "input_dependent_scale": False,
+                "encoder": {
+                    "units": (64, 64),
+                    "activation": "ReLU",
+                    "initializer_options": {"name": "xavier_uniform"},
+                    "delay_action": True,
+                },
             },
         },
         # === RolloutWorker ===
-        "sample_batch_size": 1,
+        "rollout_fragment_length": 1,
         "batch_mode": "complete_episodes",
         # === Trainer ===
         "train_batch_size": 32,
         "timesteps_per_iteration": 200,
-        # === Exploration ===
-        # Which type of exploration to use. Possible types include
-        # None: use the greedy policy to act
-        # parameter_noise: use parameter space noise
-        # gaussian: use i.i.d gaussian action space noise independently for each
-        #     action dimension
-        "exploration": "gaussian",
-        # Additive Gaussian i.i.d. noise to add to actions before squashing
-        "exploration_gaussian_sigma": 0.3,
-        # Until this many timesteps have elapsed, the agent's policy will be
-        # ignored & it will instead take uniform random actions. Can be used in
-        # conjunction with learning_starts (which controls when the first
-        # optimization step happens) to decrease dependence of exploration &
-        # optimization on initial policy parameters. Note that this will be
-        # disabled when the action noise scale is set to 0 (e.g during evaluation).
-        "pure_exploration_steps": 200,
+        # === Exploration Settings ===
+        # Default exploration behavior, iff `explore`=None is passed into
+        # compute_action(s).
+        # Set to False for no exploration behavior (e.g., for evaluation).
+        "explore": True,
+        # Provide a dict specifying the Exploration object's config.
+        "exploration_config": {
+            # The Exploration class to use. In the simplest case, this is the name
+            # (str) of any class present in the `rllib.utils.exploration` package.
+            # You can also provide the python class directly or the full location
+            # of your class (e.g. "ray.rllib.utils.exploration.epsilon_greedy.
+            # EpsilonGreedy").
+            "type": "raylab.utils.exploration.GaussianNoise",
+            # Options for Gaussian noise exploration
+            "noise_stddev": 0.3,
+            # Until this many timesteps have elapsed, the agent's policy will be
+            # ignored & it will instead take uniform random actions. Can be used in
+            # conjunction with learning_starts (which controls when the first
+            # optimization step happens) to decrease dependence of exploration &
+            # optimization on initial policy parameters. Note that this will be
+            # disabled when the action noise scale is set to 0 (e.g during evaluation).
+            "pure_exploration_steps": 200,
+        },
         # === Evaluation ===
         "evaluation_interval": 5,
         "evaluation_num_episodes": 5,
-        # === Debugging ===
-        # Set the ray.rllib.* log level for the agent process and its workers.
-        # Should be one of DEBUG, INFO, WARN, or ERROR. The DEBUG level will also
-        # periodically print out summaries of relevant internal dataflow (this is
-        # also printed out once at startup at the INFO level).
-        "log_level": "WARN",
+        # Extra arguments to pass to evaluation workers.
+        # Typical usage is to pass extra args to evaluation env creator
+        # and to disable exploration by computing deterministic actions
+        "evaluation_config": {"explore": False},
     }

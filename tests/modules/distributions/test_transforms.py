@@ -4,9 +4,9 @@ import pytest
 
 from raylab.modules.distributions import (
     AffineTransform,
-    ComposeTransform,
+    CompositeTransform,
     Independent,
-    InvTransform,
+    InverseTransform,
     Normal,
     SigmoidTransform,
     TanhTransform,
@@ -33,33 +33,22 @@ def dist_params(request):
         lambda: TanhSquashTransform(-2 * torch.ones(2), 2 * torch.ones(2), event_dim=1),
     )
 )
-def transform(request, torch_script):
-    trans = request.param()
-    return torch.jit.script(trans) if torch_script else trans
-
-
-@pytest.fixture(
-    params=(
-        lambda: InvTransform(
-            AffineTransform(torch.ones(2), torch.ones(2) * 2, event_dim=1)
-        ),
-        lambda: InvTransform(SigmoidTransform(event_dim=1)),
-        lambda: InvTransform(TanhTransform(event_dim=1)),
-    )
-)
-def inv_transform(request):
+def transform(request):
     return request.param()
+
+
+@pytest.fixture
+def inv_transform(transform):
+    return InverseTransform(transform)
 
 
 def test_transformed_distribution(dist_params, sample_shape, torch_script):
     base_dist, params = dist_params
     dist = TransformedDistribution(
         base_dist,
-        ComposeTransform(
-            [
-                TanhTransform(event_dim=1),
-                AffineTransform(-torch.ones(2), torch.ones(2), event_dim=1),
-            ]
+        CompositeTransform(
+            [TanhTransform(), AffineTransform(-torch.ones(2), torch.ones(2))],
+            event_dim=1,
         ),
     )
     dist = torch.jit.script(dist) if torch_script else dist
@@ -70,16 +59,25 @@ def test_transformed_distribution(dist_params, sample_shape, torch_script):
     _test_dist_ops(dist, params, batch_shape, event_shape, sample_shape)
 
 
-def test_transforms(dist_params, transform, sample_shape):
+def test_transforms(dist_params, transform, sample_shape, torch_script):
     dist, params = dist_params
+    transform = torch.jit.script(transform) if torch_script else transform
 
     rsample, _ = dist.rsample(params, sample_shape)
     encoded, log_det = transform(rsample)
     assert log_det.shape == sample_shape
     decoded, log_det = transform(encoded, reverse=True)
     assert log_det.shape == sample_shape
-    assert torch.allclose(decoded, rsample, atol=1e-7)
+    assert torch.allclose(decoded, rsample, atol=1e-6)
 
 
-def test_inv_transforms(inv_transform):
-    torch.jit.script(inv_transform)
+def test_inv_transforms(inv_transform, torch_script):
+    transform = inv_transform
+    transform = torch.jit.script(transform) if torch_script else transform
+
+    inputs = torch.rand(10, 2)
+    encoded, log_det = transform(inputs, {})
+    assert log_det.shape == inputs.shape[: -transform.event_dim]
+    decoded, log_det = transform(encoded, {}, reverse=True)
+    assert log_det.shape == inputs.shape[: -transform.event_dim]
+    assert torch.allclose(decoded, inputs, atol=1e-6)

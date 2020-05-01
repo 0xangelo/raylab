@@ -3,17 +3,15 @@ from setuptools import setup
 
 setup(
     name="raylab",
-    version="0.6.0",
+    version="0.6.1",
     py_modules=["raylab"],
     install_requires=[
         "Click",
         "matplotlib",
-        "numpy",
         "pandas",
         "seaborn",
         "requests",
-        "ray[rllib]==0.8.1",
-        "gym",
+        "ray[rllib]",
     ],
     entry_points="""
         [console_scripts]

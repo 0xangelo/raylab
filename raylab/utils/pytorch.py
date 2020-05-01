@@ -1,15 +1,88 @@
 """PyTorch related utilities."""
+import contextlib
 import functools
 import inspect
 
 import numpy as np
 import torch
+from torch.optim import Optimizer
 import torch.nn as nn
+from torch.autograd import grad
+
+from .dictionaries import all_except
+from .kfac import KFACMixin, KFAC, EKFAC
 
 
-def flat_grad(*args, **kwargs):
+OPTIMIZERS = {
+    name: cls
+    for name, cls in [(k, getattr(torch.optim, k)) for k in dir(torch.optim)]
+    if isinstance(cls, type) and issubclass(cls, Optimizer) and cls is not Optimizer
+}
+OPTIMIZERS.update({"KFAC": KFAC, "EKFAC": EKFAC})
+
+
+def build_optimizer(module, config):
+    """Return optimizer tied to the provided module and with the desired config.
+
+    Args:
+        module (nn.Module): the module to tie the optimizer to (or its parameters)
+        config (dict): mapping containing the 'type' of the optimizer and additional
+            kwargs.
+    """
+    cls = get_optimizer_class(config["type"], wrap=True)
+    if issubclass(cls, KFACMixin):
+        return cls(module, **all_except(config, "type"))
+    return cls(module.parameters(), **all_except(config, "type"))
+
+
+def get_optimizer_class(name, wrap=True):
+    """Return the optimizer class given its name.
+
+    Arguments:
+        name (str): the optimizer's name
+        wrap (bool): whether to wrap the clas with `wrap_optim_cls`.
+
+    Returns:
+        The corresponding `torch.optim.Optimizer` subclass
+    """
+    try:
+        cls = OPTIMIZERS[name]
+        return wrap_optim_cls(cls) if wrap else cls
+    except KeyError:
+        raise ValueError(f"Couldn't find optimizer with name '{name}'")
+
+
+def wrap_optim_cls(base):
+    """Return PyTorch optimizer with additional context manager."""
+
+    class ContextManagerOptim(base):
+        # pylint:disable=missing-class-docstring,too-few-public-methods
+        @contextlib.contextmanager
+        def optimize(self):
+            """Zero grads before yielding and step the optimizer upon exit."""
+            self.zero_grad()
+            yield
+            self.step()
+
+    return ContextManagerOptim
+
+
+def cbrt(value):
+    """Cube root. Equivalent to torch.pow(value, 1/3), but numerically stable.
+
+    Source: https://github.com/bayesiains/nsf/blob/master/utils/torchutils.py
+    """
+    return torch.sign(value) * torch.exp(torch.log(torch.abs(value)) / 3.0)
+
+
+def flat_grad(outputs, inputs, *args, **kwargs):
     """Compute gradients and return a flattened array."""
-    return torch.cat([g.reshape((-1,)) for g in torch.autograd.grad(*args, **kwargs)])
+    params = list(inputs)
+    grads = grad(outputs, params, *args, **kwargs)
+    zeros = torch.zeros
+    return torch.cat(
+        [zeros(p.numel()) if g is None else g.flatten() for p, g in zip(params, grads)]
+    )
 
 
 def convert_to_tensor(arr, device):
@@ -22,26 +95,12 @@ def convert_to_tensor(arr, device):
     Returns:
         The array converted to a `torch.Tensor`.
     """
+    if torch.is_tensor(arr):
+        return arr.to(device)
     tensor = torch.from_numpy(np.asarray(arr))
     if tensor.dtype == torch.double:
         tensor = tensor.float()
     return tensor.to(device)
-
-
-def get_optimizer_class(name):
-    """Return the optimizer class given its name.
-
-    Arguments:
-        name (str): the optimizer's name
-
-    Returns:
-        The corresponding `torch.optim.Optimizer` subclass
-    """
-    if name in dir(torch.optim):
-        cls = getattr(torch.optim, name)
-        if issubclass(cls, torch.optim.Optimizer) and cls is not torch.optim.Optimizer:
-            return cls
-    raise ValueError(f"Couldn't find optimizer with name '{name}'")
 
 
 def get_activation(activation):
@@ -51,7 +110,7 @@ def get_activation(activation):
         activation (str, dict or None): the activation function's description
     """
     if activation is None:
-        return None
+        return nn.Identity
 
     if isinstance(activation, dict):
         name = activation["name"]
@@ -97,6 +156,7 @@ NONLINEARITY_MAP = {
     "Sigmoid": "sigmoid",
     "Tanh": "tanh",
     "ReLU": "relu",
+    "ELU": "relu",
     "LeakyReLU": "leaky_relu",
 }
 

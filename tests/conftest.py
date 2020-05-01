@@ -22,7 +22,7 @@ def action_space(request):
     return spaces.Box(-1, 1, shape=request.param)
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def envs():
     from raylab.envs.registry import ENVS  # pylint:disable=import-outside-toplevel
 
@@ -34,7 +34,7 @@ def envs():
     return ENVS.copy()
 
 
-@pytest.fixture(params=list(ALGORITHMS.values()))
+@pytest.fixture(scope="module", params=list(ALGORITHMS.values()))
 def trainer_cls(request):
     return request.param()
 
@@ -44,7 +44,10 @@ def policy_cls(trainer_cls):
     return trainer_cls._policy
 
 
-@pytest.fixture(params=("MockEnv", "Navigation", "Reservoir", "HVAC"))
+ENV_IDS = ("MockEnv", "Navigation", "Reservoir", "HVAC", "MountainCarContinuous-v0")
+
+
+@pytest.fixture(params=ENV_IDS)
 def env_name(request):
     return request.param
 
