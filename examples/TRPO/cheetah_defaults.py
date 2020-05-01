@@ -3,7 +3,7 @@ from ray import tune
 
 def get_config():
     return {
-        "env": "HalfCheetah-v3",
+        "env": "HalfCheetahBulletEnv-v0",
         "env_config": {"max_episode_steps": 1000, "time_aware": False},
         # Number of actions to sample per state for Fisher matrix approximation
         "fvp_samples": 1,

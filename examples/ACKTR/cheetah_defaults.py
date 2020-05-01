@@ -2,9 +2,8 @@ from ray import tune
 
 
 def get_config():
-    """Reference results: 1381 return in 1M timesteps."""
     return {
-        "env": "HalfCheetah-v3",
+        "env": "HalfCheetahBulletEnv-v0",
         "env_config": {"max_episode_steps": 1000, "time_aware": False},
         # Number of actions to sample per state for Fisher matrix approximation
         "logp_samples": 1,
