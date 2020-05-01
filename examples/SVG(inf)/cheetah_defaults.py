@@ -9,19 +9,16 @@ def get_config():
         # === Replay Buffer ===
         "buffer_size": int(2e5),
         # === Optimization ===
-        # Name of Pytorch optimizer class for paremetrized policy
-        "torch_optimizer": "Adam",
-        # Keyword arguments to be passed to the on-policy optimizer
-        "torch_optimizer_options": {
-            "model": {"lr": 1e-3},
-            "value": {"lr": 1e-3},
-            "policy": {"lr": 1e-3},
+        # PyTorch optimizers to use
+        "torch_optimizer": {
+            "on_policy": {"type": "Adam", "lr": 3e-4},
+            "off_policy": {"type": "Adam", "lr": 3e-4},
         },
         # Clip gradient norms by this value
         "max_grad_norm": 1e3,
         # === Regularization ===
         "kl_schedule": {
-            "initial_coeff": 0.5,
+            "initial_coeff": 0.2,
             "desired_kl": 0.01,
             "adaptation_coeff": 1.01,
             "threshold": 1.0,
@@ -35,24 +32,29 @@ def get_config():
                 "encoder": {
                     "units": (100, 100),
                     "activation": "Tanh",
+                    "input_dependent_scale": True,
                     "initializer_options": {"name": "orthogonal"},
                 },
-                "input_dependent_scale": True,
             },
             "critic": {
-                "target_vf": True,
                 "encoder": {
                     "units": (400, 200),
-                    "activation": "Tanh",
+                    "activation": "ELU",
                     "initializer_options": {"name": "orthogonal"},
                 },
-                "model": {"initializer_options": {"name": "orthogonal"}},
+            },
+            "model": {
+                "encoder": {
+                    "units": (40, 40),
+                    "activation": "Tanh",
+                    "delay_action": True,
+                    "initializer_options": {"name": "orthogonal"},
+                },
             },
         },
         # === RolloutWorker ===
         "rollout_fragment_length": 1,
         "batch_mode": "complete_episodes",
-        "timesteps_per_iteration": 1000,
         # === Trainer ===
         "train_batch_size": 256,
         # === Evaluation ===

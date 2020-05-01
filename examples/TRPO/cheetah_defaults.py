@@ -1,46 +1,21 @@
-import numpy as np
 from ray import tune
 
 
 def get_config():
-    """Reference results: 1381 return in 1M timesteps."""
     return {
-        "env": "HalfCheetah-v2",
-        "env_config": {"max_episode_steps": 1000, "time_aware": True},
+        "env": "HalfCheetah-v3",
+        "env_config": {"max_episode_steps": 1000, "time_aware": False},
         # Number of actions to sample per state for Fisher matrix approximation
-        "logp_samples": 1,
+        "fvp_samples": 1,
         # For GAE(\gamma, \lambda)
         "gamma": 0.99,
         "lambda": 0.96,
         # Whether to use Generalized Advantage Estimation
         "use_gae": True,
         # Value function iterations per actor step
-        "vf_iters": 20,
-        # PyTorch optimizers to use
-        "torch_optimizer": {
-            "actor": {
-                "type": "KFAC",
-                "eps": 1e-3,
-                "sua": False,
-                "pi": True,
-                "update_freq": 1,
-                "alpha": 0.95,
-                "kl_clip": 1e-2,
-                "eta": 1.0,
-                "lr": 1.0,
-            },
-            "critic": {
-                "type": "KFAC",
-                "eps": 1e-3,
-                "sua": False,
-                "pi": True,
-                "update_freq": 1,
-                "alpha": 0.95,
-                "kl_clip": 1e-2,
-                "eta": 1.0,
-                "lr": 1.0,
-            },
-        },
+        "vf_iters": 40,
+        # Options for critic optimizer
+        "torch_optimizer": {"type": "Adam", "lr": 1e-2},
         # Whether to use a line search to calculate policy update.
         # Effectively turns ACKTR into Natural PG when turned off.
         "line_search": True,
@@ -62,7 +37,6 @@ def get_config():
         # linear in states or actions.
         "module": {
             "name": "OnPolicyActorCritic",
-            "torch_script": False,
             "actor": {
                 "encoder": {
                     "units": (64, 32),

@@ -11,8 +11,9 @@ def get_config():
         # === Optimization ===
         # PyTorch optimizers to use
         "torch_optimizer": {
+            "model": {"type": "Adam", "lr": 3e-4},
             "actor": {"type": "Adam", "lr": 3e-4},
-            "critics": {"type": "Adam", "lr": 3e-4},
+            "critic": {"type": "Adam", "lr": 3e-4},
             "alpha": {"type": "Adam", "lr": 3e-4},
         },
         # === Network ===
@@ -27,6 +28,13 @@ def get_config():
                 },
             },
             "critic": {
+                "encoder": {
+                    "units": (256, 256),
+                    "activation": "ELU",
+                    "initializer_options": {"name": "orthogonal"},
+                },
+            },
+            "model": {
                 "encoder": {
                     "units": (256, 256),
                     "activation": "ELU",
