@@ -1,13 +1,10 @@
-# pylint: disable=missing-docstring
-# pylint: enable=missing-docstring
+"""Base for all PyTorch policies."""
 from abc import abstractmethod
 import contextlib
 
-import numpy as np
 import torch
 from ray.tune.logger import pretty_print
 from ray.rllib.models.model import restore_original_dimensions, flatten
-from ray.rllib.utils import merge_dicts
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.exploration import Exploration
 from ray.rllib.utils.from_config import from_config
@@ -16,7 +13,9 @@ from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.rllib.policy.policy import Policy, ACTION_LOGP, ACTION_PROB, LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
 
+from raylab.algorithms import Trainer
 from raylab.modules.catalog import get_module
+from raylab.utils.dictionaries import deep_merge
 from raylab.utils.pytorch import convert_to_tensor
 
 
@@ -25,8 +24,6 @@ class TorchPolicy(Policy):
 
     def __init__(self, observation_space, action_space, config):
         self.framework = "torch"
-        self._raw_user_config = config
-        config = merge_dicts(self.get_default_config(), self._raw_user_config)
         super().__init__(observation_space, action_space, config)
         self.device = (
             torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -39,6 +36,19 @@ class TorchPolicy(Policy):
     @abstractmethod
     def get_default_config():
         """Return the default config for this policy class."""
+
+    @classmethod
+    def with_defaults(cls, observation_space, action_space, config):
+        """Merge config with default config before creating policy."""
+        # pylint:disable=protected-access
+        config = deep_merge(
+            cls.get_default_config(),
+            config,
+            new_keys_allowed=False,
+            whitelist=Trainer._allow_unknown_subkeys,
+            override_all_if_type_changes=Trainer._override_all_subkeys_if_type_changes,
+        )
+        return cls(observation_space, action_space, config)
 
     @abstractmethod
     def optimizer(self):
@@ -99,8 +109,8 @@ class TorchPolicy(Policy):
         extra_action_out = self.extra_action_out(input_dict, state_batches, self.module)
 
         if logp is not None:
-            logp = convert_to_non_torch_type(logp)
-            extra_action_out.update({ACTION_PROB: np.exp(logp), ACTION_LOGP: logp})
+            prob, logp = map(convert_to_non_torch_type, (logp.exp(), logp))
+            extra_action_out.update({ACTION_PROB: prob, ACTION_LOGP: logp})
         return convert_to_non_torch_type((actions, state, extra_action_out))
 
     @abstractmethod
@@ -227,9 +237,8 @@ class TorchPolicy(Policy):
         tensor_batch.set_get_interceptor(self.convert_to_tensor)
         return tensor_batch
 
-    @staticmethod
-    def _learner_stats(info):
-        return {LEARNER_STATS_KEY: info}
+    def _learner_stats(self, info):
+        return {LEARNER_STATS_KEY: {**info, **self.get_exploration_info()}}
 
     @contextlib.contextmanager
     def freeze_nets(self, *names):
@@ -247,7 +256,7 @@ class TorchPolicy(Policy):
 
     def __repr__(self):
         args = ["{name}(", "{observation_space}, ", "{action_space}, ", "{config}", ")"]
-        config = pretty_print(self._raw_user_config).rstrip("\n")
+        config = pretty_print(self.config).rstrip("\n")
         kwargs = dict(
             name=self.__class__.__name__,
             observation_space=self.observation_space,

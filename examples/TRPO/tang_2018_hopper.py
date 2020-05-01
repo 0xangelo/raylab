@@ -1,5 +1,3 @@
-# pylint:disable=missing-docstring,unused-import
-import numpy as np
 from ray import tune
 
 
@@ -19,8 +17,6 @@ def get_config():
         "val_iters": 5,
         # Learning rate for critic optimizer
         "val_lr": 1e-3,
-        # Whether to use Generalized Advantage Estimation
-        "use_gae": True,
         # Configuration for Conjugate Gradient
         "cg_iters": 10,
         "cg_damping": 1e-3,
@@ -40,9 +36,6 @@ def get_config():
         "batch_mode": "truncate_episodes",
         "timesteps_per_iteration": 1024,
         # === Network ===
-        # Size and activation of the fully connected networks computing the logits
-        # for the policy and value function. No layers means the component is
-        # linear in states or actions.
         "module": {
             "name": "TRPOTang2018",
             "torch_script": True,
@@ -51,7 +44,6 @@ def get_config():
                 "units": (32, 32),
                 "activation": "Tanh",
                 "initializer_options": {"name": "normal", "std": 1.0},
-                "target_vf": False,
             },
         },
     }

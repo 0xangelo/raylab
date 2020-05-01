@@ -1,12 +1,10 @@
-import numpy as np
 from ray import tune
 
 
 def get_config():
-    """Reference results: 1381 return in 1M timesteps."""
     return {
-        "env": "HalfCheetah-v2",
-        "env_config": {"max_episode_steps": 1000, "time_aware": True},
+        "env": "HalfCheetahBulletEnv-v0",
+        "env_config": {"max_episode_steps": 1000, "time_aware": False},
         # Number of actions to sample per state for Fisher matrix approximation
         "logp_samples": 1,
         # For GAE(\gamma, \lambda)
@@ -19,7 +17,7 @@ def get_config():
         # PyTorch optimizers to use
         "torch_optimizer": {
             "actor": {
-                # Arguments for KFACOptimizer
+                "type": "KFAC",
                 "eps": 1e-3,
                 "sua": False,
                 "pi": True,
@@ -30,7 +28,6 @@ def get_config():
                 "lr": 1.0,
             },
             "critic": {
-                # Can choose different optimizer
                 "type": "KFAC",
                 "eps": 1e-3,
                 "sua": False,

@@ -1,5 +1,4 @@
-# pylint:disable=missing-docstring
-# pylint:enable=missing-docstring
+# pylint:disable=missing-module-docstring
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.exploration import Exploration
 

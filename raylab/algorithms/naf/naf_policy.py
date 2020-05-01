@@ -51,7 +51,7 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             loss.backward()
 
         info.update(self.extra_grad_info())
-        self.update_targets("critics", "target_critics")
+        self.update_targets("vcritics", "target_vcritics")
         return self._learner_stats(info)
 
     def compute_loss(self, batch_tensors, module, config):
@@ -92,7 +92,7 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         dones = batch_tensors[SampleBatch.DONES]
 
         next_vals, _ = torch.cat(
-            [m(next_obs) for m in module.target_critics], dim=-1
+            [m(next_obs) for m in module.target_vcritics], dim=-1
         ).min(dim=-1)
         return torch.where(dones, rewards, rewards + config["gamma"] * next_vals)
 

@@ -114,7 +114,7 @@ def test_model_reproduce(module_batch_config):
     )
     assert next_obs_.shape == next_obs.shape
     assert next_obs_.dtype == next_obs.dtype
-    assert torch.allclose(next_obs_, next_obs, atol=1e-6)
+    assert torch.allclose(next_obs_, next_obs, atol=1e-5)
     assert logp_.shape == batch[SampleBatch.REWARDS].shape
 
     next_obs_.mean().backward()

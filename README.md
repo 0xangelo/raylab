@@ -15,11 +15,14 @@ For the visualization tools you'll need to install [Streamlit](http://streamlit.
 
 | Algorithm | Paper | Name in library |
 | --------- | ----- | --------------- |
+| Actor Critic using Kronecker-factored Trust Region | [link](https://arxiv.org/abs/1708.05144) | ACKTR |
 | Trust Region Policy Optimization | [link](http://proceedings.mlr.press/v37/schulman15.html) | TRPO |
 | Normalized Advantage Function | [link](http://proceedings.mlr.press/v48/gu16.html) | NAF |
 | Stochastic Value Gradients | [link](http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients) | SVG(inf) & SVG(1) |
 | Soft Actor-Critic | [link](http://proceedings.mlr.press/v80/haarnoja18b.html) | SoftAC |
-| Streamlined Off-Policy | [link](https://arxiv.org/abs/1910.02208) | SOP |
+| Streamlined Off-Policy (DDPG) | [link](https://arxiv.org/abs/1910.02208) | SOP |
+
+---
 
 ## Examples
 
@@ -49,9 +52,11 @@ if __name__ == "__main__":
 
 Since the setup above is likely to be repeated several times, `raylab` provides a command-line interface for [running experiments](#Running-experiments).
 
+---
+
 ## Command-line interface
 
-For a high-level description of the available utilities, run
+For a high-level description of the available utilities, run `raylab --help`
 ```
 Usage: raylab [OPTIONS] COMMAND [ARGS]...
 
@@ -146,6 +151,8 @@ Options:
 
 ```
 To generate `matplotlib` plots, check out the `raylab plot` and `raylab plot-export`.
+
+---
 
 ## Structure
 The project is structured as follows

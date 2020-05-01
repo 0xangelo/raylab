@@ -24,6 +24,16 @@ BASE_CONFIG = {
             "initializer_options": {"name": "xavier_uniform"},
         },
     },
+    "model": {
+        "residual": True,
+        "input_dependent_scale": False,
+        "encoder": {
+            "units": (40, 40),
+            "activation": "Tanh",
+            "delay_action": True,
+            "initializer_options": {"name": "xavier_uniform"},
+        },
+    },
 }
 
 

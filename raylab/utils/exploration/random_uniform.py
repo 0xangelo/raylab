@@ -1,8 +1,9 @@
-# pylint:disable=missing-docstring
-# pylint:enable=missing-docstring
+# pylint:disable=missing-module-docstring
 import numpy as np
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.exploration import Exploration
+
+import raylab.utils.pytorch as ptu
 
 
 class RandomUniformMixin:
@@ -25,9 +26,13 @@ class RandomUniformMixin:
         # pylint:disable=too-many-arguments,missing-docstring,unused-argument
         if explore:
             obs = distribution_inputs
-            acts = [self.action_space.sample() for _ in range(obs.size(0))]
-            logp = [
-                -np.log(self.action_space.high - self.action_space.low).sum(axis=-1)
-            ] * obs.size(0)
+            acts = ptu.convert_to_tensor(
+                [self.action_space.sample() for _ in range(obs.size(0))], obs.device
+            )
+            logp = ptu.convert_to_tensor(
+                [-np.log(self.action_space.high - self.action_space.low).sum(axis=-1)]
+                * obs.size(0),
+                obs.device,
+            )
             return acts, logp
         return distribution_inputs, None

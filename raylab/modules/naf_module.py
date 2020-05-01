@@ -51,8 +51,13 @@ class NAFModule(nn.ModuleDict):
             encoder = self._make_encoder(obs_space, config)
             return nn.Sequential(encoder, nn.Linear(encoder.out_features, 1))
 
-        target_critics = nn.ModuleList([make_target() for m in critics])
-        return {"critics": critics, "target_critics": target_critics}
+        values = nn.ModuleList([nn.Sequential(m.logits, m.value) for m in critics])
+        target_values = nn.ModuleList([make_target() for m in critics])
+        return {
+            "critics": critics,
+            "vcritics": values,
+            "target_vcritics": target_values,
+        }
 
     def _make_actor(self, obs_space, action_space, config):
         naf = self.critics[0]

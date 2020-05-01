@@ -15,7 +15,7 @@ DEFAULT_CONFIG = with_common_config(
         "vf_iters": 20,
         # PyTorch optimizers to use
         "torch_optimizer": {
-            # Arguments for KFAC
+            # Type can be KFAC or EKFAC
             "actor": {"type": "KFAC", "lr": 1.0},
             # Can choose different optimizer
             "critic": {"type": "KFAC", "lr": 1.0},

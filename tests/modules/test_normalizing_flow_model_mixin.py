@@ -118,7 +118,7 @@ def test_reproduce(agent, obs_space, action_space, config, torch_script):
     obs_, logp_ = module.model.reproduce(obs, act, new_obs)
     assert obs_.shape == new_obs.shape
     assert obs_.dtype == new_obs.dtype
-    assert torch.allclose(obs_, new_obs, atol=1e-6)
+    assert torch.allclose(obs_, new_obs, atol=1e-5)
     assert logp_.shape == batch[SampleBatch.REWARDS].shape
 
     obs_.mean().backward()

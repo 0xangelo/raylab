@@ -1,5 +1,3 @@
-# pylint:disable=missing-docstring,unused-import
-import numpy as np
 from ray import tune
 
 
@@ -19,11 +17,6 @@ def get_config():
         "val_iters": 40,
         # Learning rate for critic optimizer
         "val_lr": 1e-2,
-        # Whether to use Generalized Advantage Estimation
-        "use_gae": True,
-        # Whether to use a line search to calculate policy update.
-        # Effectively turns TRPO into Natural PG when turned off.
-        "line_search": True,
         # === RolloutWorker ===
         "num_workers": 3,
         "num_envs_per_worker": 6,
@@ -31,23 +24,16 @@ def get_config():
         "batch_mode": "truncate_episodes",
         "timesteps_per_iteration": 7200,
         # === Network ===
-        # Size and activation of the fully connected networks computing the logits
-        # for the policy and value function. No layers means the component is
-        # linear in states or actions.
         "module": {
-            "name": "OnPolicyActorCritic",
-            "torch_script": True,
             "actor": {
                 "units": (32, 32),
                 "activation": "ELU",
                 "initializer_options": {"name": "orthogonal"},
-                "input_dependent_scale": False,
             },
             "critic": {
                 "units": (32, 32),
                 "activation": "ELU",
                 "initializer_options": {"name": "orthogonal"},
-                "target_vf": False,
             },
         },
     }
