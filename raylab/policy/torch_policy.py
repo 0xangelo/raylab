@@ -237,9 +237,8 @@ class TorchPolicy(Policy):
         tensor_batch.set_get_interceptor(self.convert_to_tensor)
         return tensor_batch
 
-    @staticmethod
-    def _learner_stats(info):
-        return {LEARNER_STATS_KEY: info}
+    def _learner_stats(self, info):
+        return {LEARNER_STATS_KEY: {**info, **self.get_exploration_info()}}
 
     @contextlib.contextmanager
     def freeze_nets(self, *names):
