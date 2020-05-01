@@ -1,5 +1,3 @@
-"""Tune experiment configuration to test NAF in MujocoReacher."""
-import numpy as np
 from ray import tune
 
 
@@ -11,12 +9,15 @@ def get_config():
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning
         "clipped_double_q": True,
+        # === Optimization ===
+        # PyTorch optimizer and options to use
+        "torch_optimizer": {"type": "Adam", "lr": 3e-4},
         # === Replay Buffer ===
         "buffer_size": int(2e4),
         # === Network ===
         "module": {
             "encoder": {
-                "units": (400, 300),
+                "units": (128, 128),
                 "activation": "ELU",
                 "layer_norm": True,
                 "initializer_options": {"name": "orthogonal"},
