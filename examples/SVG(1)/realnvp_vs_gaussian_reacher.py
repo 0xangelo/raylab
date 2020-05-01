@@ -1,4 +1,3 @@
-import numpy as np
 from ray import tune
 
 
@@ -53,5 +52,5 @@ def get_config():
         "train_batch_size": 128,
         "timesteps_per_iteration": 1000,
         # === Evaluation ===
-        "evaluation_interval": None,
+        "evaluation_interval": 5,
     }

@@ -1,6 +1,3 @@
-# pylint: disable=missing-docstring
-
-
 def get_config():
     return {
         # === Environment ===
@@ -42,29 +39,6 @@ def get_config():
         # Whether to penalize KL divergence with the current policy or past policies
         # that generated the replay pool.
         "replay_kl": True,
-        # === Network ===
-        # Size and activation of the fully connected networks computing the logits
-        # for the policy, value function and model. No layers means the component is
-        # linear in states and/or actions.
-        "module": {
-            "policy": {
-                "layers": [100, 100],
-                "activation": "Tanh",
-                "initializer_options": {"name": "xavier_uniform"},
-                "input_dependent_scale": False,
-            },
-            "value": {
-                "layers": [400, 200],
-                "activation": "Tanh",
-                "initializer_options": {"name": "xavier_uniform"},
-            },
-            "model": {
-                "layers": [40, 40],
-                "activation": "Tanh",
-                "initializer_options": {"name": "xavier_uniform"},
-                "delay_action": True,
-            },
-        },
         # === Trainer ===
         "train_batch_size": 128,
         "timesteps_per_iteration": 1000,

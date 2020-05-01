@@ -1,12 +1,10 @@
-"""Tune experiment configuration to test SVG(1) in HalfCheetah-v3."""
-import numpy as np
 from ray import tune
 
 
 def get_config():
     return {
         # === Environment ===
-        "env": "MujocoHalfCheetah",
+        "env": "HalfCheetah-v3",
         "env_config": {"max_episode_steps": 250, "time_aware": False},
         # === Replay Buffer ===
         "buffer_size": int(2e5),
@@ -33,22 +31,22 @@ def get_config():
         # for the policy, value function and model. No layers means the component is
         # linear in states and/or actions.
         "module": {
-            "policy": {
-                "layers": (100, 100),
-                "activation": "Tanh",
+            "actor": {
+                "encoder": {
+                    "units": (100, 100),
+                    "activation": "Tanh",
+                    "initializer_options": {"name": "orthogonal"},
+                },
                 "input_dependent_scale": True,
-                "initializer_options": {"name": "orthogonal"},
             },
-            "value": {
-                "layers": (400, 200),
-                "activation": "Tanh",
-                "initializer_options": {"name": "orthogonal", "gain": np.sqrt(2)},
-            },
-            "model": {
-                "layers": (40, 40),
-                "activation": "Tanh",
-                "delay_action": True,
-                "initializer_options": {"name": "orthogonal"},
+            "critic": {
+                "target_vf": True,
+                "encoder": {
+                    "units": (400, 200),
+                    "activation": "Tanh",
+                    "initializer_options": {"name": "orthogonal"},
+                },
+                "model": {"initializer_options": {"name": "orthogonal"}},
             },
         },
         # === RolloutWorker ===
@@ -59,14 +57,4 @@ def get_config():
         "train_batch_size": 128,
         # === Evaluation ===
         "evaluation_interval": 10,
-        # Extra arguments to pass to evaluation workers.
-        # Typical usage is to pass extra args to evaluation env creator
-        # and to disable exploration by computing deterministic actions
-        "evaluation_config": {"mean_action_only": True, "pure_exploration_steps": 0},
-        # === Debugging ===
-        # Set the ray.rllib.* log level for the agent process and its workers.
-        # Should be one of DEBUG, INFO, WARN, or ERROR. The DEBUG level will also
-        # periodically print out summaries of relevant internal dataflow (this is
-        # also printed out once at startup at the INFO level).
-        "log_level": "WARN",
     }
