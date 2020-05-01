@@ -19,9 +19,8 @@ def get_config():
         # PyTorch optimizers to use
         "torch_optimizer": {
             "actor": {
-                # Arguments for KFACOptimizer
+                "type": "KFAC",
                 "eps": 1e-3,
-                "sua": False,
                 "pi": True,
                 "update_freq": 1,
                 "alpha": 0.95,
@@ -30,10 +29,8 @@ def get_config():
                 "lr": 1.0,
             },
             "critic": {
-                # Can choose different optimizer
                 "type": "KFAC",
                 "eps": 1e-3,
-                "sua": False,
                 "pi": True,
                 "update_freq": 1,
                 "alpha": 0.95,
