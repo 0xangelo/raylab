@@ -24,6 +24,13 @@ class TorchPolicy(Policy):
 
     def __init__(self, observation_space, action_space, config):
         self.framework = "torch"
+        config = deep_merge(
+            {**self.get_default_config(), "worker_index": None},
+            config,
+            new_keys_allowed=False,
+            whitelist=Trainer._allow_unknown_subkeys,
+            override_all_if_type_changes=Trainer._override_all_subkeys_if_type_changes,
+        )
         super().__init__(observation_space, action_space, config)
         self.device = (
             torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -36,19 +43,6 @@ class TorchPolicy(Policy):
     @abstractmethod
     def get_default_config():
         """Return the default config for this policy class."""
-
-    @classmethod
-    def with_defaults(cls, observation_space, action_space, config):
-        """Merge config with default config before creating policy."""
-        # pylint:disable=protected-access
-        config = deep_merge(
-            cls.get_default_config(),
-            config,
-            new_keys_allowed=False,
-            whitelist=Trainer._allow_unknown_subkeys,
-            override_all_if_type_changes=Trainer._override_all_subkeys_if_type_changes,
-        )
-        return cls(observation_space, action_space, config)
 
     @abstractmethod
     def optimizer(self):
