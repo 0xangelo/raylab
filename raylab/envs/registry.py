@@ -65,15 +65,17 @@ ENVS.update(
 try:
     import gym_cartpole_swingup  # pylint:disable=unused-import,import-error
 
-    @wrap_if_needed
-    def _cartpole_swingup_maker(_):
-        from raylab.envs.cartpole_swingup import CartPoleSwingUpEnv
-
-        return CartPoleSwingUpEnv()
-
-    ENVS.update({"CartPoleSwingUp": _cartpole_swingup_maker})
     NEW_IDS = set(s.id for s in gym.envs.registry.all()) - IDS
-    ENVS.update({i: wrap_if_needed(lambda _, i=i: gym.make(i)) for i in NEW_IDS})
+    for id_ in NEW_IDS:
+
+        @wrap_if_needed
+        def _swingup_env_maker(config, id_=id_):
+            # pylint:disable=redefined-outer-name,reimported,unused-import
+            import gym_cartpole_swingup  # noqa:F811
+
+            return gym.make(id_, **config)
+
+        ENVS[id_] = _swingup_env_maker
     IDS.update(NEW_IDS)
 except ImportError:
     pass

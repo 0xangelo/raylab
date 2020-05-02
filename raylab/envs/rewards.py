@@ -57,8 +57,20 @@ class TimeAwareRewardFn(RewardFn):
         return self.reward_fn(state[..., :-1], action, next_state[..., :-1])
 
 
-@register("CartPoleSwingUp")
-class CartPoleSwingUpReward(RewardFn):
+@register("CartPoleSwingUp-v0", "TorchCartPoleSwingUp-v0")
+class CartPoleSwingUpV0Reward(RewardFn):
+    """
+    Compute CartPoleSwingUp's reward given a possibly batched transition.
+    Assumes all but the last dimension are batch ones.
+    """
+
+    @override(RewardFn)
+    def forward(self, state, action, next_state):
+        return next_state[..., 2]
+
+
+@register("CartPoleSwingUp-v1", "TorchCartPoleSwingUp-v1")
+class CartPoleSwingUpV1Reward(RewardFn):
     """
     Compute CartPoleSwingUp's reward given a possibly batched transition.
     Assumes all but the last dimension are batch ones.

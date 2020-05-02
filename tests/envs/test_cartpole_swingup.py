@@ -14,9 +14,9 @@ except ImportError:
     )
 
 
-@pytest.fixture
-def env(envs):
-    return envs["CartPoleSwingUp"]({})
+@pytest.fixture(params="TorchCartPoleSwingUp-v0 TorchCartPoleSwingUp-v1".split())
+def env(request, envs):
+    return envs[request.param]({})
 
 
 @pytest.fixture(params=((), (1,), (4,)))
