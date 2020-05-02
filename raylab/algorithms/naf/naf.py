@@ -25,6 +25,8 @@ DEFAULT_CONFIG = with_common_config(
         "polyak": 0.995,
         # === Rollout Worker ===
         "num_workers": 0,
+        "rollout_fragment_length": 1,
+        "batch_mode": "complete_episodes",
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

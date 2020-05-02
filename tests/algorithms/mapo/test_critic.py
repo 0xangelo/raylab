@@ -19,7 +19,7 @@ def smooth_target_policy(request):
 def config(clipped_double_q, smooth_target_policy):
     return {
         "clipped_double_q": clipped_double_q,
-        "smooth_target_policy": smooth_target_policy,
+        "module": {"actor": {"smooth_target_policy": smooth_target_policy}},
     }
 
 

@@ -2,19 +2,15 @@
 import pytest
 
 
-EXPLORATION_OPTIONS = (None, "diag_gaussian", "full_gaussian", "parameter_noise")
+EXPLORATION_TYPES = "ParameterNoise GaussianNoise".split(" ")
 
 
 @pytest.fixture(
-    params=EXPLORATION_OPTIONS,
-    ids=tuple(
-        str(e).replace("_", " ").capitalize() + " Exploration"
-        for e in EXPLORATION_OPTIONS
-    ),
+    params=EXPLORATION_TYPES, ids=tuple(s.split(".")[-1] for s in EXPLORATION_TYPES),
 )
 def exploration(request):
-    return request.param
+    return "raylab.utils.exploration." + request.param
 
 
 def test_policy_creation(policy_and_batch_fn, exploration):
-    policy_and_batch_fn({"exploration": exploration})
+    policy_and_batch_fn({"exploration_config": {"type": exploration}})
