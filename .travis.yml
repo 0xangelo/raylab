@@ -1,7 +1,7 @@
 dist: xenial   # required for Python >= 3.7
 language: python
 python:
-  - "3.7"
+  - "3.8"
 # command to install dependencies
 install:
   - sudo apt-get update
@@ -17,9 +17,8 @@ install:
   - conda info -a
 
   # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
-  - conda activate test-environment
-  - conda install pytest pytorch torchvision -c pytorch
+  - conda env create -f environment.yml
+  - conda activate raylab
   - pip install gym-cartpole-swingup
   - pip install .
 # command to run tests
