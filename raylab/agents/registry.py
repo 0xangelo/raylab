@@ -43,10 +43,10 @@ def _import_trpo():
     return TRPOTrainer
 
 
-def _import_svg_maxent():
-    from raylab.agents.svg.svg_maxent import SVGMaxEntTrainer
+def _import_soft_svg():
+    from raylab.agents.svg.soft_svg import SoftSVGTrainer
 
-    return SVGMaxEntTrainer
+    return SoftSVGTrainer
 
 
 def _import_acktr():
@@ -63,6 +63,6 @@ AGENTS = {
     "SOP": _import_sop,
     "MAPO": _import_mapo,
     "TRPO": _import_trpo,
-    "SVGMaxEnt": _import_svg_maxent,
+    "SoftSVG": _import_soft_svg,
     "ACKTR": _import_acktr,
 }

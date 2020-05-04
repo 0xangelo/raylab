@@ -4,7 +4,7 @@ from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
 
 from .svg_base import SVG_BASE_CONFIG, SVGBaseTrainer
-from .svg_maxent_policy import SVGMaxEntTorchPolicy
+from .soft_svg_policy import SoftSVGTorchPolicy
 
 
 DEFAULT_CONFIG = with_base_config(
@@ -63,12 +63,12 @@ DEFAULT_CONFIG = with_base_config(
 )
 
 
-class SVGMaxEntTrainer(SVGBaseTrainer):
-    """Single agent trainer for SVGMaxEnt."""
+class SoftSVGTrainer(SVGBaseTrainer):
+    """Single agent trainer for SoftSVG."""
 
-    _name = "SVGMaxEnt"
+    _name = "SoftSVG"
     _default_config = DEFAULT_CONFIG
-    _policy = SVGMaxEntTorchPolicy
+    _policy = SoftSVGTorchPolicy
 
     @override(SVGBaseTrainer)
     def _train(self):

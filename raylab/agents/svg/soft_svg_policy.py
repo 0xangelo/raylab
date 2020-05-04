@@ -1,4 +1,4 @@
-"""SVGMaxEnt policy class using PyTorch."""
+"""SoftSVG policy class using PyTorch."""
 import collections
 
 import torch
@@ -10,7 +10,7 @@ import raylab.utils.pytorch as ptu
 from .svg_base_policy import SVGBaseTorchPolicy
 
 
-class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
+class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
 
     # pylint: disable=abstract-method
@@ -19,16 +19,14 @@ class SVGMaxEntTorchPolicy(SVGBaseTorchPolicy):
         super().__init__(observation_space, action_space, config)
         if self.config["target_entropy"] == "auto":
             self.config["target_entropy"] = -action_space.shape[0]
-        assert (
-            "target_critic" in self.module
-        ), "SVGMaxEnt needs a target Value function!"
+        assert "target_critic" in self.module, "SoftSVG needs a target Value function!"
 
     @staticmethod
     @override(SVGBaseTorchPolicy)
     def get_default_config():
-        """Return the default config for SVGMaxEnt"""
+        """Return the default config for SoftSVG"""
         # pylint: disable=cyclic-import
-        from raylab.agents.svg.svg_maxent import DEFAULT_CONFIG
+        from raylab.agents.svg.soft_svg import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 
