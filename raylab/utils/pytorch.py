@@ -149,7 +149,7 @@ def update_polyak(from_module, to_module, polyak):
             are updated.
     """
     for source, target in zip(from_module.parameters(), to_module.parameters()):
-        target.data.mul_(polyak).add_(1 - polyak, source.data)
+        target.data.mul_(polyak).add_(source.data, alpha=1 - polyak)
 
 
 NONLINEARITY_MAP = {
