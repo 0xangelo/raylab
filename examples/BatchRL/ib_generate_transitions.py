@@ -10,7 +10,7 @@ from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils.annotations import override
 
 import raylab
-from raylab.algorithms import Trainer, with_common_config
+from raylab.agents import Trainer, with_common_config
 from raylab.logger import DEFAULT_LOGGERS as CUSTOM_LOGGERS
 
 from ib_behavior_policy import IBBehaviorPolicy

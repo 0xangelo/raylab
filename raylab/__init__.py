@@ -4,9 +4,9 @@
 def register_all_agents():
     """Register all trainer names in Tune."""
     from ray.tune import register_trainable
-    from raylab.algorithms.registry import ALGORITHMS
+    from raylab.agents.registry import AGENTS
 
-    for name, trainer_import in ALGORITHMS.items():
+    for name, trainer_import in AGENTS.items():
         register_trainable(name, trainer_import())
 
 
