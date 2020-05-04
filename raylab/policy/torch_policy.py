@@ -2,7 +2,9 @@
 from abc import abstractmethod
 import contextlib
 
+import numpy as np
 import torch
+import tree
 from ray.tune.logger import pretty_print
 from ray.rllib.models.model import restore_original_dimensions, flatten
 from ray.rllib.utils.annotations import override
@@ -180,18 +182,30 @@ class TorchPolicy(Policy):
 
     @override(Policy)
     def get_weights(self):
-        module_state = {k: v.cpu() for k, v in self.module.state_dict().items()}
+        def numpy_state(state):
+            return tree.map_structure(
+                lambda x: x.cpu().numpy() if isinstance(x, torch.Tensor) else x, state,
+            )
+
+        module_state = numpy_state(self.module.state_dict())
         optim = () if self._optimizer is None else self._optimizer
         optims = optim if isinstance(optim, tuple) else [optim]
-        return [module_state] + [p.state_dict() for p in optims]
+        return [module_state] + [numpy_state(o.state_dict()) for o in optims]
 
     @override(Policy)
     def set_weights(self, weights):
         optim = () if self._optimizer is None else self._optimizer
         optims = optim if isinstance(optim, tuple) else [optim]
-        self.module.load_state_dict(weights[0])
+
+        def torch_state(state):
+            return tree.map_structure(
+                lambda x: self.convert_to_tensor(x) if isinstance(x, np.ndarray) else x,
+                state,
+            )
+
+        self.module.load_state_dict(torch_state(weights[0]))
         for optim, state in zip(optims, weights[1:]):
-            optim.load_state_dict(state)
+            optim.load_state_dict(torch_state(state))
 
     @override(Policy)
     def _create_exploration(self, action_space, config):
