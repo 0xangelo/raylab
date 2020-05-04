@@ -12,7 +12,7 @@ from .utils import initialize_raylab
     type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True),
 )
 @click.option(
-    "--algo", required=True, default=None, help="Name of the trainable class to run."
+    "--agent", required=True, default=None, help="Name of the trainable class to run."
 )
 @click.option(
     "--env", default=None, help="Name of the environment to interact with, optional."
@@ -24,15 +24,15 @@ from .utils import initialize_raylab
     "--episodes", "-n", type=float, default=float("inf"), help="Number of episodes."
 )
 @initialize_raylab
-def rollout(checkpoint, algo, env, render, episodes):
+def rollout(checkpoint, agent, env, render, episodes):
     """Simulate an agent from a given checkpoint in the desired environment."""
     # pylint:disable=too-many-locals
     from contextlib import suppress
     import ray
-    from raylab.utils.checkpoints import get_agent
+    from raylab.utils.checkpoints import get_agent_from_checkpoint
 
     ray.init()
-    agent = get_agent(checkpoint, algo, env)
+    agent = get_agent_from_checkpoint(checkpoint, agent, env)
     env = agent.workers.local_worker().env
 
     with suppress(KeyboardInterrupt), env:

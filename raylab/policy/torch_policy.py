@@ -15,7 +15,7 @@ from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.rllib.policy.policy import Policy, ACTION_LOGP, ACTION_PROB, LEARNER_STATS_KEY
 from ray.rllib.policy.sample_batch import SampleBatch
 
-from raylab.algorithms import Trainer
+from raylab.agents import Trainer
 from raylab.modules.catalog import get_module
 from raylab.utils.dictionaries import deep_merge
 from raylab.utils.pytorch import convert_to_tensor

@@ -1,7 +1,42 @@
 # raylab
 Reinforcement learning algorithms in [RLlib](https://github.com/ray-project/ray/tree/master/rllib) and [PyTorch](https://pytorch.org).
 
-![](https://i.imgur.com/DlOemPW.png)
+## Introduction
+
+Raylab provides agents and environments to be used with a normal RLlib/Tune setup.
+```python=
+import ray
+from ray import tune
+import raylab
+
+def main():
+    raylab.register_all_agents()
+    raylab.register_all_environments()
+    ray.init()
+    tune.run(
+        "NAF",
+        local_dir=...,
+        stop={"timesteps_total": 100000},
+        config={
+            "env": "CartPoleSwingUp-v0",
+            "exploration_config": {
+                "type": tune.grid_search([
+                    "raylab.utils.exploration.GaussianNoise",
+                    "raylab.utils.exploration.ParameterNoise"
+                ])
+            }
+            ...
+        },
+    )
+
+if __name__ == "__main__":
+    main()
+```
+
+One can then visualize the results using `raylab dashboard`
+![](https://i.imgur.com/bVc6WC5.png)
+
+<!-- ![](https://i.imgur.com/DlOemPW.png) -->
 
 ## Installation
 With PyTorch installed, clone the repository and run
@@ -13,44 +48,14 @@ For the visualization tools you'll need to install [Streamlit](http://streamlit.
 
 ## Algorithms implemented
 
-| Algorithm | Paper | Name in library |
+| Agent | Paper | Name in library |
 | --------- | ----- | --------------- |
 | Actor Critic using Kronecker-factored Trust Region | [link](https://arxiv.org/abs/1708.05144) | ACKTR |
 | Trust Region Policy Optimization | [link](http://proceedings.mlr.press/v37/schulman15.html) | TRPO |
 | Normalized Advantage Function | [link](http://proceedings.mlr.press/v48/gu16.html) | NAF |
-| Stochastic Value Gradients | [link](http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients) | SVG(inf) & SVG(1) |
+| Stochastic Value Gradients | [link](http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients) | SVG(inf)/SVG(1)/SoftSVG |
 | Soft Actor-Critic | [link](http://proceedings.mlr.press/v80/haarnoja18b.html) | SoftAC |
 | Streamlined Off-Policy (DDPG) | [link](https://arxiv.org/abs/1910.02208) | SOP |
-
----
-
-## Examples
-
-Raylab provides algorithms and environments to be used with a normal RLlib/Tune setup.
-```python=
-import ray
-from ray import tune
-import raylab
-
-def main():
-    raylab.register_all_agents()
-    raylab.register_all_environments()
-    ray.init()
-    tune.run(
-        "SOP",
-        local_dir=...,
-        stop={"timesteps_total": 100000},
-        config={
-            "env": "CartPoleSwingUp",
-            ...
-        },
-    )
-
-if __name__ == "__main__":
-    main()
-```
-
-Since the setup above is likely to be repeated several times, `raylab` provides a command-line interface for [running experiments](#Running-experiments).
 
 ---
 
@@ -75,7 +80,7 @@ Commands:
 ```
 
 ### Running experiments
-One can run Tune experiments locally using `raylab experiment`.
+Since the setup [above](#Introduction) is likely to be repeated several times, `raylab` provides a command-line interface for Tune experiments locally using `raylab experiment`.
 ```
 Usage: raylab experiment [OPTIONS] RUN
 
@@ -120,10 +125,10 @@ An example is included in `examples/naf_exploration_experiment.py`.
 
 One can also use `scripts/train.py`, which wraps
 [`rllib train`](https://ray.readthedocs.io/en/latest/rllib-training.html#rllib-training-apis)
-so as to register custom algorithms and environments beforehand.
+so as to register custom agents and environments beforehand.
 
 ### Evaluating agents
-To load a checkopoint and simulate an agent, use `raylab rollout`
+To load a checkpoint and simulate an agent, use `raylab rollout`
 ```
 Usage: raylab rollout [OPTIONS] CHECKPOINT
 
@@ -150,7 +155,7 @@ Options:
   --help  Show this message and exit.
 
 ```
-To generate `matplotlib` plots, check out the `raylab plot` and `raylab plot-export`.
+To generate `matplotlib` plots, check out `raylab plot` and `raylab plot-export`.
 
 ---
 
@@ -158,7 +163,7 @@ To generate `matplotlib` plots, check out the `raylab plot` and `raylab plot-exp
 The project is structured as follows
 
     raylab
-    ├── algorithms        # Trainer and Policy classes
+    ├── agents            # Trainer and Policy classes
     ├── cli               # Command line utilities
     ├── distributions     # Extendend and additional PyTorch distributions
     ├── envs              # Gym environments
