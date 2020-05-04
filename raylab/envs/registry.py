@@ -1,5 +1,6 @@
 # pylint:disable=import-outside-toplevel
 """Registry of custom Gym environments."""
+import importlib
 import inspect
 
 import gym
@@ -7,7 +8,24 @@ import gym
 from .utils import wrap_if_needed
 
 
-IDS = set(s.id for s in gym.envs.registry.all())
+def filtered_gym_env_ids():
+    """
+    Return environment ids in Gym registry for which all dependencies are installed.
+    """
+    specs = set(gym.envs.registry.all())
+
+    if importlib.util.find_spec("atari_py") is None:
+        specs.difference_update({s for s in specs if "atari" in s.entry_point})
+    if importlib.util.find_spec("mujoco_py") is None:
+        specs.difference_update({s for s in specs if "mujoco" in s.entry_point})
+        specs.difference_update({s for s in specs if "robotics" in s.entry_point})
+    if importlib.util.find_spec("Box2D") is None:
+        specs.difference_update({s for s in specs if "box2d" in s.entry_point})
+
+    return {s.id for s in specs}
+
+
+IDS = filtered_gym_env_ids()
 # kwarg trick from:
 # https://github.com/satwikkansal/wtfpython#-the-sticky-output-function
 ENVS = {i: wrap_if_needed(lambda config, i=i: gym.make(i, **config)) for i in IDS}
@@ -65,7 +83,7 @@ ENVS.update(
 try:
     import gym_cartpole_swingup  # pylint:disable=unused-import,import-error
 
-    NEW_IDS = set(s.id for s in gym.envs.registry.all()) - IDS
+    NEW_IDS = filtered_gym_env_ids() - IDS
     for id_ in NEW_IDS:
 
         @wrap_if_needed
@@ -84,7 +102,7 @@ except ImportError:
 try:
     import pybullet_envs  # pylint:disable=unused-import,import-error
 
-    NEW_IDS = set(s.id for s in gym.envs.registry.all()) - IDS
+    NEW_IDS = filtered_gym_env_ids() - IDS
     for id_ in NEW_IDS:
 
         @wrap_if_needed
