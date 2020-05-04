@@ -163,10 +163,10 @@ class ACKTRTorchPolicy(TorchPolicy):
         @torch.no_grad()
         def f_barrier(scale):
             for par in self.module.actor.parameters():
-                par.data.add_(scale, par.grad.data)
+                par.data.add_(par.grad.data, alpha=scale)
             new_logp = self.module.actor.log_prob(cur_obs, actions)
             for par in self.module.actor.parameters():
-                par.data.sub_(scale, par.grad.data)
+                par.data.sub_(par.grad.data, alpha=scale)
             surr_loss = self._compute_surr_loss(old_logp, new_logp, advantages)
             avg_kl = torch.mean(old_logp - new_logp)
             return surr_loss.item() if avg_kl < kl_clip else np.inf
@@ -188,7 +188,7 @@ class ACKTRTorchPolicy(TorchPolicy):
             "improvement_ratio": improvement_ratio,
         }
         for par in self.module.actor.parameters():
-            par.data.add_(scale, par.grad.data)
+            par.data.add_(par.grad.data, alpha=scale)
         return info
 
     @staticmethod
