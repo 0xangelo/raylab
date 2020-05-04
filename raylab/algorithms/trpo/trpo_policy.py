@@ -226,13 +226,8 @@ class TRPOTorchPolicy(TorchPolicy):
             "explained_variance": explained_variance(
                 value_targets.numpy(), value_preds.numpy()
             ),
+            "grad_norm(critic)": nn.utils.clip_grad_norm_(
+                self.module.critic.parameters(), float("inf")
+            ),
         }
-        info.update(
-            {
-                f"grad_norm({k})": nn.utils.clip_grad_norm_(
-                    self.module[k].parameters(), float("inf")
-                )
-                for k in ("actor", "critic")
-            }
-        )
         return info
