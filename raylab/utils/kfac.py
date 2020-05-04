@@ -86,7 +86,7 @@ class KFACMixin:
         for group in self.param_groups:
             for param in group["params"]:
                 param.grad.data.mul_(scale)
-                param.data.sub_(group["lr"], param.grad.data)
+                param.data.sub_(param.grad.data, alpha=group["lr"])
 
     def _compute_covs(self, group, state):
         """Computes the covariances."""

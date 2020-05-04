@@ -15,17 +15,15 @@ def get_config():
             },
             # === MAPO model training ===
             # Type of model-training to use. Possible types include
-            # decision_aware: policy gradient-aware model learning
+            # daml: policy gradient-aware model learning
             # mle: maximum likelihood estimation
-            "model_loss": tune.grid_search(["decision_aware", "mle"]),
+            "model_loss": tune.grid_search(["DAML", "MLE"]),
             # Number of next states to sample from the model when calculating the
             # model-aware deterministic policy gradient
             "num_model_samples": 4,
             # Gradient estimator for model-aware dpg. Possible types include:
             # score_function, pathwise_derivative
-            "grad_estimator": tune.grid_search(
-                ["score_function", "pathwise_derivative"]
-            ),
+            "grad_estimator": tune.grid_search(["SF", "PD"]),
             # === Replay Buffer ===
             "buffer_size": int(4e4),
             # === Network ===

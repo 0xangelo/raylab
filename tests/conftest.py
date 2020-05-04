@@ -5,7 +5,7 @@ import gym
 import gym.spaces as spaces
 
 import raylab
-from raylab.algorithms.registry import ALGORITHMS
+from raylab.agents.registry import AGENTS
 
 from .mock_env import MockEnv
 
@@ -34,7 +34,7 @@ def envs():
     return ENVS.copy()
 
 
-@pytest.fixture(scope="module", params=list(ALGORITHMS.values()))
+@pytest.fixture(scope="module", params=list(AGENTS.values()))
 def trainer_cls(request):
     return request.param()
 

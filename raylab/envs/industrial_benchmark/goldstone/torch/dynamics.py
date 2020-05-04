@@ -55,7 +55,7 @@ class TorchDynamics(Dynamics):
     def _compute_ropt(self, rho_s):
         """Compute r_opt resulting from Equation (43)."""
         varrho = rho_s.sign()
-        return varrho * torch.max(rho_s.abs(), torch.as_tensor(2 * self._safe_zone))
+        return varrho * torch.clamp(rho_s.abs(), min=2 * self._safe_zone)
 
     def _compute_rmin(self, rho_s):
         """Compute r_min resulting from Equation (44)."""
