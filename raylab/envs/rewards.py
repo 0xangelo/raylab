@@ -1,6 +1,4 @@
 """Registry of environment reward functions to be used by algorithms."""
-import importlib
-
 import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
@@ -26,19 +24,11 @@ def get_reward_fn(env_id, env_config=None):
     return reward_fn
 
 
-def register(*ids, dependencies=()):
-    """Register reward function class for environments with given ids.
-
-    An optional iterable of dependency names can be passed, in which case the
-    function will try to find the modules with given names before registering
-    the reward function
-    """
-    if isinstance(dependencies, str):
-        dependencies = [dependencies]
+def register(*ids):
+    """Register reward function class for environments with given ids."""
 
     def librarian(cls):
-        if all(importlib.util.find_spec(n) is not None for n in dependencies):
-            REWARDS.update({i: cls for i in ids})
+        REWARDS.update({i: cls for i in ids})
         return cls
 
     return librarian
@@ -91,7 +81,7 @@ class CartPoleSwingUpV1Reward(RewardFn):
         return (1 + next_state[..., 2]) / 2
 
 
-@register("HalfCheetah-v3", dependencies="mujoco_py")
+@register("HalfCheetah-v3")
 class HalfCheetahReward(RewardFn):
     """Compute rewards given a possibly batched transition.
 
@@ -196,7 +186,7 @@ class NavigationReward(RewardFn):
         return -torch.norm(next_state - goal, p=2, dim=-1)
 
 
-@register("Reacher-v2", dependencies="mujoco_py")
+@register("Reacher-v2")
 class ReacherReward(RewardFn):
     """Reacher-v3's reward function."""
 
