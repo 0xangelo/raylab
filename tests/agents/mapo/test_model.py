@@ -23,7 +23,7 @@ def test_madpg_loss(policy_and_batch, num_model_samples, model_rollout_len):
     policy.config["num_model_samples"] = num_model_samples
     policy.config["model_rollout_len"] = model_rollout_len
 
-    loss, info = policy.compute_decision_aware_loss(batch, policy.module, policy.config)
+    loss, info = policy.compute_daml_loss(batch, policy.module, policy.config)
     assert isinstance(info, dict)
     assert loss.shape == ()
     assert loss.dtype == torch.float32
@@ -38,10 +38,10 @@ def test_madpg_loss(policy_and_batch, num_model_samples, model_rollout_len):
     )
 
 
-def test_decision_aware_loss(policy_and_batch):
+def test_daml_loss(policy_and_batch):
     policy, batch = policy_and_batch
 
-    loss, info = policy.compute_decision_aware_loss(batch, policy.module, policy.config)
+    loss, info = policy.compute_daml_loss(batch, policy.module, policy.config)
     assert isinstance(info, dict)
     assert loss.shape == ()
     assert loss.dtype == torch.float32

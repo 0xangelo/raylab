@@ -8,15 +8,15 @@ def get_config():
         "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === MAPO model training ===
         # Type of model-training to use. Possible types include
-        # decision_aware: policy gradient-aware model learning
+        # daml: policy gradient-aware model learning
         # mle: maximum likelihood estimation
-        "model_loss": "decision_aware",
+        "model_loss": "DAML",
         # Number of initial next states to sample from the model when calculating the
         # model-aware deterministic policy gradient
         "num_model_samples": 1,
         # Gradient estimator for model-aware dpg. Possible types include:
         # score_function, pathwise_derivative
-        "grad_estimator": "pathwise_derivative",
+        "grad_estimator": "PD",
         # === Debugging ===
         # Whether to use the environment's true model to sample states
         "true_model": tune.grid_search([True, False]),

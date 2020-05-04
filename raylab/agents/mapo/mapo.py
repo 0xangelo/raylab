@@ -13,9 +13,9 @@ DEFAULT_CONFIG = with_common_config(
     {
         # === MAPO model training ===
         # Type of model-training to use. Possible types include
-        # decision_aware: policy gradient-aware model learning
-        # mle: maximum likelihood estimation
-        "model_loss": "decision_aware",
+        # DAML: policy gradient-aware model learning
+        # MLE: maximum likelihood estimation
+        "model_loss": "DAML",
         # Type of the used p-norm of the distance between gradients.
         # Can be float('inf') for infinity norm.
         "norm_type": 2,
@@ -24,9 +24,10 @@ DEFAULT_CONFIG = with_common_config(
         "num_model_samples": 4,
         # Length of the rollouts from each next state sampled
         "model_rollout_len": 1,
-        # Gradient estimator for model-aware dpg. Possible types include:
-        # score_function, pathwise_derivative
-        "grad_estimator": "score_function",
+        # Gradient estimator for model-aware dpg. Possible types include
+        # SF: score function
+        # PD: pathwise derivative
+        "grad_estimator": "SF",
         # === Debugging ===
         # Whether to use the environment's true model to sample states
         "true_model": False,

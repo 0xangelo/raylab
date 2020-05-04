@@ -75,7 +75,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     def check_model(self, sampler):
         """Verify that the transition model is appropriate for the desired estimator."""
-        if self.config["grad_estimator"] == "score_function":
+        if self.config["grad_estimator"] == "SF":
             obs = self.convert_to_tensor(self.observation_space.sample())[None]
             act = self.convert_to_tensor(self.action_space.sample())[None]
             _, logp = sampler(obs, act.requires_grad_())
@@ -84,7 +84,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             assert (
                 act.grad is not None
             ), "Transition grad log_prob must exist for SF estimator"
-        if self.config["grad_estimator"] == "pathwise_derivative":
+        if self.config["grad_estimator"] == "PD":
             obs = self.convert_to_tensor(self.observation_space.sample())[None]
             act = self.convert_to_tensor(self.action_space.sample())[None]
             samp, _ = sampler(obs.requires_grad_(), act.requires_grad_())
@@ -157,11 +157,9 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     def _update_model(self, batch_tensors, module, config):
         with self._optimizer.model.optimize():
-            if config["model_loss"] == "decision_aware":
-                model_loss, info = self.compute_decision_aware_loss(
-                    batch_tensors, module, config
-                )
-            elif config["model_loss"] == "mle":
+            if config["model_loss"] == "DAML":
+                model_loss, info = self.compute_daml_loss(batch_tensors, module, config)
+            elif config["model_loss"] == "MLE":
                 model_loss, info = self.compute_mle_loss(batch_tensors, module)
             model_loss.backward()
 
@@ -173,7 +171,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         info.update(grad_stats)
         return info
 
-    def compute_decision_aware_loss(self, batch_tensors, module, config):
+    def compute_daml_loss(self, batch_tensors, module, config):
         """Compute policy gradient-aware (PGA) model loss."""
         with self.freeze_nets("model"):
             dpg_loss, dpg_info = self.compute_dpg_loss(batch_tensors, module, config)
@@ -188,7 +186,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             dpg_grads, madpg_grads, config["norm_type"]
         )
 
-        info = {"decision_aware_loss": total_norm.item()}
+        info = {"daml_loss": total_norm.item()}
         info.update({"target_" + k: v for k, v in dpg_info.items()})
         return total_norm, info
 
@@ -219,7 +217,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             self.transition
             if config["true_model"]
             else module.model.sample
-            if config["grad_estimator"] == "score_function"
+            if config["grad_estimator"] == "SF"
             else module.model.rsample
         )
 
@@ -239,10 +237,10 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         critic = module.critics[0](next_obs, module.actor(next_obs)).squeeze(-1)
         values = rews.sum(0) + gamma ** rollout_len * critic
 
-        if config["grad_estimator"] == "score_function":
+        if config["grad_estimator"] == "SF":
             baseline = (module.critics[0](obs, actions).squeeze(-1) - rews) / gamma
             loss = torch.mean(logp * (values - baseline).detach(), dim=0).mean().neg()
-        elif config["grad_estimator"] == "pathwise_derivative":
+        elif config["grad_estimator"] == "PD":
             loss = torch.mean(values, dim=0).mean().neg()
         return (
             loss,
