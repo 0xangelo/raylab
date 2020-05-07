@@ -59,7 +59,7 @@ def get_config():
         # for the policy and value function. No layers means the component is
         # linear in states or actions.
         "module": {
-            "name": "OnPolicyActorCritic",
+            "type": "OnPolicyActorCritic",
             "torch_script": False,
             "actor": {
                 "encoder": {
