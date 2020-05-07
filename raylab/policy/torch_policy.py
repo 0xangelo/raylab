@@ -1,10 +1,9 @@
 """Base for all PyTorch policies."""
 from abc import abstractmethod
 import contextlib
+import io
 
-import numpy as np
 import torch
-import tree
 from ray.tune.logger import pretty_print
 from ray.rllib.models.model import restore_original_dimensions, flatten
 from ray.rllib.utils.annotations import override
@@ -182,30 +181,22 @@ class TorchPolicy(Policy):
 
     @override(Policy)
     def get_weights(self):
-        def numpy_state(state):
-            return tree.map_structure(
-                lambda x: x.cpu().numpy() if isinstance(x, torch.Tensor) else x, state,
-            )
-
-        module_state = numpy_state(self.module.state_dict())
+        buffer = io.BytesIO()
+        module_state = self.module.state_dict()
         optim = () if self._optimizer is None else self._optimizer
         optims = optim if isinstance(optim, tuple) else [optim]
-        return [module_state] + [numpy_state(o.state_dict()) for o in optims]
+        torch.save([module_state] + [o.state_dict() for o in optims], buffer)
+        return buffer.getvalue()
 
     @override(Policy)
     def set_weights(self, weights):
+        buffer = io.BytesIO(weights)
         optim = () if self._optimizer is None else self._optimizer
         optims = optim if isinstance(optim, tuple) else [optim]
-
-        def torch_state(state):
-            return tree.map_structure(
-                lambda x: self.convert_to_tensor(x) if isinstance(x, np.ndarray) else x,
-                state,
-            )
-
-        self.module.load_state_dict(torch_state(weights[0]))
-        for optim, state in zip(optims, weights[1:]):
-            optim.load_state_dict(torch_state(state))
+        states = torch.load(buffer)
+        self.module.load_state_dict(states[0])
+        for optim, state in zip(optims, states[1:]):
+            optim.load_state_dict(state)
 
     @override(Policy)
     def _create_exploration(self, action_space, config):
