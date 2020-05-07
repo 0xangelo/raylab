@@ -46,7 +46,7 @@ from .splines import (
 
 
 class CouplingTransform(ConditionalTransform, metaclass=ABCMeta):
-    """A base class for coupling layers. Supports 1D inputs (*, D)."""
+    """A base class for coupling layers. Supports 1D inputs (*, D), where D >= 2."""
 
     def __init__(
         self,
@@ -66,8 +66,8 @@ class CouplingTransform(ConditionalTransform, metaclass=ABCMeta):
         mask = torch.as_tensor(mask)
         if mask.dim() != 1:
             raise ValueError("Mask must be a 1-dim tensor.")
-        if mask.numel() <= 0:
-            raise ValueError("Mask can't be empty.")
+        if mask.numel() <= 1:
+            raise ValueError("Coupling dimension must greater than 1.")
 
         super().__init__(event_dim=event_dim)
 
