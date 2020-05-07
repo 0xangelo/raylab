@@ -1,7 +1,6 @@
 # pylint:disable=import-outside-toplevel
 """Registry of custom Gym environments."""
 import importlib
-import inspect
 
 import gym
 
@@ -60,22 +59,12 @@ def _hvac_maker(config):
     return HVACEnv(config)
 
 
-@wrap_if_needed
-def _industrial_benchmark_maker(config):
-    from raylab.envs.industrial_benchmark.openai_ib import IBEnv
-
-    return IBEnv(
-        **{k: config[k] for k in inspect.signature(IBEnv).parameters if k in config}
-    )
-
-
 ENVS.update(
     {
         "CartPoleStateless": _cartpole_stateless_maker,
         "Navigation": _navigation_maker,
         "Reservoir": _reservoir_maker,
         "HVAC": _hvac_maker,
-        "IndustrialBenchmark": _industrial_benchmark_maker,
     }
 )
 
