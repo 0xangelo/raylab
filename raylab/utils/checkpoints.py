@@ -36,7 +36,7 @@ def get_config_from_checkpoint(checkpoint, use_eval_config=True, config_override
     if use_eval_config:
         if "evaluation_config" not in config:
             warnings.warn("Evaluation agent requested but none in config.")
-        eval_conf = config["evaluation_config"]
+        eval_conf = config.get("evaluation_config", {})
         config = merge_dicts(config, eval_conf)
 
     if config_overrides:
