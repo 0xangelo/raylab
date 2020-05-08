@@ -8,13 +8,13 @@ def _import_naf():
 
 
 def _import_svg_inf():
-    from raylab.agents.svg.svg_inf import SVGInfTrainer
+    from raylab.agents.svg import SVGInfTrainer
 
     return SVGInfTrainer
 
 
 def _import_svg_one():
-    from raylab.agents.svg.svg_one import SVGOneTrainer
+    from raylab.agents.svg import SVGOneTrainer
 
     return SVGOneTrainer
 
@@ -44,7 +44,7 @@ def _import_trpo():
 
 
 def _import_soft_svg():
-    from raylab.agents.svg.soft_svg import SoftSVGTrainer
+    from raylab.agents.svg import SoftSVGTrainer
 
     return SoftSVGTrainer
 

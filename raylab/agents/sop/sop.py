@@ -1,18 +1,13 @@
 """Trainer and configuration for SOP."""
-from raylab.agents import with_common_config
-from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import GenericOffPolicyTrainer, with_base_config
 from .sop_policy import SOPTorchPolicy
 
 
-DEFAULT_CONFIG = with_common_config(
+DEFAULT_CONFIG = with_base_config(
     {
         # Clipped Double Q-Learning: use the minimun of two target Q functions
         # as the next action-value in the target for fitted Q iteration
         "clipped_double_q": True,
-        # === Replay buffer ===
-        # Size of the replay buffer. Note that if async_updates is set, then
-        # each worker will have a replay buffer of this size.
-        "buffer_size": 500000,
         # === Optimization ===
         # PyTorch optimizers to use
         "torch_optimizer": {
@@ -26,10 +21,6 @@ DEFAULT_CONFIG = with_common_config(
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
         "module": {"type": "DDPGModule", "torch_script": True},
-        # === Rollout Worker ===
-        "num_workers": 0,
-        "rollout_fragment_length": 1,
-        "batch_mode": "complete_episodes",
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

@@ -1,18 +1,13 @@
 """Continuous Q-Learning with Normalized Advantage Functions."""
-from raylab.agents import with_common_config
-from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import GenericOffPolicyTrainer, with_base_config
 from .naf_policy import NAFTorchPolicy
 
 
-DEFAULT_CONFIG = with_common_config(
+DEFAULT_CONFIG = with_base_config(
     {
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning
         "clipped_double_q": False,
-        # === Replay buffer ===
-        # Size of the replay buffer. Note that if async_updates is set, then
-        # each worker will have a replay buffer of this size.
-        "buffer_size": 500000,
         # === Network ===
         # Size and activation of the fully connected network computing the logits
         # for the normalized advantage function. No layers means the Q function is
@@ -23,10 +18,6 @@ DEFAULT_CONFIG = with_common_config(
         "torch_optimizer": {"type": "Adam", "lr": 3e-4},
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
-        # === Rollout Worker ===
-        "num_workers": 0,
-        "rollout_fragment_length": 1,
-        "batch_mode": "complete_episodes",
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

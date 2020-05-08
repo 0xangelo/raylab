@@ -1,11 +1,32 @@
-# pylint: disable=missing-docstring
-# pylint: enable=missing-docstring
+# pylint: disable=missing-module-docstring
 from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers import PolicyOptimizer
 
-from raylab.agents import Trainer
+from raylab.agents import Trainer, with_common_config
+from raylab.utils.dictionaries import deep_merge
 from raylab.utils.replay_buffer import ReplayBuffer
+
+BASE_CONFIG = with_common_config(
+    {
+        # === Replay buffer ===
+        # Size of the replay buffer.
+        "buffer_size": 500000,
+        # === Optimization ===
+        # Wait until this many steps have been sampled before starting optimization.
+        "learning_starts": 0,
+        # === Common config defaults ===
+        "num_workers": 0,
+        "rollout_fragment_length": 1,
+        "batch_mode": "complete_episodes",
+        "train_batch_size": 128,
+    }
+)
+
+
+def with_base_config(config):
+    """Returns the given config dict merged with the base off-policy configuration."""
+    return deep_merge(BASE_CONFIG, config, True)
 
 
 class GenericOffPolicyTrainer(Trainer):
@@ -16,6 +37,7 @@ class GenericOffPolicyTrainer(Trainer):
     _name = ""
     _default_config = None
     _policy = None
+    _extra_replay_keys = ()
 
     @override(Trainer)
     def _init(self, config, env_creator):
@@ -23,9 +45,11 @@ class GenericOffPolicyTrainer(Trainer):
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
         )
-        # Dummy optimizer to log stats
+        # Dummy optimizer to log stats since Trainer.collect_metrics is coupled with it
         self.optimizer = PolicyOptimizer(self.workers)
-        self.replay = ReplayBuffer(config["buffer_size"])
+        self.replay = ReplayBuffer(
+            config["buffer_size"], extra_keys=self._extra_replay_keys
+        )
 
     @override(Trainer)
     def _train(self):
@@ -38,12 +62,17 @@ class GenericOffPolicyTrainer(Trainer):
             for row in samples.rows():
                 self.replay.add(row)
 
-            for _ in range(samples.count):
-                batch = self.replay.sample(self.config["train_batch_size"])
-                stats = get_learner_stats(policy.learn_on_batch(batch))
-                self.optimizer.num_steps_trained += batch.count
+            if self.optimizer.num_steps_sampled >= self.config["learning_starts"]:
+                self._before_replay_steps(policy)
+                for _ in range(samples.count):
+                    batch = self.replay.sample(self.config["train_batch_size"])
+                    stats = get_learner_stats(policy.learn_on_batch(batch))
+                    self.optimizer.num_steps_trained += batch.count
 
         return self._log_metrics(stats)
+
+    def _before_replay_steps(self, policy):  # pylint:disable=unused-argument
+        pass
 
     @staticmethod
     def _validate_config(config):
@@ -51,6 +80,3 @@ class GenericOffPolicyTrainer(Trainer):
         assert (
             config["rollout_fragment_length"] >= 1
         ), "At least one sample must be collected."
-        assert (
-            config["batch_mode"] == "complete_episodes"
-        ), "Must sample complete episodes."

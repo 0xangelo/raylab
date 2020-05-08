@@ -1,14 +1,12 @@
 """Trainer and configuration for SVG(1)."""
-from ray.rllib.agents.trainer import with_base_config
+from ray.rllib.policy.policy import ACTION_LOGP
 from ray.rllib.utils.annotations import override
-from ray.rllib.evaluation.metrics import get_learner_stats
 
-from .svg_base import SVG_BASE_CONFIG, SVGBaseTrainer
+from raylab.agents.off_policy import GenericOffPolicyTrainer, with_base_config
 from .svg_one_policy import SVGOneTorchPolicy
 
 
 DEFAULT_CONFIG = with_base_config(
-    SVG_BASE_CONFIG,
     {
         # === Optimization ===
         # PyTorch optimizer to use
@@ -20,6 +18,14 @@ DEFAULT_CONFIG = with_base_config(
             "critic": {"lr": 1e-3},
             "actor": {"lr": 1e-3},
         },
+        # Weight of the fitted V loss in the joint model-value loss
+        "vf_loss_coeff": 1.0,
+        # Clip gradient norms by this value
+        "max_grad_norm": 10.0,
+        # Clip importance sampling weights by this value
+        "max_is_ratio": 5.0,
+        # Interpolation factor in polyak averaging for target networks.
+        "polyak": 0.995,
         # === Regularization ===
         # Options for adaptive KL coefficient. See raylab.utils.adaptive_kl
         "kl_schedule": {},
@@ -58,11 +64,11 @@ DEFAULT_CONFIG = with_base_config(
         # Typical usage is to pass extra args to evaluation env creator
         # and to disable exploration by computing deterministic actions
         "evaluation_config": {"explore": False},
-    },
+    }
 )
 
 
-class SVGOneTrainer(SVGBaseTrainer):
+class SVGOneTrainer(GenericOffPolicyTrainer):
     """Single agent trainer for SVG(1)."""
 
     # pylint: disable=attribute-defined-outside-init
@@ -70,24 +76,9 @@ class SVGOneTrainer(SVGBaseTrainer):
     _name = "SVG(1)"
     _default_config = DEFAULT_CONFIG
     _policy = SVGOneTorchPolicy
+    _extra_replay_keys = (ACTION_LOGP,)
 
-    @override(SVGBaseTrainer)
-    def _train(self):
-        worker = self.workers.local_worker()
-        policy = worker.get_policy()
-
-        while not self._iteration_done():
-            samples = worker.sample()
-            self.optimizer.num_steps_sampled += samples.count
-            for row in samples.rows():
-                self.replay.add(row)
-
-            if not self.config["replay_kl"]:
-                policy.update_old_policy()
-            for _ in range(samples.count):
-                batch = self.replay.sample(self.config["train_batch_size"])
-                learner_stats = get_learner_stats(policy.learn_on_batch(batch))
-                self.optimizer.num_steps_trained += batch.count
-            learner_stats.update(policy.update_kl_coeff(samples))
-
-        return self._log_metrics(learner_stats)
+    @override(GenericOffPolicyTrainer)
+    def _before_replay_steps(self, policy):
+        if not self.config["replay_kl"]:
+            policy.update_old_policy()
