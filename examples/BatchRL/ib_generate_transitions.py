@@ -43,7 +43,7 @@ class IBExplorationAgent(Trainer):
 
 
 CONFIG = {
-    "env": "IndustrialBenchmark",
+    "env": "IndustrialBenchmark-v0",
     "env_config": {"max_episode_steps": 200},
     "timesteps_per_iteration": 1000,
 }

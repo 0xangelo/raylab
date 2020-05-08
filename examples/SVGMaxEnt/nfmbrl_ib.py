@@ -51,7 +51,7 @@ FLOW = {
 def get_config():
     return {
         # === Environment ===
-        "env": "IndustrialBenchmark",
+        "env": "IndustrialBenchmark-v0",
         "env_config": {
             "max_episode_steps": 1000,
             "time_aware": False,

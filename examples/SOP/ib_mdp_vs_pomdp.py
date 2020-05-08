@@ -9,7 +9,7 @@ def get_config():
         base_config(),
         {
             # === Environment ===
-            "env": "IndustrialBenchmark",
+            "env": "IndustrialBenchmark-v0",
             "env_config": {
                 "reward_type": "classic",
                 "action_type": "continuous",
