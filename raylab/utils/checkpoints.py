@@ -3,7 +3,7 @@ import os.path as osp
 import pickle
 import warnings
 
-from ray.tune.registry import TRAINABLE_CLASS, _global_registry
+from ray.tune.registry import get_trainable_cls
 from ray.rllib.utils import merge_dicts
 
 
@@ -46,4 +46,4 @@ def get_config_from_checkpoint(checkpoint, use_eval_config=True, config_override
 
 def get_agent_cls(agent_name):
     """Retrieve agent class from global registry."""
-    return _global_registry.get(TRAINABLE_CLASS, agent_name)
+    return get_trainable_cls(agent_name)
