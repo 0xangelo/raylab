@@ -105,3 +105,22 @@ try:
     IDS.update(NEW_IDS)
 except ImportError:
     pass
+
+
+try:
+    import gym_industrial  # pylint:disable=unused-import,import-error
+
+    NEW_IDS = filtered_gym_env_ids() - IDS
+    for id_ in NEW_IDS:
+
+        @wrap_if_needed
+        def _industrial_env_maker(config, id_=id_):
+            # pylint:disable=redefined-outer-name,reimported,unused-import
+            import gym_industrial  # noqa:F811
+
+            return gym.make(id_, **config)
+
+        ENVS[id_] = _industrial_env_maker
+    IDS.update(NEW_IDS)
+except ImportError:
+    pass
