@@ -34,7 +34,7 @@ def policy_and_batch(policy_and_batch_fn, config):
 def test_critic_targets(policy_and_batch):
     policy, batch = policy_and_batch
 
-    targets = policy._compute_critic_targets(batch, policy.module, policy.config)
+    targets = policy.critic_targets(batch, policy.module, policy.config)
     assert targets.shape == (10,)
     assert targets.dtype == torch.float32
     assert torch.allclose(
@@ -52,7 +52,7 @@ def test_critic_targets(policy_and_batch):
 
 def test_critic_loss(policy_and_batch):
     policy, batch = policy_and_batch
-    loss, info = policy.compute_critic_loss(batch, policy.module, policy.config)
+    loss, info = policy.critic_loss(batch, policy.module, policy.config)
 
     assert loss.shape == ()
     assert loss.dtype == torch.float32

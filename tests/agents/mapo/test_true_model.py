@@ -19,7 +19,7 @@ def navigation_env(envs):
 def policy_and_env(mapo_policy, navigation_env, config):
     env = navigation_env({})
     policy = mapo_policy(env.observation_space, env.action_space, config)
-    policy.set_transition_fn(env.transition_fn)
+    policy.set_transition_kernel(env.transition_fn)
     return policy, env
 
 
@@ -46,7 +46,7 @@ def test_madpg_loss(policy_and_env):
         fake_batch(policy.observation_space, policy.action_space, batch_size=10)
     )
 
-    loss, info = policy.compute_madpg_loss(batch, policy.module, policy.config)
+    loss, info = policy.madpg_loss(batch, policy.module, policy.config)
     assert isinstance(info, dict)
     assert loss.shape == ()
     assert loss.dtype == torch.float32

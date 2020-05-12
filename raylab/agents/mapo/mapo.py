@@ -112,7 +112,7 @@ class MAPOTrainer(Trainer):
         if config["true_model"]:
             self.workers.foreach_worker(
                 lambda w: w.foreach_trainable_policy(
-                    lambda p, _: p.set_transition_fn(w.env.transition_fn)
+                    lambda p, _: p.set_transition_kernel(w.env.transition_kernel)
                 )
             )
         # Dummy optimizer to log stats
