@@ -3,9 +3,17 @@ import pytest
 import torch
 
 
+GRAD_ESTIMATOR = "SF PD".split()
+
+
+@pytest.fixture(params=GRAD_ESTIMATOR)
+def grad_estimator(request):
+    return request.param
+
+
 @pytest.fixture
-def policy_and_batch(policy_and_batch_fn):
-    return policy_and_batch_fn({})
+def policy_and_batch(policy_and_batch_fn, grad_estimator):
+    return policy_and_batch_fn({"grad_estimator": grad_estimator})
 
 
 def test_policy_loss(policy_and_batch):
@@ -18,9 +26,8 @@ def test_policy_loss(policy_and_batch):
 
     policy.module.zero_grad()
     loss.backward()
-    assert all(
-        p.grad is not None
-        and torch.isfinite(p.grad).all()
-        and not torch.isnan(p.grad).any()
-        for p in policy.module.actor.parameters()
-    )
+    params = list(policy.module.actor.parameters())
+    assert all(p.grad is not None for p in params)
+    assert all(torch.isfinite(p.grad).all() for p in params)
+    assert all(not torch.isnan(p.grad).any() for p in params)
+    assert all(not torch.allclose(p.grad, torch.zeros_like(p)) for p in params)
