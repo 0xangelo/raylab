@@ -76,12 +76,14 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         if self.config["grad_estimator"] == "SF":
             obs = self.convert_to_tensor(self.observation_space.sample())[None]
             act = self.convert_to_tensor(self.action_space.sample())[None]
-            _, logp = sampler(obs, act.requires_grad_())
+            sample, logp = sampler(obs, act.requires_grad_())
+            assert sample.grad_fn is None
             assert logp is not None
             logp.mean().backward()
             assert (
                 act.grad is not None
             ), "Transition grad log_prob must exist for SF estimator"
+            assert not torch.allclose(act.grad, torch.zeros_like(act))
         if self.config["grad_estimator"] == "PD":
             obs = self.convert_to_tensor(self.observation_space.sample())[None]
             act = self.convert_to_tensor(self.action_space.sample())[None]
@@ -90,6 +92,8 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             assert (
                 obs.grad is not None and act.grad is not None
             ), "Transition grad w.r.t. state and action must exist for PD estimator"
+            assert not torch.allclose(obs.grad, torch.zeros_like(obs))
+            assert not torch.allclose(act.grad, torch.zeros_like(act))
 
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
