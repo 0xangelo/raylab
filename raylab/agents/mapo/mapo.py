@@ -143,6 +143,3 @@ class MAPOTrainer(Trainer):
         assert (
             config["rollout_fragment_length"] >= 1
         ), "At least one sample must be collected."
-        assert (
-            config["batch_mode"] == "complete_episodes"
-        ), "Must sample complete episodes."
