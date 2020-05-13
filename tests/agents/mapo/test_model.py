@@ -22,9 +22,9 @@ def policy_and_batch(policy_and_batch_fn):
     return policy_and_batch_fn({})
 
 
-def test_score_function(policy_and_batch_fn, grad_estimator, num_model_samples):
+def test_score_function(policy_and_batch_fn, num_model_samples):
     policy, batch = policy_and_batch_fn(
-        {"grad_estimator": grad_estimator, "num_model_samples": num_model_samples}
+        {"grad_estimator": "SF", "num_model_samples": num_model_samples}
     )
 
     obs = batch[SampleBatch.CUR_OBS]
@@ -37,17 +37,32 @@ def test_score_function(policy_and_batch_fn, grad_estimator, num_model_samples):
     assert not torch.allclose(acts.grad, torch.zeros_like(acts))
 
 
+def test_pathwise_derivative(policy_and_batch_fn, num_model_samples):
+    policy, batch = policy_and_batch_fn(
+        {"grad_estimator": "PD", "num_model_samples": num_model_samples}
+    )
+
+    obs = batch[SampleBatch.CUR_OBS]
+    acts = batch[SampleBatch.ACTIONS].clone().requires_grad_()
+
+    sample, _ = policy.module.model.rsample(obs, acts)
+    assert sample.grad_fn is not None
+    policy.module.critics[0](sample, policy.module.actor(sample)).mean().backward()
+    assert acts.grad is not None
+    assert not torch.allclose(acts.grad, torch.zeros_like(acts))
+
+
 def test_daml_loss(policy_and_batch_fn, grad_estimator, num_model_samples):
     policy, batch = policy_and_batch_fn(
         {"grad_estimator": grad_estimator, "num_model_samples": num_model_samples}
     )
 
+    policy.module.zero_grad()
     loss, info = policy.daml_loss(batch, policy.module, policy.config)
     assert isinstance(info, dict)
     assert loss.shape == ()
     assert loss.dtype == torch.float32
 
-    policy.module.zero_grad()
     loss.backward()
     params = list(policy.module.model.parameters())
     assert all(p.grad is not None for p in params)

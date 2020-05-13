@@ -7,7 +7,7 @@ from raylab.utils.debug import fake_batch
 
 @pytest.fixture
 def config():
-    return {"true_model": True, "env": "Navigation"}
+    return {"true_model": True, "env": "Navigation", "grad_estimator": "PD"}
 
 
 @pytest.fixture
