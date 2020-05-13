@@ -213,7 +213,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         next_obs, logp = transition(obs, actions)
         rewards = self.reward(obs, actions, next_obs)
         # Assume virtual transition is not final
-        dones = torch.ones_like(rewards).bool()
+        dones = torch.zeros_like(rewards).bool()
         next_values = self._clipped_target_value(obs, dones, self.module)
         values = rewards + gamma * next_values
 
