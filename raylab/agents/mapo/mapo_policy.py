@@ -189,7 +189,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
         action_gradients = actions.grad
         # WARNING: may be ill-conditioned depending on the torch.norm() implementation
-        daml_loss = torch.norm(action_gradients, p=2, dim=-1).mean()
+        daml_loss = torch.norm(action_gradients, p=config["norm_type"], dim=-1).mean()
         return daml_loss, {"loss(daml)": daml_loss.item()}
 
     def one_step_action_value_surrogate(self, obs, actions, module, config):

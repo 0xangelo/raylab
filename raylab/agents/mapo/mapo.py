@@ -22,8 +22,6 @@ DEFAULT_CONFIG = with_common_config(
         # Number of initial next states to sample from the model when calculating the
         # model-aware deterministic policy gradient
         "num_model_samples": 4,
-        # Length of the rollouts from each next state sampled
-        "model_rollout_len": 1,
         # Gradient estimator for model-aware dpg. Possible types include
         # SF: score function
         # PD: pathwise derivative
