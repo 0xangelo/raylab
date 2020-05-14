@@ -4,7 +4,7 @@ from ray import tune
 def get_config():  # pylint: disable=missing-docstring
     return {
         # === Environment ===
-        "env": "CartPoleSwingUp",
+        "env": "CartPoleSwingUp-v1",
         "env_config": {"max_episode_steps": 500, "time_aware": True},
         # === Replay Buffer ===
         "buffer_size": int(1e6),

@@ -1,7 +1,7 @@
 def get_config():
     return {
         # === Environment ===
-        "env": "CartPoleSwingUp",
+        "env": "CartPoleSwingUp-v1",
         "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === Twin Delayed DDPG (TD3) tricks ===
         # Clipped Double Q-Learning: use the minimun of two target Q functions

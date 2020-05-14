@@ -4,7 +4,7 @@ from ray import tune
 def get_config():
     return {
         # === Environment ===
-        "env": "CartPoleSwingUp",
+        "env": "CartPoleSwingUp-v1",
         "env_config": {"max_episode_steps": 500, "time_aware": True},
         # Trust region constraint
         "delta": 0.01,

@@ -4,7 +4,7 @@ from ray import tune
 def get_config():
     return {
         # === Environment ===
-        "env": "CartPoleSwingUp",
+        "env": "CartPoleSwingUp-v1",
         "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === MAPO model training ===
         # Type of model-training to use. Possible types include

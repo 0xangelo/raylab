@@ -10,7 +10,7 @@ from ray import tune
 def get_config():
     return {
         # === Environment ===
-        "env": "CartPoleSwingUp",
+        "env": "CartPoleSwingUp-v1",
         "env_config": {"time_aware": True, "max_episode_steps": 250},
         # Don't set 'done' at the end of the episode. Note that you still need to
         # set this if soft_horizon=True, unless your env is actually running
