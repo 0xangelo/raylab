@@ -139,7 +139,7 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         fetches = {
             f"grad_norm({component})": nn.utils.clip_grad_norm_(
                 self.module[component].parameters(), float("inf")
-            )
+            ).item()
         }
         if component == "actor":
             _, logp = self.module.actor.sample(batch_tensors[SampleBatch.CUR_OBS])

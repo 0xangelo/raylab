@@ -119,7 +119,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         grad_stats = {
             "critic_grad_norm": nn.utils.clip_grad_norm_(
                 module.critics.parameters(), float("inf")
-            )
+            ).item()
         }
         info.update(grad_stats)
         return info
@@ -166,7 +166,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         grad_stats = {
             "model_grad_norm": nn.utils.clip_grad_norm_(
                 module.model.parameters(), float("inf")
-            )
+            ).item()
         }
         info.update(grad_stats)
         return info
@@ -288,7 +288,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return {
             "policy_grad_norm": nn.utils.clip_grad_norm_(
                 self.module.actor.parameters(), float("inf")
-            ),
+            ).item()
         }
 
 

@@ -228,6 +228,6 @@ class TRPOTorchPolicy(TorchPolicy):
             ),
             "grad_norm(critic)": nn.utils.clip_grad_norm_(
                 self.module.critic.parameters(), float("inf")
-            ),
+            ).item(),
         }
         return info

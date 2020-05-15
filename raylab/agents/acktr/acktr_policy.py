@@ -246,7 +246,7 @@ class ACKTRTorchPolicy(TorchPolicy):
             {
                 f"grad_norm({k})": nn.utils.clip_grad_norm_(
                     self.module[k].parameters(), float("inf")
-                )
+                ).item()
                 for k in ("actor", "critic")
             }
         )

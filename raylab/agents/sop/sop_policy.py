@@ -133,5 +133,5 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return {
             f"grad_norm({component})": nn.utils.clip_grad_norm_(
                 self.module[component].parameters(), float("inf")
-            )
+            ).item()
         }

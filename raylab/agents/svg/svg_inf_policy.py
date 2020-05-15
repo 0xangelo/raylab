@@ -126,15 +126,19 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
             model_params = self.module.model.parameters()
             value_params = self.module.critic.parameters()
             fetches = {
-                "model_grad_norm": nn.utils.clip_grad_norm_(model_params, float("inf")),
-                "value_grad_norm": nn.utils.clip_grad_norm_(value_params, float("inf")),
+                "model_grad_norm": nn.utils.clip_grad_norm_(
+                    model_params, float("inf")
+                ).item(),
+                "value_grad_norm": nn.utils.clip_grad_norm_(
+                    value_params, float("inf")
+                ).item(),
             }
         else:
             policy_params = self.module.actor.parameters()
             fetches = {
                 "policy_grad_norm": nn.utils.clip_grad_norm_(
                     policy_params, max_norm=self.config["max_grad_norm"]
-                ),
+                ).item(),
                 "policy_entropy": -batch_tensors[ACTION_LOGP].mean().item(),
                 "curr_kl_coeff": self.curr_kl_coeff,
             }

@@ -102,5 +102,5 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return {
             "grad_norm": nn.utils.clip_grad_norm_(
                 self.module.critics.parameters(), float("inf")
-            )
+            ).item()
         }
