@@ -115,12 +115,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             critic_loss, info = self.critic_loss(batch_tensors, module, config)
             critic_loss.backward()
 
-        grad_stats = {
-            "grad_norm(critic)": nn.utils.clip_grad_norm_(
-                module.critics.parameters(), float("inf")
-            ).item()
-        }
-        info.update(grad_stats)
+        info.update(self.extra_grad_info("critics"))
         return info
 
     def critic_loss(self, batch_tensors, module, config):
@@ -164,18 +159,15 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     def _update_model(self, batch_tensors, module, config):
         with self.optimizer.model.optimize():
-            if config["model_loss"] == "DAML":
-                model_loss, info = self.daml_loss(batch_tensors, module, config)
-            elif config["model_loss"] == "MLE":
-                model_loss, info = self.mle_loss(batch_tensors, module)
+            mle_loss, info = self.mle_loss(batch_tensors, module)
+            daml_loss, daml_info = self.daml_loss(batch_tensors, module, config)
+            info.update(daml_info)
+
+            alpha = config["mle_interpolation"]
+            model_loss = alpha * mle_loss + (1 - alpha) * daml_loss
             model_loss.backward()
 
-        grad_stats = {
-            "grad_norm(model)": nn.utils.clip_grad_norm_(
-                module.model.parameters(), float("inf")
-            ).item()
-        }
-        info.update(grad_stats)
+        info.update(self.extra_grad_info("model"))
         return info
 
     def daml_loss(self, batch_tensors, module, config):
@@ -249,7 +241,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             policy_loss, info = self.madpg_loss(batch_tensors, module, config)
             policy_loss.backward()
 
-        info.update(self.extra_policy_grad_info())
+        info.update(self.extra_grad_info("actor"))
         return info
 
     def dpg_loss(self, batch_tensors, module):
@@ -259,11 +251,10 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         actions = module.actor(obs)
         action_values = self.zero_step_action_values(obs, actions, module)
         max_objective = torch.mean(action_values)
+        loss = -max_objective
 
-        stats = {
-            "loss(actor)": -max_objective.item(),
-        }
-        return -max_objective, stats
+        stats = {"loss(actor)": loss.item()}
+        return loss, stats
 
     def madpg_loss(self, batch_tensors, module, config):
         """Compute loss for model-aware deterministic policy gradient."""
@@ -274,17 +265,17 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             obs, actions, module, config
         )
         max_objective = torch.mean(action_values)
+        loss = -max_objective
 
-        stats = {
-            "loss(actor)": -max_objective.item(),
-        }
-        return -max_objective, stats
+        stats = {"loss(actor)": loss.item()}
+        return loss, stats
 
-    def extra_policy_grad_info(self):
-        """Return dict of extra info on policy gradient."""
+    @torch.no_grad()
+    def extra_grad_info(self, component):
+        """Return grad norm statistics for component."""
         return {
-            "grad_norm(actor)": nn.utils.clip_grad_norm_(
-                self.module.actor.parameters(), float("inf")
+            f"grad_norm({component})": nn.utils.clip_grad_norm_(
+                self.module[component].parameters(), float("inf")
             ).item()
         }
 

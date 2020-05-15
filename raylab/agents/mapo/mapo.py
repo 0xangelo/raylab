@@ -26,6 +26,8 @@ DEFAULT_CONFIG = with_common_config(
         # SF: score function
         # PD: pathwise derivative
         "grad_estimator": "SF",
+        # KL regularization to avoid degenerate solutions (needs to be tuned)
+        "mle_interpolation": 0.0,
         # === Debugging ===
         # Whether to use the environment's true model to sample states
         "true_model": False,
