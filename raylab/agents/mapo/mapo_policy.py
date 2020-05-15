@@ -147,14 +147,16 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
         dones = batch_tensors[SampleBatch.DONES]
 
-        return rewards + gamma * self._clipped_target_value(next_obs, dones, module)
+        next_acts = module.target_actor(next_obs)
+        target_values = self.clipped_value(
+            next_obs, next_acts, dones, module.target_critics
+        )
+        return rewards + gamma * target_values
 
     @staticmethod
-    def _clipped_target_value(obs, dones, module):
-        acts = module.target_actor(obs)
-        vals, _ = torch.cat([m(obs, acts) for m in module.target_critics], dim=-1).min(
-            dim=-1
-        )
+    def clipped_value(obs, acts, dones, critics):
+        """Compute clipped Q^{\\pi}(s, a)."""
+        vals, _ = torch.cat([m(obs, acts) for m in critics], dim=-1).min(dim=-1)
         return torch.where(dones, torch.zeros_like(vals), vals)
 
     def _update_model(self, batch_tensors, module, config):
@@ -184,15 +186,17 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         action_gradients = actions.grad
         # WARNING: may be ill-conditioned depending on the torch.norm() implementation
         daml_loss = torch.norm(action_gradients, p=config["norm_type"], dim=-1).mean()
-        return daml_loss, {"loss(daml)": daml_loss.item()}
+        return (
+            daml_loss,
+            {"loss(td)": temporal_diff_loss.item(), "loss(daml)": daml_loss.item()},
+        )
 
     def one_step_action_value_surrogate(self, obs, actions, module, config):
         """
         Compute 1-step approximation of Q^{\\pi}(s, a) for Deterministic Policy Gradient
         using target networks and model transitions.
         """
-        gamma = config["gamma"]
-        transition = (
+        sampler = (
             self.transition
             if config["true_model"]
             else module.model.sample
@@ -200,16 +204,14 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             else module.model.rsample
         )
 
-        sample_shape = (config["num_model_samples"],)
-        obs = obs.expand(sample_shape + obs.shape)
-        actions = actions.expand(sample_shape + actions.shape)
-
-        next_obs, logp = transition(obs, actions)
-        rewards = self.reward(obs, actions, next_obs)
-        # Assume virtual transition is not final
-        dones = torch.zeros_like(rewards).bool()
-        next_values = self._clipped_target_value(next_obs, dones, module)
-        values = rewards + gamma * next_values
+        next_obs, rewards, dones, logp = self._generate_transition(
+            obs, actions, self.reward, sampler, config["num_model_samples"]
+        )
+        # Next action grads shouldn't propagate
+        with torch.no_grad():
+            next_acts = module.actor(next_obs)
+        next_values = self.clipped_value(next_obs, next_acts, dones, module.critics)
+        values = rewards + config["gamma"] * next_values
 
         if config["grad_estimator"] == "SF":
             surrogate = torch.mean(logp * values.detach(), dim=0)
@@ -218,12 +220,22 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return surrogate
 
     @staticmethod
-    def zero_step_action_values(obs, actions, module):
+    def _generate_transition(obs, actions, reward_fn, sampler, num_samples):
+        """Compute virtual transition as in env.step, with info replaced by logp."""
+        sample_shape = (num_samples,)
+        obs = obs.expand(sample_shape + obs.shape)
+        actions = actions.expand(sample_shape + actions.shape)
+
+        next_obs, logp = sampler(obs, actions)
+        rewards = reward_fn(obs, actions, next_obs)
+        # Assume virtual transition is not final
+        dones = torch.zeros_like(rewards).bool()
+        return next_obs, rewards, dones, logp
+
+    def zero_step_action_values(self, obs, actions, module):
         """Compute Q^{\\pi}(s, a) directly using approximate critic."""
-        action_values, _ = torch.cat(
-            [m(obs, actions) for m in module.critics], dim=-1
-        ).min(dim=-1)
-        return action_values
+        dones = torch.zeros(obs.shape[:-1]).bool()
+        return self.clipped_value(obs, actions, dones, module.critics)
 
     @staticmethod
     def mle_loss(batch_tensors, module):
