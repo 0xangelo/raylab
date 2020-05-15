@@ -208,7 +208,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         rewards = self.reward(obs, actions, next_obs)
         # Assume virtual transition is not final
         dones = torch.zeros_like(rewards).bool()
-        next_values = self._clipped_target_value(obs, dones, self.module)
+        next_values = self._clipped_target_value(next_obs, dones, module)
         values = rewards + gamma * next_values
 
         if config["grad_estimator"] == "SF":
