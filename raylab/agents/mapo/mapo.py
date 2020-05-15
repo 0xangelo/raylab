@@ -46,6 +46,8 @@ DEFAULT_CONFIG = with_common_config(
         },
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
+        # Wait until this many steps have been sampled before starting optimization.
+        "learning_starts": 0,
         # === Network ===
         # Size and activation of the fully connected networks computing the logits
         # for the policy and action-value function. No layers means the component is
@@ -107,12 +109,10 @@ class MAPOTrainer(Trainer):
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
         )
+
         if config["true_model"]:
-            self.workers.foreach_worker(
-                lambda w: w.foreach_trainable_policy(
-                    lambda p, _: p.set_transition_kernel(w.env.transition_fn)
-                )
-            )
+            self.set_transition_kernel()
+
         # Dummy optimizer to log stats
         self.optimizer = PolicyOptimizer(self.workers)
         self.replay = ReplayBuffer(config["buffer_size"])
@@ -121,6 +121,8 @@ class MAPOTrainer(Trainer):
     def _train(self):
         worker = self.workers.local_worker()
         policy = worker.get_policy()
+
+        self.sample_until_learning_starts(worker)
 
         while not self._iteration_done():
             samples = worker.sample()
@@ -135,9 +137,31 @@ class MAPOTrainer(Trainer):
 
         return self._log_metrics(stats)
 
+    def sample_until_learning_starts(self, worker):
+        """
+        Sample enough transtions so that 'learning_starts' steps are collected before
+        the next policy update.
+        """
+        learning_starts = self.config["learning_starts"]
+        samples_count = self.config["rollout_fragment_length"]
+        while self.optimizer.num_steps_sampled < learning_starts - samples_count:
+            samples = worker.sample()
+            self.optimizer.num_steps_sampled += samples.count
+            self.global_vars["timestep"] += samples.count
+            for row in samples.rows():
+                self.replay.add(row)
+
     @staticmethod
     def _validate_config(config):
         assert config["num_workers"] == 0, "No point in using additional workers."
         assert (
             config["rollout_fragment_length"] >= 1
         ), "At least one sample must be collected."
+
+    def set_transition_kernel(self):
+        """Make policies use the real transition kernel."""
+        self.workers.foreach_worker(
+            lambda w: w.foreach_trainable_policy(
+                lambda p, _: p.set_transition_kernel(w.env.transition_fn)
+            )
+        )
