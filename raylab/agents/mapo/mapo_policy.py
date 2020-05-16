@@ -186,9 +186,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         temporal_diff_loss.backward(create_graph=True)
 
         action_gradients = actions.grad
-        # WARNING: may be ill-conditioned depending on the torch.norm() implementation
-        norm_type = self.config["norm_type"]
-        daml_loss = torch.norm(action_gradients, p=norm_type, dim=-1).mean()
+        daml_loss = torch.sum(action_gradients * action_gradients, dim=-1).mean()
         return (
             daml_loss,
             {"loss(td)": temporal_diff_loss.item(), "loss(daml)": daml_loss.item()},
