@@ -22,6 +22,39 @@ def initialize_raylab(func):
     return wrapped
 
 
+def tune_experiment(func):
+    """Transform function into a Click command to launch experiments.
+
+    The wrapped function should return, in order, a trainable class or name, the
+    trainable's configutation, and a dict of overrides for the `tune.run` options.
+    """
+
+    @click.command()
+    @tune_options
+    @click.option(
+        "--object-store-memory",
+        type=int,
+        default=int(2e9),
+        show_default=True,
+        help="The amount of memory (in bytes) to start the object store with. "
+        "By default, this is capped at 20GB but can be set higher.",
+    )
+    @initialize_raylab
+    @functools.wraps(func)
+    def wrapped(*args, object_store_memory, tune_kwargs, **kwargs):
+        import ray
+        from ray import tune
+        from ray.rllib.utils import merge_dicts
+
+        trainable, config, tune_overrides = func(*args, **kwargs)
+        tune_kwargs = merge_dicts(tune_kwargs, tune_overrides)
+
+        ray.init(object_store_memory=object_store_memory)
+        tune.run(trainable, config=config, **tune_kwargs)
+
+    return wrapped
+
+
 def tune_options(func):
     """Wrap cli to add and parse arguments for `tune.run`."""
 
@@ -95,6 +128,7 @@ def tune_options(func):
     @functools.wraps(func)
     def wrapped(
         ctx,
+        *args,
         name,
         local_dir,
         num_samples,
@@ -104,7 +138,6 @@ def tune_options(func):
         custom_loggers,
         tune_log_level,
         restore,
-        *args,
         **kwargs,
     ):
         # pylint:disable=too-many-arguments
@@ -122,7 +155,7 @@ def tune_options(func):
         tune_kwargs["stop"] = dict(stop)
 
         setup_tune_logger(tune_log_level)
-        create_if_necessary(local_dir)
+        create_if_necessary(ctx, local_dir)
         delete_if_necessary(ctx, osp.join(local_dir, name))
 
         return func(*args, tune_kwargs=tune_kwargs, **kwargs)
@@ -135,10 +168,12 @@ def setup_tune_logger(tune_log_level):
     logging.getLogger("ray.tune").setLevel(tune_log_level)
 
 
-def create_if_necessary(directory):
+def create_if_necessary(ctx, directory):
     """Ask user to allow directory creation if necessary."""
     msg = f"Directory {directory} does not exist. Create it?"
-    if not osp.exists(directory) and click.confirm(msg):
+    if not osp.exists(directory):
+        if not click.confirm(msg):
+            ctx.exit()
         os.makedirs(directory)
         click.echo(f"Created directory {directory}")
 
