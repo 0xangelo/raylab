@@ -6,7 +6,6 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.utils.exploration import ParameterNoise
 import raylab.utils.pytorch as ptu
 import raylab.policy as raypi
 
@@ -31,8 +30,9 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         module_config.setdefault("critic", {})
         module_config["critic"]["double_q"] = config["clipped_double_q"]
         module_config.setdefault("actor", {})
-        module_config["actor"]["perturbed_policy"] = isinstance(
-            self.exploration, ParameterNoise
+        module_config["actor"]["perturbed_policy"] = (
+            config["exploration_config"]["type"]
+            == "raylab.utils.exploration.ParameterNoise"
         )
         # pylint:disable=no-member
         return super().make_module(obs_space, action_space, config)

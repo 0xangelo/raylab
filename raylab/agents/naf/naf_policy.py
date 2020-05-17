@@ -4,7 +4,6 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.utils.exploration import ParameterNoise
 from raylab.modules.catalog import get_module
 import raylab.utils.pytorch as ptu
 import raylab.policy as raypi
@@ -29,7 +28,10 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         module_config = config["module"]
         module_config["type"] = "NAFModule"
         module_config["double_q"] = config["clipped_double_q"]
-        module_config["perturbed_policy"] = isinstance(self.exploration, ParameterNoise)
+        module_config["perturbed_policy"] = (
+            config["exploration_config"]["type"]
+            == "raylab.utils.exploration.ParameterNoise"
+        )
 
         return get_module(obs_space, action_space, module_config)
 
