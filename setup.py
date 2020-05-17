@@ -17,7 +17,13 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/angelolovatto/raylab",
     packages=find_packages(),
-    install_requires=["bokeh", "Click", "ray[rllib,dashboard]", "streamlit", "torch"],
+    install_requires=[
+        "bokeh",
+        "Click",
+        "ray[rllib,dashboard]==0.8.4",
+        "streamlit",
+        "torch",
+    ],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
