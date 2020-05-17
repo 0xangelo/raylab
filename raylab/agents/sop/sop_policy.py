@@ -38,7 +38,7 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return super().make_module(obs_space, action_space, config)
 
     @override(raypi.TorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         config = self.config["torch_optimizer"]
         components = ["actor", "critics"]
 
@@ -62,7 +62,7 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return self._learner_stats(info)
 
     def _update_critic(self, batch_tensors, module, config):
-        with self._optimizer.critics.optimize():
+        with self.optimizer.critics.optimize():
             critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
             critic_loss.backward()
 
@@ -101,7 +101,7 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return torch.where(dones, rewards, rewards + config["gamma"] * next_vals)
 
     def _update_policy(self, batch_tensors, module, config):
-        with self._optimizer.actor.optimize():
+        with self.optimizer.actor.optimize():
             policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
             policy_loss.backward()
 

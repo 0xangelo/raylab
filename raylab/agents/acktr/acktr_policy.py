@@ -61,7 +61,7 @@ class ACKTRTorchPolicy(TorchPolicy):
         return DEFAULT_CONFIG
 
     @override(TorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         components = ["actor", "critic"]
         config = dutil.deep_merge(
             DEFAULT_OPTIM_CONFIG, self.config["torch_optimizer"], False, [], components
@@ -126,12 +126,12 @@ class ACKTRTorchPolicy(TorchPolicy):
 
         # Compute whitening matrices
         n_samples = self.config["logp_samples"]
-        with self._optimizer.actor.record_stats():
+        with self.optimizer.actor.record_stats():
             _, log_prob = self.module.actor.sample(cur_obs, (n_samples,))
             log_prob.mean().backward()
 
         # Compute surrogate loss
-        with self._optimizer.actor.optimize():
+        with self.optimizer.actor.optimize():
             surr_loss = -(
                 self.module.actor.log_prob(cur_obs, actions) * advantages
             ).mean()
@@ -146,7 +146,7 @@ class ACKTRTorchPolicy(TorchPolicy):
 
     def _perform_line_search(self, pol_grad, surr_loss, batch_tensors):
         # pylint:disable=too-many-locals
-        kl_clip = self._optimizer.actor.state["kl_clip"]
+        kl_clip = self.optimizer.actor.state["kl_clip"]
         expected_improvement = sum(
             (g * p.grad.data).sum()
             for g, p in zip(pol_grad, self.module.actor.parameters())
@@ -204,9 +204,9 @@ class ACKTRTorchPolicy(TorchPolicy):
         fake_scale = torch.ones_like(value_targets)
 
         for _ in range(self.config["vf_iters"]):
-            if isinstance(self._optimizer.critic, KFACMixin):
+            if isinstance(self.optimizer.critic, KFACMixin):
                 # Compute whitening matrices
-                with self._optimizer.critic.record_stats():
+                with self.optimizer.critic.record_stats():
                     values = self.module.critic(cur_obs).squeeze(-1)
                     fake_samples = values + torch.randn_like(values)
                     log_prob = fake_dist.log_prob(
@@ -214,7 +214,7 @@ class ACKTRTorchPolicy(TorchPolicy):
                     )
                     log_prob.mean().backward()
 
-            with self._optimizer.critic.optimize():
+            with self.optimizer.critic.optimize():
                 mse_loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
                 mse_loss.backward()
 

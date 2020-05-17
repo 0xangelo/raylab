@@ -37,7 +37,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return super().make_module(obs_space, action_space, config)
 
     @override(TorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         config = self.config["torch_optimizer"]
         components = "actor critics alpha".split()
 
@@ -63,7 +63,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return self._learner_stats(info)
 
     def _update_critic(self, batch_tensors, module, config):
-        with self._optimizer.critics.optimize():
+        with self.optimizer.critics.optimize():
             critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
             critic_loss.backward()
 
@@ -106,7 +106,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         )
 
     def _update_actor(self, batch_tensors, module, config):
-        with self._optimizer.actor.optimize():
+        with self.optimizer.actor.optimize():
             actor_loss, info = self.compute_actor_loss(batch_tensors, module, config)
             actor_loss.backward()
 
@@ -133,7 +133,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return max_objective.neg(), info
 
     def _update_alpha(self, batch_tensors, module, config):
-        with self._optimizer.alpha.optimize():
+        with self.optimizer.alpha.optimize():
             alpha_loss, info = self.compute_alpha_loss(batch_tensors, module, config)
             alpha_loss.backward()
 

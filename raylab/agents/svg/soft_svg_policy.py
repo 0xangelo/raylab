@@ -31,7 +31,7 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         return DEFAULT_CONFIG
 
     @override(SVGBaseTorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         """PyTorch optimizer to use."""
         config = self.config["torch_optimizer"]
         components = "model actor critic alpha".split()
@@ -53,7 +53,7 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         return self._learner_stats(info)
 
     def _update_model_and_critic(self, batch_tensors):
-        with self._optimizer.model.optimize(), self._optimizer.critic.optimize():
+        with self.optimizer.model.optimize(), self.optimizer.critic.optimize():
             model_value_loss, info = self.compute_joint_model_value_loss(batch_tensors)
             model_value_loss.backward()
 
@@ -79,7 +79,7 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         return targets
 
     def _update_actor(self, batch_tensors):
-        with self._optimizer.actor.optimize():
+        with self.optimizer.actor.optimize():
             svg_loss, info = self.compute_stochastic_value_gradient_loss(batch_tensors)
             svg_loss.backward()
 
@@ -114,7 +114,7 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         )
 
     def _update_alpha(self, batch_tensors):
-        with self._optimizer.alpha.optimize():
+        with self.optimizer.alpha.optimize():
             alpha_loss, info = self.compute_alpha_loss(batch_tensors)
             alpha_loss.backward()
 

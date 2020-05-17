@@ -34,7 +34,7 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return get_module(obs_space, action_space, module_config)
 
     @override(raypi.TorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         return ptu.build_optimizer(self.module.critics, self.config["torch_optimizer"])
 
     @override(raypi.TorchPolicy)
@@ -46,7 +46,7 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
 
-        with self._optimizer.optimize():
+        with self.optimizer.optimize():
             loss, info = self.compute_loss(batch_tensors, self.module, self.config)
             loss.backward()
 

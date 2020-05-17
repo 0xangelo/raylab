@@ -29,7 +29,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         return super().make_module(obs_space, action_space, config)
 
     @override(SVGBaseTorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         """PyTorch optimizer to use."""
         optim_cls = ptu.get_optimizer_class(self.config["torch_optimizer"])
         options = self.config["torch_optimizer_options"]
@@ -47,7 +47,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         batch_tensors = self._lazy_tensor_dict(samples)
         batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
 
-        with self._optimizer.optimize():
+        with self.optimizer.optimize():
             model_value_loss, stats = self.compute_joint_model_value_loss(batch_tensors)
             info.update(stats)
             model_value_loss.backward()

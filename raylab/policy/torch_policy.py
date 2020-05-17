@@ -38,7 +38,7 @@ class TorchPolicy(Policy):
         )
         self.module = self.make_module(observation_space, action_space, self.config)
         self.module.to(self.device)
-        self._optimizer = self.optimizer()
+        self.optimizer = self.make_optimizer()
 
     @staticmethod
     @abstractmethod
@@ -46,7 +46,7 @@ class TorchPolicy(Policy):
         """Return the default config for this policy class."""
 
     @abstractmethod
-    def optimizer(self):
+    def make_optimizer(self):
         """PyTorch optimizer to use."""
 
     @staticmethod
@@ -183,7 +183,7 @@ class TorchPolicy(Policy):
     def get_weights(self):
         buffer = io.BytesIO()
         module_state = self.module.state_dict()
-        optim = () if self._optimizer is None else self._optimizer
+        optim = () if self.optimizer is None else self.optimizer
         optims = optim if isinstance(optim, tuple) else [optim]
         torch.save([module_state] + [o.state_dict() for o in optims], buffer)
         return buffer.getvalue()
@@ -191,7 +191,7 @@ class TorchPolicy(Policy):
     @override(Policy)
     def set_weights(self, weights):
         buffer = io.BytesIO(weights)
-        optim = () if self._optimizer is None else self._optimizer
+        optim = () if self.optimizer is None else self.optimizer
         optims = optim if isinstance(optim, tuple) else [optim]
         states = torch.load(buffer)
         self.module.load_state_dict(states[0])

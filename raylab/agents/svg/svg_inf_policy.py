@@ -38,7 +38,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         return DEFAULT_CONFIG
 
     @override(SVGBaseTorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         """PyTorch optimizers to use."""
         config = self.config["torch_optimizer"]
         components = ["on_policy", "off_policy"]
@@ -72,7 +72,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         """Update off-policy components."""
         batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
 
-        with self._optimizer.off_policy.optimize():
+        with self.optimizer.off_policy.optimize():
             loss, _info = self.compute_joint_model_value_loss(batch_tensors)
             info.update(_info)
             loss.backward()
@@ -84,7 +84,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         """Update on-policy components."""
         episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
 
-        with self._optimizer.on_policy.optimize():
+        with self.optimizer.on_policy.optimize():
             loss, info = self.compute_stochastic_value_gradient_loss(episodes)
             kl_div = self._avg_kl_divergence(batch_tensors)
             loss = loss + kl_div * self.curr_kl_coeff

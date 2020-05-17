@@ -30,7 +30,7 @@ class TRPOTorchPolicy(TorchPolicy):
         return DEFAULT_CONFIG
 
     @override(TorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         return ptu.build_optimizer(self.module.critic, self.config["torch_optimizer"])
 
     @override(TorchPolicy)
@@ -195,7 +195,7 @@ class TRPOTorchPolicy(TorchPolicy):
         )
 
         for _ in range(self.config["val_iters"]):
-            with self._optimizer.optimize():
+            with self.optimizer.optimize():
                 loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
                 loss.backward()
 
