@@ -331,8 +331,8 @@ def plot_export(**args):
         )
         for plot_inst in plot_instructions:
             lineplot_kwargs = plot_inst["lineplot_kwargs"]
-            lineplot_kwargs["data"] = lineplot_kwargs["data"].rename(
-                columns=lambda s: s.replace("_", "-"), inplace=True
+            lineplot_kwargs["data"].rename = lineplot_kwargs["data"].rename(
+                columns=lambda s: s.replace("_", " ").capitalize(), inplace=True
             )
 
     latex_style = latexify(columns=args["latexcol"]) if args["latex"] else nullcontext()
