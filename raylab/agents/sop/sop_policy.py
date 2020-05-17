@@ -3,10 +3,9 @@ import collections
 
 import torch
 import torch.nn as nn
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.utils.exploration import ParameterNoise
 import raylab.utils.pytorch as ptu
 import raylab.policy as raypi
 
@@ -31,24 +30,20 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         module_config.setdefault("critic", {})
         module_config["critic"]["double_q"] = config["clipped_double_q"]
         module_config.setdefault("actor", {})
-        module_config["actor"]["perturbed_policy"] = isinstance(
-            self.exploration, ParameterNoise
+        module_config["actor"]["perturbed_policy"] = (
+            config["exploration_config"]["type"]
+            == "raylab.utils.exploration.ParameterNoise"
         )
         # pylint:disable=no-member
         return super().make_module(obs_space, action_space, config)
 
     @override(raypi.TorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         config = self.config["torch_optimizer"]
         components = ["actor", "critics"]
 
         optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
-
-    @override(raypi.TorchPolicy)
-    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
-        # pylint:disable=unused-argument
-        return input_dict[SampleBatch.CUR_OBS], state
 
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
@@ -62,7 +57,7 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return self._learner_stats(info)
 
     def _update_critic(self, batch_tensors, module, config):
-        with self._optimizer.critics.optimize():
+        with self.optimizer.critics.optimize():
             critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
             critic_loss.backward()
 
@@ -101,7 +96,7 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return torch.where(dones, rewards, rewards + config["gamma"] * next_vals)
 
     def _update_policy(self, batch_tensors, module, config):
-        with self._optimizer.actor.optimize():
+        with self.optimizer.actor.optimize():
             policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
             policy_loss.backward()
 

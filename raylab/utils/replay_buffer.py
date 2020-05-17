@@ -4,7 +4,7 @@ import random
 
 import numpy as np
 from ray.rllib.utils.annotations import override
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.optimizers.replay_buffer import ReplayBuffer as _ReplayBuffer
 from ray.rllib.utils.compression import unpack_if_needed
 

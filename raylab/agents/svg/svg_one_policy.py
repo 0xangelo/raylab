@@ -1,12 +1,12 @@
 """SVG(1) policy class using PyTorch."""
 import torch
 import torch.nn as nn
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.policy import AdaptiveKLCoeffMixin
 import raylab.utils.pytorch as ptu
-from .svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
+from .svg_base_policy import SVGBaseTorchPolicy
 
 
 class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
@@ -29,7 +29,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         return super().make_module(obs_space, action_space, config)
 
     @override(SVGBaseTorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         """PyTorch optimizer to use."""
         optim_cls = ptu.get_optimizer_class(self.config["torch_optimizer"])
         options = self.config["torch_optimizer_options"]
@@ -47,7 +47,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         batch_tensors = self._lazy_tensor_dict(samples)
         batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
 
-        with self._optimizer.optimize():
+        with self.optimizer.optimize():
             model_value_loss, stats = self.compute_joint_model_value_loss(batch_tensors)
             info.update(stats)
             model_value_loss.backward()
@@ -99,7 +99,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
             logp = self.module.actor.log_prob(
                 batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
             )
-            return torch.mean(batch_tensors[ACTION_LOGP] - logp)
+            return torch.mean(batch_tensors[SampleBatch.ACTION_LOGP] - logp)
 
         old_act, old_logp = self.module.old_actor.rsample(
             batch_tensors[SampleBatch.CUR_OBS]

@@ -1,7 +1,7 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 from ray.rllib import RolloutWorker
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 
 
 @pytest.fixture

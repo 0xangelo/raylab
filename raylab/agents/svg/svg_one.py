@@ -1,5 +1,5 @@
 """Trainer and configuration for SVG(1)."""
-from ray.rllib.policy.policy import ACTION_LOGP
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.agents.off_policy import GenericOffPolicyTrainer, with_base_config
@@ -76,7 +76,7 @@ class SVGOneTrainer(GenericOffPolicyTrainer):
     _name = "SVG(1)"
     _default_config = DEFAULT_CONFIG
     _policy = SVGOneTorchPolicy
-    _extra_replay_keys = (ACTION_LOGP,)
+    _extra_replay_keys = (SampleBatch.ACTION_LOGP,)
 
     @override(GenericOffPolicyTrainer)
     def _before_replay_steps(self, policy):
