@@ -1,23 +1,21 @@
 # pylint:disable=missing-module-docstring
 from ray.rllib.utils.annotations import override
-from ray.rllib.utils.exploration import Exploration
+
+from .random_uniform import RandomUniform
 
 
-from .random_uniform import RandomUniformMixin
-
-
-class StochasticActor(RandomUniformMixin, Exploration):
+class StochasticActor(RandomUniform):
     """Exploration class compatible with StochasticActorMixin submodules."""
 
-    @override(Exploration)
-    def get_exploration_action(
-        self, distribution_inputs, action_dist_class, model, timestep, explore=True,
-    ):
+    @override(RandomUniform)
+    def get_exploration_action(self, *, action_distribution, timestep, explore=True):
         # pylint:disable=too-many-arguments
         if explore:
             if timestep < self._pure_exploration_steps:
                 return super().get_exploration_action(
-                    distribution_inputs, action_dist_class, model, timestep, explore
+                    action_distribution=action_distribution,
+                    timestep=timestep,
+                    explore=explore,
                 )
-            return model.actor.sample(distribution_inputs)
-        return model.actor.deterministic(distribution_inputs)
+            return action_distribution.sample()
+        return action_distribution.deterministic_sample()

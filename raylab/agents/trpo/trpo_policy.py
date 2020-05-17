@@ -4,8 +4,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from ray.rllib.evaluation.postprocessing import Postprocessing, compute_advantages
-from ray.rllib.policy.policy import ACTION_LOGP
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.utils import hf_util
@@ -30,12 +29,8 @@ class TRPOTorchPolicy(TorchPolicy):
         return DEFAULT_CONFIG
 
     @override(TorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         return ptu.build_optimizer(self.module.critic, self.config["torch_optimizer"])
-
-    @override(TorchPolicy)
-    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
-        return input_dict[SampleBatch.CUR_OBS], state
 
     @torch.no_grad()
     @override(TorchPolicy)
@@ -149,7 +144,7 @@ class TRPOTorchPolicy(TorchPolicy):
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,
-            ACTION_LOGP,
+            SampleBatch.ACTION_LOGP,
             Postprocessing.ADVANTAGES,
         )
 
@@ -195,7 +190,7 @@ class TRPOTorchPolicy(TorchPolicy):
         )
 
         for _ in range(self.config["val_iters"]):
-            with self._optimizer.optimize():
+            with self.optimizer.optimize():
                 loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
                 loss.backward()
 
@@ -212,7 +207,7 @@ class TRPOTorchPolicy(TorchPolicy):
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,
-            ACTION_LOGP,
+            SampleBatch.ACTION_LOGP,
             Postprocessing.VALUE_TARGETS,
             SampleBatch.VF_PREDS,
         )
@@ -228,6 +223,6 @@ class TRPOTorchPolicy(TorchPolicy):
             ),
             "grad_norm(critic)": nn.utils.clip_grad_norm_(
                 self.module.critic.parameters(), float("inf")
-            ),
+            ).item(),
         }
         return info

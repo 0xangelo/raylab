@@ -3,7 +3,7 @@ import os.path as osp
 import pickle
 import warnings
 
-from ray.tune.registry import TRAINABLE_CLASS, _global_registry
+from ray.tune.registry import get_trainable_cls
 from ray.rllib.utils import merge_dicts
 
 
@@ -36,7 +36,7 @@ def get_config_from_checkpoint(checkpoint, use_eval_config=True, config_override
     if use_eval_config:
         if "evaluation_config" not in config:
             warnings.warn("Evaluation agent requested but none in config.")
-        eval_conf = config["evaluation_config"]
+        eval_conf = config.get("evaluation_config", {})
         config = merge_dicts(config, eval_conf)
 
     if config_overrides:
@@ -46,4 +46,4 @@ def get_config_from_checkpoint(checkpoint, use_eval_config=True, config_override
 
 def get_agent_cls(agent_name):
     """Retrieve agent class from global registry."""
-    return _global_registry.get(TRAINABLE_CLASS, agent_name)
+    return get_trainable_cls(agent_name)

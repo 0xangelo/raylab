@@ -5,7 +5,7 @@ from ray import tune
 def get_config():
     return {
         # === Environment ===
-        "env": "IndustrialBenchmark",
+        "env": "IndustrialBenchmark-v0",
         "env_config": {
             "reward_type": "classic",
             "action_type": "continuous",

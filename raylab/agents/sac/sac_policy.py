@@ -3,7 +3,7 @@ import collections
 
 import torch
 import torch.nn as nn
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu
@@ -37,16 +37,12 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return super().make_module(obs_space, action_space, config)
 
     @override(TorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         config = self.config["torch_optimizer"]
         components = "actor critics alpha".split()
 
         optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
-
-    @override(TorchPolicy)
-    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
-        return input_dict[SampleBatch.CUR_OBS], state
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
@@ -63,7 +59,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return self._learner_stats(info)
 
     def _update_critic(self, batch_tensors, module, config):
-        with self._optimizer.critics.optimize():
+        with self.optimizer.critics.optimize():
             critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
             critic_loss.backward()
 
@@ -106,7 +102,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         )
 
     def _update_actor(self, batch_tensors, module, config):
-        with self._optimizer.actor.optimize():
+        with self.optimizer.actor.optimize():
             actor_loss, info = self.compute_actor_loss(batch_tensors, module, config)
             actor_loss.backward()
 
@@ -133,7 +129,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return max_objective.neg(), info
 
     def _update_alpha(self, batch_tensors, module, config):
-        with self._optimizer.alpha.optimize():
+        with self.optimizer.alpha.optimize():
             alpha_loss, info = self.compute_alpha_loss(batch_tensors, module, config)
             alpha_loss.backward()
 
@@ -157,5 +153,5 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return {
             f"grad_norm({component})": nn.utils.clip_grad_norm_(
                 self.module[component].parameters(), float("inf")
-            )
+            ).item()
         }

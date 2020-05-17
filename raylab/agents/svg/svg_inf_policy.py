@@ -4,12 +4,12 @@ from contextlib import contextmanager
 
 import torch
 import torch.nn as nn
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu
 from raylab.policy import AdaptiveKLCoeffMixin
-from .svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
+from .svg_base_policy import SVGBaseTorchPolicy
 from .rollout_module import ReproduceRollout
 
 
@@ -38,7 +38,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         return DEFAULT_CONFIG
 
     @override(SVGBaseTorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         """PyTorch optimizers to use."""
         config = self.config["torch_optimizer"]
         components = ["on_policy", "off_policy"]
@@ -72,7 +72,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         """Update off-policy components."""
         batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
 
-        with self._optimizer.off_policy.optimize():
+        with self.optimizer.off_policy.optimize():
             loss, _info = self.compute_joint_model_value_loss(batch_tensors)
             info.update(_info)
             loss.backward()
@@ -84,7 +84,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         """Update on-policy components."""
         episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
 
-        with self._optimizer.on_policy.optimize():
+        with self.optimizer.on_policy.optimize():
             loss, info = self.compute_stochastic_value_gradient_loss(episodes)
             kl_div = self._avg_kl_divergence(batch_tensors)
             loss = loss + kl_div * self.curr_kl_coeff
@@ -117,7 +117,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         logp = self.module.actor.log_prob(
             batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
         )
-        return torch.mean(batch_tensors[ACTION_LOGP] - logp)
+        return torch.mean(batch_tensors[SampleBatch.ACTION_LOGP] - logp)
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):
@@ -126,16 +126,20 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
             model_params = self.module.model.parameters()
             value_params = self.module.critic.parameters()
             fetches = {
-                "model_grad_norm": nn.utils.clip_grad_norm_(model_params, float("inf")),
-                "value_grad_norm": nn.utils.clip_grad_norm_(value_params, float("inf")),
+                "model_grad_norm": nn.utils.clip_grad_norm_(
+                    model_params, float("inf")
+                ).item(),
+                "value_grad_norm": nn.utils.clip_grad_norm_(
+                    value_params, float("inf")
+                ).item(),
             }
         else:
             policy_params = self.module.actor.parameters()
             fetches = {
                 "policy_grad_norm": nn.utils.clip_grad_norm_(
                     policy_params, max_norm=self.config["max_grad_norm"]
-                ),
-                "policy_entropy": -batch_tensors[ACTION_LOGP].mean().item(),
+                ).item(),
+                "policy_entropy": -batch_tensors[SampleBatch.ACTION_LOGP].mean().item(),
                 "curr_kl_coeff": self.curr_kl_coeff,
             }
         return fetches

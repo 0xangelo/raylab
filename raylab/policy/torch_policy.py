@@ -1,24 +1,22 @@
 """Base for all PyTorch policies."""
 from abc import abstractmethod
 import contextlib
+import io
 
-import numpy as np
 import torch
-import tree
 from ray.tune.logger import pretty_print
 from ray.rllib.models.model import restore_original_dimensions, flatten
 from ray.rllib.utils.annotations import override
-from ray.rllib.utils.exploration import Exploration
-from ray.rllib.utils.from_config import from_config
 from ray.rllib.utils.torch_ops import convert_to_non_torch_type
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
-from ray.rllib.policy.policy import Policy, ACTION_LOGP, ACTION_PROB, LEARNER_STATS_KEY
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.policy.policy import Policy, LEARNER_STATS_KEY
+from ray.rllib import SampleBatch
 
 from raylab.agents import Trainer
 from raylab.modules.catalog import get_module
 from raylab.utils.dictionaries import deep_merge
 from raylab.utils.pytorch import convert_to_tensor
+from .action_dist import WrapModuleDist
 
 
 class TorchPolicy(Policy):
@@ -34,12 +32,17 @@ class TorchPolicy(Policy):
             override_all_if_type_changes=Trainer._override_all_subkeys_if_type_changes,
         )
         super().__init__(observation_space, action_space, config)
+
+        self.exploration = self._create_exploration()
+        # Already set in Policy, might as well use it
+        self.dist_class = WrapModuleDist
+
         self.device = (
             torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         )
         self.module = self.make_module(observation_space, action_space, self.config)
         self.module.to(self.device)
-        self._optimizer = self.optimizer()
+        self.optimizer = self.make_optimizer()
 
     @staticmethod
     @abstractmethod
@@ -47,7 +50,7 @@ class TorchPolicy(Policy):
         """Return the default config for this policy class."""
 
     @abstractmethod
-    def optimizer(self):
+    def make_optimizer(self):
         """PyTorch optimizer to use."""
 
     @staticmethod
@@ -82,53 +85,41 @@ class TorchPolicy(Policy):
         explore = explore if explore is not None else self.config["explore"]
         timestep = timestep if timestep is not None else self.global_timestep
 
-        input_dict = self._lazy_tensor_dict({SampleBatch.CUR_OBS: obs_batch})
+        input_dict = self._lazy_tensor_dict(
+            {SampleBatch.CUR_OBS: obs_batch, "is_training": False}
+        )
         if prev_action_batch:
             input_dict[SampleBatch.PREV_ACTIONS] = prev_action_batch
         if prev_reward_batch:
             input_dict[SampleBatch.PREV_REWARDS] = prev_reward_batch
-        state_batches = [self.convert_to_tensor(s) for s in state_batches]
+        state_batches = [self.convert_to_tensor(s) for s in (state_batches or [])]
 
         # Call the exploration before_compute_actions hook.
         self.exploration.before_compute_actions(timestep=timestep)
 
-        logits, state = self.compute_module_ouput(
+        dist_inputs, state_out = self.compute_module_output(
             self._unpack_observations(input_dict),
             state_batches,
             self.convert_to_tensor([1]),
         )
+
+        action_dist = self.dist_class(dist_inputs, self.module)
         actions, logp = self.exploration.get_exploration_action(
-            logits, None, self.module, timestep, explore
+            action_distribution=action_dist, timestep=timestep, explore=explore
         )
         input_dict[SampleBatch.ACTIONS] = actions
 
-        extra_action_out = self.extra_action_out(input_dict, state_batches, self.module)
+        # Add default and custom fetches.
+        extra_fetches = self.extra_action_out(
+            input_dict, state_batches, self.module, action_dist
+        )
 
         if logp is not None:
             prob, logp = map(convert_to_non_torch_type, (logp.exp(), logp))
-            extra_action_out.update({ACTION_PROB: prob, ACTION_LOGP: logp})
-        return convert_to_non_torch_type((actions, state, extra_action_out))
+            extra_fetches[SampleBatch.ACTION_PROB] = prob
+            extra_fetches[SampleBatch.ACTION_LOGP] = logp
 
-    @abstractmethod
-    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
-        """Call the module with the given input tensors and state.
-
-        This mirrors the method used by RLlib to execute the forward pass. Nested
-        observation tensors are unpacked before this function is called.
-
-        Arguments:
-            input_dict (dict): dictionary of input tensors, including "obs",
-                "prev_action", "prev_reward", "is_training"
-            state (list): list of state tensors with sizes matching those
-                returned by get_initial_state + the batch dimension
-            seq_lens (Tensor): 1d tensor holding input sequence lengths
-
-        Returns:
-            (outputs, state): The model output tensor of size
-                [BATCH, output_spec.size] or a list of tensors corresponding to
-                output_spec.shape_list, and a list of state tensors of
-                [BATCH, state_size_i].
-        """
+        return convert_to_non_torch_type((actions, state_out, extra_fetches))
 
     def _unpack_observations(self, input_dict):
         restored = input_dict.copy()
@@ -140,6 +131,25 @@ class TorchPolicy(Policy):
         else:
             restored["obs_flat"] = input_dict["obs"]
         return restored
+
+    def compute_module_output(self, input_dict, state, seq_lens):
+        """Call the module with the given input tensors and state.
+
+        This mirrors the method used by RLlib to execute the forward pass. Nested
+        observation tensors are unpacked before this function is called.
+
+        Subclasses should override this for custom forward passes (e.g., for recurrent
+        networks).
+
+        Arguments:
+            input_dict (dict): dictionary of input tensors, including "obs",
+                "prev_action", "prev_reward", "is_training"
+            state (list): list of state tensors with sizes matching those
+                returned by get_initial_state + the batch dimension
+            seq_lens (Tensor): 1d tensor holding input sequence lengths
+        """
+        # pylint:disable=unused-argument,no-self-use
+        return {"obs": input_dict["obs"]}, state
 
     @torch.no_grad()
     @override(Policy)
@@ -160,14 +170,13 @@ class TorchPolicy(Policy):
         if prev_reward_batch:
             input_dict[SampleBatch.PREV_REWARDS] = prev_reward_batch
 
-        parameters, _ = self.compute_module_ouput(
+        dist_inputs, _ = self.module(
             self._unpack_observations(input_dict),
             state_batches,
             self.convert_to_tensor([1]),
         )
-        log_likelihoods = self.module.actor.log_prob(
-            parameters, input_dict[SampleBatch.ACTIONS]
-        )
+        action_dist = self.dist_class(dist_inputs, self.module)
+        log_likelihoods = action_dist.logp(input_dict[SampleBatch.ACTIONS])
         return log_likelihoods
 
     @override(Policy)
@@ -182,56 +191,32 @@ class TorchPolicy(Policy):
 
     @override(Policy)
     def get_weights(self):
-        def numpy_state(state):
-            return tree.map_structure(
-                lambda x: x.cpu().numpy() if isinstance(x, torch.Tensor) else x, state,
-            )
-
-        module_state = numpy_state(self.module.state_dict())
-        optim = () if self._optimizer is None else self._optimizer
+        buffer = io.BytesIO()
+        module_state = self.module.state_dict()
+        optim = () if self.optimizer is None else self.optimizer
         optims = optim if isinstance(optim, tuple) else [optim]
-        return [module_state] + [numpy_state(o.state_dict()) for o in optims]
+        torch.save([module_state] + [o.state_dict() for o in optims], buffer)
+        return buffer.getvalue()
 
     @override(Policy)
     def set_weights(self, weights):
-        optim = () if self._optimizer is None else self._optimizer
+        buffer = io.BytesIO(weights)
+        optim = () if self.optimizer is None else self.optimizer
         optims = optim if isinstance(optim, tuple) else [optim]
+        states = torch.load(buffer)
+        self.module.load_state_dict(states[0])
+        for optim, state in zip(optims, states[1:]):
+            optim.load_state_dict(state)
 
-        def torch_state(state):
-            return tree.map_structure(
-                lambda x: self.convert_to_tensor(x) if isinstance(x, np.ndarray) else x,
-                state,
-            )
-
-        self.module.load_state_dict(torch_state(weights[0]))
-        for optim, state in zip(optims, weights[1:]):
-            optim.load_state_dict(torch_state(state))
-
-    @override(Policy)
-    def _create_exploration(self, action_space, config):
-        exploration = from_config(
-            Exploration,
-            config.get(
-                "exploration_config",
-                {"type": "raylab.utils.exploration.StochasticActor"},
-            ),
-            action_space=action_space,
-            num_workers=config.get("num_workers", 0),
-            worker_index=config.get("worker_index", 0),
-            framework=self.framework,
-        )
-        # If config is further passed around, it'll contain an already
-        # instantiated object.
-        config["exploration_config"] = exploration
-        return exploration
-
-    def extra_action_out(self, input_dict, state_batches, module):
+    def extra_action_out(self, input_dict, state_batches, module, action_dist):
         """Returns dict of extra info to include in experience batch.
 
         Arguments:
             input_dict (dict): Dict of model input tensors.
             state_batches (list): List of state tensors.
             model (nn.Module): Reference to the model.
+            action_dist (ActionDistribution): Action dist object
+                to get log-probs (e.g. for already sampled actions).
         """
         # pylint:disable=unused-argument,no-self-use
         return {}

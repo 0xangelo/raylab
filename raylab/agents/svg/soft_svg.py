@@ -1,14 +1,11 @@
 """Trainer and configuration for SVG(1) with maximum entropy."""
-from ray.rllib.agents.trainer import with_base_config
-from ray.rllib.utils.annotations import override
-from ray.rllib.evaluation.metrics import get_learner_stats
+from ray.rllib import SampleBatch
 
-from .svg_base import SVG_BASE_CONFIG, SVGBaseTrainer
+from raylab.agents.off_policy import GenericOffPolicyTrainer, with_base_config
 from .soft_svg_policy import SoftSVGTorchPolicy
 
 
 DEFAULT_CONFIG = with_base_config(
-    SVG_BASE_CONFIG,
     {
         # === Entropy ===
         # Target entropy to optimize the temperature parameter towards
@@ -23,6 +20,12 @@ DEFAULT_CONFIG = with_base_config(
             "critic": {"type": "Adam", "lr": 1e-3},
             "alpha": {"type": "Adam", "lr": 1e-3},
         },
+        # Weight of the fitted V loss in the joint model-value loss
+        "vf_loss_coeff": 1.0,
+        # Clip importance sampling weights by this value
+        "max_is_ratio": 5.0,
+        # Interpolation factor in polyak averaging for target networks.
+        "polyak": 0.995,
         # === Network ===
         # Size and activation of the fully connected networks computing the logits
         # for the policy, value function and model. No layers means the component is
@@ -59,31 +62,14 @@ DEFAULT_CONFIG = with_base_config(
         # Typical usage is to pass extra args to evaluation env creator
         # and to disable exploration by computing deterministic actions
         "evaluation_config": {"explore": False},
-    },
+    }
 )
 
 
-class SoftSVGTrainer(SVGBaseTrainer):
+class SoftSVGTrainer(GenericOffPolicyTrainer):
     """Single agent trainer for SoftSVG."""
 
     _name = "SoftSVG"
     _default_config = DEFAULT_CONFIG
     _policy = SoftSVGTorchPolicy
-
-    @override(SVGBaseTrainer)
-    def _train(self):
-        worker = self.workers.local_worker()
-        policy = worker.get_policy()
-
-        while not self._iteration_done():
-            samples = worker.sample()
-            self.optimizer.num_steps_sampled += samples.count
-            for row in samples.rows():
-                self.replay.add(row)
-
-            for _ in range(samples.count):
-                batch = self.replay.sample(self.config["train_batch_size"])
-                learner_stats = get_learner_stats(policy.learn_on_batch(batch))
-                self.optimizer.num_steps_trained += batch.count
-
-        return self._log_metrics(learner_stats)
+    _extra_replay_keys = (SampleBatch.ACTION_LOGP,)

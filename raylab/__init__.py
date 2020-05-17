@@ -15,5 +15,5 @@ def register_all_environments():
     from ray.tune import register_env
     from raylab.envs.registry import ENVS
 
-    for name, env_import in ENVS.items():
-        register_env(name, env_import)
+    for name, env_creator in ENVS.items():
+        register_env(name, env_creator)

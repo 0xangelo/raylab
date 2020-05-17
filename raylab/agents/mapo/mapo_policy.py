@@ -5,12 +5,10 @@ import torch
 import torch.nn as nn
 from torch._six import inf
 from ray.rllib.utils.annotations import override
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 
 import raylab.policy as raypi
-
 from raylab.envs.rewards import get_reward_fn
-from raylab.utils.exploration import ParameterNoise
 import raylab.utils.pytorch as ptu
 
 
@@ -42,8 +40,9 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         module_config.setdefault("critic", {})
         module_config["critic"]["double_q"] = config["clipped_double_q"]
         module_config.setdefault("actor", {})
-        module_config["actor"]["perturbed_policy"] = isinstance(
-            self.exploration, ParameterNoise
+        module_config["actor"]["perturbed_policy"] = (
+            config["exploration_config"]["type"]
+            == "raylab.utils.exploration.ParameterNoise"
         )
         # pylint:disable=no-member
         module = super().make_module(obs_space, action_space, config)
@@ -52,7 +51,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return module
 
     @override(raypi.TorchPolicy)
-    def optimizer(self):
+    def make_optimizer(self):
         config = self.config["torch_optimizer"]
         components = "model actor critics".split()
         if self.config["true_model"]:
@@ -94,11 +93,6 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             ), "Transition grad w.r.t. state and action must exist for PD estimator"
 
     @override(raypi.TorchPolicy)
-    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
-        # pylint:disable=unused-argument
-        return input_dict[SampleBatch.CUR_OBS], state
-
-    @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
 
@@ -112,14 +106,14 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return self._learner_stats(info)
 
     def _update_critic(self, batch_tensors, module, config):
-        with self._optimizer.critics.optimize():
+        with self.optimizer.critics.optimize():
             critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
             critic_loss.backward()
 
         grad_stats = {
             "critic_grad_norm": nn.utils.clip_grad_norm_(
                 module.critics.parameters(), float("inf")
-            )
+            ).item()
         }
         info.update(grad_stats)
         return info
@@ -156,7 +150,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return torch.where(dones, rewards, rewards + config["gamma"] * next_vals)
 
     def _update_model(self, batch_tensors, module, config):
-        with self._optimizer.model.optimize():
+        with self.optimizer.model.optimize():
             if config["model_loss"] == "DAML":
                 model_loss, info = self.compute_daml_loss(batch_tensors, module, config)
             elif config["model_loss"] == "MLE":
@@ -166,7 +160,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         grad_stats = {
             "model_grad_norm": nn.utils.clip_grad_norm_(
                 module.model.parameters(), float("inf")
-            )
+            ).item()
         }
         info.update(grad_stats)
         return info
@@ -276,7 +270,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return loss, info
 
     def _update_policy(self, batch_tensors, module, config):
-        with self._optimizer.actor.optimize():
+        with self.optimizer.actor.optimize():
             policy_loss, info = self.compute_madpg_loss(batch_tensors, module, config)
             policy_loss.backward()
 
@@ -288,7 +282,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         return {
             "policy_grad_norm": nn.utils.clip_grad_norm_(
                 self.module.actor.parameters(), float("inf")
-            ),
+            ).item()
         }
 
 

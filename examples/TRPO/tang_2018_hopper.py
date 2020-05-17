@@ -15,8 +15,8 @@ def get_config():
         "lambda": 0.98,
         # Number of iterations to fit value function
         "val_iters": 5,
-        # Learning rate for critic optimizer
-        "val_lr": 1e-3,
+        # Options for critic optimizer
+        "torch_optimizer": {"type": "Adam", "lr": 1e-3},
         # Configuration for Conjugate Gradient
         "cg_iters": 10,
         "cg_damping": 1e-3,
@@ -41,9 +41,11 @@ def get_config():
             "torch_script": True,
             "actor": {"num_flows": 4, "hidden_size": 3},
             "critic": {
-                "units": (32, 32),
-                "activation": "Tanh",
-                "initializer_options": {"name": "normal", "std": 1.0},
+                "encoder": {
+                    "units": (32, 32),
+                    "activation": "Tanh",
+                    "initializer_options": {"name": "normal", "std": 1.0},
+                },
             },
         },
     }

@@ -8,12 +8,13 @@ from bokeh.plotting import figure
 import numpy as np
 import pandas as pd
 import ray
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 import streamlit as st
 import torch
 
 import raylab
 from raylab.utils.checkpoints import get_agent_from_checkpoint
+import raylab.utils.dictionaries as dutil
 import raylab.utils.pytorch as ptu
 
 # pylint:disable=invalid-name,missing-docstring,pointless-string-statement
@@ -205,19 +206,59 @@ def plot_model_distributions(policy, row):
 @st.cache(
     max_entries=1,
     # pylint:disable=protected-access
-    hash_funcs={torch.jit.RecursiveScriptModule: hash},
+    hash_funcs={
+        torch.jit.RecursiveScriptModule: id,
+        torch._C._TensorBase: id,
+        torch.Tensor: id,
+    },
     # pylint:enable=protected-access
 )
-def get_actor_samples(module, row, n_samples):
+def get_actor_outputs(module, row, n_samples):
     obs = ptu.convert_to_tensor(row[SampleBatch.CUR_OBS], "cpu")
-    acts, _ = module.sample(obs, (n_samples,))
-    return acts.detach().numpy()
+    with torch.no_grad():
+        acts, logp = module.sample(obs, (n_samples,))
+        deterministic, _ = module.deterministic(obs)
+        deterministic.unsqueeze_(0)
+    log_prob = module.log_prob(obs, acts)
+    entropy = -log_prob.mean()
+    nll_grad = ptu.flat_grad(entropy, module.parameters())
+    return {
+        "acts": acts,
+        "logp": logp,
+        "det": deterministic,
+        "log_prob": log_prob.detach(),
+        "entropy": entropy.detach(),
+        "nll_grad": nll_grad,
+    }
 
 
-def plot_actor_distributions(policy, row):
+def plot_action_distributions(outputs, bins, ranges=()):
+    acts, det = map(lambda x: x.numpy(), dutil.get_keys(outputs, "acts", "det"))
+    data = {f"act[{i}]": acts[..., i] for i in range(acts.shape[-1])}
+    dataset = pd.DataFrame(data)
+
+    det_data = {f"det[{i}]": det[..., i] for i in range(det.shape[-1])}
+    det_dataset = pd.DataFrame(det_data)
+
+    st.bokeh_chart(make_histograms(dataset, bins, ranges=ranges))
+    st.bokeh_chart(scatter_matrix(dataset, det_dataset))
+
+
+def plot_logp_stats(outputs, bins):
+    st.write("Entropy:", outputs["entropy"])
+    st.write("grad_norm(nll):", outputs["nll_grad"].norm(p=2))
+
+    dataset = pd.DataFrame({k: outputs[k].numpy() for k in "logp log_prob".split()})
+    st.bokeh_chart(make_histograms(dataset, bins))
+    dataset = pd.DataFrame({"nll_grad": outputs["nll_grad"].numpy()})
+    st.bokeh_chart(make_histograms(dataset, bins))
+
+
+def viz_actor_distributions(policy, row):
     actor = policy.module.actor
     n_samples = st.number_input("Number of action samples", min_value=1, step=1)
-    acts = get_actor_samples(actor, row, n_samples)
+
+    outputs = get_actor_outputs(actor, row, n_samples)
 
     bins = st.number_input(
         "Histogram bins",
@@ -226,25 +267,13 @@ def plot_actor_distributions(policy, row):
         value=(1 + n_samples) // 2,
         step=1,
     )
-    data = {f"act[{i}]": acts[..., i] for i in range(acts.shape[-1])}
-    dataset = pd.DataFrame(data)
-
-    det, _ = policy.module.actor.deterministic(
-        policy.convert_to_tensor(row[SampleBatch.CUR_OBS])
+    plot_action_distributions(
+        outputs, bins, ranges=(policy.action_space.low, policy.action_space.high)
     )
-    det.unsqueeze_(0).detach_()
-    det_data = {f"det[{i}]": det[..., i] for i in range(det.shape[-1])}
-    det_dataset = pd.DataFrame(det_data)
-
-    st.bokeh_chart(
-        make_histograms(
-            dataset, bins, ranges=(policy.action_space.low, policy.action_space.high)
-        )
-    )
-    st.bokeh_chart(scatter_matrix(dataset, det_dataset))
+    plot_logp_stats(outputs, bins)
 
 
-def plot_distributions(policy, rollout, timestep):
+def viz_distributions(policy, rollout, timestep):
     row = list(rollout.rows())[timestep]
 
     components = []
@@ -255,7 +284,7 @@ def plot_distributions(policy, rollout, timestep):
 
     component = st.selectbox("Inspect module:", options=components)
     if component == "actor":
-        plot_actor_distributions(policy, row)
+        viz_actor_distributions(policy, row)
     elif component == "model":
         plot_model_distributions(policy, row)
 
@@ -281,7 +310,7 @@ def main():
     rollout = rollout_wrapper[0]
     timestep = st.slider("Timestep", min_value=0, max_value=rollout.count - 1)
 
-    plot_distributions(agent.get_policy(), rollout, timestep)
+    viz_distributions(agent.get_policy(), rollout, timestep)
 
 
 if __name__ == "__main__":

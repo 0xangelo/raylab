@@ -15,8 +15,8 @@ def get_config():
         "lambda": 0.96,
         # Number of iterations to fit value function
         "val_iters": 40,
-        # Learning rate for critic optimizer
-        "val_lr": 1e-2,
+        # Options for critic optimizer
+        "torch_optimizer": {"type": "Adam", "lr": 1e-2},
         # === RolloutWorker ===
         "num_workers": 3,
         "num_envs_per_worker": 6,
@@ -26,14 +26,18 @@ def get_config():
         # === Network ===
         "module": {
             "actor": {
-                "units": (32, 32),
-                "activation": "ELU",
-                "initializer_options": {"name": "orthogonal"},
+                "encoder": {
+                    "units": (32, 32),
+                    "activation": "ELU",
+                    "initializer_options": {"name": "orthogonal"},
+                },
             },
             "critic": {
-                "units": (32, 32),
-                "activation": "ELU",
-                "initializer_options": {"name": "orthogonal"},
+                "encoder": {
+                    "units": (32, 32),
+                    "activation": "ELU",
+                    "initializer_options": {"name": "orthogonal"},
+                },
             },
         },
     }

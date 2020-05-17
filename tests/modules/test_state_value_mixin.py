@@ -4,7 +4,7 @@ from functools import partial
 import pytest
 import torch
 import torch.nn as nn
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 
 from raylab.modules.mixins import StateValueMixin
 

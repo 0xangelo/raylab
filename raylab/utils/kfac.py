@@ -36,16 +36,34 @@ class KFACMixin:
         self._recording = False
 
     def save_input(self, mod, inputs):
-        """Saves input of layer to compute covariance."""
+        """Saves input of layer to compute covariance.
+
+        Note: inputs must be divided by the batch size to weight them appropriately
+        when computing the average whitening matrix.
+        """
         if self._recording:
-            self.state[mod.weight]["x"] = inputs[0].detach()
+            inputs = inputs[0].detach()
+            if isinstance(mod, nn.Linear):
+                inputs = inputs.reshape(-1, inputs.shape[-1])
+            elif isinstance(mod, nn.Conv2d):
+                inputs = inputs.reshape(-1, *inputs.shape[-3:])
+            self.state[mod.weight]["x"] = inputs / inputs.shape[0]
 
     def save_grad_out(self, mod, _, grad_outputs):
-        """Saves grad on output of layer to compute covariance."""
+        """Saves grad on output of layer to compute covariance.
+
+        Note: grads are already properly weighted when the final loss function uses
+        .mean() to aggregate element-wise losses. Since this is always the case when
+        computing the entropy (average negative log-likelihood), we don't weight them
+        here.
+        """
         if self._recording:
-            self.state[mod.weight]["gy"] = (
-                grad_outputs[0] * grad_outputs[0].size(0)
-            ).detach()
+            grad_outputs = grad_outputs[0].detach()
+            if isinstance(mod, nn.Linear):
+                grad_outputs = grad_outputs.reshape(-1, grad_outputs.shape[-1])
+            elif isinstance(mod, nn.Conv2d):
+                grad_outputs = grad_outputs.reshape(-1, *grad_outputs.shape[-3:])
+            self.state[mod.weight]["gy"] = grad_outputs
 
     def step(self):  # pylint:disable=arguments-differ
         """Preconditions and applies gradients."""
@@ -183,14 +201,13 @@ class KFAC(KFACMixin, Optimizer):
             x = x.data.permute(1, 0, 2).reshape(x.shape[1], -1)
         else:
             x = x.data.T
-        batch_size = x.shape[1]
 
         if len(group["params"]) == 2:
             ones = torch.ones_like(x[:1])
             x = torch.cat([x, ones], dim=0)
 
         # Computation of xxt
-        xxt = x @ x.T / batch_size
+        xxt = x @ x.T
         if "xxt" in state:
             xxt = state["xxt"] * (1.0 - self.alpha) + xxt * self.alpha
 
@@ -203,7 +220,7 @@ class KFAC(KFACMixin, Optimizer):
             gy = gy.data.T
             num_locations = 1
 
-        ggt = gy @ gy.T / batch_size
+        ggt = gy @ gy.T
         if "ggt" in state:
             ggt = state["ggt"] * (1.0 - self.alpha) + ggt * self.alpha
 
@@ -331,11 +348,10 @@ class EKFAC(KFACMixin, Optimizer):
 
         # Computation of xxt
         x = x.data.T
-        batch_size = x.shape[1]
         if len(group["params"]) == 2:
             x = torch.cat([x, torch.ones_like(x[:1])], dim=0)
 
-        xxt = x @ x.T / batch_size
+        xxt = x @ x.T
         if "xxt" in state:
             xxt = state["xxt"] * (1.0 - self.alpha) + xxt * self.alpha
 
@@ -343,7 +359,7 @@ class EKFAC(KFACMixin, Optimizer):
         gy = gy.data.T
         num_locations = 1
 
-        ggt = gy @ gy.T / batch_size
+        ggt = gy @ gy.T
         if "ggt" in state:
             ggt = state["ggt"] * (1.0 - self.alpha) + ggt * self.alpha
 

@@ -89,15 +89,30 @@ def main():
                 labels = ["experiment"]
                 groups = [selector]
 
-            individual = st.checkbox("Show individual curves")
-            standard_error = st.checkbox("Use standard error")
-            chart = time_series(
-                x_key,
-                y_key,
-                groups,
-                labels,
-                individual=individual,
-                standard_error=standard_error,
+            ts_config = {
+                "individual": st.checkbox("Show individual curves"),
+                "standard_error": st.checkbox("Use standard error"),
+                "log_scale": st.sidebar.checkbox("Log scale"),
+            }
+            chart = time_series(x_key, y_key, groups, labels, ts_config)
+            chart.legend.title = split
+            chart.legend.title_text_font_style = "bold"
+            chart.legend.location = st.sidebar.selectbox(
+                "legend location",
+                """
+                top_left
+                top_center
+                top_right
+                center_right
+                bottom_right
+                bottom_center
+                bottom_left
+                center_left
+                center
+                """.split(),
+            )
+            chart.legend.orientation = st.sidebar.selectbox(
+                "legend orientation", "vertical horizontal".split()
             )
             st.bokeh_chart(chart)
 

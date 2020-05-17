@@ -4,7 +4,7 @@ import pytest
 import torch
 import torch.nn as nn
 from gym.spaces import Box, Discrete
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 
 from raylab.modules.mixins import StochasticActorMixin
 

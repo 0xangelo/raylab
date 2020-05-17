@@ -3,16 +3,36 @@ import numpy as np
 import pandas as pd
 import bokeh
 from bokeh.plotting import figure
-from bokeh.models import ColumnDataSource, HoverTool
+from bokeh.models import (
+    ColumnDataSource,
+    BoxZoomTool,
+    SaveTool,
+    HoverTool,
+    PanTool,
+    WheelZoomTool,
+    ResetTool,
+    HelpTool,
+)
 
 
-def time_series(x_key, y_key, groups, labels, individual=False, standard_error=False):
+def time_series(x_key, y_key, groups, labels, config):
     """Plot time series with error bands per group."""
     # pylint:disable=too-many-function-args,too-many-arguments
-    pic = figure(title="Plot")
+    kwargs = dict(y_axis_type="log") if config["log_scale"] else {}
+    pic = figure(title="Plot", **kwargs)
     pic.xaxis.axis_label = x_key
     pic.yaxis.axis_label = y_key
-    if individual:
+    pic.tools = [
+        PanTool(),
+        BoxZoomTool(),
+        WheelZoomTool(dimensions="height"),
+        WheelZoomTool(dimensions="width"),
+        SaveTool(),
+        ResetTool(),
+        HelpTool(),
+    ]
+    pic.add_tools()
+    if config["individual"]:
         pic.add_tools(HoverTool(tooltips=[("y", "@y"), ("x", "@x{a}"), ("id", "@id")]))
     else:
         pic.add_tools(HoverTool(tooltips=[("y", "@y_mean"), ("x", "@x{a}")]))
@@ -23,11 +43,16 @@ def time_series(x_key, y_key, groups, labels, individual=False, standard_error=F
 
         x_all, all_ys = filter_and_interpolate(x_key, y_key, progresses)
 
-        if individual:
+        if config["individual"]:
             plot_individual(pic, x_all, all_ys, data, label, color)
         else:
             plot_mean_dispersion(
-                pic, x_all, all_ys, label, color, standard_error=standard_error,
+                pic,
+                x_all,
+                all_ys,
+                label,
+                color,
+                standard_error=config["standard_error"],
             )
 
     pic.legend.location = "bottom_left"

@@ -1,7 +1,7 @@
 """CLI utilities for RayLab."""
 import click
 
-from .tune_experiment import experiment
+from .experiment import experiment
 from .best_checkpoint import find_best
 from .evaluate_checkpoint import rollout
 from .viskit import plot, plot_export
