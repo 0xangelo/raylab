@@ -1,8 +1,7 @@
 """Base Policy with common methods for all SVG variations."""
 import torch
 import torch.nn as nn
-from ray.rllib.policy.policy import ACTION_LOGP
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.envs.rewards import get_reward_fn
@@ -36,7 +35,7 @@ class SVGBaseTorchPolicy(TargetNetworksMixin, TorchPolicy):
         curr_logp = self.module.actor.log_prob(
             batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
         )
-        is_ratio = torch.exp(curr_logp - batch_tensors[ACTION_LOGP])
+        is_ratio = torch.exp(curr_logp - batch_tensors[SampleBatch.ACTION_LOGP])
         return is_ratio
 
     def compute_joint_model_value_loss(self, batch_tensors):

@@ -1,7 +1,7 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 import torch
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 
 from raylab.modules.svg_module import SVGModule
 

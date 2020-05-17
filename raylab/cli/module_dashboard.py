@@ -8,7 +8,7 @@ from bokeh.plotting import figure
 import numpy as np
 import pandas as pd
 import ray
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 import streamlit as st
 import torch
 

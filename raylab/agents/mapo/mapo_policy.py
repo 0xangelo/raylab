@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch._six import inf
 from ray.rllib.utils.annotations import override
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 
 import raylab.policy as raypi
 

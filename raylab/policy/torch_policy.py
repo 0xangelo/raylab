@@ -11,8 +11,8 @@ from ray.rllib.utils.exploration import Exploration
 from ray.rllib.utils.from_config import from_config
 from ray.rllib.utils.torch_ops import convert_to_non_torch_type
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
-from ray.rllib.policy.policy import Policy, ACTION_LOGP, ACTION_PROB, LEARNER_STATS_KEY
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.policy.policy import Policy, LEARNER_STATS_KEY
+from ray.rllib import SampleBatch
 
 from raylab.agents import Trainer
 from raylab.modules.catalog import get_module
@@ -105,7 +105,9 @@ class TorchPolicy(Policy):
 
         if logp is not None:
             prob, logp = map(convert_to_non_torch_type, (logp.exp(), logp))
-            extra_action_out.update({ACTION_PROB: prob, ACTION_LOGP: logp})
+            extra_action_out.update(
+                {SampleBatch.ACTION_PROB: prob, SampleBatch.ACTION_LOGP: logp}
+            )
         return convert_to_non_torch_type((actions, state, extra_action_out))
 
     @abstractmethod

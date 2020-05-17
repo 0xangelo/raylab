@@ -2,7 +2,7 @@
 # pylint: disable=too-many-arguments,too-many-locals
 from gym.spaces import Box
 import pytest
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 import torch
 
 from raylab.modules.catalog import TRPOTang2018

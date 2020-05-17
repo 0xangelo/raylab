@@ -4,8 +4,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from ray.rllib.evaluation.postprocessing import Postprocessing, compute_advantages
-from ray.rllib.policy.policy import ACTION_LOGP
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.utils import hf_util
@@ -149,7 +148,7 @@ class TRPOTorchPolicy(TorchPolicy):
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,
-            ACTION_LOGP,
+            SampleBatch.ACTION_LOGP,
             Postprocessing.ADVANTAGES,
         )
 
@@ -212,7 +211,7 @@ class TRPOTorchPolicy(TorchPolicy):
             batch_tensors,
             SampleBatch.CUR_OBS,
             SampleBatch.ACTIONS,
-            ACTION_LOGP,
+            SampleBatch.ACTION_LOGP,
             Postprocessing.VALUE_TARGETS,
             SampleBatch.VF_PREDS,
         )

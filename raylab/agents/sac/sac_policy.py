@@ -3,7 +3,7 @@ import collections
 
 import torch
 import torch.nn as nn
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu

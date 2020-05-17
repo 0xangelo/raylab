@@ -1,12 +1,12 @@
 """SVG(1) policy class using PyTorch."""
 import torch
 import torch.nn as nn
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.policy import AdaptiveKLCoeffMixin
 import raylab.utils.pytorch as ptu
-from .svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
+from .svg_base_policy import SVGBaseTorchPolicy
 
 
 class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
@@ -99,7 +99,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
             logp = self.module.actor.log_prob(
                 batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
             )
-            return torch.mean(batch_tensors[ACTION_LOGP] - logp)
+            return torch.mean(batch_tensors[SampleBatch.ACTION_LOGP] - logp)
 
         old_act, old_logp = self.module.old_actor.rsample(
             batch_tensors[SampleBatch.CUR_OBS]

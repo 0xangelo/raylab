@@ -1,7 +1,7 @@
 """NAF policy class using PyTorch."""
 import torch
 import torch.nn as nn
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 from raylab.utils.exploration import ParameterNoise

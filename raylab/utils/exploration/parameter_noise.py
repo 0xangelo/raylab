@@ -1,6 +1,6 @@
 # pylint:disable=missing-module-docstring
 import torch
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.exploration import Exploration
 from ray.rllib.utils.torch_ops import convert_to_non_torch_type

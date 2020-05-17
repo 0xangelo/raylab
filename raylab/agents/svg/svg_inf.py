@@ -1,7 +1,7 @@
 """Trainer and configuration for SVG(inf)."""
+from ray.rllib import SampleBatch
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers import PolicyOptimizer
-from ray.rllib.policy.policy import ACTION_LOGP
 from ray.rllib.utils.annotations import override
 
 from raylab.agents import Trainer, with_common_config
@@ -83,7 +83,9 @@ class SVGInfTrainer(Trainer):
         )
         # Dummy optimizer to log stats since Trainer.collect_metrics is coupled with it
         self.optimizer = PolicyOptimizer(self.workers)
-        self.replay = ReplayBuffer(config["buffer_size"], extra_keys=[ACTION_LOGP])
+        self.replay = ReplayBuffer(
+            config["buffer_size"], extra_keys=[SampleBatch.ACTION_LOGP]
+        )
 
     @override(Trainer)
     def _train(self):

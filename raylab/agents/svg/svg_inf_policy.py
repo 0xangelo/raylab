@@ -4,12 +4,12 @@ from contextlib import contextmanager
 
 import torch
 import torch.nn as nn
-from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu
 from raylab.policy import AdaptiveKLCoeffMixin
-from .svg_base_policy import SVGBaseTorchPolicy, ACTION_LOGP
+from .svg_base_policy import SVGBaseTorchPolicy
 from .rollout_module import ReproduceRollout
 
 
@@ -117,7 +117,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         logp = self.module.actor.log_prob(
             batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
         )
-        return torch.mean(batch_tensors[ACTION_LOGP] - logp)
+        return torch.mean(batch_tensors[SampleBatch.ACTION_LOGP] - logp)
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):
@@ -139,7 +139,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
                 "policy_grad_norm": nn.utils.clip_grad_norm_(
                     policy_params, max_norm=self.config["max_grad_norm"]
                 ).item(),
-                "policy_entropy": -batch_tensors[ACTION_LOGP].mean().item(),
+                "policy_entropy": -batch_tensors[SampleBatch.ACTION_LOGP].mean().item(),
                 "curr_kl_coeff": self.curr_kl_coeff,
             }
         return fetches
