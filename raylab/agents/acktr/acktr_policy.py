@@ -73,10 +73,6 @@ class ACKTRTorchPolicy(TorchPolicy):
         optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
-    @override(TorchPolicy)
-    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
-        return input_dict[SampleBatch.CUR_OBS], state
-
     @torch.no_grad()
     @override(TorchPolicy)
     def postprocess_trajectory(

@@ -45,10 +45,6 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @override(TorchPolicy)
-    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
-        return input_dict[SampleBatch.CUR_OBS], state
-
-    @override(TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
         module, config = self.module, self.config

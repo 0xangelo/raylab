@@ -2,7 +2,6 @@
 import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
-from ray.rllib.utils.annotations import override
 
 from raylab.envs.rewards import get_reward_fn
 from raylab.policy import TorchPolicy, TargetNetworksMixin
@@ -18,10 +17,6 @@ class SVGBaseTorchPolicy(TargetNetworksMixin, TorchPolicy):
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
         self.reward = get_reward_fn(self.config["env"], self.config["env_config"])
-
-    @override(TorchPolicy)
-    def compute_module_ouput(self, input_dict, state=None, seq_lens=None):
-        return input_dict[SampleBatch.CUR_OBS], state
 
     @torch.no_grad()
     def add_importance_sampling_ratios(self, batch_tensors):

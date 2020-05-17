@@ -9,10 +9,10 @@ from raylab.modules.distributions import TanhSquashTransform
 from raylab.utils.param_noise import AdaptiveParamNoiseSpec, ddpg_distance_metric
 from raylab.utils.pytorch import perturb_module_params
 
-from .random_uniform import RandomUniformMixin
+from .random_uniform import RandomUniform
 
 
-class ParameterNoise(RandomUniformMixin, Exploration):
+class ParameterNoise(RandomUniform):
     """Adds adaptive parameter noise exploration schedule to a Policy.
 
     Args:
@@ -28,18 +28,18 @@ class ParameterNoise(RandomUniformMixin, Exploration):
             high=torch.as_tensor(self.action_space.high),
         )
 
-    @override(Exploration)
-    def get_exploration_action(
-        self, distribution_inputs, action_dist_class, model, timestep, explore=True,
-    ):
-        # pylint:disable=too-many-arguments
+    @override(RandomUniform)
+    def get_exploration_action(self, *, action_distribution, timestep, explore=True):
+        model, inputs = action_distribution.model, action_distribution.inputs
         if explore:
             if timestep < self._pure_exploration_steps:
                 return super().get_exploration_action(
-                    distribution_inputs, action_dist_class, model, timestep, explore
+                    action_distribution=action_distribution,
+                    timestep=timestep,
+                    explore=explore,
                 )
-            return model.behavior(distribution_inputs), None
-        return model.actor(distribution_inputs), None
+            return model.behavior(**inputs), None
+        return model.actor(**inputs), None
 
     @override(Exploration)
     def on_episode_start(self, policy, *, environment=None, episode=None, tf_sess=None):
