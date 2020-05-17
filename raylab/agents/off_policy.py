@@ -45,6 +45,7 @@ class GenericOffPolicyTrainer(Trainer):
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
         )
+
         # Dummy optimizer to log stats since Trainer.collect_metrics is coupled with it
         self.optimizer = PolicyOptimizer(self.workers)
         self.replay = ReplayBuffer(
@@ -53,23 +54,38 @@ class GenericOffPolicyTrainer(Trainer):
 
     @override(Trainer)
     def _train(self):
+        self.sample_until_learning_starts()
+
         worker = self.workers.local_worker()
         policy = worker.get_policy()
-
         while not self._iteration_done():
             samples = worker.sample()
             self.optimizer.num_steps_sampled += samples.count
             for row in samples.rows():
                 self.replay.add(row)
 
-            if self.optimizer.num_steps_sampled >= self.config["learning_starts"]:
-                self._before_replay_steps(policy)
-                for _ in range(samples.count):
-                    batch = self.replay.sample(self.config["train_batch_size"])
-                    stats = get_learner_stats(policy.learn_on_batch(batch))
-                    self.optimizer.num_steps_trained += batch.count
+            self._before_replay_steps(policy)
+            for _ in range(samples.count):
+                batch = self.replay.sample(self.config["train_batch_size"])
+                stats = get_learner_stats(policy.learn_on_batch(batch))
+                self.optimizer.num_steps_trained += batch.count
 
         return self._log_metrics(stats)
+
+    def sample_until_learning_starts(self):
+        """
+        Sample enough transtions so that 'learning_starts' steps are collected before
+        the next policy update.
+        """
+        learning_starts = self.config["learning_starts"]
+        samples_count = self.config["rollout_fragment_length"]
+        worker = self.workers.local_worker()
+        while self.optimizer.num_steps_sampled < learning_starts - samples_count:
+            samples = worker.sample()
+            self.optimizer.num_steps_sampled += samples.count
+            self.global_vars["timestep"] += samples.count
+            for row in samples.rows():
+                self.replay.add(row)
 
     def _before_replay_steps(self, policy):  # pylint:disable=unused-argument
         pass
