@@ -9,7 +9,7 @@ def read_file(file_path):
 
 setup(
     name="raylab",
-    version="0.6.2",
+    version="0.6.3",
     author="Ângelo G. Lovatto",
     author_email="angelolovatto@gmail.com",
     description="Reinforcement learning algorithms in RLlib and PyTorch.",
