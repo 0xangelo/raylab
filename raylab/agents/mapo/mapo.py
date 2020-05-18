@@ -46,6 +46,12 @@ DEFAULT_CONFIG = with_common_config(
             "actor": {"type": "Adam", "lr": 1e-3},
             "critics": {"type": "Adam", "lr": 1e-3},
         },
+        # Clip gradient norms for each component by the following values.
+        "max_grad_norm": {
+            "model": float("inf"),
+            "actor": float("inf"),
+            "critics": float("inf"),
+        },
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
         # Wait until this many steps have been sampled before starting optimization.

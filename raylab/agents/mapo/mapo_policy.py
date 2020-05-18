@@ -51,6 +51,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             if config["grad_estimator"] == "PD"
             else module.model.sample
         )
+        module.model.zero_grad()
         return module
 
     @override(raypi.TorchPolicy)
@@ -284,10 +285,11 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     @torch.no_grad()
     def extra_grad_info(self, component):
-        """Return grad norm statistics for component."""
+        """Clip grad norm and return statistics for component."""
         return {
             f"grad_norm({component})": nn.utils.clip_grad_norm_(
-                self.module[component].parameters(), float("inf")
+                self.module[component].parameters(),
+                self.config["max_grad_norm"][component],
             ).item()
         }
 
