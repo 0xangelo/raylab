@@ -165,11 +165,16 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     def _update_model(self, batch_tensors):
         with self.optimizer.model.optimize():
             mle_loss, info = self.mle_loss(batch_tensors)
-            daml_loss, daml_info = self.daml_loss(batch_tensors)
-            info.update(daml_info)
 
-            alpha = self.config["mle_interpolation"]
-            model_loss = alpha * mle_loss + (1 - alpha) * daml_loss
+            if self.config["model_loss"] == "DAML":
+                daml_loss, daml_info = self.daml_loss(batch_tensors)
+                info.update(daml_info)
+
+                alpha = self.config["mle_interpolation"]
+                model_loss = alpha * mle_loss + (1 - alpha) * daml_loss
+            else:
+                model_loss = mle_loss
+
             model_loss.backward()
 
         info.update(self.extra_grad_info("model"))
