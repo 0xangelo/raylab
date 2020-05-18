@@ -7,6 +7,7 @@ from ray.rllib.utils.annotations import override
 
 from raylab.utils.dictionaries import deep_merge
 from raylab.modules import FullyConnected, TrilMatrix, NormalizedLinear, TanhSquash
+from .mixins import DeterministicPolicy
 
 
 BASE_CONFIG = {
@@ -59,9 +60,15 @@ class NAFModule(nn.ModuleDict):
             "target_vcritics": target_values,
         }
 
+    @staticmethod
+    def _make_encoder(obs_space, config):
+        return FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
+
     def _make_actor(self, obs_space, action_space, config):
         naf = self.critics[0]
-        actor = nn.Sequential(naf.logits, naf.pre_act, naf.squash)
+
+        mods = nn.ModuleList([naf.logits, naf.pre_act, naf.squash])
+        actor = DeterministicPolicy(mods)
         behavior = actor
         if config["perturbed_policy"]:
             if not config["encoder"].get("layer_norm"):
@@ -69,22 +76,9 @@ class NAFModule(nn.ModuleDict):
                     "'layer_norm' is deactivated even though a perturbed policy was "
                     "requested. For optimal stability, set 'layer_norm': True."
                 )
-            encoder = self._make_encoder(obs_space, config)
-            pre_act = NormalizedLinear(
-                in_features=encoder.out_features,
-                out_features=action_space.shape[0],
-                beta=config["beta"],
-            )
-            squash = TanhSquash(
-                torch.as_tensor(action_space.low), torch.as_tensor(action_space.high)
-            )
-            behavior = nn.Sequential(encoder, pre_act, squash)
+            behavior = DeterministicPolicy.from_scratch(obs_space, action_space, config)
 
         return {"actor": actor, "behavior": behavior}
-
-    @staticmethod
-    def _make_encoder(obs_space, config):
-        return FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
 
 
 class NAF(nn.Module):
