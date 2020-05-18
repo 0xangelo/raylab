@@ -35,4 +35,4 @@ def test_transition_fn(env, sample_shape):
     samp, _ = env.transition_fn(obs_t, act_t, sample_shape=sample_shape)
 
     assert samp.shape == sample_shape + obs_t.shape
-    assert torch.allclose(_obs_t, samp)
+    assert torch.allclose(_obs_t.expand_as(samp), samp, atol=1e-5)
