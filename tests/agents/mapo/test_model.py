@@ -53,9 +53,8 @@ def test_pathwise_derivative(policy_and_batch_fn, num_model_samples):
 
 
 def test_daml_loss(policy_and_batch_fn, grad_estimator, num_model_samples):
-    policy, batch = policy_and_batch_fn(
-        {"grad_estimator": grad_estimator, "num_model_samples": num_model_samples}
-    )
+    config = {"grad_estimator": grad_estimator, "num_model_samples": num_model_samples}
+    policy, batch = policy_and_batch_fn(config)
 
     policy.module.zero_grad()
     params = list(policy.module.model.parameters())
@@ -72,7 +71,8 @@ def test_daml_loss(policy_and_batch_fn, grad_estimator, num_model_samples):
     assert all(p.grad is not None for p in params)
     assert all(torch.isfinite(p.grad).all() for p in params)
     assert all(not torch.isnan(p.grad).any() for p in params)
-    assert all(not torch.allclose(p.grad, torch.zeros_like(p)) for p in params)
+    # Independent log_stds and observation processing layers do not depend on action
+    assert any(not torch.allclose(p.grad, torch.zeros_like(p)) for p in params)
 
 
 def test_mle_loss(policy_and_batch):

@@ -188,14 +188,15 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         predictions = self.one_step_action_value_surrogate(obs, actions)
         targets = self.zero_step_action_values(obs, actions)
 
-        temporal_diff_loss = torch.sum(predictions - targets)
-        temporal_diff_loss.backward(create_graph=True)
+        temporal_diff = torch.sum(targets - predictions)
+        (action_gradients,) = torch.autograd.grad(
+            temporal_diff, actions, create_graph=True
+        )
 
-        action_gradients = actions.grad
         daml_loss = torch.sum(action_gradients * action_gradients, dim=-1).mean()
         return (
             daml_loss,
-            {"loss(td)": temporal_diff_loss.item(), "loss(daml)": daml_loss.item()},
+            {"loss(action)": temporal_diff.item(), "loss(daml)": daml_loss.item()},
         )
 
     def one_step_action_value_surrogate(self, obs, actions):
