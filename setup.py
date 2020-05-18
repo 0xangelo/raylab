@@ -9,7 +9,7 @@ def read_file(file_path):
 
 setup(
     name="raylab",
-    version="0.6.3",
+    version="0.6.4",
     author="Ângelo G. Lovatto",
     author_email="angelolovatto@gmail.com",
     description="Reinforcement learning algorithms in RLlib and PyTorch.",
@@ -20,7 +20,7 @@ setup(
     install_requires=[
         "bokeh",
         "Click",
-        "ray[rllib,dashboard]==0.8.4",
+        "ray[rllib,dashboard]>=0.8.5",
         "streamlit",
         "torch",
     ],
