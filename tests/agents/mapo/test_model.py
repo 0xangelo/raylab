@@ -58,7 +58,7 @@ def test_daml_loss(policy_and_batch_fn, grad_estimator, num_model_samples):
     )
 
     policy.module.zero_grad()
-    loss, info = policy.daml_loss(batch, policy.module, policy.config)
+    loss, info = policy.daml_loss(batch)
     assert isinstance(info, dict)
     assert loss.shape == ()
     assert loss.dtype == torch.float32
@@ -74,7 +74,7 @@ def test_daml_loss(policy_and_batch_fn, grad_estimator, num_model_samples):
 def test_mle_loss(policy_and_batch):
     policy, batch = policy_and_batch
 
-    loss, info = policy.mle_loss(batch, policy.module)
+    loss, info = policy.mle_loss(batch)
     assert isinstance(info, dict)
     assert loss.shape == ()
     assert loss.dtype == torch.float32

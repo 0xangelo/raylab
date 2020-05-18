@@ -46,7 +46,7 @@ def test_madpg_loss(policy_and_env):
         fake_batch(policy.observation_space, policy.action_space, batch_size=10)
     )
 
-    loss, info = policy.madpg_loss(batch, policy.module, policy.config)
+    loss, info = policy.madpg_loss(batch)
     assert isinstance(info, dict)
     assert loss.shape == ()
     assert loss.dtype == torch.float32
