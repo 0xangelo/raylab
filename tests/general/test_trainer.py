@@ -13,13 +13,27 @@ def teardown_module():
     ray.shutdown()
 
 
+@pytest.fixture(scope="module")
+def trainer(trainer_cls):
+    return trainer_cls(
+        env=MockEnv,
+        config={
+            "num_workers": 0,
+            "evaluation_config": {"explore": False},
+            "evaluation_interval": 1,
+        },
+    )
+
+
 @pytest.mark.slow
-def test_trainer_step(trainer_cls):
-    trainer = trainer_cls(env=MockEnv, config={"num_workers": 0})
+def test_trainer_step(trainer):
     trainer.train()
 
 
-def test_trainer_restore(trainer_cls):
-    trainer = trainer_cls(env=MockEnv, config={"num_workers": 0})
+def test_trainer_eval(trainer):
+    trainer._evaluate()
+
+
+def test_trainer_restore(trainer):
     obj = trainer.save_to_object()
     trainer.restore_from_object(obj)
