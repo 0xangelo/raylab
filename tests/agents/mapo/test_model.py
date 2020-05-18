@@ -58,13 +58,17 @@ def test_daml_loss(policy_and_batch_fn, grad_estimator, num_model_samples):
     )
 
     policy.module.zero_grad()
+    params = list(policy.module.model.parameters())
+
     loss, info = policy.daml_loss(batch)
     assert isinstance(info, dict)
     assert loss.shape == ()
     assert loss.dtype == torch.float32
+    assert all(
+        p.grad is None or torch.allclose(p.grad, torch.zeros_like(p)) for p in params
+    )
 
     loss.backward()
-    params = list(policy.module.model.parameters())
     assert all(p.grad is not None for p in params)
     assert all(torch.isfinite(p.grad).all() for p in params)
     assert all(not torch.isnan(p.grad).any() for p in params)
