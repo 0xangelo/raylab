@@ -93,9 +93,8 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             sample, _ = sampler(obs.requires_grad_(), act.requires_grad_())
             sample.mean().backward()
             assert (
-                obs.grad is not None and act.grad is not None
+                act.grad is not None
             ), "Transition grad w.r.t. state and action must exist for PD estimator"
-            assert not torch.allclose(obs.grad, torch.zeros_like(obs))
             assert not torch.allclose(act.grad, torch.zeros_like(act))
 
     @override(raypi.TorchPolicy)
