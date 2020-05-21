@@ -1,5 +1,9 @@
 """RAYLAB: Extensions and custom algorithms in RLlib."""
 
+__author__ = """Ângelo Gregório Lovatto"""
+__email__ = "angelolovatto@gmail.com"
+__version__ = "0.6.4"
+
 
 def register_all_agents():
     """Register all trainer names in Tune."""
