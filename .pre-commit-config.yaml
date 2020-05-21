@@ -32,6 +32,7 @@ repos:
         stages: [commit, push]
       - id: end-of-file-fixer           # Makes sure files end in a newline and only a newline.
         stages: [commit, push]
+        exclude: setup.cfg
       - id: flake8                      # Run flake8 on your python files.
         stages: [commit, push]
       - id: forbid-new-submodules       # Prevent addition of new git submodules.
