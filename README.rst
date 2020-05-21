@@ -2,14 +2,15 @@
 raylab
 ======
 
+|PyPI| |Travis| |PyUp|
 
-.. image:: https://img.shields.io/pypi/v/raylab?logo=PyPi&logoColor=white
+.. |PyPI| image:: https://img.shields.io/pypi/v/raylab?logo=PyPi&logoColor=white
         :alt: PyPI
 
-.. image:: https://img.shields.io/travis/com/angelolovatto/raylab?logo=travis-ci&logoColor=important
+.. |Travis| image:: https://img.shields.io/travis/com/angelolovatto/raylab?logo=travis-ci&logoColor=important
         :alt: Travis (.com)
 
-.. image:: https://pyup.io/repos/github/angelolovatto/raylab/shield.svg
+.. |PyUp| image:: https://pyup.io/repos/github/angelolovatto/raylab/shield.svg
      :target: https://pyup.io/repos/github/angelolovatto/raylab/
      :alt: Updates
 
