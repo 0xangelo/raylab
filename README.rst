@@ -31,7 +31,6 @@ Introduction
 ------------
 
 .. code-block:: python
-             :linenos:
 
              import ray
              from ray import tune
