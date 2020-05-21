@@ -198,7 +198,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             {"loss(action)": temporal_diff.item(), "loss(daml)": daml_loss.item()},
         )
 
-    def one_step_action_value_surrogate(self, obs, actions):
+    def one_step_action_value_surrogate(self, obs, actions, model_samples=1):
         """
         Compute 1-step approximation of Q^{\\pi}(s, a) for Deterministic Policy Gradient
         using target networks and model transitions.
@@ -214,7 +214,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         )
 
         next_obs, rewards, dones, logp = self._generate_transition(
-            obs, actions, self.reward, sampler, self.config["num_model_samples"]
+            obs, actions, self.reward, sampler, model_samples
         )
         # Next action grads shouldn't propagate
         with torch.no_grad():
@@ -281,7 +281,9 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         obs = batch_tensors[SampleBatch.CUR_OBS]
 
         actions = self.module.actor(obs)
-        action_values = self.one_step_action_value_surrogate(obs, actions)
+        action_values = self.one_step_action_value_surrogate(
+            obs, actions, self.config["num_model_samples"]
+        )
         max_objective = torch.mean(action_values)
         loss = -max_objective
 
