@@ -2,15 +2,11 @@
 
 language: python
 python:
-  - "3.7"
-  - "3.8"
+  - 3.7
+  - 3.8
 
-# Command to install dependencies
-install:
-  - pip install -r requirements_dev.txt
-  - pip install .
-  - pip install gym-cartpole-swingup
-  - pip install -U tox-travis
+# Command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
+install: pip install -U tox-travis
 
 # Command to run tests
 script: tox
