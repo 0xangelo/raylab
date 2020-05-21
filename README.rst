@@ -9,11 +9,6 @@ raylab
 .. image:: https://img.shields.io/travis/angelolovatto/raylab.svg
         :target: https://travis-ci.com/angelolovatto/raylab
 
-.. image:: https://readthedocs.org/projects/raylab/badge/?version=latest
-        :target: https://raylab.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
-
-
 .. image:: https://pyup.io/repos/github/angelolovatto/raylab/shield.svg
      :target: https://pyup.io/repos/github/angelolovatto/raylab/
      :alt: Updates
@@ -23,12 +18,10 @@ raylab
 Reinforcement learning algorithms in `RLlib <https://github.com/ray-project/ray/tree/master/rllib>`_ and `PyTorch <https://pytorch.org>`_.
 
 
-* Free software: MIT license
-* Documentation: https://raylab.readthedocs.io.
-
-
 Introduction
 ------------
+
+Raylab provides agents and environments to be used with a normal RLlib/Tune setup.
 
 .. code-block:: python
 
@@ -59,6 +52,8 @@ Introduction
              if __name__ == "__main__":
                  main()
 
+
+One can then visualize the results using `raylab dashboard`
 
 .. image:: https://i.imgur.com/bVc6WC5.png
         :align: center
@@ -98,6 +93,50 @@ Algorithms
 .. _`Stochastic Value Gradients`: http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients
 .. _`Soft Actor-Critic`: http://proceedings.mlr.press/v80/haarnoja18b.html
 .. _`Streamlined Off-Policy`: https://arxiv.org/abs/1910.02208
+
+
+Command-line interface
+----------------------
+
+For a high-level description of the available utilities, run `raylab --help`
+
+.. code:: bash
+
+          Usage: raylab [OPTIONS] COMMAND [ARGS]...
+
+          RayLab: Reinforcement learning algorithms in RLlib.
+
+          Options:
+            --help  Show this message and exit.
+
+            Commands:
+              dashboard    Launch the experiment dashboard to monitor training progress.
+              experiment   Launch a Tune experiment from a config file.
+              find-best    Find the best experiment checkpoint as measured by a metric.
+              plot         Draw lineplots of the relevant variables and display them on...
+              plot-export  Draw lineplots of the relevant variables and save them as...
+              rollout      Simulate an agent from a given checkpoint in the desired...
+
+
+Packages
+--------
+
+The project is structured as follows
+::
+
+    raylab
+    ├── agents            # Trainer and Policy classes
+    ├── cli               # Command line utilities
+    ├── distributions     # Extendend and additional PyTorch distributions
+    ├── envs              # Gym environments
+    ├── logger            # Tune loggers
+    ├── modules           # PyTorch neural network modules for algorithms
+        ├── basic         # Building blocks for neural networks
+        ├── flows         # Normalizing Flow modules
+        ├── distributions # TorchScript compatible distribution modules
+    ├── policy            # Extensions and customizations of RLlib's policy API
+    ├── utils             # miscellaneous utilities
+
 
 
 Credits
