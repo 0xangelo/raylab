@@ -1,37 +1,60 @@
-# pylint: disable=missing-docstring
+#!/usr/bin/env python
+
+"""The setup script."""
+
 from setuptools import setup, find_packages
 
+with open("README.rst") as readme_file:
+    README = readme_file.read()
 
-def read_file(file_path):
-    with open(file_path, "r") as file:
-        return file.read()
+with open("HISTORY.rst") as history_file:
+    HISTORY = history_file.read()
 
+REQUIREMENTS = [
+    "Click>=7.0",
+    "bokeh",
+    "ray[rllib,dashboard]>=0.8.5",
+    "streamlit",
+    "torch",
+]
+
+SETUP_REQUIREMENTS = [
+    "pytest-runner",
+]
+
+TEST_REQUIREMENTS = [
+    "pytest>=3",
+]
 
 setup(
-    name="raylab",
-    version="0.6.4",
-    author="Ângelo G. Lovatto",
+    author="Ângelo Gregório Lovatto",
     author_email="angelolovatto@gmail.com",
-    description="Reinforcement learning algorithms in RLlib and PyTorch.",
-    long_description=read_file("README.md"),
-    long_description_content_type="text/markdown",
-    url="https://github.com/angelolovatto/raylab",
-    packages=find_packages(),
-    install_requires=[
-        "bokeh",
-        "Click",
-        "ray[rllib,dashboard]>=0.8.5",
-        "streamlit",
-        "torch",
-    ],
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
-    ],
     python_requires=">=3.7",
+    classifiers=[
+        "Development Status :: 2 - Pre-Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Natural Language :: English",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+    ],
+    description="Reinforcement learning algorithms in RLlib and PyTorch.",
     entry_points="""
         [console_scripts]
         raylab=raylab.cli:raylab
     """,
+    install_requires=REQUIREMENTS,
+    license="MIT license",
+    long_description=README + "\n\n" + HISTORY,
+    include_package_data=True,
+    keywords="raylab",
+    name="raylab",
+    packages=find_packages(include=["raylab", "raylab.*"]),
+    setup_requires=SETUP_REQUIREMENTS,
+    test_suite="tests",
+    tests_require=TEST_REQUIREMENTS,
+    url="https://github.com/angelolovatto/raylab",
+    version="0.6.4",
+    zip_safe=False,
 )
