@@ -1,26 +1,16 @@
-dist: xenial   # required for Python >= 3.7
+# Config file for automatic testing at travis-ci.com
+
 language: python
 python:
   - "3.7"
-# command to install dependencies
-install:
-  - sudo apt-get update
-  # We do this conditionally because it saves us some downloading if the
-  # version is the same.
-  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - source "$HOME/miniconda/etc/profile.d/conda.sh"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  # Useful for debugging any issues with conda
-  - conda info -a
+  - "3.8"
 
-  # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
-  - conda activate test-environment
-  - conda install pytest pytorch torchvision -c pytorch
-  - pip install gym-cartpole-swingup
+# Command to install dependencies
+install:
+  - pip install -r requirements-dev.txt
   - pip install .
-# command to run tests
-script: travis_wait pytest
+  - pip install gym-cartpole-swingup
+  - pip install -U tox-travis
+
+# Command to run tests
+script: tox
