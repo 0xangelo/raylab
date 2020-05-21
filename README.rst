@@ -3,16 +3,15 @@ raylab
 ======
 
 
-.. image:: https://img.shields.io/pypi/v/raylab.svg
-        :target: https://pypi.python.org/pypi/raylab
+.. image:: https://img.shields.io/pypi/v/raylab?logo=PyPi&logoColor=white
+        :alt: PyPI
 
-.. image:: https://img.shields.io/travis/angelolovatto/raylab.svg
-        :target: https://travis-ci.com/angelolovatto/raylab
+.. image:: https://img.shields.io/travis/com/angelolovatto/raylab?logo=travis-ci&logoColor=important
+        :alt: Travis (.com)
 
 .. image:: https://pyup.io/repos/github/angelolovatto/raylab/shield.svg
      :target: https://pyup.io/repos/github/angelolovatto/raylab/
      :alt: Updates
-
 
 
 Reinforcement learning algorithms in `RLlib <https://github.com/ray-project/ray/tree/master/rllib>`_ and `PyTorch <https://pytorch.org>`_.
