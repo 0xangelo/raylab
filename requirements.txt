@@ -1,0 +1,3 @@
+click==7.1.2
+ray[rllib,dashboard]==0.8.5
+torch==1.5.0
