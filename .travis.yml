@@ -7,7 +7,7 @@ python:
 
 # Command to install dependencies
 install:
-  - pip install -r requirements-dev.txt
+  - pip install -r requirements_dev.txt
   - pip install .
   - pip install gym-cartpole-swingup
   - pip install -U tox-travis
