@@ -3,7 +3,6 @@ import collections
 
 import torch
 import torch.nn as nn
-from torch._six import inf
 from ray.rllib.utils.annotations import override
 from ray.rllib import SampleBatch
 
@@ -47,7 +46,12 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         # pylint:disable=no-member
         module = super().make_module(obs_space, action_space, config)
         # pylint:enable=no-member
-        self.check_model(module.model.rsample)
+        self.check_model(
+            module.model.rsample
+            if config["grad_estimator"] == "PD"
+            else module.model.sample
+        )
+        module.model.zero_grad()
         return module
 
     @override(raypi.TorchPolicy)
@@ -60,13 +64,13 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
-    def set_transition_fn(self, transition_fn):
-        """Set the transition function to use when unrolling the policy and model."""
+    def set_transition_kernel(self, transition_kernel):
+        """Use an external transition kernel to sample imaginary states."""
         torch_script = self.config["module"]["torch_script"]
         transition = EnvTransition(
             self.observation_space,
             self.action_space,
-            transition_fn,
+            transition_kernel,
             torch_script=torch_script,
         )
         self.transition = torch.jit.script(transition) if torch_script else transition
@@ -74,214 +78,247 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     def check_model(self, sampler):
         """Verify that the transition model is appropriate for the desired estimator."""
+        obs = torch.randn(self.observation_space.shape)[None]
+        act = torch.randn(self.action_space.shape)[None]
         if self.config["grad_estimator"] == "SF":
-            obs = self.convert_to_tensor(self.observation_space.sample())[None]
-            act = self.convert_to_tensor(self.action_space.sample())[None]
-            _, logp = sampler(obs, act.requires_grad_())
+            sample, logp = sampler(obs, act.requires_grad_())
+            assert sample.grad_fn is None
             assert logp is not None
             logp.mean().backward()
             assert (
                 act.grad is not None
             ), "Transition grad log_prob must exist for SF estimator"
+            assert not torch.allclose(act.grad, torch.zeros_like(act))
         if self.config["grad_estimator"] == "PD":
-            obs = self.convert_to_tensor(self.observation_space.sample())[None]
-            act = self.convert_to_tensor(self.action_space.sample())[None]
-            samp, _ = sampler(obs.requires_grad_(), act.requires_grad_())
-            samp.mean().backward()
+            sample, _ = sampler(obs.requires_grad_(), act.requires_grad_())
+            sample.mean().backward()
             assert (
-                obs.grad is not None and act.grad is not None
+                act.grad is not None
             ), "Transition grad w.r.t. state and action must exist for PD estimator"
+            assert not torch.allclose(act.grad, torch.zeros_like(act))
 
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
 
         info = {}
-        info.update(self._update_critic(batch_tensors, self.module, self.config))
+        info.update(self._update_critic(batch_tensors))
         if not self.config["true_model"]:
-            info.update(self._update_model(batch_tensors, self.module, self.config))
-        info.update(self._update_policy(batch_tensors, self.module, self.config))
+            info.update(self._update_model(batch_tensors))
+        info.update(self._update_actor(batch_tensors))
 
         self.update_targets("critics", "target_critics")
         return self._learner_stats(info)
 
-    def _update_critic(self, batch_tensors, module, config):
+    def learn_critic(self, samples):
+        """Update critics with samples."""
+        batch_tensors = self._lazy_tensor_dict(samples)
+        info = {}
+        info.update(self._update_critic(batch_tensors))
+        self.update_targets("critics", "target_critics")
+        return self._learner_stats(info)
+
+    def learn_model(self, samples):
+        """Update model with samples."""
+        batch_tensors = self._lazy_tensor_dict(samples)
+        info = {}
+        info.update(self._update_model(batch_tensors))
+        return self._learner_stats(info)
+
+    def learn_actor(self, samples):
+        """Update actor with samples."""
+        batch_tensors = self._lazy_tensor_dict(samples)
+        info = {}
+        info.update(self._update_actor(batch_tensors))
+        return self._learner_stats(info)
+
+    def _update_critic(self, batch_tensors):
         with self.optimizer.critics.optimize():
-            critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
+            critic_loss, info = self.critic_loss(batch_tensors)
             critic_loss.backward()
 
-        grad_stats = {
-            "critic_grad_norm": nn.utils.clip_grad_norm_(
-                module.critics.parameters(), float("inf")
-            ).item()
-        }
-        info.update(grad_stats)
+        info.update(self.extra_grad_info("critics"))
         return info
 
-    def compute_critic_loss(self, batch_tensors, module, config):
+    def critic_loss(self, batch_tensors):
         """Compute loss for Q value function."""
+        critics = self.module.critics
         obs = batch_tensors[SampleBatch.CUR_OBS]
         actions = batch_tensors[SampleBatch.ACTIONS]
 
         with torch.no_grad():
-            target_values = self._compute_critic_targets(batch_tensors, module, config)
+            target_values = self.critic_targets(batch_tensors)
         loss_fn = nn.MSELoss()
-        values = torch.cat([m(obs, actions) for m in module.critics], dim=-1)
+        values = torch.cat([m(obs, actions) for m in critics], dim=-1)
         critic_loss = loss_fn(values, target_values.unsqueeze(-1).expand_as(values))
 
         stats = {
             "q_mean": values.mean().item(),
             "q_max": values.max().item(),
             "q_min": values.min().item(),
-            "td_error": critic_loss.item(),
+            "loss(critic)": critic_loss.item(),
         }
         return critic_loss, stats
 
-    @staticmethod
-    def _compute_critic_targets(batch_tensors, module, config):
+    def critic_targets(self, batch_tensors):
+        """
+        Compute 1-step approximation of Q^{\\pi}(s, a) for Clipped Double Q-Learning
+        using target networks and batch transitions.
+        """
+        target_actor = self.module.target_actor
+        target_critics = self.module.target_critics
+
         rewards = batch_tensors[SampleBatch.REWARDS]
+        gamma = self.config["gamma"]
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]
         dones = batch_tensors[SampleBatch.DONES]
 
-        next_acts = module.target_actor(next_obs)
-        next_vals, _ = torch.cat(
-            [m(next_obs, next_acts) for m in module.target_critics], dim=-1
-        ).min(dim=-1)
-        return torch.where(dones, rewards, rewards + config["gamma"] * next_vals)
+        next_acts = target_actor(next_obs)
+        target_values = self.clipped_value(next_obs, next_acts, dones, target_critics)
+        return rewards + gamma * target_values
 
-    def _update_model(self, batch_tensors, module, config):
+    @staticmethod
+    def clipped_value(obs, acts, dones, critics):
+        """Compute clipped Q^{\\pi}(s, a)."""
+        vals, _ = torch.cat([m(obs, acts) for m in critics], dim=-1).min(dim=-1)
+        return torch.where(dones, torch.zeros_like(vals), vals)
+
+    def _update_model(self, batch_tensors):
         with self.optimizer.model.optimize():
-            if config["model_loss"] == "DAML":
-                model_loss, info = self.compute_daml_loss(batch_tensors, module, config)
-            elif config["model_loss"] == "MLE":
-                model_loss, info = self.compute_mle_loss(batch_tensors, module)
+            mle_loss, info = self.mle_loss(batch_tensors)
+
+            if self.config["model_loss"] == "DAML":
+                daml_loss, daml_info = self.daml_loss(batch_tensors)
+                info.update(daml_info)
+
+                alpha = self.config["mle_interpolation"]
+                model_loss = alpha * mle_loss + (1 - alpha) * daml_loss
+            else:
+                model_loss = mle_loss
+
             model_loss.backward()
 
-        grad_stats = {
-            "model_grad_norm": nn.utils.clip_grad_norm_(
-                module.model.parameters(), float("inf")
-            ).item()
-        }
-        info.update(grad_stats)
+        info.update(self.extra_grad_info("model"))
         return info
 
-    def compute_daml_loss(self, batch_tensors, module, config):
+    def daml_loss(self, batch_tensors):
         """Compute policy gradient-aware (PGA) model loss."""
-        with self.freeze_nets("model"):
-            dpg_loss, dpg_info = self.compute_dpg_loss(batch_tensors, module, config)
-            dpg_grads = torch.autograd.grad(dpg_loss, module.actor.parameters())
-
-        madpg_loss, _ = self.compute_madpg_loss(batch_tensors, module, config)
-        madpg_grads = torch.autograd.grad(
-            madpg_loss, module.actor.parameters(), create_graph=True
-        )
-
-        total_norm = self.compute_total_diff_norm(
-            dpg_grads, madpg_grads, config["norm_type"]
-        )
-
-        info = {"daml_loss": total_norm.item()}
-        info.update({"target_" + k: v for k, v in dpg_info.items()})
-        return total_norm, info
-
-    @staticmethod
-    def compute_dpg_loss(batch_tensors, module, config):
-        """Compute loss for deterministic policy gradient."""
-        # pylint: disable=unused-argument
         obs = batch_tensors[SampleBatch.CUR_OBS]
+        actions = self.module.actor(obs).detach().requires_grad_()
 
-        actions = module.actor(obs)
-        action_values, _ = torch.cat(
-            [m(obs, actions) for m in module.critics], dim=-1
-        ).min(dim=-1)
-        max_objective = torch.mean(action_values)
+        predictions = self.one_step_action_value_surrogate(obs, actions)
+        targets = self.zero_step_action_values(obs, actions)
 
-        stats = {
-            "policy_loss": max_objective.neg().item(),
-            "qpi_mean": max_objective.item(),
-        }
-        return max_objective.neg(), stats
-
-    def compute_madpg_loss(self, batch_tensors, module, config):
-        """Compute loss for model-aware deterministic policy gradient."""
-        # pylint: disable=too-many-locals
-        gamma = config["gamma"]
-        rollout_len = config["model_rollout_len"]
-        transition = (
-            self.transition
-            if config["true_model"]
-            else module.model.sample
-            if config["grad_estimator"] == "SF"
-            else module.model.rsample
+        temporal_diff = torch.sum(targets - predictions)
+        (action_gradients,) = torch.autograd.grad(
+            temporal_diff, actions, create_graph=True
         )
 
-        obs = batch_tensors[SampleBatch.CUR_OBS]
-        obs = obs.expand((config["num_model_samples"],) + obs.shape)
-        actions = module.actor(obs)
-        next_obs, logp = transition(obs, actions)
-        rews = [self.reward(obs, actions, next_obs)]
-
-        for _ in range(config["model_rollout_len"] - 1):
-            obs = next_obs
-            actions = module.actor(obs)
-            next_obs, _ = transition(obs, actions)
-            rews.append(self.reward(obs, actions, next_obs))
-
-        rews = (torch.stack(rews).T * gamma ** torch.arange(rollout_len).float()).T
-        critic = module.critics[0](next_obs, module.actor(next_obs)).squeeze(-1)
-        values = rews.sum(0) + gamma ** rollout_len * critic
-
-        if config["grad_estimator"] == "SF":
-            baseline = (module.critics[0](obs, actions).squeeze(-1) - rews) / gamma
-            loss = torch.mean(logp * (values - baseline).detach(), dim=0).mean().neg()
-        elif config["grad_estimator"] == "PD":
-            loss = torch.mean(values, dim=0).mean().neg()
+        daml_loss = torch.sum(action_gradients * action_gradients, dim=-1).mean()
         return (
-            loss,
-            {
-                "model_aware_loss": loss.item(),
-                "mb_values": values.mean(dim=0).mean().item(),
-            },
+            daml_loss,
+            {"loss(action)": temporal_diff.item(), "loss(daml)": daml_loss.item()},
         )
 
-    @staticmethod
-    def compute_total_diff_norm(atensors, btensors, norm_type):
-        """Compute the norm of the difference of tensors as a flattened vector."""
-        if norm_type == inf:
-            total_norm = max((a - b).abs().max() for a, b in zip(atensors, btensors))
-        else:
-            total_norm = 0
-            for atensor, btensor in zip(atensors, btensors):
-                norm = (atensor - btensor).norm(norm_type)
-                total_norm += norm ** norm_type
-            total_norm = total_norm ** (1.0 / norm_type)
-        return total_norm
+    def one_step_action_value_surrogate(self, obs, actions, model_samples=1):
+        """
+        Compute 1-step approximation of Q^{\\pi}(s, a) for Deterministic Policy Gradient
+        using target networks and model transitions.
+        """
+        actor = self.module.actor
+        critics = self.module.critics
+        sampler = (
+            self.transition
+            if self.config["true_model"]
+            else self.module.model.sample
+            if self.config["grad_estimator"] == "SF"
+            else self.module.model.rsample
+        )
+
+        next_obs, rewards, dones, logp = self._generate_transition(
+            obs, actions, self.reward, sampler, model_samples
+        )
+        # Next action grads shouldn't propagate
+        with torch.no_grad():
+            next_acts = actor(next_obs)
+        next_values = self.clipped_value(next_obs, next_acts, dones, critics)
+        values = rewards + self.config["gamma"] * next_values
+
+        if self.config["grad_estimator"] == "SF":
+            surrogate = torch.mean(logp * values.detach(), dim=0)
+        elif self.config["grad_estimator"] == "PD":
+            surrogate = torch.mean(values, dim=0)
+        return surrogate
 
     @staticmethod
-    def compute_mle_loss(batch_tensors, module):
+    def _generate_transition(obs, actions, reward_fn, sampler, num_samples):
+        """Compute virtual transition as in env.step, with info replaced by logp."""
+        sample_shape = (num_samples,)
+        obs = obs.expand(sample_shape + obs.shape)
+        actions = actions.expand(sample_shape + actions.shape)
+
+        next_obs, logp = sampler(obs, actions)
+        rewards = reward_fn(obs, actions, next_obs)
+        # Assume virtual transition is not final
+        dones = torch.zeros_like(rewards).bool()
+        return next_obs, rewards, dones, logp
+
+    def zero_step_action_values(self, obs, actions):
+        """Compute Q^{\\pi}(s, a) directly using approximate critic."""
+        dones = torch.zeros(obs.shape[:-1]).bool()
+        return self.clipped_value(obs, actions, dones, self.module.critics)
+
+    def mle_loss(self, batch_tensors):
         """Compute Maximum Likelihood Estimation (MLE) model loss."""
-        avg_logp = module.model.log_prob(
+        avg_logp = self.module.model.log_prob(
             batch_tensors[SampleBatch.CUR_OBS],
             batch_tensors[SampleBatch.ACTIONS],
             batch_tensors[SampleBatch.NEXT_OBS],
         ).mean()
         loss = avg_logp.neg()
-        info = {"mle_loss": loss.item()}
-        return loss, info
+        return loss, {"loss(mle)": loss.item()}
 
-    def _update_policy(self, batch_tensors, module, config):
+    def _update_actor(self, batch_tensors):
         with self.optimizer.actor.optimize():
-            policy_loss, info = self.compute_madpg_loss(batch_tensors, module, config)
+            policy_loss, info = self.madpg_loss(batch_tensors)
             policy_loss.backward()
 
-        info.update(self.extra_policy_grad_info())
+        info.update(self.extra_grad_info("actor"))
         return info
 
-    def extra_policy_grad_info(self):
-        """Return dict of extra info on policy gradient."""
+    def dpg_loss(self, batch_tensors):
+        """Compute loss for deterministic policy gradient."""
+        obs = batch_tensors[SampleBatch.CUR_OBS]
+
+        actions = self.module.actor(obs)
+        action_values = self.zero_step_action_values(obs, actions)
+        max_objective = torch.mean(action_values)
+        loss = -max_objective
+
+        stats = {"loss(actor)": loss.item()}
+        return loss, stats
+
+    def madpg_loss(self, batch_tensors):
+        """Compute loss for model-aware deterministic policy gradient."""
+        obs = batch_tensors[SampleBatch.CUR_OBS]
+
+        actions = self.module.actor(obs)
+        action_values = self.one_step_action_value_surrogate(
+            obs, actions, self.config["num_model_samples"]
+        )
+        max_objective = torch.mean(action_values)
+        loss = -max_objective
+
+        stats = {"loss(actor)": loss.item()}
+        return loss, stats
+
+    @torch.no_grad()
+    def extra_grad_info(self, component):
+        """Clip grad norm and return statistics for component."""
         return {
-            "policy_grad_norm": nn.utils.clip_grad_norm_(
-                self.module.actor.parameters(), float("inf")
+            f"grad_norm({component})": nn.utils.clip_grad_norm_(
+                self.module[component].parameters(),
+                self.config["max_grad_norm"][component],
             ).item()
         }
 
@@ -289,14 +326,14 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 class EnvTransition(nn.Module):
     """Wrapper module around existing env transition function."""
 
-    def __init__(self, obs_space, action_space, transition_fn, torch_script=False):
+    def __init__(self, obs_space, action_space, transition_kernel, torch_script=False):
         super().__init__()
         if torch_script:
             obs = torch.as_tensor(obs_space.sample())[None]
             action = torch.as_tensor(action_space.sample())[None]
-            transition_fn = torch.jit.trace(transition_fn, (obs, action))
-        self.transition_fn = transition_fn
+            transition_kernel = torch.jit.trace(transition_kernel, (obs, action))
+        self.transition_kernel = transition_kernel
 
     @override(nn.Module)
     def forward(self, obs, action):  # pylint:disable=arguments-differ
-        return self.transition_fn(obs, action)
+        return self.transition_kernel(obs, action)

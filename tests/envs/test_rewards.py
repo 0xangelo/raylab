@@ -8,12 +8,17 @@ from raylab.envs.rewards import REWARDS, get_reward_fn
 
 
 VALID_ENVS = sorted(list(set(ENVS.keys()).intersection(set(REWARDS.keys()))))
+ENV_CONFIGS = ({}, {"max_episode_steps": 200, "time_aware": True})
+
+
+@pytest.fixture(params=ENV_CONFIGS, ids="TimeUnAware TimeAware".split())
+def env_config(request):
+    return request.param.copy()
 
 
 @pytest.fixture(params=VALID_ENVS)
-def env_reward(request, envs):
+def env_reward(request, envs, env_config):
     env_name = request.param
-    env_config = {}
     if "HalfCheetah" in env_name:
         env_config["exclude_current_positions_from_observation"] = False
     if "IndustrialBenchmark" in env_name:

@@ -8,11 +8,11 @@ from .viskit import plot, plot_export
 
 
 @click.group()
-def cli():
+def raylab():
     """RayLab: Reinforcement learning algorithms in RLlib."""
 
 
-@cli.command()
+@raylab.command()
 @click.argument(
     "paths",
     nargs=-1,
@@ -26,7 +26,7 @@ def dashboard(paths):
     _main_run(experiment_dashboard.__file__, paths)
 
 
-@cli.command()
+@raylab.command()
 @click.argument(
     "path",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True),
@@ -39,7 +39,7 @@ def episodes(path):
     _main_run(episode_dashboard.__file__, [path])
 
 
-@cli.command()
+@raylab.command()
 @click.argument("agent_id", type=str)
 @click.argument(
     "checkpoint",
@@ -53,8 +53,8 @@ def test_module(agent_id, checkpoint):
     _main_run(module_dashboard.__file__, [agent_id, checkpoint])
 
 
-cli.add_command(experiment)
-cli.add_command(find_best)
-cli.add_command(rollout)
-cli.add_command(plot)
-cli.add_command(plot_export)
+raylab.add_command(experiment)
+raylab.add_command(find_best)
+raylab.add_command(rollout)
+raylab.add_command(plot)
+raylab.add_command(plot_export)

@@ -7,17 +7,17 @@ from raylab.agents.registry import AGENTS
 from ...mock_env import MockReward
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def mapo_trainer():
     return AGENTS["MAPO"]()
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def mapo_policy(mapo_trainer):
     return mapo_trainer._policy
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def policy_and_batch_fn(policy_and_batch_, mapo_policy, envs):
     # pylint:disable=unused-argument
     def make_policy_and_batch(config):

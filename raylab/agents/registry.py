@@ -32,7 +32,7 @@ def _import_sop():
 
 
 def _import_mapo():
-    from raylab.agents.mapo.mapo import MAPOTrainer
+    from raylab.agents.mapo import MAPOTrainer
 
     return MAPOTrainer
 

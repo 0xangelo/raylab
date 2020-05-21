@@ -22,7 +22,7 @@ class WrapModuleDist(ActionDistribution):
     def deterministic_sample(self):
         if hasattr(self.model.actor, "deterministic"):
             return self.model.actor.deterministic(**self.inputs)
-        return self.model.actor(**self.inputs)
+        return self.model.actor(**self.inputs), None
 
     @override(ActionDistribution)
     def sampled_action_logp(self):

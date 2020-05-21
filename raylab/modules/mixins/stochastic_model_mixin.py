@@ -78,7 +78,7 @@ class StochasticModel(nn.Module):
         pair.
         """
         params = self(obs, action)
-        return self.dist.rsample(params, sample_shape)
+        return self.dist.sample(params, sample_shape)
 
     @torch.jit.export
     def rsample(self, obs, action, sample_shape: List[int] = ()):

@@ -30,6 +30,25 @@ IDS = filtered_gym_env_ids()
 ENVS = {i: wrap_if_needed(lambda config, i=i: gym.make(i, **config)) for i in IDS}
 
 
+def register_external_library_environments(library_name):
+    """Conveniency function for adding external environments to the global registry."""
+    if importlib.util.find_spec(library_name) is None:
+        return
+
+    importlib.import_module(library_name)
+    new_ids = filtered_gym_env_ids() - IDS
+    for name in new_ids:
+
+        @wrap_if_needed
+        def _env_maker(config, env_id=name):
+            importlib.import_module(library_name)
+
+            return gym.make(env_id, **config)
+
+        ENVS[name] = _env_maker
+    IDS.update(new_ids)
+
+
 @wrap_if_needed
 def _cartpole_stateless_maker(_):
     from gym.envs.classic_control.cartpole import CartPoleEnv
@@ -69,58 +88,6 @@ ENVS.update(
 )
 
 
-try:
-    import gym_cartpole_swingup  # pylint:disable=unused-import,import-error
-
-    NEW_IDS = filtered_gym_env_ids() - IDS
-    for id_ in NEW_IDS:
-
-        @wrap_if_needed
-        def _swingup_env_maker(config, id_=id_):
-            # pylint:disable=redefined-outer-name,reimported,unused-import
-            import gym_cartpole_swingup  # noqa:F811
-
-            return gym.make(id_, **config)
-
-        ENVS[id_] = _swingup_env_maker
-    IDS.update(NEW_IDS)
-except ImportError:
-    pass
-
-
-try:
-    import pybullet_envs  # pylint:disable=unused-import,import-error
-
-    NEW_IDS = filtered_gym_env_ids() - IDS
-    for id_ in NEW_IDS:
-
-        @wrap_if_needed
-        def _pybullet_env_maker(config, id_=id_):
-            # pylint:disable=redefined-outer-name,reimported,unused-import
-            import pybullet_envs  # noqa:F811
-
-            return gym.make(id_, **config)
-
-        ENVS[id_] = _pybullet_env_maker
-    IDS.update(NEW_IDS)
-except ImportError:
-    pass
-
-
-try:
-    import gym_industrial  # pylint:disable=unused-import,import-error
-
-    NEW_IDS = filtered_gym_env_ids() - IDS
-    for id_ in NEW_IDS:
-
-        @wrap_if_needed
-        def _industrial_env_maker(config, id_=id_):
-            # pylint:disable=redefined-outer-name,reimported,unused-import
-            import gym_industrial  # noqa:F811
-
-            return gym.make(id_, **config)
-
-        ENVS[id_] = _industrial_env_maker
-    IDS.update(NEW_IDS)
-except ImportError:
-    pass
+register_external_library_environments("gym_cartpole_swingup")
+register_external_library_environments("gym_industrial")
+register_external_library_environments("pybullet_envs")
