@@ -29,7 +29,7 @@ TEST_REQUIREMENTS = [
 setup(
     author="Ângelo Gregório Lovatto",
     author_email="angelolovatto@gmail.com",
-    python_requires=">=3.7",
+    python_requires="~=3.7.0",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
@@ -37,7 +37,6 @@ setup(
         "Natural Language :: English",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
     ],
     description="Reinforcement learning algorithms in RLlib and PyTorch.",
     entry_points="""
