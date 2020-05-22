@@ -43,6 +43,12 @@ repos:
       - id: trailing-whitespace         # Trims trailing whitespace.
         stages: [commit, push]
 
+    - repo: https://github.com/asottile/reorder_python_imports
+      rev: v2.3.0
+      hooks:
+      - id: reorder-python-imports
+        args: [--separate-relative]
+
     - repo: https://github.com/python/black
       rev: stable
       hooks:
