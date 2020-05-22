@@ -3,12 +3,12 @@ import collections
 
 import torch
 import torch.nn as nn
-from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.policy as raypi
 import raylab.utils.pytorch as ptu
 from raylab.losses import ClippedDoubleQLearning
+from raylab.losses import DeterministicPolicyGradient
 
 
 class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
@@ -18,6 +18,9 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.loss_actor = DeterministicPolicyGradient(
+            self.module.actor, self.module.critics,
+        )
         self.loss_critic = ClippedDoubleQLearning(
             self.module.critics,
             self.module.target_critics,
@@ -71,40 +74,20 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             critic_loss, info = self.loss_critic(batch_tensors)
             critic_loss.backward()
 
-        info.update(self.extra_grad_info("critics", batch_tensors))
+        info.update(self.extra_grad_info("critics"))
         return info
 
     def _update_policy(self, batch_tensors):
-        module, config = self.module, self.config
         with self.optimizer.actor.optimize():
-            policy_loss, info = self.compute_policy_loss(batch_tensors, module, config)
+            policy_loss, info = self.loss_actor(batch_tensors)
             policy_loss.backward()
 
-        info.update(self.extra_grad_info("actor", batch_tensors))
+        info.update(self.extra_grad_info("actor"))
         return info
 
-    @staticmethod
-    def compute_policy_loss(batch_tensors, module, config):
-        """Compute loss for deterministic policy gradient."""
-        # pylint: disable=unused-argument
-        obs = batch_tensors[SampleBatch.CUR_OBS]
-
-        actions = module.actor(obs)
-        action_values, _ = torch.cat(
-            [m(obs, actions) for m in module.critics], dim=-1
-        ).min(dim=-1)
-        max_objective = torch.mean(action_values)
-
-        stats = {
-            "policy_loss": max_objective.neg().item(),
-            "qpi_mean": max_objective.item(),
-        }
-        return max_objective.neg(), stats
-
     @torch.no_grad()
-    def extra_grad_info(self, component, batch_tensors):
+    def extra_grad_info(self, component):
         """Return statistics right after components are updated."""
-        # pylint:disable=unused-argument
         return {
             f"grad_norm({component})": nn.utils.clip_grad_norm_(
                 self.module[component].parameters(), float("inf")

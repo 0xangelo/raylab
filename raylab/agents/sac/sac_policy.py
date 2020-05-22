@@ -7,6 +7,7 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu
+from raylab.losses import ReparameterizedSoftPG
 from raylab.losses import SoftCDQLearning
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
@@ -19,6 +20,9 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
+        self.loss_actor = ReparameterizedSoftPG(
+            self.module.actor, self.module.critics, self.module.alpha
+        )
         self.loss_critic = SoftCDQLearning(
             self.module.critics,
             self.module.target_critics,
@@ -71,36 +75,16 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
             critic_loss, info = self.loss_critic(batch_tensors)
             critic_loss.backward()
 
-        info.update(self.extra_grad_info("critics", batch_tensors))
+        info.update(self.extra_grad_info("critics"))
         return info
 
     def _update_actor(self, batch_tensors):
-        module, config = self.module, self.config
         with self.optimizer.actor.optimize():
-            actor_loss, info = self.compute_actor_loss(batch_tensors, module, config)
+            actor_loss, info = self.loss_actor(batch_tensors)
             actor_loss.backward()
 
-        info.update(self.extra_grad_info("actor", batch_tensors))
+        info.update(self.extra_grad_info("actor"))
         return info
-
-    @staticmethod
-    def compute_actor_loss(batch_tensors, module, config):
-        """Compute Soft Policy Iteration loss for reparameterized stochastic policy."""
-        # pylint: disable=unused-argument
-        obs = batch_tensors[SampleBatch.CUR_OBS]
-
-        actions, logp = module.actor.rsample(obs)
-        action_values, _ = torch.cat(
-            [m(obs, actions) for m in module.critics], dim=-1
-        ).min(dim=-1)
-        max_objective = torch.mean(action_values - module.alpha() * logp)
-
-        info = {
-            "loss(actor)": max_objective.neg().item(),
-            "qpi_mean": action_values.mean().item(),
-            "entropy": -logp.mean().item(),
-        }
-        return max_objective.neg(), info
 
     def _update_alpha(self, batch_tensors):
         module, config = self.module, self.config
@@ -108,7 +92,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
             alpha_loss, info = self.compute_alpha_loss(batch_tensors, module, config)
             alpha_loss.backward()
 
-        info.update(self.extra_grad_info("alpha", batch_tensors))
+        info.update(self.extra_grad_info("alpha"))
         return info
 
     @staticmethod
@@ -122,9 +106,8 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return entropy_diff, info
 
     @torch.no_grad()
-    def extra_grad_info(self, component, batch_tensors):
+    def extra_grad_info(self, component):
         """Return statistics right after components are updated."""
-        # pylint:disable=unused-argument
         return {
             f"grad_norm({component})": nn.utils.clip_grad_norm_(
                 self.module[component].parameters(), float("inf")

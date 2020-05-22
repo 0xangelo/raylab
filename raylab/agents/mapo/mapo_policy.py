@@ -10,6 +10,7 @@ import raylab.policy as raypi
 import raylab.utils.pytorch as ptu
 from raylab.envs.rewards import get_reward_fn
 from raylab.losses import ClippedDoubleQLearning
+from raylab.losses import ModelAwareDPG
 from raylab.losses.utils import clipped_action_value
 
 
@@ -23,14 +24,24 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             config.get("module", {}).get("torch_script", False) is False
         ), "MAPO uses operations incompatible with TorchScript."
         super().__init__(observation_space, action_space, config)
+
+        self.reward_fn = get_reward_fn(self.config["env"], self.config["env_config"])
+        self.transition = None
+
+        self.loss_actor = None
+        if not self.config["true_model"]:
+            self.check_model(
+                self.module.model.rsample
+                if self.config["grad_estimator"] == "PD"
+                else self.module.model.sample
+            )
+            self.module.model.zero_grad()
         self.loss_critic = ClippedDoubleQLearning(
             self.module.critics,
             self.module.target_critics,
             self.module.target_actor,
             gamma=self.config["gamma"],
         )
-        self.reward = get_reward_fn(self.config["env"], self.config["env_config"])
-        self.transition = None
 
     @staticmethod
     @override(raypi.TorchPolicy)
@@ -52,15 +63,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             == "raylab.utils.exploration.ParameterNoise"
         )
         # pylint:disable=no-member
-        module = super().make_module(obs_space, action_space, config)
-        # pylint:enable=no-member
-        self.check_model(
-            module.model.rsample
-            if config["grad_estimator"] == "PD"
-            else module.model.sample
-        )
-        module.model.zero_grad()
-        return module
+        return super().make_module(obs_space, action_space, config)
 
     @override(raypi.TorchPolicy)
     def make_optimizer(self):
@@ -84,12 +87,12 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         self.transition = torch.jit.script(transition) if torch_script else transition
         self.check_model(self.transition)
 
-    def check_model(self, sampler):
+    def check_model(self, model):
         """Verify that the transition model is appropriate for the desired estimator."""
         obs = torch.randn(self.observation_space.shape)[None]
         act = torch.randn(self.action_space.shape)[None]
         if self.config["grad_estimator"] == "SF":
-            sample, logp = sampler(obs, act.requires_grad_())
+            sample, logp = model(obs, act.requires_grad_())
             assert sample.grad_fn is None
             assert logp is not None
             logp.mean().backward()
@@ -98,12 +101,22 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             ), "Transition grad log_prob must exist for SF estimator"
             assert not torch.allclose(act.grad, torch.zeros_like(act))
         if self.config["grad_estimator"] == "PD":
-            sample, _ = sampler(obs.requires_grad_(), act.requires_grad_())
+            sample, _ = model(obs.requires_grad_(), act.requires_grad_())
             sample.mean().backward()
             assert (
                 act.grad is not None
             ), "Transition grad w.r.t. state and action must exist for PD estimator"
             assert not torch.allclose(act.grad, torch.zeros_like(act))
+
+        self.loss_actor = ModelAwareDPG(
+            model,
+            self.module.actor,
+            self.module.critics,
+            self.reward_fn,
+            gamma=self.config["gamma"],
+            num_model_samples=self.config["num_model_samples"],
+            grad_estimator=self.config["grad_estimator"],
+        )
 
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
@@ -201,7 +214,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         )
 
         next_obs, rewards, logp = self._generate_transition(
-            obs, actions, self.reward, sampler, model_samples
+            obs, actions, self.reward_fn, sampler, model_samples
         )
         # Next action grads shouldn't propagate
         with torch.no_grad():
@@ -242,37 +255,11 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     def _update_actor(self, batch_tensors):
         with self.optimizer.actor.optimize():
-            policy_loss, info = self.madpg_loss(batch_tensors)
+            policy_loss, info = self.loss_actor(batch_tensors)
             policy_loss.backward()
 
         info.update(self.extra_grad_info("actor"))
         return info
-
-    def dpg_loss(self, batch_tensors):
-        """Compute loss for deterministic policy gradient."""
-        obs = batch_tensors[SampleBatch.CUR_OBS]
-
-        actions = self.module.actor(obs)
-        action_values = self.zero_step_action_values(obs, actions)
-        max_objective = torch.mean(action_values)
-        loss = -max_objective
-
-        stats = {"loss(actor)": loss.item()}
-        return loss, stats
-
-    def madpg_loss(self, batch_tensors):
-        """Compute loss for model-aware deterministic policy gradient."""
-        obs = batch_tensors[SampleBatch.CUR_OBS]
-
-        actions = self.module.actor(obs)
-        action_values = self.one_step_action_value_surrogate(
-            obs, actions, self.config["num_model_samples"]
-        )
-        max_objective = torch.mean(action_values)
-        loss = -max_objective
-
-        stats = {"loss(actor)": loss.item()}
-        return loss, stats
 
     @torch.no_grad()
     def extra_grad_info(self, component):
