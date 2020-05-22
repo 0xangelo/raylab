@@ -1,5 +1,7 @@
 """Continuous Q-Learning with Normalized Advantage Functions."""
-from raylab.agents.off_policy import GenericOffPolicyTrainer, with_base_config
+from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import with_base_config
+
 from .naf_policy import NAFTorchPolicy
 
 

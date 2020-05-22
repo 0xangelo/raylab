@@ -1,9 +1,10 @@
 """Trainer and configuration for MAPO."""
-from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.evaluation.metrics import get_learner_stats
+from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils.annotations import override
 
-from raylab.agents import Trainer, with_common_config
+from raylab.agents import Trainer
+from raylab.agents import with_common_config
 from raylab.utils.replay_buffer import ReplayBuffer
 
 from .mapo_policy import MAPOTorchPolicy

@@ -2,7 +2,9 @@
 Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning
 with a Stochastic Actor.
 """
-from raylab.agents.off_policy import GenericOffPolicyTrainer, with_base_config
+from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import with_base_config
+
 from .sac_policy import SACTorchPolicy
 
 

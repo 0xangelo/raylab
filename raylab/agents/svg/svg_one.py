@@ -2,7 +2,9 @@
 from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.agents.off_policy import GenericOffPolicyTrainer, with_base_config
+from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import with_base_config
+
 from .svg_one_policy import SVGOneTorchPolicy
 
 
