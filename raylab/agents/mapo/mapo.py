@@ -85,12 +85,6 @@ DEFAULT_CONFIG = with_common_config(
                 "desired_action_stddev": 0.2,
                 "adaptation_coeff": 1.01,
             },
-            # Until this many timesteps have elapsed, the agent's policy will be
-            # ignored & it will instead take uniform random actions. Can be used in
-            # conjunction with learning_starts (which controls when the first
-            # optimization step happens) to decrease dependence of exploration &
-            # optimization on initial policy parameters. Note that this will be
-            # disabled when the action noise scale is set to 0 (e.g during evaluation).
             "pure_exploration_steps": 1000,
         },
         # === Evaluation ===
