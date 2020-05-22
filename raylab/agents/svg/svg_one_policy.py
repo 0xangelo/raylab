@@ -109,21 +109,15 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):
-        """Compute gradient norm for components. Also clips policy gradient."""
-        model_params = self.module.model.parameters()
-        value_params = self.module.critic.parameters()
-        policy_params = self.module.actor.parameters()
-        fetches = {
-            "model_grad_norm": nn.utils.clip_grad_norm_(
-                model_params, float("inf")
-            ).item(),
-            "value_grad_norm": nn.utils.clip_grad_norm_(
-                value_params, float("inf")
-            ).item(),
-            "policy_grad_norm": nn.utils.clip_grad_norm_(
-                policy_params, max_norm=self.config["max_grad_norm"]
-            ).item(),
-            "policy_entropy": self.module.actor.log_prob(
+        """Compute gradient norms and policy statistics."""
+        grad_norms = {
+            f"grad_norm(k)": nn.utils.clip_grad_norm_(
+                self.module[k].parameters(), float("inf")
+            )
+            for k in "model actor critic".split()
+        }
+        policy_info = {
+            "entropy": self.module.actor.log_prob(
                 batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
             )
             .mean()
@@ -131,4 +125,4 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
             .item(),
             "curr_kl_coeff": self.curr_kl_coeff,
         }
-        return fetches
+        return {**grad_norms, **policy_info}

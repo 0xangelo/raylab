@@ -5,18 +5,19 @@ from ray.rllib import SampleBatch
 
 from raylab.envs.rewards import get_reward_fn
 from raylab.policy import TorchPolicy, TargetNetworksMixin
+from raylab.losses import MaximumLikelihood
 
 
 class SVGBaseTorchPolicy(TargetNetworksMixin, TorchPolicy):
     """Stochastic Value Gradients policy using PyTorch."""
 
     # pylint: disable=abstract-method
-
     IS_RATIOS = "is_ratios"
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
         self.reward = get_reward_fn(self.config["env"], self.config["env_config"])
+        self.loss_model = MaximumLikelihood(self.module.model)
 
     @torch.no_grad()
     def add_importance_sampling_ratios(self, batch_tensors):
@@ -35,7 +36,7 @@ class SVGBaseTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
     def compute_joint_model_value_loss(self, batch_tensors):
         """Compute model MLE loss and fitted value function loss."""
-        mle_loss = self._avg_model_logp(batch_tensors).neg()
+        mle_loss, info = self.loss_model(batch_tensors)
 
         with torch.no_grad():
             targets = self._compute_value_targets(batch_tensors)
@@ -46,14 +47,8 @@ class SVGBaseTorchPolicy(TargetNetworksMixin, TorchPolicy):
         )
 
         loss = mle_loss + self.config["vf_loss_coeff"] * value_loss
-        return loss, {"mle_loss": mle_loss.item(), "value_loss": value_loss.item()}
-
-    def _avg_model_logp(self, batch_tensors):
-        return self.module.model.log_prob(
-            batch_tensors[SampleBatch.CUR_OBS],
-            batch_tensors[SampleBatch.ACTIONS],
-            batch_tensors[SampleBatch.NEXT_OBS],
-        ).mean()
+        info.update({"value_loss": value_loss.item()})
+        return loss, info
 
     def _compute_value_targets(self, batch_tensors):
         next_obs = batch_tensors[SampleBatch.NEXT_OBS]

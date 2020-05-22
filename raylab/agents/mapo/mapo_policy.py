@@ -3,15 +3,15 @@ import collections
 
 import torch
 import torch.nn as nn
-from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.policy as raypi
 import raylab.utils.pytorch as ptu
 from raylab.envs.rewards import get_reward_fn
 from raylab.losses import ClippedDoubleQLearning
+from raylab.losses import DPGAwareModelLearning
+from raylab.losses import MaximumLikelihood
 from raylab.losses import ModelAwareDPG
-from raylab.losses.utils import clipped_action_value
 
 
 class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
@@ -26,16 +26,28 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         super().__init__(observation_space, action_space, config)
 
         self.reward_fn = get_reward_fn(self.config["env"], self.config["env_config"])
-        self.transition = None
 
+        self.loss_daml = None
+        self.loss_mle = None
         self.loss_actor = None
         if not self.config["true_model"]:
-            self.check_model(
+            transition = (
                 self.module.model.rsample
                 if self.config["grad_estimator"] == "PD"
                 else self.module.model.sample
             )
+            self.setup_madpg(transition)
             self.module.model.zero_grad()
+            self.loss_daml = DPGAwareModelLearning(
+                transition,
+                self.module.actor,
+                self.module.critics,
+                self.reward_fn,
+                gamma=self.config["gamma"],
+                grad_estimator=self.config["grad_estimator"],
+            )
+            self.loss_mle = MaximumLikelihood(self.module.model)
+
         self.loss_critic = ClippedDoubleQLearning(
             self.module.critics,
             self.module.target_critics,
@@ -84,11 +96,11 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             transition_kernel,
             torch_script=torch_script,
         )
-        self.transition = torch.jit.script(transition) if torch_script else transition
-        self.check_model(self.transition)
+        transition = torch.jit.script(transition) if torch_script else transition
+        self.setup_madpg(transition)
 
-    def check_model(self, model):
-        """Verify that the transition model is appropriate for the desired estimator."""
+    def setup_madpg(self, model):
+        """Verify and use model for Model-Aware DPG."""
         obs = torch.randn(self.observation_space.shape)[None]
         act = torch.randn(self.action_space.shape)[None]
         if self.config["grad_estimator"] == "SF":
@@ -163,10 +175,10 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     def _update_model(self, batch_tensors):
         with self.optimizer.model.optimize():
-            mle_loss, info = self.mle_loss(batch_tensors)
+            mle_loss, info = self.loss_mle(batch_tensors)
 
             if self.config["model_loss"] == "DAML":
-                daml_loss, daml_info = self.daml_loss(batch_tensors)
+                daml_loss, daml_info = self.loss_daml(batch_tensors)
                 info.update(daml_info)
 
                 alpha = self.config["mle_interpolation"]
@@ -178,80 +190,6 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
         info.update(self.extra_grad_info("model"))
         return info
-
-    def daml_loss(self, batch_tensors):
-        """Compute policy gradient-aware (PGA) model loss."""
-        obs = batch_tensors[SampleBatch.CUR_OBS]
-        actions = self.module.actor(obs).detach().requires_grad_()
-
-        predictions = self.one_step_action_value_surrogate(obs, actions)
-        targets = self.zero_step_action_values(obs, actions)
-
-        temporal_diff = torch.sum(targets - predictions)
-        (action_gradients,) = torch.autograd.grad(
-            temporal_diff, actions, create_graph=True
-        )
-
-        daml_loss = torch.sum(action_gradients * action_gradients, dim=-1).mean()
-        return (
-            daml_loss,
-            {"loss(action)": temporal_diff.item(), "loss(daml)": daml_loss.item()},
-        )
-
-    def one_step_action_value_surrogate(self, obs, actions, model_samples=1):
-        """
-        Compute 1-step approximation of Q^{\\pi}(s, a) for Deterministic Policy Gradient
-        using target networks and model transitions.
-        """
-        actor = self.module.actor
-        critics = self.module.critics
-        sampler = (
-            self.transition
-            if self.config["true_model"]
-            else self.module.model.sample
-            if self.config["grad_estimator"] == "SF"
-            else self.module.model.rsample
-        )
-
-        next_obs, rewards, logp = self._generate_transition(
-            obs, actions, self.reward_fn, sampler, model_samples
-        )
-        # Next action grads shouldn't propagate
-        with torch.no_grad():
-            next_acts = actor(next_obs)
-        next_values = clipped_action_value(next_obs, next_acts, critics)
-        values = rewards + self.config["gamma"] * next_values
-
-        if self.config["grad_estimator"] == "SF":
-            surrogate = torch.mean(logp * values.detach(), dim=0)
-        elif self.config["grad_estimator"] == "PD":
-            surrogate = torch.mean(values, dim=0)
-        return surrogate
-
-    @staticmethod
-    def _generate_transition(obs, actions, reward_fn, sampler, num_samples):
-        """Compute virtual transition and its log density."""
-        sample_shape = (num_samples,)
-        obs = obs.expand(sample_shape + obs.shape)
-        actions = actions.expand(sample_shape + actions.shape)
-
-        next_obs, logp = sampler(obs, actions)
-        rewards = reward_fn(obs, actions, next_obs)
-        return next_obs, rewards, logp
-
-    def zero_step_action_values(self, obs, actions):
-        """Compute Q^{\\pi}(s, a) directly using approximate critic."""
-        return clipped_action_value(obs, actions, self.module.critics)
-
-    def mle_loss(self, batch_tensors):
-        """Compute Maximum Likelihood Estimation (MLE) model loss."""
-        avg_logp = self.module.model.log_prob(
-            batch_tensors[SampleBatch.CUR_OBS],
-            batch_tensors[SampleBatch.ACTIONS],
-            batch_tensors[SampleBatch.NEXT_OBS],
-        ).mean()
-        loss = avg_logp.neg()
-        return loss, {"loss(mle)": loss.item()}
 
     def _update_actor(self, batch_tensors):
         with self.optimizer.actor.optimize():
