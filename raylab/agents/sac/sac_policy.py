@@ -7,7 +7,9 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu
-from raylab.policy import TorchPolicy, TargetNetworksMixin
+from raylab.losses import SoftCDQLearning
+from raylab.policy import TargetNetworksMixin
+from raylab.policy import TorchPolicy
 
 
 class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
@@ -17,6 +19,13 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
+        self.loss_critic = SoftCDQLearning(
+            self.module.critics,
+            self.module.target_critics,
+            self.module.actor,
+            gamma=self.config["gamma"],
+            alpha=self.module.alpha,
+        )
         if self.config["target_entropy"] == "auto":
             self.config["target_entropy"] = -action_space.shape[0]
 
@@ -47,61 +56,26 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
-        module, config = self.module, self.config
         info = {}
 
-        info.update(self._update_critic(batch_tensors, module, config))
-        info.update(self._update_actor(batch_tensors, module, config))
-        if config["target_entropy"] is not None:
-            info.update(self._update_alpha(batch_tensors, module, config))
+        info.update(self._update_critic(batch_tensors))
+        info.update(self._update_actor(batch_tensors))
+        if self.config["target_entropy"] is not None:
+            info.update(self._update_alpha(batch_tensors))
 
         self.update_targets("critics", "target_critics")
         return self._learner_stats(info)
 
-    def _update_critic(self, batch_tensors, module, config):
+    def _update_critic(self, batch_tensors):
         with self.optimizer.critics.optimize():
-            critic_loss, info = self.compute_critic_loss(batch_tensors, module, config)
+            critic_loss, info = self.loss_critic(batch_tensors)
             critic_loss.backward()
 
         info.update(self.extra_grad_info("critics", batch_tensors))
         return info
 
-    def compute_critic_loss(self, batch_tensors, module, config):
-        """Compute Soft Policy Iteration loss for Q value function."""
-        obs = batch_tensors[SampleBatch.CUR_OBS]
-        actions = batch_tensors[SampleBatch.ACTIONS]
-
-        with torch.no_grad():
-            target_values = self._compute_critic_targets(batch_tensors, module, config)
-        loss_fn = nn.MSELoss()
-        values = torch.cat([m(obs, actions) for m in module.critics], dim=-1)
-        critic_loss = loss_fn(values, target_values.unsqueeze(-1).expand_as(values))
-
-        info = {
-            "q_mean": values.mean().item(),
-            "q_max": values.max().item(),
-            "q_min": values.min().item(),
-            "loss(critics)": critic_loss.item(),
-        }
-        return critic_loss, info
-
-    @staticmethod
-    def _compute_critic_targets(batch_tensors, module, config):
-        rewards = batch_tensors[SampleBatch.REWARDS]
-        next_obs = batch_tensors[SampleBatch.NEXT_OBS]
-        dones = batch_tensors[SampleBatch.DONES]
-
-        next_acts, logp = module.actor.rsample(next_obs)
-        next_vals, _ = torch.cat(
-            [m(next_obs, next_acts) for m in module.target_critics], dim=-1
-        ).min(dim=-1)
-        return torch.where(
-            dones,
-            rewards,
-            rewards + config["gamma"] * (next_vals - module.alpha() * logp),
-        )
-
-    def _update_actor(self, batch_tensors, module, config):
+    def _update_actor(self, batch_tensors):
+        module, config = self.module, self.config
         with self.optimizer.actor.optimize():
             actor_loss, info = self.compute_actor_loss(batch_tensors, module, config)
             actor_loss.backward()
@@ -128,7 +102,8 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         }
         return max_objective.neg(), info
 
-    def _update_alpha(self, batch_tensors, module, config):
+    def _update_alpha(self, batch_tensors):
+        module, config = self.module, self.config
         with self.optimizer.alpha.optimize():
             alpha_loss, info = self.compute_alpha_loss(batch_tensors, module, config)
             alpha_loss.backward()

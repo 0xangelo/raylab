@@ -3,12 +3,14 @@ import collections
 
 import torch
 import torch.nn as nn
-from ray.rllib.utils.annotations import override
 from ray.rllib import SampleBatch
+from ray.rllib.utils.annotations import override
 
 import raylab.policy as raypi
-from raylab.envs.rewards import get_reward_fn
 import raylab.utils.pytorch as ptu
+from raylab.envs.rewards import get_reward_fn
+from raylab.losses import ClippedDoubleQLearning
+from raylab.losses.utils import clipped_action_value
 
 
 class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
@@ -21,6 +23,12 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             config.get("module", {}).get("torch_script", False) is False
         ), "MAPO uses operations incompatible with TorchScript."
         super().__init__(observation_space, action_space, config)
+        self.loss_critic = ClippedDoubleQLearning(
+            self.module.critics,
+            self.module.target_critics,
+            self.module.target_actor,
+            gamma=self.config["gamma"],
+        )
         self.reward = get_reward_fn(self.config["env"], self.config["env_config"])
         self.transition = None
 
@@ -134,54 +142,11 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     def _update_critic(self, batch_tensors):
         with self.optimizer.critics.optimize():
-            critic_loss, info = self.critic_loss(batch_tensors)
+            critic_loss, info = self.loss_critic(batch_tensors)
             critic_loss.backward()
 
         info.update(self.extra_grad_info("critics"))
         return info
-
-    def critic_loss(self, batch_tensors):
-        """Compute loss for Q value function."""
-        critics = self.module.critics
-        obs = batch_tensors[SampleBatch.CUR_OBS]
-        actions = batch_tensors[SampleBatch.ACTIONS]
-
-        with torch.no_grad():
-            target_values = self.critic_targets(batch_tensors)
-        loss_fn = nn.MSELoss()
-        values = torch.cat([m(obs, actions) for m in critics], dim=-1)
-        critic_loss = loss_fn(values, target_values.unsqueeze(-1).expand_as(values))
-
-        stats = {
-            "q_mean": values.mean().item(),
-            "q_max": values.max().item(),
-            "q_min": values.min().item(),
-            "loss(critic)": critic_loss.item(),
-        }
-        return critic_loss, stats
-
-    def critic_targets(self, batch_tensors):
-        """
-        Compute 1-step approximation of Q^{\\pi}(s, a) for Clipped Double Q-Learning
-        using target networks and batch transitions.
-        """
-        target_actor = self.module.target_actor
-        target_critics = self.module.target_critics
-
-        rewards = batch_tensors[SampleBatch.REWARDS]
-        gamma = self.config["gamma"]
-        next_obs = batch_tensors[SampleBatch.NEXT_OBS]
-        dones = batch_tensors[SampleBatch.DONES]
-
-        next_acts = target_actor(next_obs)
-        target_values = self.clipped_value(next_obs, next_acts, dones, target_critics)
-        return rewards + gamma * target_values
-
-    @staticmethod
-    def clipped_value(obs, acts, dones, critics):
-        """Compute clipped Q^{\\pi}(s, a)."""
-        vals, _ = torch.cat([m(obs, acts) for m in critics], dim=-1).min(dim=-1)
-        return torch.where(dones, torch.zeros_like(vals), vals)
 
     def _update_model(self, batch_tensors):
         with self.optimizer.model.optimize():
@@ -235,13 +200,13 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             else self.module.model.rsample
         )
 
-        next_obs, rewards, dones, logp = self._generate_transition(
+        next_obs, rewards, logp = self._generate_transition(
             obs, actions, self.reward, sampler, model_samples
         )
         # Next action grads shouldn't propagate
         with torch.no_grad():
             next_acts = actor(next_obs)
-        next_values = self.clipped_value(next_obs, next_acts, dones, critics)
+        next_values = clipped_action_value(next_obs, next_acts, critics)
         values = rewards + self.config["gamma"] * next_values
 
         if self.config["grad_estimator"] == "SF":
@@ -252,21 +217,18 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     @staticmethod
     def _generate_transition(obs, actions, reward_fn, sampler, num_samples):
-        """Compute virtual transition as in env.step, with info replaced by logp."""
+        """Compute virtual transition and its log density."""
         sample_shape = (num_samples,)
         obs = obs.expand(sample_shape + obs.shape)
         actions = actions.expand(sample_shape + actions.shape)
 
         next_obs, logp = sampler(obs, actions)
         rewards = reward_fn(obs, actions, next_obs)
-        # Assume virtual transition is not final
-        dones = torch.zeros_like(rewards).bool()
-        return next_obs, rewards, dones, logp
+        return next_obs, rewards, logp
 
     def zero_step_action_values(self, obs, actions):
         """Compute Q^{\\pi}(s, a) directly using approximate critic."""
-        dones = torch.zeros(obs.shape[:-1]).bool()
-        return self.clipped_value(obs, actions, dones, self.module.critics)
+        return clipped_action_value(obs, actions, self.module.critics)
 
     def mle_loss(self, batch_tensors):
         """Compute Maximum Likelihood Estimation (MLE) model loss."""
