@@ -8,6 +8,7 @@ from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu
 from raylab.losses import ISSoftVIteration
+from raylab.losses import MaximumEntropyDual
 from raylab.losses import OneStepSoftSVG
 
 from .svg_base_policy import SVGBaseTorchPolicy
@@ -20,9 +21,6 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        if self.config["target_entropy"] == "auto":
-            self.config["target_entropy"] = -action_space.shape[0]
-
         assert "target_critic" in self.module, "SoftSVG needs a target Value function!"
 
         self.loss_actor = OneStepSoftSVG(
@@ -38,6 +36,14 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
             self.module.target_critic,
             self.module.alpha,
             gamma=self.config["gamma"],
+        )
+        target_entropy = (
+            -action_space.shape[0]
+            if self.config["target_entropy"] == "auto"
+            else self.config["target_entropy"]
+        )
+        self.loss_alpha = MaximumEntropyDual(
+            self.module.alpha, self.module.actor.sample, target_entropy
         )
 
     @staticmethod
@@ -100,23 +106,11 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
 
     def _update_alpha(self, batch_tensors):
         with self.optimizer.alpha.optimize():
-            alpha_loss, info = self.compute_alpha_loss(batch_tensors)
+            alpha_loss, info = self.loss_alpha(batch_tensors)
             alpha_loss.backward()
 
         info.update(self.extra_grad_info("actor", batch_tensors))
         return info
-
-    def compute_alpha_loss(self, batch_tensors):
-        """Compute entropy coefficient loss."""
-        target_entropy = self.config["target_entropy"]
-
-        with torch.no_grad():
-            _, logp = self.module.actor.rsample(batch_tensors[SampleBatch.CUR_OBS])
-
-        alpha = self.module.alpha()
-        entropy_diff = torch.mean(-alpha * logp - alpha * target_entropy)
-        info = {"loss(alpha)": entropy_diff.item(), "curr_alpha": alpha.item()}
-        return entropy_diff, info
 
     @torch.no_grad()
     def extra_grad_info(self, component, batch_tensors):

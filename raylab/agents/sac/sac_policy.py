@@ -3,10 +3,10 @@ import collections
 
 import torch
 import torch.nn as nn
-from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu
+from raylab.losses import MaximumEntropyDual
 from raylab.losses import ReparameterizedSoftPG
 from raylab.losses import SoftCDQLearning
 from raylab.policy import TargetNetworksMixin
@@ -30,8 +30,14 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
             gamma=self.config["gamma"],
             alpha=self.module.alpha,
         )
-        if self.config["target_entropy"] == "auto":
-            self.config["target_entropy"] = -action_space.shape[0]
+        target_entropy = (
+            -action_space.shape[0]
+            if self.config["target_entropy"] == "auto"
+            else self.config["target_entropy"]
+        )
+        self.loss_alpha = MaximumEntropyDual(
+            self.module.alpha, self.module.actor.sample, target_entropy
+        )
 
     @staticmethod
     @override(TorchPolicy)
@@ -87,23 +93,12 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return info
 
     def _update_alpha(self, batch_tensors):
-        module, config = self.module, self.config
         with self.optimizer.alpha.optimize():
-            alpha_loss, info = self.compute_alpha_loss(batch_tensors, module, config)
+            alpha_loss, info = self.loss_alpha(batch_tensors)
             alpha_loss.backward()
 
         info.update(self.extra_grad_info("alpha"))
         return info
-
-    @staticmethod
-    def compute_alpha_loss(batch_tensors, module, config):
-        """Compute entropy coefficient loss."""
-        with torch.no_grad():
-            _, logp = module.actor.rsample(batch_tensors[SampleBatch.CUR_OBS])
-        alpha = module.alpha()
-        entropy_diff = torch.mean(-alpha * logp - alpha * config["target_entropy"])
-        info = {"loss(alpha)": entropy_diff.item(), "curr_alpha": alpha.item()}
-        return entropy_diff, info
 
     @torch.no_grad()
     def extra_grad_info(self, component):
