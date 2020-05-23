@@ -32,5 +32,9 @@ class MaximumEntropyDual:
 
         alpha = self.alpha()
         entropy_diff = torch.mean(alpha * entropy - alpha * self.target_entropy)
-        info = {"loss(alpha)": entropy_diff.item(), "curr_alpha": alpha.item()}
+        info = {
+            "loss(alpha)": entropy_diff.item(),
+            "curr_alpha": alpha.item(),
+            "entropy": entropy.mean().item(),
+        }
         return entropy_diff, info
