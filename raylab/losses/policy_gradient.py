@@ -2,6 +2,8 @@
 import torch
 from ray.rllib import SampleBatch
 
+from raylab.utils.dictionaries import get_keys
+
 from .utils import clipped_action_value
 
 
@@ -125,3 +127,49 @@ class ModelAwareDPG:
         next_obs, logp = self.model(obs, actions)
         rewards = self.reward_fn(obs, actions, next_obs)
         return next_obs, rewards, logp
+
+
+class OneStepSVG:
+    """Loss function for Stochastic Value Gradients.
+
+    Args:
+        model (callable): stochastic model that reproduces state and its log density
+        actor (callable): stochastic policy that reproduces action and its log density
+        critic (callable): state-value function
+        reward_fn (callable): reward function for state, action, and next state tuples
+        gamma (float): discount factor
+    """
+
+    IS_RATIOS = "is_ratios"
+    # pylint:disable=too-many-arguments
+
+    def __init__(self, model, actor, critic, reward_fn, **config):
+        self.model = model
+        self.actor = actor
+        self.critic = critic
+        self.reward_fn = reward_fn
+        self.config = config
+
+    def __call__(self, batch):
+        """Compute bootstrapped Stochatic Value Gradient loss."""
+        obs, actions, next_obs, dones, is_ratios = get_keys(
+            batch,
+            SampleBatch.CUR_OBS,
+            SampleBatch.ACTIONS,
+            SampleBatch.NEXT_OBS,
+            SampleBatch.DONES,
+            self.IS_RATIOS,
+        )
+        state_val = self.one_step_state_value_reproduced(obs, actions, next_obs, dones)
+        svg_loss = -torch.mean(is_ratios * state_val)
+        return svg_loss, {"loss(actor)": svg_loss.item()}
+
+    def one_step_state_value_reproduced(self, obs, actions, next_obs, dones):
+        """Compute 1-step approximation of the state value on real transition."""
+        _acts, _ = self.actor(obs, actions)
+        _next_obs, _ = self.model(obs, _acts, next_obs)
+        _rewards = self.reward_fn(obs, _acts, _next_obs)
+        _next_vals = self.critic(_next_obs).squeeze(-1)
+        return torch.where(
+            dones, _rewards, _rewards + self.config["gamma"] * _next_vals,
+        )
