@@ -7,6 +7,8 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu
+from raylab.losses import ISSoftVIteration
+
 from .svg_base_policy import SVGBaseTorchPolicy
 
 
@@ -19,7 +21,14 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         super().__init__(observation_space, action_space, config)
         if self.config["target_entropy"] == "auto":
             self.config["target_entropy"] = -action_space.shape[0]
+
         assert "target_critic" in self.module, "SoftSVG needs a target Value function!"
+        self.loss_critic = ISSoftVIteration(
+            self.module.critic,
+            self.module.target_critic,
+            self.module.alpha,
+            gamma=self.config["gamma"],
+        )
 
     @staticmethod
     @override(SVGBaseTorchPolicy)
@@ -42,9 +51,12 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
     @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
-        batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
+        batch_tensors, info = self.add_truncated_importance_sampling_ratios(
+            batch_tensors
+        )
 
-        info.update(self._update_model_and_critic(batch_tensors))
+        info.update(self._update_model(batch_tensors))
+        info.update(self._update_critic(batch_tensors))
         info.update(self._update_actor(batch_tensors))
         if self.config["target_entropy"] is not None:
             info.update(self._update_alpha(batch_tensors))
@@ -52,31 +64,21 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         self.update_targets("critic", "target_critic")
         return self._learner_stats(info)
 
-    def _update_model_and_critic(self, batch_tensors):
-        with self.optimizer.model.optimize(), self.optimizer.critic.optimize():
-            model_value_loss, info = self.compute_joint_model_value_loss(batch_tensors)
-            model_value_loss.backward()
+    def _update_model(self, batch_tensors):
+        with self.optimizer.model.optimize():
+            model_loss, info = self.loss_model(batch_tensors)
+            model_loss.backward()
 
         info.update(self.extra_grad_info("model", batch_tensors))
-        info.update(self.extra_grad_info("critic", batch_tensors))
         return info
 
-    @override(SVGBaseTorchPolicy)
-    def _compute_value_targets(self, batch_tensors):
-        _, logp = self.module.actor.sample(batch_tensors[SampleBatch.CUR_OBS])
-        rewards = batch_tensors[SampleBatch.REWARDS]
-        augmented_rewards = rewards - logp * self.module.alpha()
+    def _update_critic(self, batch_tensors):
+        with self.optimizer.critic.optimize():
+            value_loss, info = self.loss_critic(batch_tensors)
+            value_loss.backward()
 
-        next_obs = batch_tensors[SampleBatch.NEXT_OBS]
-        next_vals = self.module.target_critic(next_obs).squeeze(-1)
-
-        gamma = self.config["gamma"]
-        targets = torch.where(
-            batch_tensors[SampleBatch.DONES],
-            augmented_rewards,
-            augmented_rewards + gamma * next_vals,
-        )
-        return targets
+        info.update(self.extra_grad_info("critic", batch_tensors))
+        return info
 
     def _update_actor(self, batch_tensors):
         with self.optimizer.actor.optimize():
@@ -88,7 +90,7 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
 
     def compute_stochastic_value_gradient_loss(self, batch_tensors):
         """Compute bootstrapped Stochatic Value Gradient loss."""
-        is_ratios = batch_tensors[self.IS_RATIOS]
+        is_ratios = batch_tensors[ISSoftVIteration.IS_RATIOS]
         td_targets = self._compute_policy_td_targets(batch_tensors)
         svg_loss = -torch.mean(is_ratios * td_targets)
         return svg_loss, {"loss(actor)": svg_loss.item()}

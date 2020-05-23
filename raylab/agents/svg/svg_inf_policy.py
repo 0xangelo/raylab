@@ -9,8 +9,9 @@ from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu
 from raylab.policy import AdaptiveKLCoeffMixin
-from .svg_base_policy import SVGBaseTorchPolicy
+
 from .rollout_module import ReproduceRollout
+from .svg_base_policy import SVGBaseTorchPolicy
 
 
 class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
@@ -70,7 +71,9 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
 
     def _learn_off_policy(self, batch_tensors):
         """Update off-policy components."""
-        batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
+        batch_tensors, info = self.add_truncated_importance_sampling_ratios(
+            batch_tensors
+        )
 
         with self.optimizer.off_policy.optimize():
             loss, _info = self.compute_joint_model_value_loss(batch_tensors)

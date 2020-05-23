@@ -57,7 +57,9 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
     @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
-        batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
+        batch_tensors, info = self.add_truncated_importance_sampling_ratios(
+            batch_tensors
+        )
 
         with self.optimizer.optimize():
             model_value_loss, stats = self.compute_joint_model_value_loss(batch_tensors)
