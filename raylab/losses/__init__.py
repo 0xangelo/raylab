@@ -9,6 +9,7 @@ from .mle import MaximumLikelihood
 from .policy_gradient import DeterministicPolicyGradient
 from .policy_gradient import ModelAwareDPG
 from .policy_gradient import ReparameterizedSoftPG
+from .svg import OneStepSoftSVG
 from .svg import OneStepSVG
 from .svg import TrajectorySVG
 
@@ -22,6 +23,7 @@ __all__ = [
     "MaximumLikelihood",
     "ModelAwareDPG",
     "OneStepSVG",
+    "OneStepSoftSVG",
     "ReparameterizedSoftPG",
     "SoftCDQLearning",
     "TrajectorySVG",

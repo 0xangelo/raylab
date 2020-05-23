@@ -8,6 +8,7 @@ from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu
 from raylab.losses import ISSoftVIteration
+from raylab.losses import OneStepSoftSVG
 
 from .svg_base_policy import SVGBaseTorchPolicy
 
@@ -23,6 +24,15 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
             self.config["target_entropy"] = -action_space.shape[0]
 
         assert "target_critic" in self.module, "SoftSVG needs a target Value function!"
+
+        self.loss_actor = OneStepSoftSVG(
+            self.module.model.reproduce,
+            self.module.actor.reproduce,
+            self.module.critic,
+            self.reward,
+            alpha=self.module.alpha,
+            gamma=self.config["gamma"],
+        )
         self.loss_critic = ISSoftVIteration(
             self.module.critic,
             self.module.target_critic,
@@ -82,38 +92,11 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
 
     def _update_actor(self, batch_tensors):
         with self.optimizer.actor.optimize():
-            svg_loss, info = self.compute_stochastic_value_gradient_loss(batch_tensors)
+            svg_loss, info = self.loss_actor(batch_tensors)
             svg_loss.backward()
 
         info.update(self.extra_grad_info("actor", batch_tensors))
         return info
-
-    def compute_stochastic_value_gradient_loss(self, batch_tensors):
-        """Compute bootstrapped Stochatic Value Gradient loss."""
-        is_ratios = batch_tensors[ISSoftVIteration.IS_RATIOS]
-        td_targets = self._compute_policy_td_targets(batch_tensors)
-        svg_loss = -torch.mean(is_ratios * td_targets)
-        return svg_loss, {"loss(actor)": svg_loss.item()}
-
-    def _compute_policy_td_targets(self, batch_tensors):
-        _acts, _logp = self.module.actor.reproduce(
-            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
-        )
-        _next_obs, _ = self.module.model.reproduce(
-            batch_tensors[SampleBatch.CUR_OBS],
-            _acts,
-            batch_tensors[SampleBatch.NEXT_OBS],
-        )
-        _rewards = self.reward(batch_tensors[SampleBatch.CUR_OBS], _acts, _next_obs)
-        _augmented_rewards = _rewards - _logp * self.module.alpha()
-        _next_vals = self.module.critic(_next_obs).squeeze(-1)
-
-        gamma = self.config["gamma"]
-        return torch.where(
-            batch_tensors[SampleBatch.DONES],
-            _augmented_rewards,
-            _augmented_rewards + gamma * _next_vals,
-        )
 
     def _update_alpha(self, batch_tensors):
         with self.optimizer.alpha.optimize():

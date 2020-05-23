@@ -19,9 +19,9 @@ class OneStepSVG:
     """
 
     IS_RATIOS = "is_ratios"
-    # pylint:disable=too-many-arguments
 
     def __init__(self, model, actor, critic, reward_fn, **config):
+        # pylint:disable=too-many-arguments
         self.model = model
         self.actor = actor
         self.critic = critic
@@ -38,11 +38,11 @@ class OneStepSVG:
             SampleBatch.DONES,
             self.IS_RATIOS,
         )
-        state_val = self.one_step_state_value_reproduced(obs, actions, next_obs, dones)
+        state_val = self.one_step_reproduced_state_value(obs, actions, next_obs, dones)
         svg_loss = -torch.mean(is_ratios * state_val)
         return svg_loss, {"loss(actor)": svg_loss.item()}
 
-    def one_step_state_value_reproduced(self, obs, actions, next_obs, dones):
+    def one_step_reproduced_state_value(self, obs, actions, next_obs, dones):
         """Compute 1-step approximation of the state value on real transition."""
         _acts, _ = self.actor(obs, actions)
         _next_obs, _ = self.model(obs, _acts, next_obs)
@@ -50,6 +50,39 @@ class OneStepSVG:
         _next_vals = self.critic(_next_obs).squeeze(-1)
         return torch.where(
             dones, _rewards, _rewards + self.config["gamma"] * _next_vals,
+        )
+
+
+class OneStepSoftSVG(OneStepSVG):
+    """Loss function for bootstrapped maximum entropy Stochastic Value Gradients.
+
+    Args:
+        model (callable): stochastic model that reproduces state and its log density
+        actor (callable): stochastic policy that reproduces action and its log density
+        critic (callable): state-value function
+        reward_fn (callable): reward function for state, action, and next state tuples
+        alpha (callable): entropy coefficient schedule
+        gamma (float): discount factor
+    """
+
+    # pylint:disable=too-few-public-methods
+
+    def __init__(self, *args, alpha, **config):
+        # pylint:disable=too-many-arguments
+        super().__init__(*args, **config)
+        self.alpha = alpha
+
+    @override(OneStepSVG)
+    def one_step_reproduced_state_value(self, obs, actions, next_obs, dones):
+        _acts, _logp = self.actor(obs, actions)
+        _next_obs, _ = self.model(obs, actions, next_obs)
+        _rewards = self.reward_fn(obs, _acts, _next_obs)
+        _augmented_rewards = _rewards - _logp * self.alpha()
+        _next_vals = self.critic(_next_obs).squeeze(-1)
+
+        gamma = self.config["gamma"]
+        return torch.where(
+            dones, _augmented_rewards, _augmented_rewards + gamma * _next_vals,
         )
 
 
