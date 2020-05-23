@@ -3,6 +3,8 @@
 from .cdq_learning import ClippedDoubleQLearning
 from .cdq_learning import SoftCDQLearning
 from .daml import DPGAwareModelLearning
+from .isfv_iteration import ISFittedVIteration
+from .isfv_iteration import ISSoftVIteration
 from .mle import MaximumLikelihood
 from .policy_gradient import DeterministicPolicyGradient
 from .policy_gradient import ModelAwareDPG
@@ -14,6 +16,8 @@ __all__ = [
     "ClippedDoubleQLearning",
     "SoftCDQLearning",
     "DeterministicPolicyGradient",
+    "ISFittedVIteration",
+    "ISSoftVIteration",
     "ModelAwareDPG",
     "OneStepSVG",
     "ReparameterizedSoftPG",
