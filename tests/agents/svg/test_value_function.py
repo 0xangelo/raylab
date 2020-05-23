@@ -1,8 +1,9 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 import torch
-import torch.nn as nn
 from ray.rllib import SampleBatch
+
+from raylab.utils.dictionaries import get_keys
 
 
 @pytest.fixture
@@ -13,13 +14,13 @@ def policy_and_batch(policy_and_batch_fn, svg_policy):
 def test_compute_value_targets(policy_and_batch):
     policy, batch = policy_and_batch
 
-    targets = policy._compute_value_targets(batch)
+    next_obs, rewards, dones = get_keys(
+        batch, SampleBatch.NEXT_OBS, SampleBatch.REWARDS, SampleBatch.DONES,
+    )
+    targets = policy.loss_critic.sampled_one_step_state_values(next_obs, rewards, dones)
     assert targets.shape == (10,)
     assert targets.dtype == torch.float32
-    assert torch.allclose(
-        targets[batch[SampleBatch.DONES]],
-        batch[SampleBatch.REWARDS][batch[SampleBatch.DONES]],
-    )
+    assert torch.allclose(targets[dones], rewards[dones])
 
     policy.module.zero_grad()
     targets.mean().backward()
@@ -31,20 +32,16 @@ def test_compute_value_targets(policy_and_batch):
 
 def test_importance_sampling_weighted_loss(policy_and_batch):
     policy, batch = policy_and_batch
+    batch[policy.loss_critic.IS_RATIOS] = torch.randn_like(batch[SampleBatch.REWARDS])
 
-    values = policy.module.critic(batch[SampleBatch.CUR_OBS])
-    values = values.squeeze(-1)
-    targets = torch.randn(10)
-    is_ratio = torch.randn(10)
-    weighted_losses = nn.MSELoss(reduction="none")(values, targets) * is_ratio
-    assert weighted_losses.shape == (10,)
-
-    loss = weighted_losses.div(2).mean()
+    loss, info = policy.loss_critic(batch)
     loss.backward()
     value_params = set(policy.module.critic.parameters())
     other_params = (p for p in policy.module.parameters() if p not in value_params)
     assert all(p.grad is not None for p in value_params)
     assert all(p.grad is None for p in other_params)
+
+    assert "loss(critic)" in info
 
 
 def test_target_params_update(policy_and_batch):
