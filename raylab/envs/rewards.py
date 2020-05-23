@@ -2,7 +2,8 @@
 import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
-from ray.tune.registry import ENV_CREATOR, _global_registry
+from ray.tune.registry import _global_registry
+from ray.tune.registry import ENV_CREATOR
 
 REWARDS = {}
 
@@ -149,15 +150,11 @@ class IndustrialBenchmarkReward(RewardFn):
 
     def __init__(self, config):
         super().__init__(config)
-        from .industrial_benchmark.ids import IDS
-
         self.reward_type = config.get("reward_type", "classic")
-        self.crf = IDS.CRF
-        self.crc = IDS.CRC
 
     @override(RewardFn)
     def forward(self, state, action, next_state):
-        fat_coeff, con_coeff = self.crf, self.crc
+        fat_coeff, con_coeff = 3, 1
         fatigue_ = next_state[..., 4]
         consumption = next_state[..., 5]
         reward = -(fat_coeff * fatigue_ + con_coeff * consumption)
