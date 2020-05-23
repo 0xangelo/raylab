@@ -8,19 +8,21 @@ from .isfv_iteration import ISSoftVIteration
 from .mle import MaximumLikelihood
 from .policy_gradient import DeterministicPolicyGradient
 from .policy_gradient import ModelAwareDPG
-from .policy_gradient import OneStepSVG
 from .policy_gradient import ReparameterizedSoftPG
+from .svg import OneStepSVG
+from .svg import TrajectorySVG
 
 
 __all__ = [
     "ClippedDoubleQLearning",
-    "SoftCDQLearning",
     "DeterministicPolicyGradient",
+    "DPGAwareModelLearning",
     "ISFittedVIteration",
     "ISSoftVIteration",
+    "MaximumLikelihood",
     "ModelAwareDPG",
     "OneStepSVG",
     "ReparameterizedSoftPG",
-    "MaximumLikelihood",
-    "DPGAwareModelLearning",
+    "SoftCDQLearning",
+    "TrajectorySVG",
 ]

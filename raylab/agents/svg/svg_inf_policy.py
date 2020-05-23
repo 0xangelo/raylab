@@ -8,9 +8,9 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu
+from raylab.losses import TrajectorySVG
 from raylab.policy import AdaptiveKLCoeffMixin
 
-from .rollout_module import ReproduceRollout
 from .svg_base_policy import SVGBaseTorchPolicy
 
 
@@ -24,10 +24,14 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         # Flag for off-policy learning
         self._off_policy_learning = False
 
-        # Add recurrent policy-model combination
-        torch_script = self.config["module"]["torch_script"]
-        rollout = ReproduceRollout(self.module.actor, self.module.model, self.reward)
-        self.rollout = torch.jit.script(rollout) if torch_script else rollout
+        self.loss_actor = TrajectorySVG(
+            self.module.model,
+            self.module.actor,
+            self.module.critic,
+            self.reward,
+            gamma=self.config["gamma"],
+            torch_script=self.config["module"].get("torch_script", False),
+        )
 
     @staticmethod
     @override(SVGBaseTorchPolicy)
@@ -88,27 +92,13 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
 
         with self.optimizer.on_policy.optimize():
-            loss, info = self.compute_stochastic_value_gradient_loss(episodes)
+            loss, info = self.loss_actor(episodes)
             kl_div = self._avg_kl_divergence(batch_tensors)
             loss = loss + kl_div * self.curr_kl_coeff
             loss.backward()
 
         info.update(self.update_kl_coeff(samples))
         return info
-
-    def compute_stochastic_value_gradient_loss(self, episodes):
-        """Compute Stochatic Value Gradient loss given full trajectories."""
-        total_ret = 0
-        for episode in episodes:
-            init_obs = episode[SampleBatch.CUR_OBS][0]
-            actions = episode[SampleBatch.ACTIONS]
-            next_obs = episode[SampleBatch.NEXT_OBS]
-
-            rewards, _ = self.rollout(actions, next_obs, init_obs)
-            total_ret += rewards.sum()
-
-        avg_sim_return = total_ret / len(episodes)
-        return -avg_sim_return, {"avg_sim_return": avg_sim_return.item()}
 
     @torch.no_grad()
     @override(AdaptiveKLCoeffMixin)
