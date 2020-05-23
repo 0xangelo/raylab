@@ -22,7 +22,7 @@ def test_truncated_svg(policy_and_batch):
         SampleBatch.REWARDS,
         SampleBatch.DONES,
     )
-    state_vals = policy.loss_actor.one_step_state_value_reproduced(
+    state_vals = policy.loss_actor.one_step_reproduced_state_value(
         obs, actions, next_obs, dones
     )
     assert state_vals.shape == (10,)
