@@ -13,6 +13,7 @@ class MaximumEntropyDual:
     """
 
     # pylint:disable=too-few-public-methods
+    ENTROPY = "entropy"
 
     def __init__(self, alpha, actor, target_entropy):
         self.alpha = alpha
@@ -21,10 +22,15 @@ class MaximumEntropyDual:
 
     def __call__(self, batch):
         """Compute entropy coefficient loss."""
-        with torch.no_grad():
-            _, logp = self.actor(batch[SampleBatch.CUR_OBS])
+
+        if self.ENTROPY in batch:
+            entropy = batch[self.ENTROPY]
+        else:
+            with torch.no_grad():
+                _, logp = self.actor(batch[SampleBatch.CUR_OBS])
+                entropy = -logp
 
         alpha = self.alpha()
-        entropy_diff = torch.mean(-alpha * logp - alpha * self.target_entropy)
+        entropy_diff = torch.mean(alpha * entropy - alpha * self.target_entropy)
         info = {"loss(alpha)": entropy_diff.item(), "curr_alpha": alpha.item()}
         return entropy_diff, info

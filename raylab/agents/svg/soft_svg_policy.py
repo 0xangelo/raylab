@@ -65,6 +65,20 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @override(SVGBaseTorchPolicy)
+    def add_truncated_importance_sampling_ratios(self, batch_tensors):
+        batch, info = super().add_truncated_importance_sampling_ratios(batch_tensors)
+        old_logp = batch[SampleBatch.ACTION_LOGP]
+        is_ratios = batch[ISSoftVIteration.IS_RATIOS]
+
+        # \pi(a|s) = \pi(a|s)/q(a|s) * q(a|s)
+        action_logp = is_ratios * old_logp
+        entropy = -action_logp
+
+        batch[ISSoftVIteration.ENTROPY] = entropy
+        batch[MaximumEntropyDual.ENTROPY] = entropy
+        return batch, info
+
+    @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
         batch_tensors, info = self.add_truncated_importance_sampling_ratios(

@@ -58,6 +58,7 @@ class ISSoftVIteration:
     """
 
     IS_RATIOS = "is_ratios"
+    ENTROPY = "entropy"
 
     def __init__(self, critic, target_critic, alpha, **config):
         self.critic = critic
@@ -67,30 +68,28 @@ class ISSoftVIteration:
 
     def __call__(self, batch):
         """Compute loss for importance sampled soft V iteration."""
-        obs, old_logp, is_ratios, next_obs, rewards, dones = dutil.get_keys(
+        obs, next_obs, rewards, dones, is_ratios, entropy = dutil.get_keys(
             batch,
             SampleBatch.CUR_OBS,
-            SampleBatch.ACTION_LOGP,
-            self.IS_RATIOS,
             SampleBatch.NEXT_OBS,
             SampleBatch.REWARDS,
             SampleBatch.DONES,
+            self.IS_RATIOS,
+            self.ENTROPY,
         )
 
         values = self.critic(obs).squeeze(-1)
-        # \pi(a|s) = \pi(a|s)/q(a|s) * q(a|s)
-        action_logp = is_ratios * old_logp
         with torch.no_grad():
             targets = self.sampled_one_step_state_values(
-                action_logp, next_obs, rewards, dones
+                entropy, next_obs, rewards, dones
             )
         value_loss = torch.nn.MSELoss()(values, is_ratios * targets) / 2
         return value_loss, {"loss(critic)": value_loss.item()}
 
-    def sampled_one_step_state_values(self, action_logp, next_obs, rewards, dones):
+    def sampled_one_step_state_values(self, entropy, next_obs, rewards, dones):
         """Bootstrapped approximation of true state-value using sampled transition."""
         gamma = self.config["gamma"]
-        augmented_rewards = rewards - self.alpha() * action_logp
+        augmented_rewards = rewards + self.alpha() * entropy
         return torch.where(
             dones,
             augmented_rewards,
