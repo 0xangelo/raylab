@@ -1,27 +1,26 @@
 """Utilities for visualization."""
+import bokeh
 import numpy as np
 import pandas as pd
-import bokeh
+from bokeh.models import BoxZoomTool
+from bokeh.models import ColumnDataSource
+from bokeh.models import HelpTool
+from bokeh.models import HoverTool
+from bokeh.models import PanTool
+from bokeh.models import ResetTool
+from bokeh.models import SaveTool
+from bokeh.models import WheelZoomTool
 from bokeh.plotting import figure
-from bokeh.models import (
-    ColumnDataSource,
-    BoxZoomTool,
-    SaveTool,
-    HoverTool,
-    PanTool,
-    WheelZoomTool,
-    ResetTool,
-    HelpTool,
-)
 
 
 def time_series(x_key, y_key, groups, labels, config):
     """Plot time series with error bands per group."""
-    # pylint:disable=too-many-function-args,too-many-arguments
+    # pylint:disable=too-many-function-args
     kwargs = dict(y_axis_type="log") if config["log_scale"] else {}
     pic = figure(title="Plot", **kwargs)
     pic.xaxis.axis_label = x_key
     pic.yaxis.axis_label = y_key
+
     pic.tools = [
         PanTool(),
         BoxZoomTool(),
@@ -39,7 +38,9 @@ def time_series(x_key, y_key, groups, labels, config):
 
     for label, group, color in zip(labels, groups, bokeh.palettes.cividis(len(labels))):
         data = group.extract()
-        progresses = [d.progress for d in data]
+        progresses = [d.progress for d in data if y_key in d.progress.columns]
+        if not progresses:
+            continue
 
         x_all, all_ys = filter_and_interpolate(x_key, y_key, progresses)
 
