@@ -2,7 +2,6 @@
 import pytest
 import torch
 
-
 from raylab.modules import MADE
 
 

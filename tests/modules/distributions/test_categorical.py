@@ -1,8 +1,9 @@
 # pylint:disable=missing-docstring,redefined-outer-name,protected-access
-import torch
 import pytest
+import torch
 
-from raylab.modules.distributions import Independent, Categorical
+from raylab.modules.distributions import Categorical
+from raylab.modules.distributions import Independent
 
 from .utils import _test_dist_ops
 

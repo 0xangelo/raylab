@@ -1,6 +1,6 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access,invalid-name
-import pytest
 import numpy as np
+import pytest
 import torch
 
 

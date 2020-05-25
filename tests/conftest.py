@@ -1,8 +1,9 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import logging
-import pytest
+
 import gym
 import gym.spaces as spaces
+import pytest
 
 import raylab
 from raylab.agents.registry import AGENTS
