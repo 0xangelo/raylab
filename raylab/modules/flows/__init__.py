@@ -12,16 +12,18 @@ https://arxiv.org/abs/1912.02762
 Mostly copied from
 https://github.com/karpathy/pytorch-normalizing-flows
 """
-from .abstract import Transform, ConditionalTransform
-from .affine_constant import AffineConstantFlow, ActNorm
-from .coupling import (
-    AffineCouplingTransform,
-    AdditiveCouplingTransform,
-    CouplingTransform,
-    PiecewiseRQSCouplingTransform,
-)
-from .maf import MAF, IAF
+
 from . import masks
+from .abstract import ConditionalTransform
+from .abstract import Transform
+from .affine_constant import ActNorm
+from .affine_constant import AffineConstantFlow
+from .coupling import AdditiveCouplingTransform
+from .coupling import AffineCouplingTransform
+from .coupling import CouplingTransform
+from .coupling import PiecewiseRQSCouplingTransform
+from .maf import IAF
+from .maf import MAF
 
 
 __all__ = [

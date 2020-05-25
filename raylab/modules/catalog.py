@@ -1,18 +1,18 @@
 """Registry of modules for PyTorch policies."""
 import torch
 
-from .naf_module import NAFModule
 from .ddpg_module import DDPGModule
+from .mapo_module import MAPOModule
+from .maxent_model_based import MaxEntModelBased
+from .naf_module import NAFModule
+from .nfmbrl import NFMBRL
+from .off_policy_nfac import OffPolicyNFAC
+from .on_policy_actor_critic import OnPolicyActorCritic
+from .on_policy_nfac import OnPolicyNFAC
 from .sac_module import SACModule
 from .simple_model_based import SimpleModelBased
 from .svg_module import SVGModule
 from .svg_realnvp_actor import SVGRealNVPActor
-from .mapo_module import MAPOModule
-from .maxent_model_based import MaxEntModelBased
-from .nfmbrl import NFMBRL
-from .on_policy_actor_critic import OnPolicyActorCritic
-from .on_policy_nfac import OnPolicyNFAC
-from .off_policy_nfac import OffPolicyNFAC
 from .trpo_tang2018 import TRPOTang2018
 
 MODULES = {

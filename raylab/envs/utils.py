@@ -2,9 +2,11 @@
 import functools
 
 from gym.wrappers import TimeLimit
-from ray.tune.registry import ENV_CREATOR, _global_registry
+from ray.tune.registry import _global_registry
+from ray.tune.registry import ENV_CREATOR
 
-from .wrappers import AddRelativeTimestep, GaussianRandomWalks
+from .wrappers import AddRelativeTimestep
+from .wrappers import GaussianRandomWalks
 
 
 def get_env_creator(env_id):

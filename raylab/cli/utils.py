@@ -1,8 +1,8 @@
 # pylint:disable=missing-module-docstring
 import functools
+import logging
 import os
 import os.path as osp
-import logging
 
 import click
 

@@ -1,5 +1,6 @@
 # pylint:disable=missing-module-docstring
-from typing import Dict, Optional
+from typing import Dict
+from typing import Optional
 
 import torch
 import torch.nn as nn

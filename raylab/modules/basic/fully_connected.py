@@ -2,7 +2,8 @@
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
-from raylab.utils.pytorch import get_activation, initialize_
+from raylab.utils.pytorch import get_activation
+from raylab.utils.pytorch import initialize_
 
 
 class FullyConnected(nn.Sequential):

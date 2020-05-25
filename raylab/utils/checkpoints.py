@@ -3,8 +3,8 @@ import os.path as osp
 import pickle
 import warnings
 
-from ray.tune.registry import get_trainable_cls
 from ray.rllib.utils import merge_dicts
+from ray.tune.registry import get_trainable_cls
 
 
 def get_agent_from_checkpoint(checkpoint, agent_name, env=None, **config_kwargs):

@@ -5,9 +5,8 @@ import shelve
 import numpy as np
 import pandas as pd
 import streamlit as st
-
-from bokeh.plotting import figure
 from bokeh.layouts import gridplot
+from bokeh.plotting import figure
 
 # pylint:disable=invalid-name,missing-docstring,pointless-string-statement
 # pylint:disable=no-value-for-parameter

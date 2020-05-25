@@ -2,7 +2,8 @@
 from raylab.utils.dictionaries import deep_merge
 
 from .abstract import AbstractActorCritic
-from .mixins import StateValueMixin, NormalizingFlowActorMixin
+from .mixins import NormalizingFlowActorMixin
+from .mixins import StateValueMixin
 
 
 BASE_CONFIG = {"torch_script": True, "actor": {}, "critic": {}}

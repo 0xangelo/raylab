@@ -5,12 +5,14 @@ import inspect
 
 import numpy as np
 import torch
-from torch.optim import Optimizer
 import torch.nn as nn
 from torch.autograd import grad
+from torch.optim import Optimizer
 
 from .dictionaries import all_except
-from .kfac import KFACMixin, KFAC, EKFAC
+from .kfac import EKFAC
+from .kfac import KFAC
+from .kfac import KFACMixin
 
 
 OPTIMIZERS = {

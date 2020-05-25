@@ -1,21 +1,24 @@
 """Base for all PyTorch policies."""
-from abc import abstractmethod
 import contextlib
 import io
+from abc import abstractmethod
 
 import torch
-from ray.tune.logger import pretty_print
-from ray.rllib.models.model import restore_original_dimensions, flatten
+from ray.rllib import SampleBatch
+from ray.rllib.models.model import flatten
+from ray.rllib.models.model import restore_original_dimensions
+from ray.rllib.policy.policy import LEARNER_STATS_KEY
+from ray.rllib.policy.policy import Policy
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.torch_ops import convert_to_non_torch_type
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
-from ray.rllib.policy.policy import Policy, LEARNER_STATS_KEY
-from ray.rllib import SampleBatch
+from ray.tune.logger import pretty_print
 
 from raylab.agents import Trainer
 from raylab.modules.catalog import get_module
 from raylab.utils.dictionaries import deep_merge
 from raylab.utils.pytorch import convert_to_tensor
+
 from .action_dist import WrapModuleDist
 
 

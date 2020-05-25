@@ -1,11 +1,10 @@
 """Model-based Actor-Critic for the maximum entropy framework."""
+
 from .abstract import AbstractModelActorCritic
-from .mixins import (
-    StochasticModelMixin,
-    StochasticActorMixin,
-    MaximumEntropyMixin,
-    StateValueMixin,
-)
+from .mixins import MaximumEntropyMixin
+from .mixins import StateValueMixin
+from .mixins import StochasticActorMixin
+from .mixins import StochasticModelMixin
 
 
 # pylint:disable=abstract-method,too-many-ancestors

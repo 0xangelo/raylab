@@ -6,7 +6,8 @@ from ray.rllib.utils.exploration import Exploration
 from ray.rllib.utils.torch_ops import convert_to_non_torch_type
 
 from raylab.modules.distributions import TanhSquashTransform
-from raylab.utils.param_noise import AdaptiveParamNoiseSpec, ddpg_distance_metric
+from raylab.utils.param_noise import AdaptiveParamNoiseSpec
+from raylab.utils.param_noise import ddpg_distance_metric
 from raylab.utils.pytorch import perturb_module_params
 
 from .random_uniform import RandomUniform

@@ -4,7 +4,6 @@ binary masks over weights ensure the autoregressive property.
 
 Based on: https://github.com/karpathy/pytorch-made
 """
-
 import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override

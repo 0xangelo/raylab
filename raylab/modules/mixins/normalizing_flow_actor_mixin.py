@@ -2,21 +2,22 @@
 import warnings
 
 import gym.spaces as spaces
-from ray.rllib.utils.annotations import override
 import torch
 import torch.nn as nn
+from ray.rllib.utils.annotations import override
 
 from raylab.utils.dictionaries import deep_merge
-from ..basic import FullyConnected, NormalParams, StdNormalParams
-from ..distributions import (
-    CompositeTransform,
-    Independent,
-    Normal,
-    TanhSquashTransform,
-    TransformedDistribution,
-)
+
 from .. import flows
 from .. import networks
+from ..basic import FullyConnected
+from ..basic import NormalParams
+from ..basic import StdNormalParams
+from ..distributions import CompositeTransform
+from ..distributions import Independent
+from ..distributions import Normal
+from ..distributions import TanhSquashTransform
+from ..distributions import TransformedDistribution
 from .stochastic_actor_mixin import StochasticPolicy
 
 

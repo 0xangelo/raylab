@@ -2,6 +2,7 @@
 import torch.nn as nn
 
 from raylab.utils.dictionaries import deep_merge
+
 from ..basic import FullyConnected
 
 

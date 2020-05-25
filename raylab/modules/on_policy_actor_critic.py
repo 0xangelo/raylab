@@ -2,7 +2,8 @@
 from ray.rllib.utils import merge_dicts
 
 from .abstract import AbstractActorCritic
-from .mixins import StochasticActorMixin, StateValueMixin
+from .mixins import StateValueMixin
+from .mixins import StochasticActorMixin
 
 
 BASE_CONFIG = {

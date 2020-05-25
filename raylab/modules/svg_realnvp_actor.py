@@ -1,6 +1,9 @@
 """SVG Module with RealNVP density approximation for the policy."""
+
 from .abstract import AbstractModelActorCritic
-from .mixins import NormalizingFlowActorMixin, SVGModelMixin, StateValueMixin
+from .mixins import NormalizingFlowActorMixin
+from .mixins import StateValueMixin
+from .mixins import SVGModelMixin
 
 
 # pylint:disable=abstract-method

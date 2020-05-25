@@ -1,10 +1,11 @@
 """CLI utilities for RayLab."""
 import click
 
-from .experiment import experiment
 from .best_checkpoint import find_best
 from .evaluate_checkpoint import rollout
-from .viskit import plot, plot_export
+from .experiment import experiment
+from .viskit import plot
+from .viskit import plot_export
 
 
 @click.group()

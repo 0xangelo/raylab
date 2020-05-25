@@ -26,9 +26,10 @@ Implementations of various coupling layers.
 Slightly modified from:
 https://github.com/bayesiains/nsf/blob/master/nde/transforms/coupling.py
 """
-from abc import ABCMeta, abstractmethod
-from typing import Dict
 import warnings
+from abc import ABCMeta
+from abc import abstractmethod
+from typing import Dict
 
 import numpy as np
 import torch
@@ -37,12 +38,10 @@ from ray.rllib.utils.annotations import override
 from ..distributions import ConditionalTransform
 from ..distributions.utils import _sum_rightmost
 from .nonlinearities import PiecewiseRationalQuadraticCDF
-from .splines import (
-    unconstrained_rational_quadratic_spline,
-    DEFAULT_MIN_BIN_WIDTH,
-    DEFAULT_MIN_BIN_HEIGHT,
-    DEFAULT_MIN_DERIVATIVE,
-)
+from .splines import DEFAULT_MIN_BIN_HEIGHT
+from .splines import DEFAULT_MIN_BIN_WIDTH
+from .splines import DEFAULT_MIN_DERIVATIVE
+from .splines import unconstrained_rational_quadratic_spline
 
 
 class CouplingTransform(ConditionalTransform, metaclass=ABCMeta):

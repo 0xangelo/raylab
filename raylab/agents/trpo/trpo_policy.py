@@ -2,16 +2,18 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.nn.utils import parameters_to_vector, vector_to_parameters
-from ray.rllib.evaluation.postprocessing import Postprocessing, compute_advantages
 from ray.rllib import SampleBatch
+from ray.rllib.evaluation.postprocessing import compute_advantages
+from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.utils.annotations import override
+from torch.nn.utils import parameters_to_vector
+from torch.nn.utils import vector_to_parameters
 
+import raylab.utils.pytorch as ptu
+from raylab.policy import TorchPolicy
 from raylab.utils import hf_util
 from raylab.utils.dictionaries import get_keys
 from raylab.utils.explained_variance import explained_variance
-import raylab.utils.pytorch as ptu
-from raylab.policy import TorchPolicy
 
 
 class TRPOTorchPolicy(TorchPolicy):

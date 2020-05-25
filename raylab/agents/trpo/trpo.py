@@ -2,7 +2,9 @@
 from ray.rllib.optimizers import SyncSamplesOptimizer
 from ray.rllib.utils.annotations import override
 
-from raylab.agents import Trainer, with_common_config
+from raylab.agents import Trainer
+from raylab.agents import with_common_config
+
 from .trpo_policy import TRPOTorchPolicy
 
 DEFAULT_CONFIG = with_common_config(
