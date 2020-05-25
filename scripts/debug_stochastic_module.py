@@ -1,7 +1,7 @@
 # pylint:disable=missing-module-docstring,missing-function-docstring,import-outside-toplevel
 import logging
-from pprint import pprint
 import warnings
+from pprint import pprint
 
 import click
 
@@ -202,7 +202,6 @@ def produce_rollout(agent):
 
 def test_rollout(policy, rollout, writer, args):
     # pylint:disable=no-member
-    from ray.rllib.policy.policy import ACTION_LOGP
     from ray.rllib.policy.sample_batch import SampleBatch
     from raylab.utils.pytorch import flat_grad
 
@@ -210,7 +209,7 @@ def test_rollout(policy, rollout, writer, args):
     if args["component"] == "actor":
         module = policy.module.actor
         inputs = (rollout[SampleBatch.CUR_OBS],)
-        samps, logp = rollout[SampleBatch.ACTIONS], rollout[ACTION_LOGP]
+        samps, logp = rollout[SampleBatch.ACTIONS], rollout[SampleBatch.ACTION_LOGP]
     elif args["component"] == "model":
         module = policy.module.model
         inputs = (
