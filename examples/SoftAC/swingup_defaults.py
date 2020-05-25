@@ -1,4 +1,4 @@
-from ray import tune
+from raylab.cli.utils import tune_experiment
 
 
 def get_config():
@@ -20,6 +20,8 @@ def get_config():
             "actor": {"encoder": {"units": (128, 128)}},
             "critic": {"encoder": {"units": (128, 128)}},
         },
+        "rollout_fragment_length": 200,
+        "batch_mode": "truncate_episodes",
         # === Trainer ===
         "train_batch_size": 128,
         "timesteps_per_iteration": 1000,
@@ -34,3 +36,9 @@ def get_config():
             "env_config": {"max_episode_steps": 500, "time_aware": False},
         },
     }
+
+
+@tune_experiment
+def main():
+    config = get_config()
+    return "SoftAC", config, {"stop": {"timesteps_total": config["buffer_size"]}}

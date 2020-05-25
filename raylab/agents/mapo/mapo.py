@@ -1,9 +1,10 @@
 """Trainer and configuration for MAPO."""
-from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.evaluation.metrics import get_learner_stats
+from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils.annotations import override
 
-from raylab.agents import Trainer, with_common_config
+from raylab.agents import Trainer
+from raylab.agents import with_common_config
 from raylab.utils.replay_buffer import ReplayBuffer
 
 from .mapo_policy import MAPOTorchPolicy
@@ -84,12 +85,6 @@ DEFAULT_CONFIG = with_common_config(
                 "desired_action_stddev": 0.2,
                 "adaptation_coeff": 1.01,
             },
-            # Until this many timesteps have elapsed, the agent's policy will be
-            # ignored & it will instead take uniform random actions. Can be used in
-            # conjunction with learning_starts (which controls when the first
-            # optimization step happens) to decrease dependence of exploration &
-            # optimization on initial policy parameters. Note that this will be
-            # disabled when the action noise scale is set to 0 (e.g during evaluation).
             "pure_exploration_steps": 1000,
         },
         # === Evaluation ===

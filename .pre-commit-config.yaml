@@ -47,6 +47,8 @@ repos:
       rev: v2.3.0
       hooks:
       - id: reorder-python-imports
+        stages: [commit, push]
+        args: [--separate-relative]
 
     - repo: https://github.com/python/black
       rev: stable

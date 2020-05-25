@@ -11,6 +11,11 @@ class RandomUniform(Exploration):
 
     Args:
         pure_exploration_steps (int): Number of initial timesteps to explore.
+            Until this many timesteps have elapsed, the agent's policy will be
+            ignored & it will instead take uniform random actions. Can be used in
+            conjunction with learning_starts (which controls when the first
+            optimization step happens) to decrease dependence of exploration &
+            optimization on initial policy parameters.
     """
 
     # pylint:disable=too-few-public-methods

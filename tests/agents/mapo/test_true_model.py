@@ -31,7 +31,7 @@ def test_model_output(policy_and_env):
     obs, act = map(lambda x: x.requires_grad_(True), (obs, act))
 
     torch.manual_seed(42)
-    sample, logp = policy.transition(obs, act)
+    sample, logp = policy.loss_actor.model(obs, act)
     torch.manual_seed(42)
     next_obs, log_prob = env.transition_fn(obs, act)
     assert torch.allclose(sample, next_obs)
@@ -46,7 +46,7 @@ def test_madpg_loss(policy_and_env):
         fake_batch(policy.observation_space, policy.action_space, batch_size=10)
     )
 
-    loss, info = policy.madpg_loss(batch)
+    loss, info = policy.loss_actor(batch)
     assert isinstance(info, dict)
     assert loss.shape == ()
     assert loss.dtype == torch.float32
