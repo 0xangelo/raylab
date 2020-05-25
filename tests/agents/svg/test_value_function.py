@@ -14,10 +14,8 @@ def policy_and_batch(policy_and_batch_fn, svg_policy):
 def test_compute_value_targets(policy_and_batch):
     policy, batch = policy_and_batch
 
-    next_obs, rewards, dones = get_keys(
-        batch, SampleBatch.NEXT_OBS, SampleBatch.REWARDS, SampleBatch.DONES,
-    )
-    targets = policy.loss_critic.sampled_one_step_state_values(next_obs, rewards, dones)
+    rewards, dones = get_keys(batch, SampleBatch.REWARDS, SampleBatch.DONES)
+    targets = policy.loss_critic.sampled_one_step_state_values(batch)
     assert targets.shape == (10,)
     assert targets.dtype == torch.float32
     assert torch.allclose(targets[dones], rewards[dones])
