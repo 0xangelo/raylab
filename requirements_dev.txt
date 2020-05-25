@@ -13,4 +13,4 @@ pytest==5.4.2
 pytest-runner==5.2
 ray[rllib,dashboard]==0.8.5
 torch==1.5.0
-gym-cartpole-swingup
+gym-cartpole-swingup==0.0.9
