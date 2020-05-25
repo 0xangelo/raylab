@@ -1,8 +1,8 @@
 # pylint: disable=missing-docstring
 # pylint: enable=missing-docstring
 import gym
-import torch
 import numpy as np
+import torch
 
 
 DEFAULT_CONFIG = {

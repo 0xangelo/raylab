@@ -2,7 +2,8 @@
 From Proximal Policy Optimization Algorithms:
 http://arxiv.org/abs/1707.06347
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
 
 
 @dataclass

@@ -16,6 +16,7 @@ copies or substantial portions of the Software.
 Adapted from: https://github.com/Thrandis/EKFAC-pytorch
 """
 import contextlib
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

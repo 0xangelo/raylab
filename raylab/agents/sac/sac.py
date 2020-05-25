@@ -2,7 +2,9 @@
 Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning
 with a Stochastic Actor.
 """
-from raylab.agents.off_policy import GenericOffPolicyTrainer, with_base_config
+from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import with_base_config
+
 from .sac_policy import SACTorchPolicy
 
 
@@ -43,13 +45,6 @@ DEFAULT_CONFIG = with_base_config(
             # of your class (e.g. "ray.rllib.utils.exploration.epsilon_greedy.
             # EpsilonGreedy").
             "type": "raylab.utils.exploration.StochasticActor",
-            # Options for parameter noise exploration
-            # Until this many timesteps have elapsed, the agent's policy will be
-            # ignored & it will instead take uniform random actions. Can be used in
-            # conjunction with learning_starts (which controls when the first
-            # optimization step happens) to decrease dependence of exploration &
-            # optimization on initial policy parameters. Note that this will be
-            # disabled when the action noise scale is set to 0 (e.g during evaluation).
             "pure_exploration_steps": 1000,
         },
         # === Evaluation ===

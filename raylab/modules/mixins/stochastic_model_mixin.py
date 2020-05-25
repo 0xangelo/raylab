@@ -6,8 +6,11 @@ import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
 from raylab.utils.dictionaries import deep_merge
-from ..basic import StateActionEncoder, NormalParams
-from ..distributions import Independent, Normal
+
+from ..basic import NormalParams
+from ..basic import StateActionEncoder
+from ..distributions import Independent
+from ..distributions import Normal
 
 
 BASE_CONFIG = {

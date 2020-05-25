@@ -1,7 +1,7 @@
 """Debugging utilities."""
+import gym.spaces as spaces
 import numpy as np
 from ray.rllib import SampleBatch
-import gym.spaces as spaces
 
 
 def fake_space_samples(space, batch_size):

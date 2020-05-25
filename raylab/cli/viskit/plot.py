@@ -1,7 +1,7 @@
 # pylint: disable=missing-docstring
 import functools
-from math import sqrt
 from contextlib import nullcontext
+from math import sqrt
 
 import click
 

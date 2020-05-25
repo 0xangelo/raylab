@@ -1,13 +1,15 @@
 """Distributions as PyTorch modules compatible with TorchScript."""
-from typing import Dict, List
+from typing import Dict
+from typing import List
 
 import numpy as np
 import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
+from .transforms import ConditionalTransform
+from .transforms import Transform
 from .utils import _sum_rightmost
-from .transforms import Transform, ConditionalTransform
 
 
 class ConditionalDistribution(nn.Module):

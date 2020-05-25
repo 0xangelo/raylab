@@ -3,6 +3,7 @@ import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
 from raylab.utils.dictionaries import deep_merge
+
 from ..basic import StateActionEncoder
 
 

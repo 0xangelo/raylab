@@ -2,24 +2,25 @@
 from typing import Dict
 
 import gym.spaces as spaces
-from ray.rllib.utils import merge_dicts
-from ray.rllib.utils.annotations import override
 import torch
 import torch.nn as nn
+from ray.rllib.utils import merge_dicts
+from ray.rllib.utils.annotations import override
 
 from raylab.utils.pytorch import initialize_
-from .abstract import AbstractActorCritic
-from .basic import FullyConnected
-from .distributions import (
-    CompositeTransform,
-    Independent,
-    Normal,
-    TanhSquashTransform,
-    TransformedDistribution,
-)
-from .mixins import StateValueMixin, StochasticActorMixin, StochasticPolicy
+
 from . import flows
 from . import networks
+from .abstract import AbstractActorCritic
+from .basic import FullyConnected
+from .distributions import CompositeTransform
+from .distributions import Independent
+from .distributions import Normal
+from .distributions import TanhSquashTransform
+from .distributions import TransformedDistribution
+from .mixins import StateValueMixin
+from .mixins import StochasticActorMixin
+from .mixins import StochasticPolicy
 
 
 # Defaults for Hopper-v1

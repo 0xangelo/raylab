@@ -2,20 +2,21 @@
 import logging
 import sys
 
-from bokeh.layouts import gridplot
-from bokeh.models import ColumnDataSource, DataRange1d
-from bokeh.plotting import figure
 import numpy as np
 import pandas as pd
 import ray
-from ray.rllib import SampleBatch
 import streamlit as st
 import torch
+from bokeh.layouts import gridplot
+from bokeh.models import ColumnDataSource
+from bokeh.models import DataRange1d
+from bokeh.plotting import figure
+from ray.rllib import SampleBatch
 
 import raylab
-from raylab.utils.checkpoints import get_agent_from_checkpoint
 import raylab.utils.dictionaries as dutil
 import raylab.utils.pytorch as ptu
+from raylab.utils.checkpoints import get_agent_from_checkpoint
 
 # pylint:disable=invalid-name,missing-docstring,pointless-string-statement
 # pylint:disable=no-value-for-parameter

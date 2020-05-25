@@ -1,7 +1,7 @@
 """Utilities for dynamically importing modules."""
-import sys
 import os.path as osp
 import pathlib
+import sys
 from importlib import import_module
 
 

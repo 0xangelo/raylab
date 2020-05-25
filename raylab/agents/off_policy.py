@@ -1,9 +1,10 @@
 # pylint: disable=missing-module-docstring
-from ray.rllib.utils.annotations import override
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers import PolicyOptimizer
+from ray.rllib.utils.annotations import override
 
-from raylab.agents import Trainer, with_common_config
+from raylab.agents import Trainer
+from raylab.agents import with_common_config
 from raylab.utils.dictionaries import deep_merge
 from raylab.utils.replay_buffer import ReplayBuffer
 
@@ -54,7 +55,7 @@ class GenericOffPolicyTrainer(Trainer):
 
     @override(Trainer)
     def _train(self):
-        self.sample_until_learning_starts()
+        start_samples = self.sample_until_learning_starts()
 
         worker = self.workers.local_worker()
         policy = worker.get_policy()
@@ -70,6 +71,7 @@ class GenericOffPolicyTrainer(Trainer):
                 stats = get_learner_stats(policy.learn_on_batch(batch))
                 self.optimizer.num_steps_trained += batch.count
 
+        self.optimizer.num_steps_sampled += start_samples
         return self._log_metrics(stats)
 
     def sample_until_learning_starts(self):
@@ -78,14 +80,14 @@ class GenericOffPolicyTrainer(Trainer):
         the next policy update.
         """
         learning_starts = self.config["learning_starts"]
-        samples_count = self.config["rollout_fragment_length"]
         worker = self.workers.local_worker()
-        while self.optimizer.num_steps_sampled < learning_starts - samples_count:
+        sample_count = 0
+        while self.optimizer.num_steps_sampled + sample_count < learning_starts:
             samples = worker.sample()
-            self.optimizer.num_steps_sampled += samples.count
-            self.global_vars["timestep"] += samples.count
+            sample_count += samples.count
             for row in samples.rows():
                 self.replay.add(row)
+        return sample_count
 
     def _before_replay_steps(self, policy):  # pylint:disable=unused-argument
         pass

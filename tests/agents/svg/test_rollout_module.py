@@ -13,7 +13,7 @@ def test_reproduce_rewards(policy_and_batch):
     policy, batch = policy_and_batch
 
     with torch.no_grad():
-        rewards, _ = policy.rollout(
+        rewards, _ = policy.loss_actor.rollout(
             batch[SampleBatch.ACTIONS],
             batch[SampleBatch.NEXT_OBS],
             batch[SampleBatch.CUR_OBS][0],
@@ -25,7 +25,7 @@ def test_reproduce_rewards(policy_and_batch):
 def test_propagates_gradients(policy_and_batch):
     policy, batch = policy_and_batch
 
-    rewards, _ = policy.rollout(
+    rewards, _ = policy.loss_actor.rollout(
         batch[SampleBatch.ACTIONS],
         batch[SampleBatch.NEXT_OBS],
         batch[SampleBatch.CUR_OBS][0],

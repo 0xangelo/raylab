@@ -1,5 +1,6 @@
 """Collection of invertible transform functions, or Flows."""
 import math
+
 import torch
 import torch.nn.functional as F
 from torch.distributions import constraints

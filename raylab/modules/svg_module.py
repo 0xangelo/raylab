@@ -2,7 +2,9 @@
 from raylab.utils.dictionaries import deep_merge
 
 from .abstract import AbstractModelActorCritic
-from .mixins import SVGModelMixin, StochasticActorMixin, StateValueMixin
+from .mixins import StateValueMixin
+from .mixins import StochasticActorMixin
+from .mixins import SVGModelMixin
 
 
 BASE_CONFIG = {

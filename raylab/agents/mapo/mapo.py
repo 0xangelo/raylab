@@ -1,15 +1,13 @@
 """Trainer and configuration for MAPO."""
-from ray.rllib.optimizers import PolicyOptimizer
-from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.utils.annotations import override
 
-from raylab.agents import Trainer, with_common_config
-from raylab.utils.replay_buffer import ReplayBuffer
+from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import with_base_config
 
 from .mapo_policy import MAPOTorchPolicy
 
 
-DEFAULT_CONFIG = with_common_config(
+DEFAULT_CONFIG = with_base_config(
     {
         # === MAPO model training ===
         # Type of model-training to use. Possible types include
@@ -84,12 +82,6 @@ DEFAULT_CONFIG = with_common_config(
                 "desired_action_stddev": 0.2,
                 "adaptation_coeff": 1.01,
             },
-            # Until this many timesteps have elapsed, the agent's policy will be
-            # ignored & it will instead take uniform random actions. Can be used in
-            # conjunction with learning_starts (which controls when the first
-            # optimization step happens) to decrease dependence of exploration &
-            # optimization on initial policy parameters. Note that this will be
-            # disabled when the action noise scale is set to 0 (e.g during evaluation).
             "pure_exploration_steps": 1000,
         },
         # === Evaluation ===
@@ -101,7 +93,7 @@ DEFAULT_CONFIG = with_common_config(
 )
 
 
-class MAPOTrainer(Trainer):
+class MAPOTrainer(GenericOffPolicyTrainer):
     """Single agent trainer for Model-Aware Policy Optimization."""
 
     # pylint: disable=attribute-defined-outside-init
@@ -110,61 +102,11 @@ class MAPOTrainer(Trainer):
     _default_config = DEFAULT_CONFIG
     _policy = MAPOTorchPolicy
 
-    @override(Trainer)
+    @override(GenericOffPolicyTrainer)
     def _init(self, config, env_creator):
-        self._validate_config(config)
-
-        self.workers = self._make_workers(
-            env_creator, self._policy, config, num_workers=0
-        )
-
+        super()._init(config, env_creator)
         if config["true_model"]:
             self.set_transition_kernel()
-
-        # Dummy optimizer to log stats
-        self.optimizer = PolicyOptimizer(self.workers)
-        self.replay = ReplayBuffer(config["buffer_size"])
-
-    @override(Trainer)
-    def _train(self):
-        worker = self.workers.local_worker()
-        policy = worker.get_policy()
-
-        self.sample_until_learning_starts(worker)
-
-        while not self._iteration_done():
-            samples = worker.sample()
-            self.optimizer.num_steps_sampled += samples.count
-            for row in samples.rows():
-                self.replay.add(row)
-
-            for _ in range(samples.count):
-                batch = self.replay.sample(self.config["train_batch_size"])
-                stats = get_learner_stats(policy.learn_on_batch(batch))
-                self.optimizer.num_steps_trained += batch.count
-
-        return self._log_metrics(stats)
-
-    def sample_until_learning_starts(self, worker):
-        """
-        Sample enough transtions so that 'learning_starts' steps are collected before
-        the next policy update.
-        """
-        learning_starts = self.config["learning_starts"]
-        samples_count = self.config["rollout_fragment_length"]
-        while self.optimizer.num_steps_sampled < learning_starts - samples_count:
-            samples = worker.sample()
-            self.optimizer.num_steps_sampled += samples.count
-            self.global_vars["timestep"] += samples.count
-            for row in samples.rows():
-                self.replay.add(row)
-
-    @staticmethod
-    def _validate_config(config):
-        assert config["num_workers"] == 0, "No point in using additional workers."
-        assert (
-            config["rollout_fragment_length"] >= 1
-        ), "At least one sample must be collected."
 
     def set_transition_kernel(self):
         """Make policies use the real transition kernel."""

@@ -7,6 +7,10 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
 import raylab.utils.pytorch as ptu
+from raylab.losses import ISSoftVIteration
+from raylab.losses import MaximumEntropyDual
+from raylab.losses import OneStepSoftSVG
+
 from .svg_base_policy import SVGBaseTorchPolicy
 
 
@@ -17,9 +21,31 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        if self.config["target_entropy"] == "auto":
-            self.config["target_entropy"] = -action_space.shape[0]
         assert "target_critic" in self.module, "SoftSVG needs a target Value function!"
+
+        self.loss_actor = OneStepSoftSVG(
+            self.module.model.reproduce,
+            self.module.actor.reproduce,
+            self.module.critic,
+            self.reward,
+            alpha=self.module.alpha,
+            gamma=self.config["gamma"],
+        )
+        self.loss_critic = ISSoftVIteration(
+            self.module.critic,
+            self.module.target_critic,
+            self.module.actor.sample,
+            self.module.alpha,
+            gamma=self.config["gamma"],
+        )
+        target_entropy = (
+            -action_space.shape[0]
+            if self.config["target_entropy"] == "auto"
+            else self.config["target_entropy"]
+        )
+        self.loss_alpha = MaximumEntropyDual(
+            self.module.alpha, self.module.actor.sample, target_entropy
+        )
 
     @staticmethod
     @override(SVGBaseTorchPolicy)
@@ -39,12 +65,37 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
+    @torch.no_grad()
+    @override(SVGBaseTorchPolicy)
+    def add_truncated_importance_sampling_ratios(self, batch_tensors):
+        """Compute and add truncated importance sampling ratios to tensor batch."""
+        curr_logp = self.module.actor.log_prob(
+            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
+        )
+
+        is_ratios = torch.exp(curr_logp - batch_tensors[SampleBatch.ACTION_LOGP])
+        _is_ratios = torch.clamp(is_ratios, max=self.config["max_is_ratio"])
+
+        batch_tensors[self.loss_actor.IS_RATIOS] = _is_ratios
+        batch_tensors[self.loss_critic.IS_RATIOS] = _is_ratios
+
+        info = {
+            "is_ratio_max": is_ratios.max().item(),
+            "is_ratio_mean": is_ratios.mean().item(),
+            "is_ratio_min": is_ratios.min().item(),
+            "cross_entropy": -curr_logp.mean().item(),
+        }
+        return batch_tensors, info
+
     @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
-        batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
+        batch_tensors, info = self.add_truncated_importance_sampling_ratios(
+            batch_tensors
+        )
 
-        info.update(self._update_model_and_critic(batch_tensors))
+        info.update(self._update_model(batch_tensors))
+        info.update(self._update_critic(batch_tensors))
         info.update(self._update_actor(batch_tensors))
         if self.config["target_entropy"] is not None:
             info.update(self._update_alpha(batch_tensors))
@@ -52,96 +103,44 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         self.update_targets("critic", "target_critic")
         return self._learner_stats(info)
 
-    def _update_model_and_critic(self, batch_tensors):
-        with self.optimizer.model.optimize(), self.optimizer.critic.optimize():
-            model_value_loss, info = self.compute_joint_model_value_loss(batch_tensors)
-            model_value_loss.backward()
+    def _update_model(self, batch_tensors):
+        with self.optimizer.model.optimize():
+            model_loss, info = self.loss_model(batch_tensors)
+            model_loss.backward()
 
-        info.update(self.extra_grad_info("model", batch_tensors))
-        info.update(self.extra_grad_info("critic", batch_tensors))
+        info.update(self.extra_grad_info("model"))
         return info
 
-    @override(SVGBaseTorchPolicy)
-    def _compute_value_targets(self, batch_tensors):
-        _, logp = self.module.actor.sample(batch_tensors[SampleBatch.CUR_OBS])
-        rewards = batch_tensors[SampleBatch.REWARDS]
-        augmented_rewards = rewards - logp * self.module.alpha()
+    def _update_critic(self, batch_tensors):
+        with self.optimizer.critic.optimize():
+            value_loss, info = self.loss_critic(batch_tensors)
+            value_loss.backward()
 
-        next_obs = batch_tensors[SampleBatch.NEXT_OBS]
-        next_vals = self.module.target_critic(next_obs).squeeze(-1)
-
-        gamma = self.config["gamma"]
-        targets = torch.where(
-            batch_tensors[SampleBatch.DONES],
-            augmented_rewards,
-            augmented_rewards + gamma * next_vals,
-        )
-        return targets
+        info.update(self.extra_grad_info("critic"))
+        return info
 
     def _update_actor(self, batch_tensors):
         with self.optimizer.actor.optimize():
-            svg_loss, info = self.compute_stochastic_value_gradient_loss(batch_tensors)
+            svg_loss, info = self.loss_actor(batch_tensors)
             svg_loss.backward()
 
-        info.update(self.extra_grad_info("actor", batch_tensors))
+        info.update(self.extra_grad_info("actor"))
         return info
-
-    def compute_stochastic_value_gradient_loss(self, batch_tensors):
-        """Compute bootstrapped Stochatic Value Gradient loss."""
-        is_ratios = batch_tensors[self.IS_RATIOS]
-        td_targets = self._compute_policy_td_targets(batch_tensors)
-        svg_loss = -torch.mean(is_ratios * td_targets)
-        return svg_loss, {"loss(actor)": svg_loss.item()}
-
-    def _compute_policy_td_targets(self, batch_tensors):
-        _acts, _logp = self.module.actor.reproduce(
-            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
-        )
-        _next_obs, _ = self.module.model.reproduce(
-            batch_tensors[SampleBatch.CUR_OBS],
-            _acts,
-            batch_tensors[SampleBatch.NEXT_OBS],
-        )
-        _rewards = self.reward(batch_tensors[SampleBatch.CUR_OBS], _acts, _next_obs)
-        _augmented_rewards = _rewards - _logp * self.module.alpha()
-        _next_vals = self.module.critic(_next_obs).squeeze(-1)
-
-        gamma = self.config["gamma"]
-        return torch.where(
-            batch_tensors[SampleBatch.DONES],
-            _augmented_rewards,
-            _augmented_rewards + gamma * _next_vals,
-        )
 
     def _update_alpha(self, batch_tensors):
         with self.optimizer.alpha.optimize():
-            alpha_loss, info = self.compute_alpha_loss(batch_tensors)
+            alpha_loss, info = self.loss_alpha(batch_tensors)
             alpha_loss.backward()
 
-        info.update(self.extra_grad_info("actor", batch_tensors))
+        info.update(self.extra_grad_info("alpha"))
         return info
 
-    def compute_alpha_loss(self, batch_tensors):
-        """Compute entropy coefficient loss."""
-        target_entropy = self.config["target_entropy"]
-
-        with torch.no_grad():
-            _, logp = self.module.actor.rsample(batch_tensors[SampleBatch.CUR_OBS])
-
-        alpha = self.module.alpha()
-        entropy_diff = torch.mean(-alpha * logp - alpha * target_entropy)
-        info = {"loss(alpha)": entropy_diff.item(), "curr_alpha": alpha.item()}
-        return entropy_diff, info
-
     @torch.no_grad()
-    def extra_grad_info(self, component, batch_tensors):
+    def extra_grad_info(self, component):
         """Return gradient statistics for component."""
         fetches = {
             f"grad_norm({component})": nn.utils.clip_grad_norm_(
                 self.module[component].parameters(), float("inf")
             ).item()
         }
-        if component == "actor":
-            _, logp = self.module.actor.sample(batch_tensors[SampleBatch.CUR_OBS])
-            fetches["entropy"] = -logp.mean().item()
         return fetches

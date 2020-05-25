@@ -4,8 +4,10 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.utils.annotations import override
 
-from raylab.policy import AdaptiveKLCoeffMixin
 import raylab.utils.pytorch as ptu
+from raylab.losses import OneStepSVG
+from raylab.policy import AdaptiveKLCoeffMixin
+
 from .svg_base_policy import SVGBaseTorchPolicy
 
 
@@ -13,6 +15,16 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
 
     # pylint: disable=abstract-method
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.loss_actor = OneStepSVG(
+            self.module.model.reproduce,
+            self.module.actor.reproduce,
+            self.module.critic,
+            self.reward,
+            gamma=self.config["gamma"],
+        )
 
     @staticmethod
     @override(SVGBaseTorchPolicy)
@@ -45,7 +57,9 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
     @override(SVGBaseTorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
-        batch_tensors, info = self.add_importance_sampling_ratios(batch_tensors)
+        batch_tensors, info = self.add_truncated_importance_sampling_ratios(
+            batch_tensors
+        )
 
         with self.optimizer.optimize():
             model_value_loss, stats = self.compute_joint_model_value_loss(batch_tensors)
@@ -53,9 +67,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
             model_value_loss.backward()
 
             with self.freeze_nets("model", "critic"):
-                svg_loss, stats = self.compute_stochastic_value_gradient_loss(
-                    batch_tensors
-                )
+                svg_loss, stats = self.loss_actor(batch_tensors)
                 info.update(stats)
                 kl_loss = self.curr_kl_coeff * self._avg_kl_divergence(batch_tensors)
                 (svg_loss + kl_loss).backward()
@@ -64,29 +76,6 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         info.update(self.update_kl_coeff(samples))
         self.update_targets("critic", "target_critic")
         return self._learner_stats(info)
-
-    def compute_stochastic_value_gradient_loss(self, batch_tensors):
-        """Compute bootstrapped Stochatic Value Gradient loss."""
-        td_targets = self._compute_policy_td_targets(batch_tensors)
-        svg_loss = torch.mean(batch_tensors[self.IS_RATIOS] * td_targets).neg()
-        return svg_loss, {"svg_loss": svg_loss.item()}
-
-    def _compute_policy_td_targets(self, batch_tensors):
-        _acts, _ = self.module.actor.reproduce(
-            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
-        )
-        _next_obs, _ = self.module.model.reproduce(
-            batch_tensors[SampleBatch.CUR_OBS],
-            _acts,
-            batch_tensors[SampleBatch.NEXT_OBS],
-        )
-        _rewards = self.reward(batch_tensors[SampleBatch.CUR_OBS], _acts, _next_obs)
-        _next_vals = self.module.critic(_next_obs).squeeze(-1)
-        return torch.where(
-            batch_tensors[SampleBatch.DONES],
-            _rewards,
-            _rewards + self.config["gamma"] * _next_vals,
-        )
 
     @torch.no_grad()
     @override(AdaptiveKLCoeffMixin)
@@ -109,21 +98,15 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
 
     @torch.no_grad()
     def extra_grad_info(self, batch_tensors):
-        """Compute gradient norm for components. Also clips policy gradient."""
-        model_params = self.module.model.parameters()
-        value_params = self.module.critic.parameters()
-        policy_params = self.module.actor.parameters()
-        fetches = {
-            "model_grad_norm": nn.utils.clip_grad_norm_(
-                model_params, float("inf")
-            ).item(),
-            "value_grad_norm": nn.utils.clip_grad_norm_(
-                value_params, float("inf")
-            ).item(),
-            "policy_grad_norm": nn.utils.clip_grad_norm_(
-                policy_params, max_norm=self.config["max_grad_norm"]
-            ).item(),
-            "policy_entropy": self.module.actor.log_prob(
+        """Compute gradient norms and policy statistics."""
+        grad_norms = {
+            f"grad_norm(k)": nn.utils.clip_grad_norm_(
+                self.module[k].parameters(), float("inf")
+            )
+            for k in "model actor critic".split()
+        }
+        policy_info = {
+            "entropy": self.module.actor.log_prob(
                 batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
             )
             .mean()
@@ -131,4 +114,4 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
             .item(),
             "curr_kl_coeff": self.curr_kl_coeff,
         }
-        return fetches
+        return {**grad_norms, **policy_info}

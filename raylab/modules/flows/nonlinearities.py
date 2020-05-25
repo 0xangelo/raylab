@@ -32,14 +32,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..distributions import Transform, InverseTransform, CompositeTransform
+from ..distributions import CompositeTransform
+from ..distributions import InverseTransform
+from ..distributions import Transform
 from ..distributions.utils import _sum_rightmost
-from .splines import (
-    unconstrained_rational_quadratic_spline,
-    DEFAULT_MIN_BIN_WIDTH,
-    DEFAULT_MIN_BIN_HEIGHT,
-    DEFAULT_MIN_DERIVATIVE,
-)
+from .splines import DEFAULT_MIN_BIN_HEIGHT
+from .splines import DEFAULT_MIN_BIN_WIDTH
+from .splines import DEFAULT_MIN_DERIVATIVE
+from .splines import unconstrained_rational_quadratic_spline
 
 
 class Tanh(Transform):

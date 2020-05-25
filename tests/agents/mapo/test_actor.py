@@ -23,7 +23,7 @@ def test_next_action_grads_propagation(policy_and_batch):
 
     acts = policy.module.actor(obs)
     torch.manual_seed(42)
-    surrogate = policy.one_step_action_value_surrogate(obs, acts)
+    surrogate = policy.loss_actor.one_step_action_value_surrogate(obs, acts)
     surrogate.mean().backward()
     grads = [p.grad.clone() for p in policy.module.actor.parameters()]
 
@@ -32,7 +32,7 @@ def test_next_action_grads_propagation(policy_and_batch):
     acts = policy.module.actor(obs)
     fix_acts = acts.detach().requires_grad_()
     torch.manual_seed(42)
-    surrogate = policy.one_step_action_value_surrogate(obs, fix_acts)
+    surrogate = policy.loss_actor.one_step_action_value_surrogate(obs, fix_acts)
     surrogate.mean().backward()
     acts.backward(gradient=fix_acts.grad)
     grads_ = [p.grad.clone() for p in policy.module.actor.parameters()]
@@ -43,7 +43,7 @@ def test_next_action_grads_propagation(policy_and_batch):
 def test_actor_loss(policy_and_batch):
     policy, batch = policy_and_batch
 
-    loss, info = policy.madpg_loss(batch)
+    loss, info = policy.loss_actor(batch)
     assert isinstance(info, dict)
     assert loss.shape == ()
     assert loss.dtype == torch.float32

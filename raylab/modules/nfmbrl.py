@@ -1,11 +1,10 @@
 """Model-based architecture with Normalizing Flows."""
+
 from .abstract import AbstractModelActorCritic
-from .mixins import (
-    MaximumEntropyMixin,
-    NormalizingFlowModelMixin,
-    NormalizingFlowActorMixin,
-    StateValueMixin,
-)
+from .mixins import MaximumEntropyMixin
+from .mixins import NormalizingFlowActorMixin
+from .mixins import NormalizingFlowModelMixin
+from .mixins import StateValueMixin
 
 
 # pylint:disable=abstract-method,too-many-ancestors

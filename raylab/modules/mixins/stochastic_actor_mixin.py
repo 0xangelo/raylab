@@ -1,20 +1,21 @@
 """Support for modules with stochastic policies."""
 from typing import List
 
+import gym.spaces as spaces
 import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
-import gym.spaces as spaces
 
 from raylab.utils.dictionaries import deep_merge
-from ..basic import CategoricalParams, FullyConnected, NormalParams
-from ..distributions import (
-    Categorical,
-    Independent,
-    Normal,
-    TanhSquashTransform,
-    TransformedDistribution,
-)
+
+from ..basic import CategoricalParams
+from ..basic import FullyConnected
+from ..basic import NormalParams
+from ..distributions import Categorical
+from ..distributions import Independent
+from ..distributions import Normal
+from ..distributions import TanhSquashTransform
+from ..distributions import TransformedDistribution
 
 
 def _build_fully_connected(obs_space, config):

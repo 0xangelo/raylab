@@ -15,7 +15,7 @@ def clipped_double_q(request):
 
 def test_actor_loss(policy_and_batch_fn, clipped_double_q, input_dependent_scale):
     policy, batch = policy_and_batch_fn({**clipped_double_q, **input_dependent_scale})
-    loss, _ = policy.compute_actor_loss(batch, policy.module, policy.config)
+    loss, info = policy.loss_actor(batch)
 
     assert loss.shape == ()
     assert loss.dtype == torch.float32
@@ -24,3 +24,6 @@ def test_actor_loss(policy_and_batch_fn, clipped_double_q, input_dependent_scale
     assert all(p.grad is not None for p in policy.module.actor.parameters())
     assert all(p.grad is not None for p in policy.module.alpha.parameters())
     assert all(p.grad is not None for p in policy.module.critics.parameters())
+
+    assert "loss(actor)" in info
+    assert "entropy" in info

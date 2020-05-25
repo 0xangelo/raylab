@@ -40,7 +40,8 @@ def svg_inf_policy(svg_inf_trainer):
 
 
 @pytest.fixture
-def policy_and_batch_fn(policy_and_batch_):
+def policy_and_batch_fn(policy_and_batch_, envs):
+    # pylint:disable=unused-argument
     def make_policy_and_batch(policy_cls, config):
         config["env"] = "MockEnv"
         policy, batch = policy_and_batch_(policy_cls, config)

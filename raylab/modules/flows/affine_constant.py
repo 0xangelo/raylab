@@ -1,7 +1,7 @@
 """A simple family of diffeomorphisms."""
 import torch
-from torch import nn
 from ray.rllib.utils.annotations import override
+from torch import nn
 
 from .abstract import Transform
 

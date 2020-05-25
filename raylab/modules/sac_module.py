@@ -2,7 +2,9 @@
 from raylab.utils.dictionaries import deep_merge
 
 from .abstract import AbstractActorCritic
-from .mixins import MaximumEntropyMixin, StochasticActorMixin, ActionValueMixin
+from .mixins import ActionValueMixin
+from .mixins import MaximumEntropyMixin
+from .mixins import StochasticActorMixin
 
 
 BASE_CONFIG = {

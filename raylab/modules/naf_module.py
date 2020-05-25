@@ -5,8 +5,12 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
+from raylab.modules import FullyConnected
+from raylab.modules import NormalizedLinear
+from raylab.modules import TanhSquash
+from raylab.modules import TrilMatrix
 from raylab.utils.dictionaries import deep_merge
-from raylab.modules import FullyConnected, TrilMatrix, NormalizedLinear, TanhSquash
+
 from .mixins import DeterministicPolicy
 
 

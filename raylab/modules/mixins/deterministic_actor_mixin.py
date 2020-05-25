@@ -6,12 +6,11 @@ import torch.nn as nn
 from ray.rllib.utils.annotations import override
 
 from raylab.utils.dictionaries import deep_merge
-from ..basic import (
-    FullyConnected,
-    NormalizedLinear,
-    TanhSquash,
-    GaussianNoise,
-)
+
+from ..basic import FullyConnected
+from ..basic import GaussianNoise
+from ..basic import NormalizedLinear
+from ..basic import TanhSquash
 
 
 BASE_CONFIG = {

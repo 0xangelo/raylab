@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
 
+import raylab.utils.dictionaries as dutil
+
 
 @pytest.fixture(params=(True, False), ids=("DoubleQ", "SingleQ"))
 def clipped_double_q(request):
@@ -34,13 +36,13 @@ def policy_and_batch(policy_and_batch_fn, config):
 def test_critic_targets(policy_and_batch):
     policy, batch = policy_and_batch
 
-    targets = policy.critic_targets(batch)
+    rewards, next_obs, dones = dutil.get_keys(
+        batch, SampleBatch.REWARDS, SampleBatch.NEXT_OBS, SampleBatch.DONES
+    )
+    targets = policy.loss_critic.critic_targets(rewards, next_obs, dones)
     assert targets.shape == (10,)
     assert targets.dtype == torch.float32
-    assert torch.allclose(
-        targets[batch[SampleBatch.DONES]],
-        batch[SampleBatch.REWARDS][batch[SampleBatch.DONES]],
-    )
+    assert torch.allclose(targets[dones], rewards[dones])
 
     policy.module.zero_grad()
     targets.mean().backward()
@@ -52,7 +54,7 @@ def test_critic_targets(policy_and_batch):
 
 def test_critic_loss(policy_and_batch):
     policy, batch = policy_and_batch
-    loss, info = policy.critic_loss(batch)
+    loss, info = policy.loss_critic(batch)
 
     assert loss.shape == ()
     assert loss.dtype == torch.float32
@@ -63,10 +65,8 @@ def test_critic_loss(policy_and_batch):
     assert all(p.grad is not None for p in params)
     assert all(p.grad is None for p in set(policy.module.parameters()) - params)
 
-    vals = [
-        m(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
-        for m in policy.module.critics
-    ]
+    obs, acts = dutil.get_keys(batch, SampleBatch.CUR_OBS, SampleBatch.ACTIONS)
+    vals = [m(obs, acts) for m in policy.module.critics]
     concat_vals = torch.cat(vals, dim=-1)
     targets = torch.randn_like(vals[0])
     loss_fn = nn.MSELoss()

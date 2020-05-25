@@ -4,6 +4,9 @@ import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
 
+import raylab.utils.dictionaries as dutil
+from raylab.losses import ClippedDoubleQLearning
+
 
 @pytest.fixture(params=(True, False))
 def clipped_double_q(request):
@@ -20,16 +23,26 @@ def policy_and_batch(policy_and_batch_fn, config):
     return policy_and_batch_fn(config)
 
 
-def test_target_value_output(policy_and_batch):
-    policy, batch = policy_and_batch
-
-    targets = policy._compute_critic_targets(batch, policy.module, policy.config)
-    assert targets.shape == (len(batch[SampleBatch.CUR_OBS]),)
-    assert targets.dtype == torch.float32
-    assert torch.allclose(
-        targets[batch[SampleBatch.DONES]],
-        batch[SampleBatch.REWARDS][batch[SampleBatch.DONES]],
+def loss_maker(policy):
+    return ClippedDoubleQLearning(
+        policy.module.critics,
+        policy.module.target_critics,
+        policy.module.target_actor,
+        gamma=policy.config["gamma"],
     )
+
+
+def test_target_value(policy_and_batch):
+    policy, batch = policy_and_batch
+    loss_fn = loss_maker(policy)
+
+    rewards, next_obs, dones = dutil.get_keys(
+        batch, SampleBatch.REWARDS, SampleBatch.NEXT_OBS, SampleBatch.DONES
+    )
+    targets = loss_fn.critic_targets(rewards, next_obs, dones)
+    assert targets.shape == (len(next_obs),)
+    assert targets.dtype == torch.float32
+    assert torch.allclose(targets[dones], rewards[dones])
 
     policy.module.zero_grad()
     targets.mean().backward()
@@ -41,8 +54,9 @@ def test_target_value_output(policy_and_batch):
 
 def test_critic_loss(policy_and_batch):
     policy, batch = policy_and_batch
-    loss, info = policy.compute_critic_loss(batch, policy.module, policy.config)
+    loss_fn = loss_maker(policy)
 
+    loss, info = loss_fn(batch)
     assert loss.shape == ()
     assert loss.dtype == torch.float32
     assert isinstance(info, dict)
@@ -52,10 +66,8 @@ def test_critic_loss(policy_and_batch):
     assert all(p.grad is not None for p in params)
     assert all(p.grad is None for p in set(policy.module.parameters()) - params)
 
-    vals = [
-        m(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
-        for m in policy.module.critics
-    ]
+    obs, acts = dutil.get_keys(batch, SampleBatch.CUR_OBS, SampleBatch.ACTIONS)
+    vals = [m(obs, acts) for m in policy.module.critics]
     concat_vals = torch.cat(vals, dim=-1)
     targets = torch.randn_like(vals[0])
     loss_fn = nn.MSELoss()

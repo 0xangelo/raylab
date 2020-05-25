@@ -4,11 +4,9 @@ https://github.com/openai/gym/blob/master/gym/envs/classic_control/cartpole.py
 
 We delete the velocity component of the state, so that it can only be solved
 by a LSTM policy."""
-
-
 import gym
-from gym import spaces
 import numpy as np
+from gym import spaces
 
 
 class CartPoleStatelessWrapper(gym.ObservationWrapper):

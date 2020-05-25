@@ -1,11 +1,11 @@
 """Utilities for loading and processing experiment results."""
 # pylint:disable=missing-docstring
-import os
-import json
 import itertools
+import json
+import os
 from ast import literal_eval
-from functools import reduce
 from collections import namedtuple
+from functools import reduce
 
 import numpy as np
 import pandas as pd
