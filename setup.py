@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-
 """The setup script."""
-
-from setuptools import setup, find_packages
+from setuptools import find_packages
+from setuptools import setup
 
 with open("README.rst") as readme_file:
     README = readme_file.read()
@@ -55,6 +54,6 @@ setup(
     test_suite="tests",
     tests_require=TEST_REQUIREMENTS,
     url="https://github.com/angelolovatto/raylab",
-    version="0.6.5",
+    version="0.6.6",
     zip_safe=False,
 )
