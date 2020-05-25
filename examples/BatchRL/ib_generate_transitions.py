@@ -1,19 +1,19 @@
 """For exploring the Industrial Benchmark."""
+import logging
 import os
 import os.path as osp
-import logging
 
 import click
 import ray
+from ib_behavior_policy import IBBehaviorPolicy
 from ray import tune
 from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils.annotations import override
 
 import raylab
-from raylab.agents import Trainer, with_common_config
+from raylab.agents import Trainer
+from raylab.agents import with_common_config
 from raylab.logger import DEFAULT_LOGGERS as CUSTOM_LOGGERS
-
-from ib_behavior_policy import IBBehaviorPolicy
 
 
 class IBExplorationAgent(Trainer):

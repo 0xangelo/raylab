@@ -1,7 +1,6 @@
+from ib_defaults import get_config as base_config
 from ray import tune
 from ray.rllib.utils import merge_dicts
-
-from ib_defaults import get_config as base_config
 
 
 def get_config():
