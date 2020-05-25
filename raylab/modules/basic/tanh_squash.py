@@ -1,6 +1,6 @@
 # pylint: disable=missing-docstring
 import torch.nn as nn
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 
 class TanhSquash(nn.Module):

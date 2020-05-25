@@ -1,6 +1,6 @@
 """Trainer and configuration for SVG(1)."""
 from ray.rllib import SampleBatch
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from raylab.agents.off_policy import GenericOffPolicyTrainer
 from raylab.agents.off_policy import with_base_config

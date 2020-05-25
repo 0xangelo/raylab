@@ -1,7 +1,7 @@
 """For offline collection of trajectories in IndustrialBenchmark."""
 import numpy as np
 from ray.rllib.policy import Policy
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 
 class IBBehaviorPolicy(Policy):

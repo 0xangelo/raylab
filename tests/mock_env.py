@@ -3,7 +3,7 @@ import gym
 import numpy as np
 import torch
 from gym.spaces import Box
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from raylab.envs.rewards import register
 from raylab.envs.rewards import RewardFn

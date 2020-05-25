@@ -8,7 +8,7 @@ import ray
 from ib_behavior_policy import IBBehaviorPolicy
 from ray import tune
 from ray.rllib.optimizers import PolicyOptimizer
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 import raylab
 from raylab.agents import Trainer

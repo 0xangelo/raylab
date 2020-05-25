@@ -5,7 +5,7 @@ import gym.spaces as spaces
 import torch
 import torch.nn as nn
 from ray.rllib.utils import merge_dicts
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from raylab.utils.pytorch import initialize_
 

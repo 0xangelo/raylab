@@ -5,7 +5,7 @@ from typing import Dict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from .utils import _sum_rightmost
 
