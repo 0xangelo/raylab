@@ -74,10 +74,11 @@ class OneStepSoftSVG(OneStepSVG):
 
     @override(OneStepSVG)
     def one_step_reproduced_state_value(self, obs, actions, next_obs, dones):
-        _acts, _logp = self.actor(obs, actions)
-        _next_obs, _ = self.model(obs, actions, next_obs)
-        _rewards = self.reward_fn(obs, _acts, _next_obs)
-        _augmented_rewards = _rewards - _logp * self.alpha()
+        _actions, _logp = self.actor(obs, actions)
+        _next_obs, _ = self.model(obs, _actions, next_obs)
+        _rewards = self.reward_fn(obs, _actions, _next_obs)
+        _entropy = -_logp
+        _augmented_rewards = _rewards + _entropy * self.alpha()
         _next_vals = self.critic(_next_obs).squeeze(-1)
 
         gamma = self.config["gamma"]
