@@ -11,9 +11,10 @@ from raylab.utils import exp_data as exp_util
 """
 
 
-@st.cache
+# https://discuss.streamlit.io/t/how-can-i-clear-a-specific-cache-only/1963/6
+@st.cache(allow_output_mutation=True)
 def load_data(directories, include_errors=False):
-    return exp_util.load_exps_data(directories, include_errors=include_errors)
+    return [exp_util.load_exps_data(directories, include_errors=include_errors)]
 
 
 @st.cache
@@ -66,9 +67,17 @@ def add_sidebar_options():
 
 
 def get_selector(folders, sidebar_options):
-    exps_data = load_data(
+    data_wrapper = load_data(
         tuple(folders), include_errors=sidebar_options["include_errors"]
     )
+    if st.button("Reload Data"):
+        data_wrapper.clear()
+        data_wrapper.append(
+            exp_util.load_exps_data(
+                tuple(folders), include_errors=sidebar_options["include_errors"]
+            )
+        )
+    exps_data = data_wrapper[0]
     distinct_params = dict(sorted(exp_util.extract_distinct_params(exps_data)))
 
     include = dict_value_multiselect(distinct_params, name="Include")
