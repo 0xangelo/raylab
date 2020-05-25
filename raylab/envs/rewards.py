@@ -144,7 +144,7 @@ class HVACReward(RewardFn):
         return reward
 
 
-@register("IndustrialBenchmark")
+@register("IndustrialBenchmark-v0")
 class IndustrialBenchmarkReward(RewardFn):
     """IndustrialBenchmarks's reward function."""
 
