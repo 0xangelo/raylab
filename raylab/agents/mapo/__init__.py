@@ -1,10 +1,5 @@
 """Model-Aware Policy Optimization."""
 
-from .mapo import MAPOTrainer
-from .mapo_policy import MAPOTorchPolicy
-
-
-__all__ = [
-    "MAPOTrainer",
-    "MAPOTorchPolicy",
-]
+from .policy import MAPOTorchPolicy
+from .trainer import DEFAULT_CONFIG
+from .trainer import MAPOTrainer

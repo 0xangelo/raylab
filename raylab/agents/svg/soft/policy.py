@@ -7,14 +7,13 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
 import raylab.utils.pytorch as ptu
+from raylab.agents.svg import SVGTorchPolicy
 from raylab.losses import ISSoftVIteration
 from raylab.losses import MaximumEntropyDual
 from raylab.losses import OneStepSoftSVG
 
-from .svg_base_policy import SVGBaseTorchPolicy
 
-
-class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
+class SoftSVGTorchPolicy(SVGTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
 
     # pylint: disable=abstract-method
@@ -48,15 +47,15 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         )
 
     @staticmethod
-    @override(SVGBaseTorchPolicy)
+    @override(SVGTorchPolicy)
     def get_default_config():
         """Return the default config for SoftSVG"""
         # pylint: disable=cyclic-import
-        from raylab.agents.svg.soft_svg import DEFAULT_CONFIG
+        from raylab.agents.svg.soft import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 
-    @override(SVGBaseTorchPolicy)
+    @override(SVGTorchPolicy)
     def make_optimizer(self):
         """PyTorch optimizer to use."""
         config = self.config["torch_optimizer"]
@@ -66,7 +65,7 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @torch.no_grad()
-    @override(SVGBaseTorchPolicy)
+    @override(SVGTorchPolicy)
     def add_truncated_importance_sampling_ratios(self, batch_tensors):
         """Compute and add truncated importance sampling ratios to tensor batch."""
         curr_logp = self.module.actor.log_prob(
@@ -87,7 +86,7 @@ class SoftSVGTorchPolicy(SVGBaseTorchPolicy):
         }
         return batch_tensors, info
 
-    @override(SVGBaseTorchPolicy)
+    @override(SVGTorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
         batch_tensors, info = self.add_truncated_importance_sampling_ratios(

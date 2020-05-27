@@ -28,7 +28,7 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     def get_default_config():
         """Return the default config for NAF."""
         # pylint: disable=cyclic-import
-        from raylab.agents.naf.naf import DEFAULT_CONFIG
+        from raylab.agents.naf import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 

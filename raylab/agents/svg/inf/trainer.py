@@ -8,7 +8,7 @@ from raylab.agents import Trainer
 from raylab.agents import with_common_config
 from raylab.utils.replay_buffer import ReplayBuffer
 
-from .svg_inf_policy import SVGInfTorchPolicy
+from .policy import SVGInfTorchPolicy
 
 
 DEFAULT_CONFIG = with_common_config(

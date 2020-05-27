@@ -5,13 +5,12 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
 import raylab.utils.pytorch as ptu
+from raylab.agents.svg import SVGTorchPolicy
 from raylab.losses import OneStepSVG
 from raylab.policy import AdaptiveKLCoeffMixin
 
-from .svg_base_policy import SVGBaseTorchPolicy
 
-
-class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
+class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
 
     # pylint: disable=abstract-method
@@ -27,20 +26,20 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         )
 
     @staticmethod
-    @override(SVGBaseTorchPolicy)
+    @override(SVGTorchPolicy)
     def get_default_config():
         """Return the default config for SVG(1)"""
         # pylint: disable=cyclic-import
-        from raylab.agents.svg.svg_one import DEFAULT_CONFIG
+        from raylab.agents.svg.one import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 
-    @override(SVGBaseTorchPolicy)
+    @override(SVGTorchPolicy)
     def make_module(self, obs_space, action_space, config):
         config["module"]["replay_kl"] = config["replay_kl"]
         return super().make_module(obs_space, action_space, config)
 
-    @override(SVGBaseTorchPolicy)
+    @override(SVGTorchPolicy)
     def make_optimizer(self):
         """PyTorch optimizer to use."""
         optim_cls = ptu.get_optimizer_class(self.config["torch_optimizer"])
@@ -54,7 +53,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         """Copy params of current policy into old one for future KL computation."""
         self.module.old_actor.load_state_dict(self.module.actor.state_dict())
 
-    @override(SVGBaseTorchPolicy)
+    @override(SVGTorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
         batch_tensors, info = self.add_truncated_importance_sampling_ratios(

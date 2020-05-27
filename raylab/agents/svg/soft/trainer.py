@@ -4,7 +4,7 @@ from ray.rllib import SampleBatch
 from raylab.agents.off_policy import GenericOffPolicyTrainer
 from raylab.agents.off_policy import with_base_config
 
-from .soft_svg_policy import SoftSVGTorchPolicy
+from .policy import SoftSVGTorchPolicy
 
 
 DEFAULT_CONFIG = with_base_config(
