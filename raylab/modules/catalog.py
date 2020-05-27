@@ -4,6 +4,7 @@ import torch
 from .ddpg_module import DDPGModule
 from .mapo_module import MAPOModule
 from .maxent_model_based import MaxEntModelBased
+from .model_based_sac import ModelBasedSAC
 from .naf_module import NAFModule
 from .nfmbrl import NFMBRL
 from .off_policy_nfac import OffPolicyNFAC
@@ -23,6 +24,7 @@ MODULES = {
     "SVGModule": SVGModule,
     "MAPOModule": MAPOModule,
     "MaxEntModelBased": MaxEntModelBased,
+    "ModelBasedSAC": ModelBasedSAC,
     "NFMBRL": NFMBRL,
     "OnPolicyActorCritic": OnPolicyActorCritic,
     "OnPolicyNFAC": OnPolicyNFAC,
