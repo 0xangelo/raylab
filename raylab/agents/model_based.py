@@ -47,24 +47,6 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
             config["virtual_buffer_size"], extra_keys=self._extra_replay_keys
         )
 
-    @override(GenericOffPolicyTrainer)
-    def _train(self):
-        start_samples = self.sample_until_learning_starts()
-
-        worker = self.workers.local_worker()
-        while not self._iteration_done():
-            samples = worker.sample()
-            self.optimizer.num_steps_sampled += samples.count
-            for row in samples.rows():
-                self.replay.add(row)
-
-            stats = self.train_dynamics_model()
-            self.populate_virtual_buffer(samples.count)
-            stats.update(self.improve_policy(samples.count))
-
-        self.optimizer.num_steps_sampled += start_samples
-        return self._log_metrics(stats)
-
     @staticmethod
     @override(GenericOffPolicyTrainer)
     def validate_config(config):
@@ -85,6 +67,24 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
         assert (
             config["model_rollouts"] >= 0
         ), "Cannot sample a negative number of model rollouts"
+
+    @override(GenericOffPolicyTrainer)
+    def _train(self):
+        start_samples = self.sample_until_learning_starts()
+
+        worker = self.workers.local_worker()
+        while not self._iteration_done():
+            samples = worker.sample()
+            self.optimizer.num_steps_sampled += samples.count
+            for row in samples.rows():
+                self.replay.add(row)
+
+            stats = self.train_dynamics_model()
+            self.populate_virtual_buffer(samples.count)
+            stats.update(self.improve_policy(samples.count))
+
+        self.optimizer.num_steps_sampled += start_samples
+        return self._log_metrics(stats)
 
     def train_dynamics_model(self):
         """Implements the model training loop.
