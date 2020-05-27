@@ -83,6 +83,8 @@ Algorithms
 +--------------------------------------------------------+-------------------------+
 | `Soft Actor-Critic`_                                   | SoftAC                  |
 +--------------------------------------------------------+-------------------------+
+| `Model-Based Policy Optimization`_                     | MBPO                    |
++--------------------------------------------------------+-------------------------+
 | `Streamlined Off-Policy`_ (DDPG)                       | SOP                     |
 +--------------------------------------------------------+-------------------------+
 
@@ -92,6 +94,7 @@ Algorithms
 .. _`Normalized Advantage Function`: http://proceedings.mlr.press/v48/gu16.html
 .. _`Stochastic Value Gradients`: http://papers.nips.cc/paper/5796-learning-continuous-control-policies-by-stochastic-value-gradients
 .. _`Soft Actor-Critic`: http://proceedings.mlr.press/v80/haarnoja18b.html
+.. _`Model-Based Policy Optimization`: http://arxiv.org/abs/1906.08253
 .. _`Streamlined Off-Policy`: https://arxiv.org/abs/1910.02208
 
 
