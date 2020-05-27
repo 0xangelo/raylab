@@ -1,19 +1,17 @@
 # pylint:disable=missing-docstring,redefined-outer-name,protected-access
-import torch
 import pytest
+import torch
 
-from raylab.modules.distributions import (
-    AffineTransform,
-    CompositeTransform,
-    Independent,
-    InverseTransform,
-    Normal,
-    SigmoidTransform,
-    TanhTransform,
-    TanhSquashTransform,
-    TransformedDistribution,
-    Uniform,
-)
+from raylab.modules.distributions import AffineTransform
+from raylab.modules.distributions import CompositeTransform
+from raylab.modules.distributions import Independent
+from raylab.modules.distributions import InverseTransform
+from raylab.modules.distributions import Normal
+from raylab.modules.distributions import SigmoidTransform
+from raylab.modules.distributions import TanhSquashTransform
+from raylab.modules.distributions import TanhTransform
+from raylab.modules.distributions import TransformedDistribution
+from raylab.modules.distributions import Uniform
 
 from .utils import _test_dist_ops
 

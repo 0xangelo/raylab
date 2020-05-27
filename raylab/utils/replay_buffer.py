@@ -5,7 +5,7 @@ import sys
 import numpy as np
 from ray.rllib import SampleBatch
 from ray.rllib.optimizers.replay_buffer import ReplayBuffer as _ReplayBuffer
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 from ray.rllib.utils.compression import unpack_if_needed
 
 

@@ -1,6 +1,6 @@
 # pylint:disable=missing-module-docstring
 import numpy as np
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 from ray.rllib.utils.exploration import Exploration
 
 import raylab.utils.pytorch as ptu

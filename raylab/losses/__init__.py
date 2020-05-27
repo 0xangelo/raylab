@@ -7,6 +7,7 @@ from .isfv_iteration import ISFittedVIteration
 from .isfv_iteration import ISSoftVIteration
 from .maximum_entropy import MaximumEntropyDual
 from .mle import MaximumLikelihood
+from .mle import ModelEnsembleMLE
 from .policy_gradient import DeterministicPolicyGradient
 from .policy_gradient import ModelAwareDPG
 from .policy_gradient import ReparameterizedSoftPG
@@ -24,6 +25,7 @@ __all__ = [
     "MaximumEntropyDual",
     "MaximumLikelihood",
     "ModelAwareDPG",
+    "ModelEnsembleMLE",
     "OneStepSVG",
     "OneStepSoftSVG",
     "ReparameterizedSoftPG",

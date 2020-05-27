@@ -1,10 +1,10 @@
 """Trainer and configuration for MAPO."""
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from raylab.agents.off_policy import GenericOffPolicyTrainer
 from raylab.agents.off_policy import with_base_config
 
-from .mapo_policy import MAPOTorchPolicy
+from .policy import MAPOTorchPolicy
 
 
 DEFAULT_CONFIG = with_base_config(

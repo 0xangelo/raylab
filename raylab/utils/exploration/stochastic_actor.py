@@ -1,5 +1,5 @@
 # pylint:disable=missing-module-docstring
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from .random_uniform import RandomUniform
 

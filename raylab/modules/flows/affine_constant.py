@@ -1,6 +1,6 @@
 """A simple family of diffeomorphisms."""
 import torch
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 from torch import nn
 
 from .abstract import Transform

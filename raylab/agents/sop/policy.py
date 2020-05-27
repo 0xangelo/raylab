@@ -3,7 +3,7 @@ import collections
 
 import torch
 import torch.nn as nn
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 import raylab.policy as raypi
 import raylab.utils.pytorch as ptu
@@ -33,7 +33,7 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     def get_default_config():
         """Return the default configuration for SOP."""
         # pylint: disable=cyclic-import
-        from raylab.agents.sop.sop import DEFAULT_CONFIG
+        from raylab.agents.sop import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 

@@ -1,13 +1,14 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 # pylint: disable=too-many-arguments,too-many-locals
-from gym.spaces import Box
 import pytest
-from ray.rllib import SampleBatch
 import torch
+from gym.spaces import Box
+from ray.rllib import SampleBatch
 
 from raylab.modules.catalog import TRPOTang2018
 
-from .utils import make_batch, make_module
+from .utils import make_batch
+from .utils import make_module
 
 
 ACTION_SPACES = (Box(-1, 1, shape=(2,)), Box(-1, 1, shape=(3,)))

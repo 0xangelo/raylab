@@ -2,13 +2,12 @@
 import pytest
 import torch
 
-from raylab.modules.networks import MLP, ResidualNet
-from raylab.modules.flows.coupling import (
-    AffineCouplingTransform,
-    AdditiveCouplingTransform,
-    PiecewiseRQSCouplingTransform,
-)
+from raylab.modules.flows.coupling import AdditiveCouplingTransform
+from raylab.modules.flows.coupling import AffineCouplingTransform
+from raylab.modules.flows.coupling import PiecewiseRQSCouplingTransform
 from raylab.modules.flows.masks import create_alternating_binary_mask
+from raylab.modules.networks import MLP
+from raylab.modules.networks import ResidualNet
 
 PARITIES = (True, False)
 IN_SIZES = (2, 3)

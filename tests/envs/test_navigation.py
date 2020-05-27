@@ -1,8 +1,8 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 from functools import partial
 
-import pytest
 import numpy as np
+import pytest
 import torch
 
 from raylab.utils.pytorch import convert_to_tensor

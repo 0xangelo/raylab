@@ -1,5 +1,5 @@
 # pylint: disable=missing-module-docstring
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 from ray.tune.logger import JsonLogger as _JsonLogger
 
 

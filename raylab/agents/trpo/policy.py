@@ -5,7 +5,7 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.postprocessing import compute_advantages
 from ray.rllib.evaluation.postprocessing import Postprocessing
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 from torch.nn.utils import parameters_to_vector
 from torch.nn.utils import vector_to_parameters
 
@@ -26,7 +26,7 @@ class TRPOTorchPolicy(TorchPolicy):
     def get_default_config():
         """Return the default configuration for TRPO."""
         # pylint:disable=cyclic-import
-        from raylab.agents.trpo.trpo import DEFAULT_CONFIG
+        from raylab.agents.trpo import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 

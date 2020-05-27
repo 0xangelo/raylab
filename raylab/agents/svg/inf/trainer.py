@@ -2,13 +2,13 @@
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers import PolicyOptimizer
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from raylab.agents import Trainer
 from raylab.agents import with_common_config
 from raylab.utils.replay_buffer import ReplayBuffer
 
-from .svg_inf_policy import SVGInfTorchPolicy
+from .policy import SVGInfTorchPolicy
 
 
 DEFAULT_CONFIG = with_common_config(

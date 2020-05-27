@@ -1,13 +1,12 @@
 """Collect and save experiencies in IndustrialBenchmark with a behaviour policy."""
-from tqdm import trange
 import click
 import numpy as np
+from ib_behavior_policy import IBBehaviorPolicy
 from ray.rllib.evaluation.sample_batch_builder import SampleBatchBuilder
 from ray.rllib.offline.json_writer import JsonWriter
+from tqdm import trange
 
 from raylab.envs.registry import _industrial_benchmark_maker
-
-from ib_behavior_policy import IBBehaviorPolicy
 
 
 @click.command()

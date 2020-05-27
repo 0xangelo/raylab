@@ -7,7 +7,7 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.postprocessing import compute_advantages
 from ray.rllib.evaluation.postprocessing import Postprocessing
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 import raylab.utils.dictionaries as dutil
 import raylab.utils.pytorch as ptu
@@ -56,7 +56,7 @@ class ACKTRTorchPolicy(TorchPolicy):
     def get_default_config():
         """Return the default configuration for ACKTR."""
         # pylint:disable=cyclic-import
-        from raylab.agents.acktr.acktr import DEFAULT_CONFIG
+        from raylab.agents.acktr import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 

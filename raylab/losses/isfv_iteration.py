@@ -1,7 +1,7 @@
 """Losses for Importance Sampled Fitted V Iteration."""
 import torch
 from ray.rllib import SampleBatch
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 import raylab.utils.dictionaries as dutil
 

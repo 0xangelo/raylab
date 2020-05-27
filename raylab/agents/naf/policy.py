@@ -1,7 +1,7 @@
 """NAF policy class using PyTorch."""
 import torch
 import torch.nn as nn
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 import raylab.policy as raypi
 import raylab.utils.pytorch as ptu
@@ -28,7 +28,7 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     def get_default_config():
         """Return the default config for NAF."""
         # pylint: disable=cyclic-import
-        from raylab.agents.naf.naf import DEFAULT_CONFIG
+        from raylab.agents.naf import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 

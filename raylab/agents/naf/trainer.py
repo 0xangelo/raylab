@@ -2,7 +2,7 @@
 from raylab.agents.off_policy import GenericOffPolicyTrainer
 from raylab.agents.off_policy import with_base_config
 
-from .naf_policy import NAFTorchPolicy
+from .policy import NAFTorchPolicy
 
 
 DEFAULT_CONFIG = with_base_config(

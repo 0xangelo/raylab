@@ -1,15 +1,16 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 # pylint: disable=too-many-arguments,too-many-locals
-from gym.spaces import Box
 import numpy as np
 import pytest
 import torch
 import torch.nn as nn
+from gym.spaces import Box
 from ray.rllib import SampleBatch
 
 from raylab.modules.mixins import NormalizingFlowModelMixin
 
-from .utils import make_batch, make_module
+from .utils import make_batch
+from .utils import make_module
 
 
 class DummyModule(NormalizingFlowModelMixin, nn.ModuleDict):

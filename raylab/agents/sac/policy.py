@@ -3,7 +3,7 @@ import collections
 
 import torch
 import torch.nn as nn
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 import raylab.utils.pytorch as ptu
 from raylab.losses import MaximumEntropyDual
@@ -44,7 +44,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
     def get_default_config():
         """Return the default config for SAC."""
         # pylint: disable=cyclic-import
-        from raylab.agents.sac.sac import DEFAULT_CONFIG
+        from raylab.agents.sac import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 

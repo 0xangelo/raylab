@@ -1,6 +1,6 @@
 # pylint:disable=missing-module-docstring
 import torch
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from raylab.modules.distributions import TanhSquashTransform
 

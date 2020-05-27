@@ -1,5 +1,7 @@
 """Loss functions for Maximum Likelihood Estimation."""
+import torch
 from ray.rllib import SampleBatch
+from ray.rllib.utils import override
 
 from raylab.utils.dictionaries import get_keys
 
@@ -21,3 +23,15 @@ class MaximumLikelihood:
     def model_likelihood(self, obs, actions, next_obs):
         """Compute likelihood of a transition under the model."""
         return self.model.log_prob(obs, actions, next_obs)
+
+
+class ModelEnsembleMLE(MaximumLikelihood):
+    """MLE loss function for ensemble of models."""
+
+    # pylint:disable=too-few-public-methods
+
+    @override(MaximumLikelihood)
+    def model_likelihood(self, obs, actions, next_obs):
+        return torch.stack(
+            [m.log_prob(obs, actions, next_obs) for m in self.model]
+        ).mean(0)

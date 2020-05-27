@@ -1,11 +1,12 @@
 """Dummy gym.Env subclasses."""
 import gym
-from gym.spaces import Box
 import numpy as np
 import torch
-from ray.rllib.utils.annotations import override
+from gym.spaces import Box
+from ray.rllib.utils import override
 
-from raylab.envs.rewards import register, RewardFn
+from raylab.envs.rewards import register
+from raylab.envs.rewards import RewardFn
 
 
 class MockEnv(gym.Env):  # pylint: disable=abstract-method

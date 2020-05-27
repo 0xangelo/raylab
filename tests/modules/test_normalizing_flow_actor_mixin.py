@@ -8,7 +8,8 @@ from ray.rllib import SampleBatch
 
 from raylab.modules.mixins import NormalizingFlowActorMixin
 
-from .utils import make_batch, make_module
+from .utils import make_batch
+from .utils import make_module
 
 
 class DummyModule(NormalizingFlowActorMixin, nn.ModuleDict):

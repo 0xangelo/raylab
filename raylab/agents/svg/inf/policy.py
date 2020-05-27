@@ -5,16 +5,15 @@ from contextlib import contextmanager
 import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 import raylab.utils.pytorch as ptu
+from raylab.agents.svg import SVGTorchPolicy
 from raylab.losses import TrajectorySVG
 from raylab.policy import AdaptiveKLCoeffMixin
 
-from .svg_base_policy import SVGBaseTorchPolicy
 
-
-class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
+class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     """Stochastic Value Gradients policy for full trajectories."""
 
     # pylint: disable=abstract-method
@@ -34,15 +33,15 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         )
 
     @staticmethod
-    @override(SVGBaseTorchPolicy)
+    @override(SVGTorchPolicy)
     def get_default_config():
         """Return the default config for SVG(inf)"""
         # pylint: disable=cyclic-import
-        from raylab.agents.svg.svg_inf import DEFAULT_CONFIG
+        from raylab.agents.svg.inf import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 
-    @override(SVGBaseTorchPolicy)
+    @override(SVGTorchPolicy)
     def make_optimizer(self):
         """PyTorch optimizers to use."""
         config = self.config["torch_optimizer"]
@@ -55,7 +54,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
         optims = {k: ptu.build_optimizer(module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
-    @override(SVGBaseTorchPolicy)
+    @override(SVGTorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
         if self._off_policy_learning:
