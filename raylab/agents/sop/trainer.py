@@ -1,29 +1,20 @@
-"""
-Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning
-with a Stochastic Actor.
-"""
+"""Trainer and configuration for SOP."""
 from raylab.agents.off_policy import GenericOffPolicyTrainer
 from raylab.agents.off_policy import with_base_config
 
-from .sac_policy import SACTorchPolicy
+from .policy import SOPTorchPolicy
 
 
 DEFAULT_CONFIG = with_base_config(
     {
-        # === Entropy ===
-        # Target entropy to optimize the temperature parameter towards
-        # If "auto", will use the heuristic provided in the SAC paper:
-        # H = -dim(A), where A is the action space
-        "target_entropy": None,
-        # === Twin Delayed DDPG (TD3) tricks ===
-        # Clipped Double Q-Learning
+        # Clipped Double Q-Learning: use the minimun of two target Q functions
+        # as the next action-value in the target for fitted Q iteration
         "clipped_double_q": True,
         # === Optimization ===
         # PyTorch optimizers to use
         "torch_optimizer": {
             "actor": {"type": "Adam", "lr": 1e-3},
             "critics": {"type": "Adam", "lr": 1e-3},
-            "alpha": {"type": "Adam", "lr": 1e-3},
         },
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
@@ -31,7 +22,7 @@ DEFAULT_CONFIG = with_base_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
-        "module": {"type": "SACModule", "torch_script": True},
+        "module": {"type": "DDPGModule", "torch_script": True},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).
@@ -44,7 +35,13 @@ DEFAULT_CONFIG = with_base_config(
             # You can also provide the python class directly or the full location
             # of your class (e.g. "ray.rllib.utils.exploration.epsilon_greedy.
             # EpsilonGreedy").
-            "type": "raylab.utils.exploration.StochasticActor",
+            "type": "raylab.utils.exploration.ParameterNoise",
+            # Options for parameter noise exploration
+            "param_noise_spec": {
+                "initial_stddev": 0.1,
+                "desired_action_stddev": 0.2,
+                "adaptation_coeff": 1.01,
+            },
             "pure_exploration_steps": 1000,
         },
         # === Evaluation ===
@@ -56,9 +53,11 @@ DEFAULT_CONFIG = with_base_config(
 )
 
 
-class SACTrainer(GenericOffPolicyTrainer):
-    """Single agent trainer for SAC."""
+class SOPTrainer(GenericOffPolicyTrainer):
+    """Single agent trainer for Streamlined Off-Policy Algorithm."""
 
-    _name = "SoftAC"
+    # pylint: disable=attribute-defined-outside-init
+
+    _name = "SOP"
     _default_config = DEFAULT_CONFIG
-    _policy = SACTorchPolicy
+    _policy = SOPTorchPolicy

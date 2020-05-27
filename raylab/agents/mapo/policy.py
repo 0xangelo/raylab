@@ -60,7 +60,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     def get_default_config():
         """Return the default configuration for MAPO."""
         # pylint: disable=cyclic-import
-        from raylab.agents.mapo.mapo import DEFAULT_CONFIG
+        from raylab.agents.mapo import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 

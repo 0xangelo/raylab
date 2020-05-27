@@ -26,7 +26,7 @@ class TRPOTorchPolicy(TorchPolicy):
     def get_default_config():
         """Return the default configuration for TRPO."""
         # pylint:disable=cyclic-import
-        from raylab.agents.trpo.trpo import DEFAULT_CONFIG
+        from raylab.agents.trpo import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 

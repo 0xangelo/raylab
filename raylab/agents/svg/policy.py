@@ -9,7 +9,7 @@ from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
 
 
-class SVGBaseTorchPolicy(TargetNetworksMixin, TorchPolicy):
+class SVGTorchPolicy(TargetNetworksMixin, TorchPolicy):
     """Stochastic Value Gradients policy using PyTorch."""
 
     # pylint: disable=abstract-method

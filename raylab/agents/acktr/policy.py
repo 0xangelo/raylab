@@ -56,7 +56,7 @@ class ACKTRTorchPolicy(TorchPolicy):
     def get_default_config():
         """Return the default configuration for ACKTR."""
         # pylint:disable=cyclic-import
-        from raylab.agents.acktr.acktr import DEFAULT_CONFIG
+        from raylab.agents.acktr import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
 

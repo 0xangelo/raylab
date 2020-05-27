@@ -1,8 +1,8 @@
 """Trainer and configuration for ACKTR."""
 from raylab.agents import with_common_config
-from raylab.agents.trpo.trpo import TRPOTrainer
+from raylab.agents.trpo import TRPOTrainer
 
-from .acktr_policy import ACKTRTorchPolicy
+from .policy import ACKTRTorchPolicy
 
 DEFAULT_CONFIG = with_common_config(
     {
