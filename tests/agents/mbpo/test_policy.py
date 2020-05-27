@@ -9,7 +9,8 @@ def config():
 
 @pytest.fixture(scope="module")
 def policy(policy_and_batch_fn, config):
-    return policy_and_batch_fn(config)
+    policy, _ = policy_and_batch_fn(config)
+    return policy
 
 
 def test_policy_creation(policy):
