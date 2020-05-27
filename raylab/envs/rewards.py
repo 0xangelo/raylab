@@ -154,14 +154,15 @@ class IndustrialBenchmarkReward(RewardFn):
 
     @override(RewardFn)
     def forward(self, state, action, next_state):
-        fat_coeff, con_coeff = 3, 1
-        fatigue_ = next_state[..., 4]
-        consumption = next_state[..., 5]
-        reward = -(fat_coeff * fatigue_ + con_coeff * consumption)
+        con_coeff, fat_coeff = 1, 3
+        consumption, fatigue = next_state[..., 4], next_state[..., 5]
+        reward = -(con_coeff * consumption + fat_coeff * fatigue)
+
         if self.reward_type == "delta":
-            old_fat = state[..., 4]
-            old_con = state[..., 5]
-            reward = reward + fat_coeff * old_fat + con_coeff * old_con
+            old_consumption, old_fatigue = state[..., 4], state[..., 5]
+            old_reward = -(con_coeff * old_consumption + fat_coeff * old_fatigue)
+            reward -= old_reward
+
         return reward / 100
 
 
