@@ -66,7 +66,7 @@ class MBPOTorchPolicy(SACTorchPolicy):
             model = self.random.choice(self.module.models)
 
             action, _ = self.module.actor.sample(obs)
-            next_obs = model.sample(obs, action)
+            next_obs, _ = model.sample(obs, action)
             reward = self.reward_fn(obs, action, next_obs)
             done = torch.zeros_like(reward).bool()
 
