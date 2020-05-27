@@ -15,8 +15,10 @@ def mbpo_policy(mbpo_trainer):
 
 
 @pytest.fixture(scope="module")
-def policy_and_batch_fn(policy_and_batch_, mbpo_policy):
+def policy_and_batch_fn(policy_and_batch_, mbpo_policy, envs):
+    # pylint:disable=unused-argument
     def make_policy_and_batch(config):
+        config["env"] = "MockEnv"
         return policy_and_batch_(mbpo_policy, config)
 
     return make_policy_and_batch
