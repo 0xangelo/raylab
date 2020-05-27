@@ -4,7 +4,7 @@ from typing import List
 import gym.spaces as spaces
 import torch
 import torch.nn as nn
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from raylab.utils.dictionaries import deep_merge
 

@@ -1,6 +1,6 @@
 """Action distribution for compatibility with RLlib's interface."""
 from ray.rllib.models.action_dist import ActionDistribution
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 
 class WrapModuleDist(ActionDistribution):

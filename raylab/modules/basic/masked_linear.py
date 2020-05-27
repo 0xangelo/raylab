@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 
 class MaskedLinear(nn.Linear):

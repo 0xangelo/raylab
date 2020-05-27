@@ -5,7 +5,7 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.postprocessing import compute_advantages
 from ray.rllib.evaluation.postprocessing import Postprocessing
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 from torch.nn.utils import parameters_to_vector
 from torch.nn.utils import vector_to_parameters
 

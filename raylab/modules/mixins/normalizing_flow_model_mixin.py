@@ -3,7 +3,7 @@ import warnings
 
 import gym.spaces as spaces
 import torch.nn as nn
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from raylab.utils.dictionaries import deep_merge
 
@@ -17,9 +17,14 @@ from ..distributions import Independent
 from ..distributions import Normal
 from ..distributions import TransformedDistribution
 from .stochastic_model_mixin import StochasticModel
+from .stochastic_model_mixin import StochasticModelMixin
 
 
 BASE_CONFIG = {
+    # Number of independent models. If 0 return a single model accessible via the
+    # 'model' atribute. If greater than 0, return a nn.ModuleList of models accessible
+    # via the 'models' attribute.
+    "ensemble_size": 0,
     "residual": True,
     "conditional_prior": True,
     "input_encoder": {"units": (64, 64), "activation": "ReLU"},
@@ -32,23 +37,31 @@ BASE_CONFIG = {
 }
 
 
-class NormalizingFlowModelMixin:
+class NormalizingFlowModelMixin(StochasticModelMixin):
     """Stochastic model module with Normalizing Flow density estimator."""
 
     # pylint:disable=too-few-public-methods
 
+    @override(StochasticModelMixin)
     def _make_model(self, obs_space, action_space, config):
-        config = deep_merge(
+        assert isinstance(
+            obs_space, spaces.Box
+        ), f"Normalizing Flow incompatible with observation space {type(obs_space)}"
+        return super()._make_model(obs_space, action_space, config)
+
+    @staticmethod
+    @override(StochasticModelMixin)
+    def process_config(config):
+        return deep_merge(
             BASE_CONFIG,
             config.get("model", {}),
             False,
             ["input_encoder", "flow"],
             ["flow"],
         )
-        assert isinstance(
-            obs_space, spaces.Box
-        ), f"Normalizing Flow incompatible with observation space {type(obs_space)}"
 
+    @override(StochasticModelMixin)
+    def build_single_model(self, obs_space, action_space, config):
         # PRIOR ========================================================================
         params_module, base_dist = self._make_model_prior(
             obs_space, action_space, config
@@ -61,7 +74,7 @@ class NormalizingFlowModelMixin:
             base_dist=base_dist, transform=CompositeTransform(transforms),
         )
 
-        return {"model": StochasticModel.assemble(params_module, dist_module, config)}
+        return StochasticModel.assemble(params_module, dist_module, config)
 
     @staticmethod
     def _make_model_prior(obs_space, action_space, config):

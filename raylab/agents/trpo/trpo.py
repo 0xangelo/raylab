@@ -1,6 +1,6 @@
 """Trainer and configuration for TRPO."""
 from ray.rllib.optimizers import SyncSamplesOptimizer
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from raylab.agents import Trainer
 from raylab.agents import with_common_config

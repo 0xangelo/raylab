@@ -1,7 +1,7 @@
 """Registry of environment reward functions to be used by algorithms."""
 import torch
 import torch.nn as nn
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 from ray.tune.registry import _global_registry
 from ray.tune.registry import ENV_CREATOR
 

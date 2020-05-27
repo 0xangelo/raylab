@@ -1,7 +1,7 @@
 # pylint: disable=missing-module-docstring
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers import PolicyOptimizer
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from raylab.agents import Trainer
 from raylab.agents import with_common_config
@@ -42,7 +42,7 @@ class GenericOffPolicyTrainer(Trainer):
 
     @override(Trainer)
     def _init(self, config, env_creator):
-        self._validate_config(config)
+        self.validate_config(config)
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
         )
@@ -93,7 +93,8 @@ class GenericOffPolicyTrainer(Trainer):
         pass
 
     @staticmethod
-    def _validate_config(config):
+    def validate_config(config):
+        """Assert configuration values are valid."""
         assert config["num_workers"] == 0, "No point in using additional workers."
         assert (
             config["rollout_fragment_length"] >= 1

@@ -1,5 +1,5 @@
 # pylint: disable=missing-docstring
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 from ray.tune.logger import Logger
 from ray.tune.logger import VALID_SUMMARY_TYPES
 from ray.tune.result import TIME_TOTAL_S

@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 import raylab.utils.pytorch as ptu
 from raylab.losses import OneStepSVG
@@ -100,7 +100,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGBaseTorchPolicy):
     def extra_grad_info(self, batch_tensors):
         """Compute gradient norms and policy statistics."""
         grad_norms = {
-            f"grad_norm(k)": nn.utils.clip_grad_norm_(
+            f"grad_norm({k})": nn.utils.clip_grad_norm_(
                 self.module[k].parameters(), float("inf")
             )
             for k in "model actor critic".split()

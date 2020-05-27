@@ -55,6 +55,12 @@ def _import_acktr():
     return ACKTRTrainer
 
 
+def _import_mbpo():
+    from raylab.agents.mbpo import MBPOTrainer
+
+    return MBPOTrainer
+
+
 AGENTS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
@@ -65,4 +71,5 @@ AGENTS = {
     "TRPO": _import_trpo,
     "SoftSVG": _import_soft_svg,
     "ACKTR": _import_acktr,
+    "MBPO": _import_mbpo,
 }

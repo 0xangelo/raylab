@@ -33,7 +33,7 @@ from typing import Dict
 
 import numpy as np
 import torch
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from ..distributions import ConditionalTransform
 from ..distributions.utils import _sum_rightmost

@@ -1,7 +1,7 @@
 """Wrapper for introducing irrelevant state variables."""
 import gym
 import numpy as np
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 
 class GaussianRandomWalks(gym.Wrapper):

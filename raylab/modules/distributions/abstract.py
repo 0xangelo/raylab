@@ -5,7 +5,7 @@ from typing import List
 import numpy as np
 import torch
 import torch.nn as nn
-from ray.rllib.utils.annotations import override
+from ray.rllib.utils import override
 
 from .transforms import ConditionalTransform
 from .transforms import Transform
