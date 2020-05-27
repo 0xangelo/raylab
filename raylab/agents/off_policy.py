@@ -42,7 +42,7 @@ class GenericOffPolicyTrainer(Trainer):
 
     @override(Trainer)
     def _init(self, config, env_creator):
-        self._validate_config(config)
+        self.validate_config(config)
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
         )
@@ -93,7 +93,8 @@ class GenericOffPolicyTrainer(Trainer):
         pass
 
     @staticmethod
-    def _validate_config(config):
+    def validate_config(config):
+        """Assert configuration values are valid."""
         assert config["num_workers"] == 0, "No point in using additional workers."
         assert (
             config["rollout_fragment_length"] >= 1

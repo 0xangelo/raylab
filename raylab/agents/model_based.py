@@ -65,12 +65,34 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
         self.optimizer.num_steps_sampled += start_samples
         return self._log_metrics(stats)
 
+    @staticmethod
+    @override(GenericOffPolicyTrainer)
+    def validate_config(config):
+        GenericOffPolicyTrainer.validate_config(config)
+        assert (
+            config["model_epochs"] >= 0
+        ), "Cannot train model for a negative number of epochs"
+        assert config["model_batch_size"] > 0, "Model batch size must be positive"
+        assert (
+            config["policy_improvements"] >= 0
+        ), "Number of policy improvement steps must be non-negative"
+        assert (
+            0 <= config["real_data_ratio"] <= 1
+        ), "Fraction of real data samples for policy improvement must be in [0, 1]"
+        assert (
+            config["virtual_buffer_size"] >= 0
+        ), "Virtual buffer capacity must be non-negative"
+        assert (
+            config["model_rollouts"] >= 0
+        ), "Cannot sample a negative number of model rollouts"
+
     def train_dynamics_model(self):
         """Implements the model training loop.
 
         Calls the policy to optimize the model on each minibatch.
         """
         policy = self.workers.local_worker().get_policy()
+        stats = {}
 
         for _ in range(self.config["model_epochs"]):
             batch = self.replay.sample(self.config["model_batch_size"])
@@ -82,6 +104,8 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
         """
         Add short model-generated rollouts branched from real data to the virtual pool.
         """
+        if self.config["model_rollouts"] == 0:
+            return
         policy = self.workers.local_worker().get_policy()
 
         real_samples = self.replay.sample(self.config["model_rollouts"] * num_env_steps)
@@ -96,6 +120,7 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
         env_batch_size = int(batch_size * self.config["real_data_ratio"])
         model_batch_size = batch_size - env_batch_size
 
+        stats = {}
         for _ in range(num_env_steps * self.config["policy_improvements"]):
             env_batch = self.replay.sample(env_batch_size)
             virtual_batch = self.virtual_replay.sample(model_batch_size)
