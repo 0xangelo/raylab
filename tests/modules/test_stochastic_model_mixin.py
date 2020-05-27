@@ -19,15 +19,31 @@ def module_cls(request):
     return request.param
 
 
+ENSEMBLE_SIZE = (0, 1, 2)
+RESIDUAL = (True, False)
+INPUT_DEPENDENT_SCALE = (True, False)
+
+
 @pytest.fixture(
-    scope="module", params=(True, False), ids=("InputDepScale", "InputIndepScale")
+    scope="module",
+    params=ENSEMBLE_SIZE,
+    ids=(f"EnsembleSize({s})" for s in ENSEMBLE_SIZE),
+)
+def ensemble_size(request):
+    return request.param
+
+
+@pytest.fixture(
+    scope="module",
+    params=INPUT_DEPENDENT_SCALE,
+    ids=(f"InputDepScale({i})" for i in INPUT_DEPENDENT_SCALE),
 )
 def input_dependent_scale(request):
     return request.param
 
 
 @pytest.fixture(
-    scope="module", params=(True, False), ids=("ResidualModel", "StandardModel")
+    scope="module", params=(True, False), ids=(f"Residual({r})" for r in RESIDUAL)
 )
 def residual(request):
     return request.param
@@ -36,7 +52,11 @@ def residual(request):
 @pytest.fixture(scope="module")
 def config(input_dependent_scale, residual):
     return {
-        "model": {"residual": residual, "input_dependent_scale": input_dependent_scale},
+        "model": {
+            "residual": residual,
+            "input_dependent_scale": input_dependent_scale,
+            "ensemble_size": 0,
+        },
     }
 
 
@@ -44,6 +64,17 @@ def config(input_dependent_scale, residual):
 def module_batch_config(module_and_batch_fn, module_cls, config):
     module, batch = module_and_batch_fn(module_cls, config)
     return module, batch, config
+
+
+def test_ensemble(module_and_batch_fn, module_cls, config, ensemble_size):
+    config["model"]["ensemble_size"] = ensemble_size
+    module, _ = module_and_batch_fn(module_cls, config)
+
+    if ensemble_size:
+        assert "models" in module
+        assert len(module.models) == ensemble_size
+    else:
+        assert "model" in module
 
 
 def test_model_rsample(module_batch_config):

@@ -16,6 +16,10 @@ from ..distributions import Normal
 BASE_CONFIG = {
     "residual": True,
     "input_dependent_scale": False,
+    # Number of independent models. If 0 return a single model accessible via the
+    # 'model' atribute. If greater than 0, return a nn.ModuleList of models accessible
+    # via the 'models' attribute.
+    "ensemble_size": 0,
     "encoder": {
         "units": (32, 32),
         "activation": "ReLU",
@@ -30,15 +34,33 @@ class StochasticModelMixin:
 
     # pylint:disable=too-few-public-methods
 
-    @staticmethod
-    def _make_model(obs_space, action_space, config):
-        config = deep_merge(BASE_CONFIG, config.get("model", {}), False, ["encoder"])
+    def _make_model(self, obs_space, action_space, config):
+        config = self.process_config(config)
+        return self.build_models(obs_space, action_space, config)
 
+    @staticmethod
+    def process_config(config):
+        """Fill in default configuration for models."""
+        return deep_merge(BASE_CONFIG, config.get("model", {}), False, ["encoder"])
+
+    def build_models(self, obs_space, action_space, config):
+        """Decide whether to return a single model or an ensemble."""
+        if config["ensemble_size"] == 0:
+            return {"model": self.build_single_model(obs_space, action_space, config)}
+
+        models = [
+            self.build_single_model(obs_space, action_space, config)
+            for _ in range(config["ensemble_size"])
+        ]
+        return {"models": nn.ModuleList(models)}
+
+    @staticmethod
+    def build_single_model(obs_space, action_space, config):
+        """Build a stochastic model module."""
         params_module = GaussianDynamicsParams(obs_space, action_space, config)
         dist_module = Independent(Normal(), reinterpreted_batch_ndims=1)
 
-        model = StochasticModel.assemble(params_module, dist_module, config)
-        return {"model": model}
+        return StochasticModel.assemble(params_module, dist_module, config)
 
 
 class GaussianDynamicsParams(nn.Module):
