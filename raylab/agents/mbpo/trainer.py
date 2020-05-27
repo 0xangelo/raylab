@@ -50,7 +50,7 @@ DEFAULT_CONFIG = with_base_config(
         "learning_starts": 10000,
         # === Network ===
         "module": {
-            "type": "StocasticEnsembleMBAC",
+            "type": "ModelBasedSAC",
             "model": {
                 "encoder": {"units": (128, 128), "activation": "ReLU"},
                 "ensemble_size": 7,
