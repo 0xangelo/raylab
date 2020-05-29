@@ -79,7 +79,7 @@ class MBPOTorchPolicy(SACTorchPolicy):
             if early_stop or time.time() - start >= max_time_s:
                 break
 
-        self._restore_models(snapshots)
+        info.update(self._restore_models(snapshots))
 
         info["model_epochs"] = epoch
         info.update(self.extra_grad_info("models"))
@@ -122,8 +122,11 @@ class MBPOTorchPolicy(SACTorchPolicy):
         return new, early_stop
 
     def _restore_models(self, snapshots):
+        info = {}
         for idx, snap in enumerate(snapshots):
             self.module.models[idx].load_state_dict(snap.state_dict)
+            info[f"loss(model[{idx}])"] = snap.loss
+        return info
 
     @torch.no_grad()
     def generate_virtual_sample_batch(self, samples):
