@@ -104,7 +104,7 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
         train_data, eval_data = samples.slice(holdout, None), samples.slice(0, holdout)
 
         policy = self.workers.local_worker().get_policy()
-        stats = policy.optimize_model(train_data, eval_data)
+        stats = get_learner_stats(policy.optimize_model(train_data, eval_data))
 
         return stats
 
