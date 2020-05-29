@@ -31,7 +31,14 @@ class ModelEnsembleMLE(MaximumLikelihood):
     # pylint:disable=too-few-public-methods
 
     @override(MaximumLikelihood)
-    def model_likelihood(self, obs, actions, next_obs):
-        return torch.stack(
-            [m.log_prob(obs, actions, next_obs) for m in self.model]
-        ).mean(0)
+    def __call__(self, batch):
+        obs, actions, next_obs = get_keys(batch, *self.batch_keys)
+        losses = self.model_likelihoods(obs, actions, next_obs)
+        loss = torch.stack(losses).mean()
+        info = {f"loss(model[{i}])": l.item() for i, l in enumerate(losses)}
+        info["loss(models)"] = loss.item()
+        return loss, info
+
+    def model_likelihoods(self, obs, actions, next_obs):
+        """Compute transition likelihood under each model."""
+        return [m.log_prob(obs, actions, next_obs).mean() for m in self.model]
