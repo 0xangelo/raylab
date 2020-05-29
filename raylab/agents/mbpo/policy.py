@@ -87,9 +87,7 @@ class MBPOTorchPolicy(SACTorchPolicy):
 
     def _build_snapshots(self):
         return [
-            ModelSnapshot(
-                epoch=0, loss=float("inf"), state_dict=copy.deepcopy(m.state_dict())
-            )
+            ModelSnapshot(epoch=0, loss=None, state_dict=copy.deepcopy(m.state_dict()))
             for m in self.module.models
         ]
 
@@ -108,8 +106,8 @@ class MBPOTorchPolicy(SACTorchPolicy):
     def _update_snapshots(self, epoch, snapshots, info):
         def update_snapshot(idx, snap):
             cur_loss = info[f"loss(model[{idx}])"]
-            improvement = (snap.loss - cur_loss) / snap.loss
-            if improvement > self.config["improvement_threshold"] or snap.loss is None:
+            threshold = self.config["improvement_threshold"]
+            if snap.loss is None or (snap.loss - cur_loss) / snap.loss > threshold:
                 return ModelSnapshot(
                     epoch=epoch,
                     loss=cur_loss,
