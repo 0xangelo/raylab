@@ -17,9 +17,19 @@ DEFAULT_CONFIG = with_base_config(
         # Clipped Double Q-Learning
         "clipped_double_q": True,
         # === Model Training ===
-        # Number of minibatches to sample for dynamics model training loop
-        "model_epochs": 120,
-        # Size of minibatch for each dynamics model epoch
+        # Fraction of input data for validation and early stopping, may be 0.
+        "holdout_ratio": 0.2,
+        # Maximum number of samples for validation and early stopping
+        "max_holdout": 5000,
+        # Maximum number of full model passes through the data, may be None.
+        "max_model_epochs": None,
+        # Number of epochs to wait for any of the models to improve on the validation
+        # dataset before early stopping
+        "patience_epochs": 5,
+        # Maximum time in seconds for training the model, may be None.
+        # We check this after each epoch (not minibatch)
+        "max_model_train_s": 20,
+        # Size of minibatch for dynamics model training
         "model_batch_size": 256,
         # === Policy Training ===
         # Number of policy improvement steps per real environment step
@@ -92,5 +102,21 @@ class MBPOTrainer(ModelBasedTrainer):
     def validate_config(config):
         ModelBasedTrainer.validate_config(config)
         assert (
+            config["max_model_epochs"] >= 0
+        ), "Cannot train model for a negative number of epochs"
+        assert (
+            config["patience_epochs"] > 0
+        ), "Must wait a positive number of epochs for any model to improve"
+
+        assert (
             config["model_rollout_length"] > 0
         ), "Length of model-based rollouts must be positive"
+
+        stopping_criteria = (
+            config["holdout_ratio"] > 0
+            or config["max_model_epochs"]
+            or config["max_model_train_s"]
+        )
+        assert (
+            stopping_criteria
+        ), "MBPO needs at least one stopping criteria for model training"
