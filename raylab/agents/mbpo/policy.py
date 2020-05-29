@@ -81,6 +81,7 @@ class MBPOTorchPolicy(SACTorchPolicy):
 
         self._restore_models(snapshots)
 
+        info["model_epochs"] = epoch
         info.update(self.extra_grad_info("models"))
         return self._learner_stats(info)
 
