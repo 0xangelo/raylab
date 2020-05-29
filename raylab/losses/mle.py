@@ -16,7 +16,7 @@ class MaximumLikelihood:
 
     def __call__(self, batch):
         """Compute Maximum Likelihood Estimation (MLE) model loss."""
-        obs, actions, next_obs = get_keys(batch, self.batch_keys)
+        obs, actions, next_obs = get_keys(batch, *self.batch_keys)
         loss = -self.model_likelihood(obs, actions, next_obs).mean()
         return loss, {"loss(mle)": loss.item()}
 
