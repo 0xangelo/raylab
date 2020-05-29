@@ -1,5 +1,8 @@
 """Policy for MBPO using PyTorch."""
 import collections
+import copy
+import itertools
+import time
 
 import numpy as np
 import torch
@@ -10,6 +13,9 @@ import raylab.utils.pytorch as ptu
 from raylab.agents.sac import SACTorchPolicy
 from raylab.envs.rewards import get_reward_fn
 from raylab.losses import ModelEnsembleMLE
+
+
+ModelSnapshot = collections.namedtuple("ModelSnapshot", "epoch loss state_dict")
 
 
 class MBPOTorchPolicy(SACTorchPolicy):
@@ -41,16 +47,82 @@ class MBPOTorchPolicy(SACTorchPolicy):
         optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
-    def optimize_model(self, samples):
-        """Update models with samples."""
-        batch_tensors = self._lazy_tensor_dict(samples)
+    def optimize_model(self, train_samples, eval_samples):
+        """Update models with samples.
 
-        with self.optimizer.models.optimize():
-            loss, info = self.loss_model(batch_tensors)
-            loss.backward()
+        Args:
+            train_samples (SampleBatch): training data
+            eval_samples (SampleBatch): holdout data
+        """
+        train_tensors, eval_tensors = map(
+            self._lazy_tensor_dict, (train_samples, eval_samples)
+        )
+        snapshots = self._build_snapshots()
+
+        dataloader = self._build_dataloader(train_tensors)
+        max_time_s = self.config["max_model_train_s"] or float("inf")
+        start = time.time()
+        for epoch in self._model_epochs():
+            for minibatch in dataloader:
+                with self.optimizer.models.optimize():
+                    loss, _ = self.loss_model(minibatch)
+                    loss.backward()
+
+            if eval_samples.count > 0:
+                with torch.no_grad():
+                    _, info = self.loss_model(eval_tensors)
+
+                snapshots, early_stop = self._update_snapshots(epoch, snapshots, info)
+            else:
+                early_stop = False
+
+            if early_stop or time.time() - start >= max_time_s:
+                break
+
+        self._restore_models(snapshots)
 
         info.update(self.extra_grad_info("models"))
         return self._learner_stats(info)
+
+    def _build_snapshots(self):
+        return [
+            ModelSnapshot(
+                epoch=0, loss=float("inf"), state_dict=copy.deepcopy(m.state_dict())
+            )
+            for m in self.module.models
+        ]
+
+    def _build_dataloader(self, train_tensors):
+        dataset = TensorDictDataset(
+            {k: train_tensors[k] for k in self.loss_model.batch_keys}
+        )
+        return torch.utils.data.DataLoader(
+            dataset, shuffle=True, batch_size=self.config["model_batch_size"]
+        )
+
+    def _model_epochs(self):
+        max_model_epochs = self.config["max_model_epochs"]
+        return range(max_model_epochs) if max_model_epochs else itertools.count()
+
+    def _update_snapshots(self, epoch, snapshots, info):
+        def update_snapshot(idx, snap):
+            cur_loss = info[f"loss(model[{idx}])"]
+            improvement = (snap.loss - cur_loss) / snap.loss
+            if improvement > self.config["improvement_threshold"] or snap.loss is None:
+                return ModelSnapshot(
+                    epoch=epoch,
+                    loss=cur_loss,
+                    state_dict=copy.deepcopy(self.module.models[idx].state_dict()),
+                )
+            return snap
+
+        new = [update_snapshot(i, s) for i, s in enumerate(snapshots)]
+        early_stop = epoch - max(s.epoch for s in new) >= self.config["patience_epochs"]
+        return new, early_stop
+
+    def _restore_models(self, snapshots):
+        for idx, snap in enumerate(snapshots):
+            self.module.models[idx].load_state_dict(snap.state_dict)
 
     @torch.no_grad()
     def generate_virtual_sample_batch(self, samples):
@@ -83,3 +155,19 @@ class MBPOTorchPolicy(SACTorchPolicy):
             obs = next_obs
 
         return SampleBatch.concat_samples(virtual_samples)
+
+
+class TensorDictDataset(torch.utils.data.Dataset):
+    """Dataset wrapping a dict of tensors."""
+
+    def __init__(self, tensor_dict):
+        super().__init__()
+        batch_size = next(iter(tensor_dict.values())).size(0)
+        assert all(tensor.size(0) == batch_size for tensor in tensor_dict.values())
+        self.tensor_dict = tensor_dict
+
+    def __getitem__(self, index):
+        return {k: v[index] for k, v in self.tensor_dict.items()}
+
+    def __len__(self):
+        return next(iter(self.tensor_dict.values())).size(0)
