@@ -11,10 +11,11 @@ from raylab.utils.replay_buffer import ReplayBuffer
 BASE_CONFIG = with_off_policy_config(
     {
         # === Model Training ===
-        # Number of minibatches to sample for dynamics model training loop
-        "model_epochs": 120,
-        # Size of minibatch for each dynamics model epoch
-        "model_batch_size": 256,
+        # Fraction of replay buffer to use as validation dataset
+        # (hence not for training)
+        "holdout_ratio": 0.2,
+        # Maximum number of samples to use as validation dataset
+        "max_holdout": 5000,
         # === Policy Training ===
         # Number of policy improvement steps per real environment step
         "policy_improvements": 10,
@@ -52,8 +53,11 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
     def validate_config(config):
         GenericOffPolicyTrainer.validate_config(config)
         assert (
-            config["model_epochs"] >= 0
-        ), "Cannot train model for a negative number of epochs"
+            config["holdout_ratio"] < 1.0
+        ), "Holdout data cannot be the entire dataset"
+        assert (
+            config["max_holdout"] >= 0
+        ), "Maximum number of holdout samples must be non-negative"
         assert config["model_batch_size"] > 0, "Model batch size must be positive"
         assert (
             config["policy_improvements"] >= 0
@@ -87,23 +91,25 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
         return self._log_metrics(stats)
 
     def train_dynamics_model(self):
-        """Implements the model training loop.
+        """Implements the model training step.
 
-        Calls the policy to optimize the model on each minibatch.
+        Calls the policy to optimize the model on the environment replay buffer.
         """
-        policy = self.workers.local_worker().get_policy()
-        stats = {}
+        samples = self.replay.all_samples()
+        samples.shuffle()
+        holdout = min(
+            int(len(self.replay) * self.config["holdout_ratio"]),
+            self.config["max_holdout"],
+        )
+        train_data, eval_data = samples.slice(holdout, None), samples.slice(0, holdout)
 
-        for _ in range(self.config["model_epochs"]):
-            batch = self.replay.sample(self.config["model_batch_size"])
-            stats = get_learner_stats(policy.optimize_model(batch))
+        policy = self.workers.local_worker().get_policy()
+        stats = policy.optimize_model(train_data, eval_data)
 
         return stats
 
     def populate_virtual_buffer(self, num_env_steps):
-        """
-        Add short model-generated rollouts branched from real data to the virtual pool.
-        """
+        """Add model-generated rollouts branched from real data to the virtual pool."""
         if self.config["model_rollouts"] == 0:
             return
         policy = self.workers.local_worker().get_policy()
