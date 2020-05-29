@@ -33,9 +33,9 @@ class ModelEnsembleMLE(MaximumLikelihood):
     @override(MaximumLikelihood)
     def __call__(self, batch):
         obs, actions, next_obs = get_keys(batch, *self.batch_keys)
-        losses = self.model_likelihoods(obs, actions, next_obs)
-        loss = torch.stack(losses).mean()
-        info = {f"loss(model[{i}])": l.item() for i, l in enumerate(losses)}
+        logps = self.model_likelihoods(obs, actions, next_obs)
+        loss = -torch.stack(logps).mean()
+        info = {f"loss(model[{i}])": -l.item() for i, l in enumerate(logps)}
         info["loss(models)"] = loss.item()
         return loss, info
 
