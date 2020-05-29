@@ -1,6 +1,7 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 from ray.rllib import SampleBatch
+from ray.rllib.evaluation.metrics import get_learner_stats
 
 from raylab.utils.debug import fake_batch
 
@@ -68,7 +69,7 @@ def test_optimize_model(policy):
     train_samples = fake_batch(obs_space, action_space, batch_size=80)
     eval_samples = fake_batch(obs_space, action_space, batch_size=20)
 
-    info = policy.optimize_model(train_samples, eval_samples)
+    info = get_learner_stats(policy.optimize_model(train_samples, eval_samples))
 
     assert "model_epochs" in info
     assert "loss(models)" in info
