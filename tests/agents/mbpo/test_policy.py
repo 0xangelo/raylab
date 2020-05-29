@@ -4,16 +4,32 @@ from ray.rllib import SampleBatch
 
 from raylab.utils.debug import fake_batch
 
+ENSEMBLE_SIZE = (1, 4)
+
+
+@pytest.fixture(
+    scope="module", params=ENSEMBLE_SIZE, ids=(f"Ensemble({s})" for s in ENSEMBLE_SIZE)
+)
+def ensemble_size(request):
+    return request.param
+
 
 @pytest.fixture(scope="module")
-def config():
-    return {"module": {"ensemble_size": 1}, "model_rollout_length": 10}
+def config(ensemble_size):
+    return {
+        "max_model_epochs": 10,
+        "model_batch_size": 32,
+        "max_model_train_s": 4,
+        "improvement_threshold": 0.01,
+        "patience_epochs": 5,
+        "module": {"ensemble_size": ensemble_size},
+        "model_rollout_length": 10,
+    }
 
 
 @pytest.fixture(scope="module")
-def policy(policy_and_batch_fn, config):
-    policy, _ = policy_and_batch_fn(config)
-    return policy
+def policy(policy_cls, config):
+    return policy_cls(config)
 
 
 def test_policy_creation(policy):
@@ -45,3 +61,18 @@ def test_generate_virtual_sample_batch(policy):
     assert batch[SampleBatch.NEXT_OBS].shape == (total_count,) + obs_space.shape
     assert batch[SampleBatch.REWARDS].shape == (total_count,)
     assert batch[SampleBatch.REWARDS].shape == (total_count,)
+
+
+def test_optimize_model(policy):
+    obs_space, action_space = policy.observation_space, policy.action_space
+    train_samples = fake_batch(obs_space, action_space, batch_size=80)
+    eval_samples = fake_batch(obs_space, action_space, batch_size=20)
+
+    info = policy.optimize_model(train_samples, eval_samples)
+
+    assert "model_epochs" in info
+    assert "loss(models)" in info
+    assert all(
+        f"loss(model[{i}])" in info
+        for i in range(policy.config["module"]["model"]["ensemble_size"])
+    )
