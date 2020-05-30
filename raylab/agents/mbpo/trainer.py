@@ -23,6 +23,8 @@ DEFAULT_CONFIG = with_base_config(
         "max_holdout": 5000,
         # Maximum number of full model passes through the data, may be None.
         "max_model_epochs": None,
+        # Maximum number of model gradient steps, may be None.
+        "max_model_steps": 120,
         # Minimum expected relative improvement in model validation loss
         "improvement_threshold": 0.01,
         # Number of epochs to wait for any of the models to improve on the validation

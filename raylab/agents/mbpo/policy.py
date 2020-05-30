@@ -63,41 +63,22 @@ class MBPOTorchPolicy(SACTorchPolicy):
             return {"grad_norm(models)": np.mean(grad_norms)}
         return super().extra_grad_info(component)
 
-    def optimize_model(self, train_samples, eval_samples):
+    def optimize_model(self, train_samples, eval_samples=None):
         """Update models with samples.
 
         Args:
             train_samples (SampleBatch): training data
-            eval_samples (SampleBatch): holdout data
+            eval_samples (Optional[SampleBatch]): holdout data
         """
-        train_tensors, eval_tensors = map(
-            self._lazy_tensor_dict, (train_samples, eval_samples)
-        )
+        train_tensors = self._lazy_tensor_dict(train_samples)
+        eval_tensors = self._lazy_tensor_dict(eval_samples) if eval_samples else None
+
         snapshots = self._build_snapshots()
-
         dataloader = self._build_dataloader(train_tensors)
-        max_time_s = self.config["max_model_train_s"] or float("inf")
-        start = time.time()
-        for epoch in self._model_epochs():
-            for minibatch in dataloader:
-                with self.optimizer.models.optimize():
-                    loss, _ = self.loss_model(minibatch)
-                    loss.backward()
 
-            if eval_samples.count > 0:
-                with torch.no_grad():
-                    _, info = self.loss_model(eval_tensors)
-
-                snapshots, early_stop = self._update_snapshots(epoch, snapshots, info)
-            else:
-                early_stop = False
-
-            if early_stop or time.time() - start >= max_time_s:
-                break
-
+        info, snapshots = self._train_model_epochs(dataloader, snapshots, eval_tensors)
         info.update(self._restore_models_and_set_elites(snapshots))
 
-        info["model_epochs"] = epoch
         info.update(self.extra_grad_info("models"))
         return self._learner_stats(info)
 
@@ -115,6 +96,33 @@ class MBPOTorchPolicy(SACTorchPolicy):
             dataset, shuffle=True, batch_size=self.config["model_batch_size"]
         )
 
+    def _train_model_epochs(self, dataloader, snapshots, eval_tensors):
+        info = {}
+        max_grad_steps = self.config["max_model_steps"] or float("inf")
+        grad_steps = 0
+        start = time.time()
+        for epoch in self._model_epochs():
+            for minibatch in dataloader:
+                with self.optimizer.models.optimize():
+                    loss, _ = self.loss_model(minibatch)
+                    loss.backward()
+                grad_steps += 1
+                if grad_steps >= max_grad_steps:
+                    break
+
+            if eval_tensors:
+                with torch.no_grad():
+                    _, eval_info = self.loss_model(eval_tensors)
+
+                snapshots = self._update_snapshots(epoch, snapshots, eval_info)
+                info.update(eval_info)
+
+            if self._terminate_epoch(epoch, snapshots, start, grad_steps):
+                break
+
+        info["model_epochs"] = epoch
+        return info, snapshots
+
     def _model_epochs(self):
         max_model_epochs = self.config["max_model_epochs"]
         return range(max_model_epochs) if max_model_epochs else itertools.count()
@@ -131,9 +139,18 @@ class MBPOTorchPolicy(SACTorchPolicy):
                 )
             return snap
 
-        new = [update_snapshot(i, s) for i, s in enumerate(snapshots)]
-        early_stop = epoch - max(s.epoch for s in new) >= self.config["patience_epochs"]
-        return new, early_stop
+        return [update_snapshot(i, s) for i, s in enumerate(snapshots)]
+
+    def _terminate_epoch(self, epoch, snapshots, start_time_s, model_steps):
+        patience_epochs = self.config["patience_epochs"] or float("inf")
+        max_time_s = self.config["max_model_train_s"] or float("inf")
+        max_model_steps = self.config["max_model_steps"] or float("inf")
+
+        return (
+            time.time() - start_time_s >= max_time_s
+            or epoch - max(s.epoch for s in snapshots) >= patience_epochs
+            or model_steps >= max_model_steps
+        )
 
     def _restore_models_and_set_elites(self, snapshots):
         info = {}
