@@ -1,4 +1,5 @@
 """Generic Trainer and base configuration for model-based agents."""
+from ray.rllib import SampleBatch
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.utils import override
 
@@ -128,9 +129,12 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
 
         stats = {}
         for _ in range(num_env_steps * self.config["policy_improvements"]):
-            env_batch = self.replay.sample(env_batch_size)
-            virtual_batch = self.virtual_replay.sample(model_batch_size)
-            batch = env_batch.concat(virtual_batch)
+            samples = []
+            if env_batch_size:
+                samples += [self.replay.sample(env_batch_size)]
+            if model_batch_size:
+                samples += [self.virtual_replay.sample(model_batch_size)]
+            batch = SampleBatch.concat_samples(samples)
             stats = get_learner_stats(policy.learn_on_batch(batch))
             self.optimizer.num_steps_trained += batch.count
         return stats
