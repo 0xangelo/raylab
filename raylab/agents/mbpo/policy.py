@@ -120,7 +120,7 @@ class MBPOTorchPolicy(SACTorchPolicy):
             if self._terminate_epoch(epoch, snapshots, start, grad_steps):
                 break
 
-        info["model_epochs"] = epoch
+        info["model_epochs"] = epoch + 1
         return info, snapshots
 
     def _model_epochs(self):
