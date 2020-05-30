@@ -107,7 +107,7 @@ class MBPOTrainer(ModelBasedTrainer):
     def validate_config(config):
         ModelBasedTrainer.validate_config(config)
         assert (
-            config["max_model_epochs"] >= 0
+            config["max_model_epochs"] is None or config["max_model_epochs"] >= 0
         ), "Cannot train model for a negative number of epochs"
         assert (
             config["patience_epochs"] > 0
