@@ -41,7 +41,7 @@ class DPGAwareModelLearning:
         daml_loss = torch.sum(action_gradients * action_gradients, dim=-1).mean()
         return (
             daml_loss,
-            {"loss(action)": temporal_diff.item(), "loss(daml)": daml_loss.item()},
+            {"loss(action)": temporal_diff.item(), "loss(model)": daml_loss.item()},
         )
 
     def one_step_action_value_surrogate(self, obs, actions, model_samples=1):

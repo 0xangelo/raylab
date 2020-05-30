@@ -18,7 +18,7 @@ class MaximumLikelihood:
         """Compute Maximum Likelihood Estimation (MLE) model loss."""
         obs, actions, next_obs = get_keys(batch, *self.batch_keys)
         loss = -self.model_likelihood(obs, actions, next_obs).mean()
-        return loss, {"loss(mle)": loss.item()}
+        return loss, {"loss(model)": loss.item()}
 
     def model_likelihood(self, obs, actions, next_obs):
         """Compute likelihood of a transition under the model."""
@@ -35,7 +35,7 @@ class ModelEnsembleMLE(MaximumLikelihood):
         obs, actions, next_obs = get_keys(batch, *self.batch_keys)
         logps = self.model_likelihoods(obs, actions, next_obs)
         loss = -torch.stack(logps).mean()
-        info = {f"loss(model[{i}])": -l.item() for i, l in enumerate(logps)}
+        info = {f"loss(models[{i}])": -l.item() for i, l in enumerate(logps)}
         info["loss(models)"] = loss.item()
         return loss, info
 
