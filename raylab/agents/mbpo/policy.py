@@ -70,11 +70,9 @@ class MBPOTorchPolicy(SACTorchPolicy):
             train_samples (SampleBatch): training data
             eval_samples (Optional[SampleBatch]): holdout data
         """
-        train_tensors = self._lazy_tensor_dict(train_samples)
-        eval_tensors = self._lazy_tensor_dict(eval_samples) if eval_samples else None
-
         snapshots = self._build_snapshots()
-        dataloader = self._build_dataloader(train_tensors)
+        dataloader = self._build_dataloader(train_samples)
+        eval_tensors = self._lazy_tensor_dict(eval_samples) if eval_samples else None
 
         info, snapshots = self._train_model_epochs(dataloader, snapshots, eval_tensors)
         info.update(self._restore_models_and_set_elites(snapshots))
@@ -88,7 +86,8 @@ class MBPOTorchPolicy(SACTorchPolicy):
             for m in self.module.models
         ]
 
-    def _build_dataloader(self, train_tensors):
+    def _build_dataloader(self, train_samples):
+        train_tensors = self._lazy_tensor_dict(train_samples)
         dataset = TensorDictDataset(
             {k: train_tensors[k] for k in self.loss_model.batch_keys}
         )
