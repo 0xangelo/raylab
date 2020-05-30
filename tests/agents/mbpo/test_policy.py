@@ -77,3 +77,4 @@ def test_optimize_model(policy):
         f"loss(model[{i}])" in info
         for i in range(policy.config["module"]["model"]["ensemble_size"])
     )
+    assert "grad_norm(models)" in info
