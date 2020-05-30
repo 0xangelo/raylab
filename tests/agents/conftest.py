@@ -14,3 +14,11 @@ def policy_and_batch_(obs_space, action_space):
         return policy, batch
 
     return make_policy_and_batch
+
+
+@pytest.fixture(scope="module")
+def policy_fn(obs_space, action_space):
+    def make_policy(policy_cls, config):
+        return policy_cls(obs_space, action_space, config)
+
+    return make_policy
