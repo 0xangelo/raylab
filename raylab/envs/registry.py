@@ -51,29 +51,28 @@ def register_external_library_environments(library_name):
 
 @wrap_if_needed
 def _cartpole_stateless_maker(_):
-    from gym.envs.classic_control.cartpole import CartPoleEnv
-    from raylab.envs.cartpole_stateless import CartPoleStatelessWrapper
+    from raylab.envs.environments.cartpole_stateless import CartPoleStateless
 
-    return CartPoleStatelessWrapper(CartPoleEnv())
+    return CartPoleStateless()
 
 
 @wrap_if_needed
 def _navigation_maker(config):
-    from raylab.envs.navigation import NavigationEnv
+    from raylab.envs.environments.navigation import NavigationEnv
 
     return NavigationEnv(config)
 
 
 @wrap_if_needed
 def _reservoir_maker(config):
-    from raylab.envs.reservoir import ReservoirEnv
+    from raylab.envs.environments.reservoir import ReservoirEnv
 
     return ReservoirEnv(config)
 
 
 @wrap_if_needed
 def _hvac_maker(config):
-    from raylab.envs.hvac import HVACEnv
+    from raylab.envs.environments.hvac import HVACEnv
 
     return HVACEnv(config)
 
