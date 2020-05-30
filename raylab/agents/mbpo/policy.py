@@ -52,6 +52,17 @@ class MBPOTorchPolicy(SACTorchPolicy):
         optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
+    @torch.no_grad()
+    @override(SACTorchPolicy)
+    def extra_grad_info(self, component):
+        if component == "models":
+            grad_norms = [
+                torch.nn.utils.clip_grad_norm_(m.parameters(), float("inf")).item()
+                for m in self.module.models
+            ]
+            return {"grad_norm(models)": np.mean(grad_norms)}
+        return super().extra_grad_info(component)
+
     def optimize_model(self, train_samples, eval_samples):
         """Update models with samples.
 
