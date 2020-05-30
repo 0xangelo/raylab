@@ -84,7 +84,8 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
             for row in samples.rows():
                 self.replay.add(row)
 
-            stats = self.train_dynamics_model()
+            stats = {}
+            stats.update(self.train_dynamics_model())
             self.populate_virtual_buffer(samples.count)
             stats.update(self.improve_policy(samples.count))
 
@@ -111,11 +112,11 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
 
     def populate_virtual_buffer(self, num_env_steps):
         """Add model-generated rollouts branched from real data to the virtual pool."""
-        if self.config["model_rollouts"] == 0:
+        if not (self.config["model_rollouts"] and self.config["real_data_ratio"] < 1.0):
             return
-        policy = self.workers.local_worker().get_policy()
 
         real_samples = self.replay.sample(self.config["model_rollouts"] * num_env_steps)
+        policy = self.workers.local_worker().get_policy()
         virtual_samples = policy.generate_virtual_sample_batch(real_samples)
         for row in virtual_samples.rows():
             self.virtual_replay.add(row)
