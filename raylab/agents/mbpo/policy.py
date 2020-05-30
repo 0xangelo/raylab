@@ -11,7 +11,7 @@ from ray.rllib.utils import override
 
 import raylab.utils.pytorch as ptu
 from raylab.agents.sac import SACTorchPolicy
-from raylab.envs.rewards import get_reward_fn
+from raylab.envs import get_reward_fn
 from raylab.losses import ModelEnsembleMLE
 
 

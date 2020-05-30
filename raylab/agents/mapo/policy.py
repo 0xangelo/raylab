@@ -7,7 +7,7 @@ from ray.rllib.utils import override
 
 import raylab.policy as raypi
 import raylab.utils.pytorch as ptu
-from raylab.envs.rewards import get_reward_fn
+from raylab.envs import get_reward_fn
 from raylab.losses import ClippedDoubleQLearning
 from raylab.losses import DPGAwareModelLearning
 from raylab.losses import MaximumLikelihood

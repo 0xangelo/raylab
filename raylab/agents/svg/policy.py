@@ -2,7 +2,7 @@
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.envs.rewards import get_reward_fn
+from raylab.envs import get_reward_fn
 from raylab.losses import ISFittedVIteration
 from raylab.losses import MaximumLikelihood
 from raylab.policy import TargetNetworksMixin
