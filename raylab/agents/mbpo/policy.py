@@ -26,9 +26,14 @@ class MBPOTorchPolicy(SACTorchPolicy):
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
 
-        self.loss_model = ModelEnsembleMLE(self.module.models)
         self.reward_fn = get_reward_fn(self.config["env"], self.config["env_config"])
-        self.random = np.random.default_rng(self.config["seed"])
+
+        models = self.module.models
+        self.loss_model = ModelEnsembleMLE(models)
+        num_elites = self.config["num_elites"]
+        assert num_elites <= len(models), "Cannot have more elites than models"
+        self.rng = np.random.default_rng(self.config["seed"])
+        self.elite_models = self.rng.choice(models, size=num_elites, replace=False)
 
     @staticmethod
     @override(SACTorchPolicy)
@@ -79,7 +84,7 @@ class MBPOTorchPolicy(SACTorchPolicy):
             if early_stop or time.time() - start >= max_time_s:
                 break
 
-        info.update(self._restore_models(snapshots))
+        info.update(self._restore_models_and_set_elites(snapshots))
 
         info["model_epochs"] = epoch
         info.update(self.extra_grad_info("models"))
@@ -119,11 +124,15 @@ class MBPOTorchPolicy(SACTorchPolicy):
         early_stop = epoch - max(s.epoch for s in new) >= self.config["patience_epochs"]
         return new, early_stop
 
-    def _restore_models(self, snapshots):
+    def _restore_models_and_set_elites(self, snapshots):
         info = {}
         for idx, snap in enumerate(snapshots):
             self.module.models[idx].load_state_dict(snap.state_dict)
             info[f"loss(model[{idx}])"] = snap.loss
+
+        elite_idxs = np.argsort([s.loss for s in snapshots])[: len(self.elite_models)]
+        info["loss(models[elites])"] = np.mean([snapshots[i].loss for i in elite_idxs])
+        self.elite_models = [self.module.models[i] for i in elite_idxs]
         return info
 
     @torch.no_grad()
@@ -137,7 +146,7 @@ class MBPOTorchPolicy(SACTorchPolicy):
         obs = self.convert_to_tensor(samples[SampleBatch.CUR_OBS])
 
         for _ in range(self.config["model_rollout_length"]):
-            model = self.random.choice(self.module.models)
+            model = self.rng.choice(self.elite_models)
 
             action, _ = self.module.actor.sample(obs)
             next_obs, _ = model.sample(obs, action)

@@ -48,6 +48,9 @@ DEFAULT_CONFIG = with_base_config(
         "model_rollouts": 40,
         # Lenght of model-based rollouts from each state sampled from replay
         "model_rollout_length": 1,
+        # Use this number of best performing models on the validation dataset to sample
+        # transitions
+        "num_elites": 5,
         # === Optimization ===
         # PyTorch optimizers to use
         "torch_optimizer": {
