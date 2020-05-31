@@ -1,7 +1,7 @@
 """Trainer and configuration for MAPO."""
 from ray.rllib.utils import override
 
-from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.agents.off_policy import with_base_config
 
 from .policy import MAPOTorchPolicy
@@ -93,7 +93,7 @@ DEFAULT_CONFIG = with_base_config(
 )
 
 
-class MAPOTrainer(GenericOffPolicyTrainer):
+class MAPOTrainer(OffPolicyTrainer):
     """Single agent trainer for Model-Aware Policy Optimization."""
 
     # pylint: disable=attribute-defined-outside-init
@@ -102,7 +102,7 @@ class MAPOTrainer(GenericOffPolicyTrainer):
     _default_config = DEFAULT_CONFIG
     _policy = MAPOTorchPolicy
 
-    @override(GenericOffPolicyTrainer)
+    @override(OffPolicyTrainer)
     def _init(self, config, env_creator):
         super()._init(config, env_creator)
         if config["true_model"]:

@@ -30,7 +30,7 @@ def with_base_config(config):
     return deep_merge(BASE_CONFIG, config, True)
 
 
-class GenericOffPolicyTrainer(Trainer):
+class OffPolicyTrainer(Trainer):
     """Generic trainer for off-policy agents."""
 
     # pylint: disable=attribute-defined-outside-init
