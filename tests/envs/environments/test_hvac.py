@@ -131,4 +131,4 @@ def test_unpack_state(env):
     obs = env.observation_space.sample()
     state, time = env._unpack_state(obs)
     assert state.shape == (env._num_rooms,)
-    assert time.shape == ()
+    assert time.shape == (1,)

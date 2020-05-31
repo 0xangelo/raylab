@@ -11,7 +11,8 @@ from ray.rllib.utils import override
 
 import raylab.utils.pytorch as ptu
 from raylab.agents.sac import SACTorchPolicy
-from raylab.envs.rewards import get_reward_fn
+from raylab.envs import get_reward_fn
+from raylab.envs import get_termination_fn
 from raylab.losses import ModelEnsembleMLE
 
 
@@ -27,6 +28,9 @@ class MBPOTorchPolicy(SACTorchPolicy):
         super().__init__(observation_space, action_space, config)
 
         self.reward_fn = get_reward_fn(self.config["env"], self.config["env_config"])
+        self.termination_fn = get_termination_fn(
+            self.config["env"], self.config["env_config"]
+        )
 
         models = self.module.models
         self.loss_model = ModelEnsembleMLE(models)
@@ -166,11 +170,14 @@ class MBPOTorchPolicy(SACTorchPolicy):
     def generate_virtual_sample_batch(self, samples):
         """Rollout model with latest policy.
 
-        This is for populating the virtual buffer, hence no gradient information is
-        retained.
+        Produces samples for populating the virtual buffer, hence no gradient
+        information is retained.
+
+        If a transition is terminal, the next transition, if any, is generated from
+        the initial state passed through `samples`.
         """
         virtual_samples = []
-        obs = self.convert_to_tensor(samples[SampleBatch.CUR_OBS])
+        obs = init_obs = self.convert_to_tensor(samples[SampleBatch.CUR_OBS])
 
         for _ in range(self.config["model_rollout_length"]):
             model = self.rng.choice(self.elite_models)
@@ -178,7 +185,7 @@ class MBPOTorchPolicy(SACTorchPolicy):
             action, _ = self.module.actor.sample(obs)
             next_obs, _ = model.sample(obs, action)
             reward = self.reward_fn(obs, action, next_obs)
-            done = torch.zeros_like(reward).bool()
+            done = self.termination_fn(obs, action, next_obs)
 
             transition = {
                 SampleBatch.CUR_OBS: obs,
@@ -190,7 +197,7 @@ class MBPOTorchPolicy(SACTorchPolicy):
             virtual_samples += [
                 SampleBatch({k: v.numpy() for k, v in transition.items()})
             ]
-            obs = next_obs
+            obs = torch.where(done.unsqueeze(-1), init_obs, next_obs)
 
         return SampleBatch.concat_samples(virtual_samples)
 

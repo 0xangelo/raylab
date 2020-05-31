@@ -10,10 +10,8 @@ def trainer_cls():
 
 
 @pytest.fixture(scope="module")
-def policy_cls(policy_fn, trainer_cls, envs):
-    # pylint:disable=unused-argument
+def policy_cls(policy_fn, trainer_cls):
     def make_policy(config):
-        config["env"] = "MockEnv"
         return policy_fn(trainer_cls._policy, config)
 
     return make_policy
