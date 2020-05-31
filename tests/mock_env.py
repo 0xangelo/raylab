@@ -38,10 +38,10 @@ class MockEnv(gym.Env):  # pylint: disable=abstract-method
     @override(gym.Env)
     def step(self, action):
         self.time += 1
-        self.state[:2] = np.clip(
-            self.state[:2] + action,
-            self.observation_space.low,
-            self.observation_space.high,
+        self.state[:3] = np.clip(
+            self.state[:3] + action,
+            self.observation_space.low[:3],
+            self.observation_space.high[:3],
         )
         self.state[-1] = self.time / self.horizon
         reward = np.linalg.norm((self.state - self.goal.numpy()), axis=-1)
