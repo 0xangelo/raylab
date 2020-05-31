@@ -1,5 +1,5 @@
 """Trainer and configuration for SOP."""
-from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.agents.off_policy import with_base_config
 
 from .policy import SOPTorchPolicy
@@ -53,7 +53,7 @@ DEFAULT_CONFIG = with_base_config(
 )
 
 
-class SOPTrainer(GenericOffPolicyTrainer):
+class SOPTrainer(OffPolicyTrainer):
     """Single agent trainer for Streamlined Off-Policy Algorithm."""
 
     # pylint: disable=attribute-defined-outside-init

@@ -27,6 +27,10 @@ def replay_and_keys(extra_keys):
     return ReplayBuffer(size=int(1e4), extra_keys=extra_keys), extra_keys
 
 
+def test_size_zero():
+    ReplayBuffer(0)
+
+
 def test_replay_init(replay_and_keys):
     replay, extra_keys = replay_and_keys
 

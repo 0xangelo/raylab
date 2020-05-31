@@ -3,7 +3,7 @@ from ray.rllib import SampleBatch
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.utils import override
 
-from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.agents.off_policy import with_base_config as with_off_policy_config
 from raylab.utils.dictionaries import deep_merge
 from raylab.utils.replay_buffer import ReplayBuffer
@@ -36,12 +36,12 @@ def with_base_config(config):
     return deep_merge(BASE_CONFIG, config, True)
 
 
-class ModelBasedTrainer(GenericOffPolicyTrainer):
+class ModelBasedTrainer(OffPolicyTrainer):
     """Generic trainer for model-based agents."""
 
     # pylint: disable=attribute-defined-outside-init
 
-    @override(GenericOffPolicyTrainer)
+    @override(OffPolicyTrainer)
     def _init(self, config, env_creator):
         super()._init(config, env_creator)
 
@@ -50,16 +50,15 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
         )
 
     @staticmethod
-    @override(GenericOffPolicyTrainer)
+    @override(OffPolicyTrainer)
     def validate_config(config):
-        GenericOffPolicyTrainer.validate_config(config)
+        OffPolicyTrainer.validate_config(config)
         assert (
             config["holdout_ratio"] < 1.0
         ), "Holdout data cannot be the entire dataset"
         assert (
             config["max_holdout"] >= 0
         ), "Maximum number of holdout samples must be non-negative"
-        assert config["model_batch_size"] > 0, "Model batch size must be positive"
         assert (
             config["policy_improvements"] >= 0
         ), "Number of policy improvement steps must be non-negative"
@@ -73,7 +72,7 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
             config["model_rollouts"] >= 0
         ), "Cannot sample a negative number of model rollouts"
 
-    @override(GenericOffPolicyTrainer)
+    @override(OffPolicyTrainer)
     def _train(self):
         start_samples = self.sample_until_learning_starts()
 
