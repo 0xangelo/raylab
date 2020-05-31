@@ -59,7 +59,6 @@ class ModelBasedTrainer(OffPolicyTrainer):
         assert (
             config["max_holdout"] >= 0
         ), "Maximum number of holdout samples must be non-negative"
-        assert config["model_batch_size"] > 0, "Model batch size must be positive"
         assert (
             config["policy_improvements"] >= 0
         ), "Number of policy improvement steps must be non-negative"

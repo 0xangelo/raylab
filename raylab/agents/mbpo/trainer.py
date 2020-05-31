@@ -114,6 +114,7 @@ class MBPOTrainer(ModelBasedTrainer):
         assert (
             config["patience_epochs"] > 0
         ), "Must wait a positive number of epochs for any model to improve"
+        assert config["model_batch_size"] > 0, "Model batch size must be positive"
 
         assert (
             config["model_rollout_length"] > 0
