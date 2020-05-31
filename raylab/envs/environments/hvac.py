@@ -80,47 +80,10 @@ class HVACEnv(gym.Env):
         temp_outside, logp_temp_outside = self._temp_outside(sample_shape)
 
         next_state = self._temp(action, temp_outside, temp_hall)
-
-        time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0).detach()
-        time = time.expand_as(next_state[..., -1:])
-
         logp = logp_temp_hall + logp_temp_outside
-
+        time = self._step_time(time)
+        time = time.expand_as(next_state[..., -1:])
         return torch.cat([next_state, time], dim=-1), logp
-
-    def reward_fn(self, state, action, next_state):
-        # pylint: disable=unused-argument,missing-docstring
-        AIR_MAX = torch.as_tensor(self._config["AIR_MAX"])
-        air = torch.as_tensor(action) * AIR_MAX
-
-        temp, _ = self._unpack_state(next_state)
-
-        IS_ROOM = torch.as_tensor(self._config["IS_ROOM"])
-        COST_AIR = torch.as_tensor(self._config["COST_AIR"])
-        TEMP_LOW = torch.as_tensor(self._config["TEMP_LOW"])
-        TEMP_UP = torch.as_tensor(self._config["TEMP_UP"])
-        PENALTY = torch.as_tensor(self._config["PENALTY"])
-
-        reward = -(
-            IS_ROOM
-            * (
-                air * COST_AIR
-                + ((temp < TEMP_LOW) | (temp > TEMP_UP)) * PENALTY
-                + 10.0 * torch.abs((TEMP_UP + TEMP_LOW) / 2.0 - temp)
-            )
-        ).sum(dim=-1)
-
-        return reward
-
-    def _temp_outside(self, sample_shape=()):
-        TEMP_OUTSIDE_MEAN = torch.as_tensor(self._config["TEMP_OUTSIDE_MEAN"])
-        TEMP_OUTSIDE_VARIANCE = torch.sqrt(
-            torch.as_tensor(self._config["TEMP_OUTSIDE_VARIANCE"])
-        )
-        dist = torch.distributions.Normal(TEMP_OUTSIDE_MEAN, TEMP_OUTSIDE_VARIANCE)
-        sample = dist.rsample(sample_shape)
-        logp = dist.log_prob(sample.detach())
-        return sample, logp
 
     def _temp_hall(self, sample_shape=()):
         TEMP_HALL_MEAN = torch.as_tensor(self._config["TEMP_HALL_MEAN"])
@@ -128,6 +91,16 @@ class HVACEnv(gym.Env):
             torch.as_tensor(self._config["TEMP_HALL_VARIANCE"])
         )
         dist = torch.distributions.Normal(TEMP_HALL_MEAN, TEMP_HALL_VARIANCE)
+        sample = dist.rsample(sample_shape)
+        logp = dist.log_prob(sample.detach())
+        return sample, logp
+
+    def _temp_outside(self, sample_shape=()):
+        TEMP_OUTSIDE_MEAN = torch.as_tensor(self._config["TEMP_OUTSIDE_MEAN"])
+        TEMP_OUTSIDE_VARIANCE = torch.sqrt(
+            torch.as_tensor(self._config["TEMP_OUTSIDE_VARIANCE"])
+        )
+        dist = torch.distributions.Normal(TEMP_OUTSIDE_MEAN, TEMP_OUTSIDE_VARIANCE)
         sample = dist.rsample(sample_shape)
         logp = dist.log_prob(sample.detach())
         return sample, logp
@@ -163,15 +136,43 @@ class HVACEnv(gym.Env):
 
         return temp_
 
+    def _step_time(self, time):
+        timestep = torch.round(self._horizon * time)
+        return (timestep + 1) / self._horizon
+
+    def reward_fn(self, state, action, next_state):
+        # pylint: disable=unused-argument,missing-docstring
+        AIR_MAX = torch.as_tensor(self._config["AIR_MAX"])
+        air = torch.as_tensor(action) * AIR_MAX
+
+        temp, _ = self._unpack_state(next_state)
+
+        IS_ROOM = torch.as_tensor(self._config["IS_ROOM"])
+        COST_AIR = torch.as_tensor(self._config["COST_AIR"])
+        TEMP_LOW = torch.as_tensor(self._config["TEMP_LOW"])
+        TEMP_UP = torch.as_tensor(self._config["TEMP_UP"])
+        PENALTY = torch.as_tensor(self._config["PENALTY"])
+
+        reward = -(
+            IS_ROOM
+            * (
+                air * COST_AIR
+                + ((temp < TEMP_LOW) | (temp > TEMP_UP)) * PENALTY
+                + 10.0 * torch.abs((TEMP_UP + TEMP_LOW) / 2.0 - temp)
+            )
+        ).sum(dim=-1)
+
+        return reward
+
     def _terminal(self):
         _, time = self._unpack_state(self._state)
-        return np.allclose(time.numpy(), 1.0)
-
-    def render(self, mode="human"):
-        pass
+        return time.item() >= 1.0
 
     @staticmethod
     def _unpack_state(state):
         obs = torch.as_tensor(state[..., :-1], dtype=torch.float32)
-        time = torch.as_tensor(state[..., -1], dtype=torch.float32)
+        time = torch.as_tensor(state[..., -1:], dtype=torch.float32)
         return obs, time
+
+    def render(self, mode="human"):
+        pass

@@ -92,24 +92,24 @@ class NavigationEnv(gym.Env):
 
     def transition_fn(self, state, action, sample_shape=()):
         # pylint: disable=missing-docstring
-        state, time = state[..., :2], state[..., 2:]
+        position, time = self._unpack_state(state)
         deceleration = 1.0
         if self._deceleration_zones:
-            deceleration = self._deceleration(state)
+            deceleration = self._deceleration(position)
 
-        position = state + (deceleration * action)
-        next_state, logp = self._sample_noise(position, sample_shape)
-        time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0).detach()
-        time = time.expand_as(next_state[..., -1:])
-        return torch.cat([next_state, time], dim=-1), logp
+        position = position + (deceleration * action)
+        position, logp = self._sample_noise(position, sample_shape)
+        time = self._step_time(time)
+        time = time.expand_as(position[..., -1:])
+        return torch.cat([position, time], dim=-1), logp
 
-    def _deceleration(self, state):
+    def _deceleration(self, position):
         decay = torch.from_numpy(self._deceleration_decay)
         center = torch.from_numpy(self._deceleration_center)
-        # Consider states as row vectors
+        # Consider positions as row vectors
         # Resulting difference is matrix with diff vectors as rows
         # Calculate the norm of each row
-        distance = torch.norm(state.unsqueeze(-2) - center, dim=-1)
+        distance = torch.norm(position.unsqueeze(-2) - center, dim=-1)
         # distance is a vector with distances to each center
         # Calculate the product of all corresponding decelerations
         deceleration = torch.prod(
@@ -124,15 +124,24 @@ class NavigationEnv(gym.Env):
         sample = dist.rsample(sample_shape=sample_shape)
         return sample, dist.log_prob(sample.detach())
 
+    def _step_time(self, time):
+        timestep = torch.round(self._horizon * time)
+        return (timestep + 1) / self._horizon
+
     def reward_fn(self, state, action, next_state):
         # pylint: disable=unused-argument,missing-docstring
-        next_state = next_state[..., :2]
+        position, _ = self._unpack_state(next_state)
         goal = torch.from_numpy(self._end)
-        return torch.norm(next_state - goal, dim=-1).neg()
+        return torch.norm(position - goal, dim=-1).neg()
 
     def _terminal(self):
-        pos, time = self._state[:2], self._state[2]
-        return np.allclose(pos, self._end, atol=1e-1) or np.allclose(time, 1.0)
+        position, time = self._unpack_state(self._state)
+        return np.allclose(position, self._end, atol=1e-1) or time.item() >= 1.0
+
+    @staticmethod
+    def _unpack_state(state):
+        position, time = state[..., :-1], state[..., -1:]
+        return position, time
 
     def render(self, mode="human"):
         pass
