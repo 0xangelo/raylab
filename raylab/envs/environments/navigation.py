@@ -126,7 +126,7 @@ class NavigationEnv(gym.Env):
 
     def _step_time(self, time):
         timestep = torch.round(self._horizon * time)
-        return (timestep + 1) / self._horizon
+        return torch.clamp((timestep + 1) / self._horizon, 0, 1)
 
     def reward_fn(self, state, action, next_state):
         # pylint: disable=unused-argument,missing-docstring
