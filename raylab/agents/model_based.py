@@ -1,8 +1,9 @@
 """Generic Trainer and base configuration for model-based agents."""
+from ray.rllib import SampleBatch
 from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.utils import override
 
-from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.agents.off_policy import with_base_config as with_off_policy_config
 from raylab.utils.dictionaries import deep_merge
 from raylab.utils.replay_buffer import ReplayBuffer
@@ -11,10 +12,11 @@ from raylab.utils.replay_buffer import ReplayBuffer
 BASE_CONFIG = with_off_policy_config(
     {
         # === Model Training ===
-        # Number of minibatches to sample for dynamics model training loop
-        "model_epochs": 120,
-        # Size of minibatch for each dynamics model epoch
-        "model_batch_size": 256,
+        # Fraction of replay buffer to use as validation dataset
+        # (hence not for training)
+        "holdout_ratio": 0.2,
+        # Maximum number of samples to use as validation dataset
+        "max_holdout": 5000,
         # === Policy Training ===
         # Number of policy improvement steps per real environment step
         "policy_improvements": 10,
@@ -34,12 +36,12 @@ def with_base_config(config):
     return deep_merge(BASE_CONFIG, config, True)
 
 
-class ModelBasedTrainer(GenericOffPolicyTrainer):
+class ModelBasedTrainer(OffPolicyTrainer):
     """Generic trainer for model-based agents."""
 
     # pylint: disable=attribute-defined-outside-init
 
-    @override(GenericOffPolicyTrainer)
+    @override(OffPolicyTrainer)
     def _init(self, config, env_creator):
         super()._init(config, env_creator)
 
@@ -48,13 +50,15 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
         )
 
     @staticmethod
-    @override(GenericOffPolicyTrainer)
+    @override(OffPolicyTrainer)
     def validate_config(config):
-        GenericOffPolicyTrainer.validate_config(config)
+        OffPolicyTrainer.validate_config(config)
         assert (
-            config["model_epochs"] >= 0
-        ), "Cannot train model for a negative number of epochs"
-        assert config["model_batch_size"] > 0, "Model batch size must be positive"
+            config["holdout_ratio"] < 1.0
+        ), "Holdout data cannot be the entire dataset"
+        assert (
+            config["max_holdout"] >= 0
+        ), "Maximum number of holdout samples must be non-negative"
         assert (
             config["policy_improvements"] >= 0
         ), "Number of policy improvement steps must be non-negative"
@@ -68,7 +72,7 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
             config["model_rollouts"] >= 0
         ), "Cannot sample a negative number of model rollouts"
 
-    @override(GenericOffPolicyTrainer)
+    @override(OffPolicyTrainer)
     def _train(self):
         start_samples = self.sample_until_learning_starts()
 
@@ -79,7 +83,8 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
             for row in samples.rows():
                 self.replay.add(row)
 
-            stats = self.train_dynamics_model()
+            stats = {}
+            stats.update(self.train_dynamics_model())
             self.populate_virtual_buffer(samples.count)
             stats.update(self.improve_policy(samples.count))
 
@@ -87,28 +92,30 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
         return self._log_metrics(stats)
 
     def train_dynamics_model(self):
-        """Implements the model training loop.
+        """Implements the model training step.
 
-        Calls the policy to optimize the model on each minibatch.
+        Calls the policy to optimize the model on the environment replay buffer.
         """
-        policy = self.workers.local_worker().get_policy()
-        stats = {}
+        samples = self.replay.all_samples()
+        samples.shuffle()
+        holdout = min(
+            int(len(self.replay) * self.config["holdout_ratio"]),
+            self.config["max_holdout"],
+        )
+        train_data, eval_data = samples.slice(holdout, None), samples.slice(0, holdout)
 
-        for _ in range(self.config["model_epochs"]):
-            batch = self.replay.sample(self.config["model_batch_size"])
-            stats = get_learner_stats(policy.optimize_model(batch))
+        policy = self.workers.local_worker().get_policy()
+        stats = get_learner_stats(policy.optimize_model(train_data, eval_data))
 
         return stats
 
     def populate_virtual_buffer(self, num_env_steps):
-        """
-        Add short model-generated rollouts branched from real data to the virtual pool.
-        """
-        if self.config["model_rollouts"] == 0:
+        """Add model-generated rollouts branched from real data to the virtual pool."""
+        if not (self.config["model_rollouts"] and self.config["real_data_ratio"] < 1.0):
             return
-        policy = self.workers.local_worker().get_policy()
 
         real_samples = self.replay.sample(self.config["model_rollouts"] * num_env_steps)
+        policy = self.workers.local_worker().get_policy()
         virtual_samples = policy.generate_virtual_sample_batch(real_samples)
         for row in virtual_samples.rows():
             self.virtual_replay.add(row)
@@ -122,9 +129,12 @@ class ModelBasedTrainer(GenericOffPolicyTrainer):
 
         stats = {}
         for _ in range(num_env_steps * self.config["policy_improvements"]):
-            env_batch = self.replay.sample(env_batch_size)
-            virtual_batch = self.virtual_replay.sample(model_batch_size)
-            batch = env_batch.concat(virtual_batch)
+            samples = []
+            if env_batch_size:
+                samples += [self.replay.sample(env_batch_size)]
+            if model_batch_size:
+                samples += [self.virtual_replay.sample(model_batch_size)]
+            batch = SampleBatch.concat_samples(samples)
             stats = get_learner_stats(policy.learn_on_batch(batch))
             self.optimizer.num_steps_trained += batch.count
         return stats

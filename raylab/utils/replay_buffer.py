@@ -70,5 +70,14 @@ class ReplayBuffer(_ReplayBuffer):
     @override(_ReplayBuffer)
     def sample(self, batch_size):
         idxes = random.choices(range(len(self._storage)), k=batch_size)
+        return self.sample_with_idxes(idxes)
+
+    @override(_ReplayBuffer)
+    def sample_with_idxes(self, idxes):
+        self._num_sampled += len(idxes)
         data = self._encode_sample(idxes)
         return SampleBatch(dict(zip(self._batch_keys, data)))
+
+    def all_samples(self):
+        """Return all transitions in buffer as a SampleBatch."""
+        return self.sample_with_idxes(range(len(self)))

@@ -1,4 +1,4 @@
-"""Registry of environment reward functions to be used by algorithms."""
+"""Registry of environment reward functions in PyTorch."""
 import torch
 import torch.nn as nn
 from ray.rllib.utils import override
@@ -36,7 +36,7 @@ def register(*ids):
 
 
 class RewardFn(nn.Module):
-    """Module that computes an environment's reward funtion."""
+    """Module that computes an environment's reward function for batches of inputs."""
 
     def __init__(self, _):
         super().__init__()
@@ -117,7 +117,7 @@ class HVACReward(RewardFn):
 
     def __init__(self, config):
         super().__init__(config)
-        from .hvac import DEFAULT_CONFIG
+        from .environments.hvac import DEFAULT_CONFIG
 
         config = {**DEFAULT_CONFIG, **config}
         self.air_max = torch.as_tensor(config["AIR_MAX"]).float()
@@ -172,7 +172,7 @@ class NavigationReward(RewardFn):
 
     def __init__(self, config):
         super().__init__(config)
-        from .navigation import DEFAULT_CONFIG
+        from .environments.navigation import DEFAULT_CONFIG
 
         config = {**DEFAULT_CONFIG, **config}
         self._end = torch.as_tensor(config["end"]).float()
@@ -202,7 +202,7 @@ class ReservoirReward(RewardFn):
 
     def __init__(self, config):
         super().__init__(config)
-        from .reservoir import DEFAULT_CONFIG
+        from .environments.reservoir import DEFAULT_CONFIG
 
         config = {**DEFAULT_CONFIG, **config}
         self.lower_bound = torch.as_tensor(config["LOWER_BOUND"])

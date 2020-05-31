@@ -1,7 +1,7 @@
 """Trainer and configuration for SVG(1) with maximum entropy."""
 from ray.rllib import SampleBatch
 
-from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.agents.off_policy import with_base_config
 
 from .policy import SoftSVGTorchPolicy
@@ -61,7 +61,7 @@ DEFAULT_CONFIG = with_base_config(
 )
 
 
-class SoftSVGTrainer(GenericOffPolicyTrainer):
+class SoftSVGTrainer(OffPolicyTrainer):
     """Single agent trainer for SoftSVG."""
 
     _name = "SoftSVG"

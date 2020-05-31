@@ -1,5 +1,5 @@
 """Continuous Q-Learning with Normalized Advantage Functions."""
-from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.agents.off_policy import with_base_config
 
 from .policy import NAFTorchPolicy
@@ -50,7 +50,7 @@ DEFAULT_CONFIG = with_base_config(
 )
 
 
-class NAFTrainer(GenericOffPolicyTrainer):
+class NAFTrainer(OffPolicyTrainer):
     """Single agent trainer for NAF."""
 
     # pylint: disable=attribute-defined-outside-init

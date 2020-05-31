@@ -5,20 +5,13 @@ from raylab.agents.registry import AGENTS
 
 
 @pytest.fixture(scope="module")
-def mbpo_trainer():
+def trainer_cls():
     return AGENTS["MBPO"]()
 
 
 @pytest.fixture(scope="module")
-def mbpo_policy(mbpo_trainer):
-    return mbpo_trainer._policy
+def policy_cls(policy_fn, trainer_cls):
+    def make_policy(config):
+        return policy_fn(trainer_cls._policy, config)
 
-
-@pytest.fixture(scope="module")
-def policy_and_batch_fn(policy_and_batch_, mbpo_policy, envs):
-    # pylint:disable=unused-argument
-    def make_policy_and_batch(config):
-        config["env"] = "MockEnv"
-        return policy_and_batch_(mbpo_policy, config)
-
-    return make_policy_and_batch
+    return make_policy

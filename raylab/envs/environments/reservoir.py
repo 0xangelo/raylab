@@ -53,6 +53,10 @@ class ReservoirEnv(gym.Env):
 
         self._horizon = self._config["horizon"]
 
+    def reset(self):
+        self._state = np.array(self._config["init"]["rlevel"] + [0.0])
+        return self._state
+
     @torch.no_grad()
     def step(self, action):
         state, action = map(torch.as_tensor, (self._state, action))
@@ -61,45 +65,15 @@ class ReservoirEnv(gym.Env):
         self._state = next_state.numpy()
         return self._state, reward, self._terminal(), {}
 
-    def _terminal(self):
-        _, time = self._unpack_state(self._state)
-        return np.allclose(time.numpy(), 1.0)
-
-    def reward_fn(self, state, action, next_state):
-        # pylint: disable=unused-argument,missing-docstring
-        rlevel, _ = self._unpack_state(next_state)
-
-        LOWER_BOUND = torch.as_tensor(self._config["LOWER_BOUND"])
-        UPPER_BOUND = torch.as_tensor(self._config["UPPER_BOUND"])
-
-        LOW_PENALTY = torch.as_tensor(self._config["LOW_PENALTY"])
-        HIGH_PENALTY = torch.as_tensor(self._config["HIGH_PENALTY"])
-
-        penalty = torch.where(
-            (rlevel >= LOWER_BOUND) & (rlevel <= UPPER_BOUND),
-            torch.zeros_like(rlevel),
-            torch.where(
-                rlevel < LOWER_BOUND,
-                LOW_PENALTY * (LOWER_BOUND - rlevel),
-                HIGH_PENALTY * (rlevel - UPPER_BOUND),
-            ),
-        )
-
-        return penalty.sum(dim=-1)
-
     def transition_fn(self, state, action, sample_shape=()):
         # pylint: disable=missing-docstring
         state, time = self._unpack_state(state)
         rain, logp = self._rainfall(state, sample_shape)
         action = torch.as_tensor(action) * state
         next_state = self._rlevel(state, action, rain)
-        time = torch.clamp(time + 1 / self._horizon, 0.0, 1.0)  # .detach()
+        time = self._step_time(time)
         time = time.expand_as(next_state[..., -1:])
         return torch.cat([next_state, time], dim=-1), logp
-
-    def reset(self):
-        self._state = np.array(self._config["init"]["rlevel"] + [0.0])
-        return self._state
 
     def _rlevel(self, rlevel, action, rain):
         MIN_RES_CAP = torch.zeros(self._num_reservoirs)
@@ -145,11 +119,41 @@ class ReservoirEnv(gym.Env):
             / (MAX_RES_CAP ** 2)
         )
 
-    def render(self, mode="human"):
-        pass
+    def _step_time(self, time):
+        timestep = torch.round(self._horizon * time)
+        return torch.clamp((timestep + 1) / self._horizon, 0, 1)
+
+    def reward_fn(self, state, action, next_state):
+        # pylint: disable=unused-argument,missing-docstring
+        rlevel, _ = self._unpack_state(next_state)
+
+        LOWER_BOUND = torch.as_tensor(self._config["LOWER_BOUND"])
+        UPPER_BOUND = torch.as_tensor(self._config["UPPER_BOUND"])
+
+        LOW_PENALTY = torch.as_tensor(self._config["LOW_PENALTY"])
+        HIGH_PENALTY = torch.as_tensor(self._config["HIGH_PENALTY"])
+
+        penalty = torch.where(
+            (rlevel >= LOWER_BOUND) & (rlevel <= UPPER_BOUND),
+            torch.zeros_like(rlevel),
+            torch.where(
+                rlevel < LOWER_BOUND,
+                LOW_PENALTY * (LOWER_BOUND - rlevel),
+                HIGH_PENALTY * (rlevel - UPPER_BOUND),
+            ),
+        )
+
+        return penalty.sum(dim=-1)
+
+    def _terminal(self):
+        _, time = self._unpack_state(self._state)
+        return time.item() >= 1.0
 
     @staticmethod
     def _unpack_state(state):
         obs = torch.as_tensor(state[..., :-1], dtype=torch.float32)
         time = torch.as_tensor(state[..., -1:], dtype=torch.float32)
         return obs, time
+
+    def render(self, mode="human"):
+        pass

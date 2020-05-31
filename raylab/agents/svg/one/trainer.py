@@ -2,7 +2,7 @@
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
-from raylab.agents.off_policy import GenericOffPolicyTrainer
+from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.agents.off_policy import with_base_config
 
 from .policy import SVGOneTorchPolicy
@@ -63,7 +63,7 @@ DEFAULT_CONFIG = with_base_config(
 )
 
 
-class SVGOneTrainer(GenericOffPolicyTrainer):
+class SVGOneTrainer(OffPolicyTrainer):
     """Single agent trainer for SVG(1)."""
 
     # pylint: disable=attribute-defined-outside-init
@@ -73,7 +73,7 @@ class SVGOneTrainer(GenericOffPolicyTrainer):
     _policy = SVGOneTorchPolicy
     _extra_replay_keys = (SampleBatch.ACTION_LOGP,)
 
-    @override(GenericOffPolicyTrainer)
+    @override(OffPolicyTrainer)
     def _before_replay_steps(self, policy):
         if not self.config["replay_kl"]:
             policy.update_old_policy()

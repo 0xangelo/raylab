@@ -7,7 +7,7 @@ from ray.rllib.utils import override
 
 import raylab.policy as raypi
 import raylab.utils.pytorch as ptu
-from raylab.envs.rewards import get_reward_fn
+from raylab.envs import get_reward_fn
 from raylab.losses import ClippedDoubleQLearning
 from raylab.losses import DPGAwareModelLearning
 from raylab.losses import MaximumLikelihood
@@ -176,10 +176,12 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
     def _update_model(self, batch_tensors):
         with self.optimizer.model.optimize():
             mle_loss, info = self.loss_mle(batch_tensors)
+            info["loss(mle)"] = mle_loss.item()
 
             if self.config["model_loss"] == "DAML":
                 daml_loss, daml_info = self.loss_daml(batch_tensors)
                 info.update(daml_info)
+                info["loss(daml)"] = daml_loss.item()
 
                 alpha = self.config["mle_interpolation"]
                 model_loss = alpha * mle_loss + (1 - alpha) * daml_loss
@@ -187,6 +189,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
                 model_loss = mle_loss
 
             model_loss.backward()
+            info["loss(model)"] = model_loss.item()
 
         info.update(self.extra_grad_info("model"))
         return info
