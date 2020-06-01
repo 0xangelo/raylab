@@ -95,15 +95,15 @@ class ReplayBuffer(_ReplayBuffer):
 
 
 class NumpyReplayBuffer:
-    """Replay buffer using a list of tuples as the internal data structure.
+    """Replay buffer as a dict of ndarrays.
 
     Returns a SampleBatch object when queried for samples.
 
-    Arguments:
+    Args:
         obs_space: observation space
         action_space: action space
-        size: max number of transitions to store in the buffer. When the buffer
-            overflows the old memories are dropped.
+        size: max number of transitions to store in the buffer.
+            When the bufferoverflows the old memories are dropped.
     """
 
     def __init__(self, obs_space: Space, action_space: Space, size: int):
@@ -149,7 +149,7 @@ class NumpyReplayBuffer:
     def add(self, row: dict):  # pylint: disable=arguments-differ
         """Add a row from a SampleBatch to storage.
 
-        Arguments:
+        Args:
             row: sample batch row as returned by SampleBatch.rows().
                 Must have the same keys as the field names in the buffer.
         """
@@ -160,7 +160,7 @@ class NumpyReplayBuffer:
         self._curr_size += 1 if self._curr_size < self._maxsize else 0
 
     def sample(self, batch_size: int) -> SampleBatch:
-        """Get a SampleBatch of transitions uniformly sampled with replacement."""
+        """Transition batch uniformly sampled with replacement."""
         return self.sample_with_idxes(self.sample_idxes(batch_size))
 
     def sample_idxes(self, batch_size: int) -> np.ndarray:
@@ -168,10 +168,10 @@ class NumpyReplayBuffer:
         return self._rng.integers(self._curr_size, size=batch_size)
 
     def sample_with_idxes(self, idxes: np.ndarray) -> SampleBatch:
-        """Get a SampleBatch of transitions corresponding with the given indexes."""
+        """Transition batch corresponding with the given indexes."""
         batch = {k: self._storage[k][idxes] for k in (f.name for f in self.fields)}
         return SampleBatch(batch)
 
     def all_samples(self) -> SampleBatch:
-        """Get all stored transitions as a SampleBatch."""
+        """All stored transitions."""
         return SampleBatch({k: self._storage[k] for k in (f.name for f in self.fields)})
