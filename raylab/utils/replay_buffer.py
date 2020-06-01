@@ -1,6 +1,7 @@
 """Custom Replay Buffer subclassing RLlibs's implementation."""
 import random
 import sys
+from dataclasses import dataclass
 
 import numpy as np
 from ray.rllib import SampleBatch
@@ -9,24 +10,34 @@ from ray.rllib.utils import override
 from ray.rllib.utils.compression import unpack_if_needed
 
 
+@dataclass
+class ReplayField:
+    """Storage specification for ReplayBuffer data."""
+
+    name: str
+    shape: tuple = ()
+    dtype: np.dtype = np.float32
+    compress: bool = False
+
+
 class ReplayBuffer(_ReplayBuffer):
     """Replay buffer that returns a SampleBatch object when queried for samples.
 
     Arguments:
         size (int): max number of transitions to store in the buffer. When the buffer
             overflows the old memories are dropped.
-        extra_keys (tuple): extra keys to store from sample batches, optional.
+        extra_fiels (Tuple[ReplayField]): extra fields to store from sample batches.
     """
 
-    def __init__(self, size, extra_keys=()):
+    def __init__(self, size, extra_fields=()):
         super().__init__(size)
-        self._batch_keys = (
-            SampleBatch.CUR_OBS,
-            SampleBatch.ACTIONS,
-            SampleBatch.REWARDS,
-            SampleBatch.NEXT_OBS,
-            SampleBatch.DONES,
-        ) + tuple(extra_keys)
+        self._fields = (
+            ReplayField(SampleBatch.CUR_OBS),
+            ReplayField(SampleBatch.ACTIONS),
+            ReplayField(SampleBatch.REWARDS),
+            ReplayField(SampleBatch.NEXT_OBS),
+            ReplayField(SampleBatch.DONES),
+        ) + tuple(extra_fields)
 
     @override(_ReplayBuffer)
     def add(self, row):  # pylint: disable=arguments-differ
@@ -35,7 +46,7 @@ class ReplayBuffer(_ReplayBuffer):
         Arguments:
             row (dict): sample batch row as returned by SampleBatch.rows
         """
-        data = tuple(row[key] for key in self._batch_keys)
+        data = tuple(row[f.name] for f in self._fields)
         self._num_added += 1
 
         if self._next_idx >= len(self._storage):
@@ -76,7 +87,7 @@ class ReplayBuffer(_ReplayBuffer):
     def sample_with_idxes(self, idxes):
         self._num_sampled += len(idxes)
         data = self._encode_sample(idxes)
-        return SampleBatch(dict(zip(self._batch_keys, data)))
+        return SampleBatch(dict(zip([f.name for f in self._fields], data)))
 
     def all_samples(self):
         """Return all transitions in buffer as a SampleBatch."""

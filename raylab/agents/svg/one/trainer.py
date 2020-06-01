@@ -5,6 +5,7 @@ from ray.rllib.utils import override
 from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.agents.off_policy import with_base_config
 from raylab.utils.replay_buffer import ReplayBuffer
+from raylab.utils.replay_buffer import ReplayField
 
 from .policy import SVGOneTorchPolicy
 
@@ -75,7 +76,7 @@ class SVGOneTrainer(OffPolicyTrainer):
     @override(OffPolicyTrainer)
     def build_replay_buffer(self, config):
         self.replay = ReplayBuffer(
-            config["buffer_size"], extra_keys=(SampleBatch.ACTION_LOGP,)
+            config["buffer_size"], extra_fields=(ReplayField(SampleBatch.ACTION_LOGP),)
         )
 
     @override(OffPolicyTrainer)
