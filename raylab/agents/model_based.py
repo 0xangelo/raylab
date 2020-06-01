@@ -41,14 +41,6 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
     # pylint: disable=attribute-defined-outside-init
 
-    @override(OffPolicyTrainer)
-    def _init(self, config, env_creator):
-        super()._init(config, env_creator)
-
-        self.virtual_replay = ReplayBuffer(
-            config["virtual_buffer_size"], extra_keys=self._extra_replay_keys
-        )
-
     @staticmethod
     @override(OffPolicyTrainer)
     def validate_config(config):
@@ -71,6 +63,11 @@ class ModelBasedTrainer(OffPolicyTrainer):
         assert (
             config["model_rollouts"] >= 0
         ), "Cannot sample a negative number of model rollouts"
+
+    @override(OffPolicyTrainer)
+    def build_replay_buffer(self, config):
+        super().build_replay_buffer(config)
+        self.virtual_replay = ReplayBuffer(config["virtual_buffer_size"])
 
     @override(OffPolicyTrainer)
     def _train(self):

@@ -34,11 +34,9 @@ class OffPolicyTrainer(Trainer):
     """Generic trainer for off-policy agents."""
 
     # pylint: disable=attribute-defined-outside-init
-
     _name = ""
     _default_config = None
     _policy = None
-    _extra_replay_keys = ()
 
     @override(Trainer)
     def _init(self, config, env_creator):
@@ -46,12 +44,9 @@ class OffPolicyTrainer(Trainer):
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
         )
-
         # Dummy optimizer to log stats since Trainer.collect_metrics is coupled with it
         self.optimizer = PolicyOptimizer(self.workers)
-        self.replay = ReplayBuffer(
-            config["buffer_size"], extra_keys=self._extra_replay_keys
-        )
+        self.build_replay_buffer(config)
 
     @override(Trainer)
     def _train(self):
@@ -73,6 +68,10 @@ class OffPolicyTrainer(Trainer):
 
         self.optimizer.num_steps_sampled += start_samples
         return self._log_metrics(stats)
+
+    def build_replay_buffer(self, config):
+        """Construct replay buffer to hold samples."""
+        self.replay = ReplayBuffer(config["buffer_size"])
 
     def sample_until_learning_starts(self):
         """
