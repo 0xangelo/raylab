@@ -30,7 +30,7 @@ DEFAULT_CONFIG = with_base_config(
         "polyak": 0.995,
         # === Regularization ===
         # Options for adaptive KL coefficient. See raylab.utils.adaptive_kl
-        "kl_schedule": {},
+        "kl_schedule": {"initial_coeff": 0},
         # Whether to penalize KL divergence with the current policy or past policies
         # that generated the replay pool.
         "replay_kl": True,
