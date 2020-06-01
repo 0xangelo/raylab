@@ -17,7 +17,6 @@ class ReplayField:
     name: str
     shape: tuple = ()
     dtype: np.dtype = np.float32
-    compress: bool = False
 
 
 class ReplayBuffer(_ReplayBuffer):
