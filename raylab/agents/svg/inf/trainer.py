@@ -6,7 +6,7 @@ from ray.rllib.utils import override
 
 from raylab.agents import Trainer
 from raylab.agents import with_common_config
-from raylab.utils.replay_buffer import ListReplayBuffer
+from raylab.utils.replay_buffer import NumpyReplayBuffer
 from raylab.utils.replay_buffer import ReplayField
 
 from .policy import SVGInfTorchPolicy
@@ -86,9 +86,13 @@ class SVGInfTrainer(Trainer):
         )
         # Dummy optimizer to log stats since Trainer.collect_metrics is coupled with it
         self.optimizer = PolicyOptimizer(self.workers)
-        self.replay = ListReplayBuffer(
-            config["buffer_size"], extra_fields=[ReplayField(SampleBatch.ACTION_LOGP)]
+
+        policy = self.get_policy()
+        self.replay = NumpyReplayBuffer(
+            policy.observation_space, policy.action_space, config["buffer_size"]
         )
+        self.replay.add_fields(ReplayField(SampleBatch.ACTION_LOGP))
+        self.replay.seed(config["seed"])
 
     @override(Trainer)
     def _train(self):

@@ -4,7 +4,6 @@ from ray.rllib.utils import override
 
 from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.agents.off_policy import with_base_config
-from raylab.utils.replay_buffer import ListReplayBuffer
 from raylab.utils.replay_buffer import ReplayField
 
 from .policy import SoftSVGTorchPolicy
@@ -74,6 +73,5 @@ class SoftSVGTrainer(OffPolicyTrainer):
 
     @override(OffPolicyTrainer)
     def build_replay_buffer(self, config):
-        self.replay = ListReplayBuffer(
-            config["buffer_size"], extra_fields=(ReplayField(SampleBatch.ACTION_LOGP),)
-        )
+        super().build_replay_buffer(config)
+        self.replay.add_fields(ReplayField(SampleBatch.ACTION_LOGP))
