@@ -2,8 +2,8 @@
 import pytest
 import torch
 
-from raylab.modules.distributions import Independent
-from raylab.modules.distributions import Uniform
+from raylab.pytorch.nn.distributions import Independent
+from raylab.pytorch.nn.distributions import Uniform
 
 from .utils import _test_dist_ops
 

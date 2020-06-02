@@ -3,12 +3,12 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
+from raylab.pytorch.nn import NormalParams
+from raylab.pytorch.nn import StateActionEncoder
+from raylab.pytorch.nn.distributions import Independent
+from raylab.pytorch.nn.distributions import Normal
 from raylab.utils.dictionaries import deep_merge
 
-from ..basic import NormalParams
-from ..basic import StateActionEncoder
-from ..distributions import Independent
-from ..distributions import Normal
 from .stochastic_model_mixin import StochasticModel
 
 

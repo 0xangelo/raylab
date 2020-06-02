@@ -32,10 +32,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ..distributions import CompositeTransform
-from ..distributions import InverseTransform
-from ..distributions import Transform
-from ..distributions.utils import _sum_rightmost
+from raylab.pytorch.nn.distributions import CompositeTransform
+from raylab.pytorch.nn.distributions import InverseTransform
+from raylab.pytorch.nn.distributions import Transform
+from raylab.pytorch.nn.distributions.utils import _sum_rightmost
+
 from .splines import DEFAULT_MIN_BIN_HEIGHT
 from .splines import DEFAULT_MIN_BIN_WIDTH
 from .splines import DEFAULT_MIN_DERIVATIVE

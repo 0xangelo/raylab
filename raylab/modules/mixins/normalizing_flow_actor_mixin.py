@@ -6,18 +6,18 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
+from raylab.pytorch.nn import flows
+from raylab.pytorch.nn import FullyConnected
+from raylab.pytorch.nn import NormalParams
+from raylab.pytorch.nn import StdNormalParams
+from raylab.pytorch.nn.distributions import CompositeTransform
+from raylab.pytorch.nn.distributions import Independent
+from raylab.pytorch.nn.distributions import Normal
+from raylab.pytorch.nn.distributions import TanhSquashTransform
+from raylab.pytorch.nn.distributions import TransformedDistribution
 from raylab.utils.dictionaries import deep_merge
 
-from .. import flows
 from .. import networks
-from ..basic import FullyConnected
-from ..basic import NormalParams
-from ..basic import StdNormalParams
-from ..distributions import CompositeTransform
-from ..distributions import Independent
-from ..distributions import Normal
-from ..distributions import TanhSquashTransform
-from ..distributions import TransformedDistribution
 from .stochastic_actor_mixin import StochasticPolicy
 
 

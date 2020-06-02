@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from raylab.modules.basic import TrilMatrix
+from raylab.pytorch.nn import TrilMatrix
 
 
 @pytest.fixture(params=(1, 4, 10))

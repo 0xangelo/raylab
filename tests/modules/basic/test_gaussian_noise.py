@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from raylab.modules.basic import GaussianNoise
+from raylab.pytorch.nn import GaussianNoise
 
 
 @pytest.fixture(params=(pytest.param(-1.0, marks=pytest.mark.xfail), 0, 0.5, 1.0))

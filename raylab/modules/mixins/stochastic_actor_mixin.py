@@ -6,16 +6,15 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
+from raylab.pytorch.nn import CategoricalParams
+from raylab.pytorch.nn import FullyConnected
+from raylab.pytorch.nn import NormalParams
+from raylab.pytorch.nn.distributions import Categorical
+from raylab.pytorch.nn.distributions import Independent
+from raylab.pytorch.nn.distributions import Normal
+from raylab.pytorch.nn.distributions import TanhSquashTransform
+from raylab.pytorch.nn.distributions import TransformedDistribution
 from raylab.utils.dictionaries import deep_merge
-
-from ..basic import CategoricalParams
-from ..basic import FullyConnected
-from ..basic import NormalParams
-from ..distributions import Categorical
-from ..distributions import Independent
-from ..distributions import Normal
-from ..distributions import TanhSquashTransform
-from ..distributions import TransformedDistribution
 
 
 def _build_fully_connected(obs_space, config):

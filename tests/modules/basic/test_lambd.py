@@ -3,7 +3,7 @@ import pytest
 import torch
 import torch.distributions as ptd
 
-from raylab.modules.basic import Lambda
+from raylab.pytorch.nn import Lambda
 
 
 def categorical_sample(logits):

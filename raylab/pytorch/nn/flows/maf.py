@@ -11,7 +11,8 @@ https://arxiv.org/abs/1606.04934
 import torch
 import torch.nn as nn
 
-from ..networks import MADE
+from raylab.pytorch.nn import MADE
+
 from .abstract import Transform
 
 

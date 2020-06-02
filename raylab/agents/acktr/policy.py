@@ -11,8 +11,8 @@ from ray.rllib.utils import override
 
 import raylab.utils.dictionaries as dutil
 import raylab.utils.pytorch as ptu
-from raylab.modules.distributions import Normal
 from raylab.policy import TorchPolicy
+from raylab.pytorch.nn.distributions import Normal
 from raylab.utils import hf_util
 from raylab.utils.explained_variance import explained_variance
 from raylab.utils.kfac import KFACMixin

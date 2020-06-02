@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from raylab.modules.basic import ActionOutput
+from raylab.pytorch.nn import ActionOutput
 
 
 @pytest.fixture

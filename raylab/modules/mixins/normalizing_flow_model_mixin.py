@@ -5,17 +5,17 @@ import gym.spaces as spaces
 import torch.nn as nn
 from ray.rllib.utils import override
 
+from raylab.pytorch.nn import flows
+from raylab.pytorch.nn import NormalParams
+from raylab.pytorch.nn import StateActionEncoder
+from raylab.pytorch.nn import StdNormalParams
+from raylab.pytorch.nn.distributions import CompositeTransform
+from raylab.pytorch.nn.distributions import Independent
+from raylab.pytorch.nn.distributions import Normal
+from raylab.pytorch.nn.distributions import TransformedDistribution
 from raylab.utils.dictionaries import deep_merge
 
-from .. import flows
 from .. import networks
-from ..basic import NormalParams
-from ..basic import StateActionEncoder
-from ..basic import StdNormalParams
-from ..distributions import CompositeTransform
-from ..distributions import Independent
-from ..distributions import Normal
-from ..distributions import TransformedDistribution
 from .stochastic_model_mixin import StochasticModel
 from .stochastic_model_mixin import StochasticModelMixin
 

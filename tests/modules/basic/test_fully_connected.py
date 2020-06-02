@@ -2,8 +2,8 @@
 import pytest
 import torch
 
-from raylab.modules.basic import FullyConnected
-from raylab.modules.basic import StateActionEncoder
+from raylab.pytorch.nn import FullyConnected
+from raylab.pytorch.nn import StateActionEncoder
 
 
 @pytest.fixture(params=(1, 2, 4))

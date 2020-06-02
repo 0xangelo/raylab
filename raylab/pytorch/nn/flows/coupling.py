@@ -35,8 +35,9 @@ import numpy as np
 import torch
 from ray.rllib.utils import override
 
-from ..distributions import ConditionalTransform
-from ..distributions.utils import _sum_rightmost
+from raylab.pytorch.nn.distributions import ConditionalTransform
+from raylab.pytorch.nn.distributions.utils import _sum_rightmost
+
 from .nonlinearities import PiecewiseRationalQuadraticCDF
 from .splines import DEFAULT_MIN_BIN_HEIGHT
 from .splines import DEFAULT_MIN_BIN_WIDTH

@@ -2,9 +2,8 @@
 import torch.nn as nn
 from ray.rllib.utils import override
 
+from raylab.pytorch.nn import StateActionEncoder
 from raylab.utils.dictionaries import deep_merge
-
-from ..basic import StateActionEncoder
 
 
 BASE_CONFIG = {

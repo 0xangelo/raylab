@@ -2,13 +2,13 @@
 import pytest
 import torch
 
-from raylab.modules.distributions import Distribution
-from raylab.modules.distributions import Independent
-from raylab.modules.distributions import Normal
-from raylab.modules.distributions import TransformedDistribution
-from raylab.modules.distributions import Uniform
-from raylab.modules.distributions.utils import _sum_rightmost
-from raylab.modules.flows import Transform
+from raylab.pytorch.nn.distributions import Distribution
+from raylab.pytorch.nn.distributions import Independent
+from raylab.pytorch.nn.distributions import Normal
+from raylab.pytorch.nn.distributions import TransformedDistribution
+from raylab.pytorch.nn.distributions import Uniform
+from raylab.pytorch.nn.distributions.utils import _sum_rightmost
+from raylab.pytorch.nn.flows import Transform
 
 
 class Basic1DFlow(Transform):
