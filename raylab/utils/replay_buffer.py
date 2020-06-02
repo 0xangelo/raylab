@@ -1,4 +1,4 @@
-"""Custom Replay Buffer subclassing RLlibs's implementation."""
+"""Custom Replay Buffers based on RLlibs's implementation."""
 import random
 import sys
 from dataclasses import dataclass
@@ -46,6 +46,12 @@ class ListReplayBuffer(_ReplayBuffer):
 
     def add_fields(self, *fields: ReplayField):
         """Add fields to the replay buffer and build the corresponding storage."""
+        new_names = {f.name for f in fields}
+        assert len(new_names) == len(fields), "Field names must be unique"
+
+        conflicts = new_names.intersection({f.name for f in self.fields})
+        assert not conflicts, f"{conflicts} are already in buffer"
+
         self.fields = self.fields + fields
 
     @override(_ReplayBuffer)
@@ -156,6 +162,12 @@ class NumpyReplayBuffer:
 
     def add_fields(self, *fields: ReplayField):
         """Add fields to the replay buffer and build the corresponding storage."""
+        new_names = {f.name for f in fields}
+        assert len(new_names) == len(fields), "Field names must be unique"
+
+        conflicts = new_names.intersection({f.name for f in self.fields})
+        assert not conflicts, f"{conflicts} are already in buffer"
+
         self.fields = self.fields + fields
         self._build_buffers(*fields)
 
