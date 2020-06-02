@@ -187,4 +187,6 @@ class NumpyReplayBuffer:
 
     def all_samples(self) -> SampleBatch:
         """All stored transitions."""
-        return SampleBatch({k: self._storage[k] for k in (f.name for f in self.fields)})
+        return SampleBatch(
+            {k: self._storage[k][: len(self)] for k in (f.name for f in self.fields)}
+        )
