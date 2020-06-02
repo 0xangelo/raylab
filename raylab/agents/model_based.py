@@ -6,7 +6,7 @@ from ray.rllib.utils import override
 from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.agents.off_policy import with_base_config as with_off_policy_config
 from raylab.utils.dictionaries import deep_merge
-from raylab.utils.replay_buffer import ReplayBuffer
+from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
 BASE_CONFIG = with_off_policy_config(
@@ -41,14 +41,6 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
     # pylint: disable=attribute-defined-outside-init
 
-    @override(OffPolicyTrainer)
-    def _init(self, config, env_creator):
-        super()._init(config, env_creator)
-
-        self.virtual_replay = ReplayBuffer(
-            config["virtual_buffer_size"], extra_keys=self._extra_replay_keys
-        )
-
     @staticmethod
     @override(OffPolicyTrainer)
     def validate_config(config):
@@ -71,6 +63,15 @@ class ModelBasedTrainer(OffPolicyTrainer):
         assert (
             config["model_rollouts"] >= 0
         ), "Cannot sample a negative number of model rollouts"
+
+    @override(OffPolicyTrainer)
+    def build_replay_buffer(self, config):
+        super().build_replay_buffer(config)
+        policy = self.get_policy()
+        self.virtual_replay = NumpyReplayBuffer(
+            policy.observation_space, policy.action_space, config["virtual_buffer_size"]
+        )
+        self.virtual_replay.seed(config["seed"])
 
     @override(OffPolicyTrainer)
     def _train(self):
