@@ -2,7 +2,6 @@
 import random
 import sys
 from dataclasses import dataclass
-from typing import Tuple
 
 import numpy as np
 from gym.spaces import Space
@@ -26,30 +25,37 @@ class ListReplayBuffer(_ReplayBuffer):
 
     Returns a SampleBatch object when queried for samples.
 
-    Arguments:
+    Args:
         size: max number of transitions to store in the buffer. When the buffer
             overflows, the old memories are dropped.
-        extra_fiels: extra fields to store from sample batches.
+
+    Attributes:
+        fields (:obj:`tuple` of :obj:`ReplayField`): storage fields
+            specification
     """
 
-    def __init__(self, size: int, extra_fields: Tuple[ReplayField] = ()):
+    def __init__(self, size: int):
         super().__init__(size)
-        self._fields = (
+        self.fields = (
             ReplayField(SampleBatch.CUR_OBS),
             ReplayField(SampleBatch.ACTIONS),
             ReplayField(SampleBatch.REWARDS),
             ReplayField(SampleBatch.NEXT_OBS),
             ReplayField(SampleBatch.DONES),
-        ) + tuple(extra_fields)
+        )
+
+    def add_fields(self, *fields: ReplayField):
+        """Add fields to the replay buffer and build the corresponding storage."""
+        self.fields = self.fields + fields
 
     @override(_ReplayBuffer)
     def add(self, row: dict):  # pylint: disable=arguments-differ
         """Add a row from a SampleBatch to storage.
 
-        Arguments:
-            row (dict): sample batch row as returned by SampleBatch.rows
+        Args:
+            row: sample batch row as returned by SampleBatch.rows
         """
-        data = tuple(row[f.name] for f in self._fields)
+        data = tuple(row[f.name] for f in self.fields)
         self._num_added += 1
 
         if self._next_idx >= len(self._storage):
@@ -90,7 +96,7 @@ class ListReplayBuffer(_ReplayBuffer):
     def sample_with_idxes(self, idxes: np.ndarray) -> SampleBatch:
         self._num_sampled += len(idxes)
         data = self._encode_sample(idxes)
-        return SampleBatch(dict(zip([f.name for f in self._fields], data)))
+        return SampleBatch(dict(zip([f.name for f in self.fields], data)))
 
     def all_samples(self) -> SampleBatch:
         """All transitions stored in buffer."""
@@ -107,6 +113,10 @@ class NumpyReplayBuffer:
         action_space: action space
         size: max number of transitions to store in the buffer.
             When the bufferoverflows the old memories are dropped.
+
+    Attributes:
+        fields (:obj:`tuple` of :obj:`ReplayField`): storage fields
+            specification
     """
 
     def __init__(self, obs_space: Space, action_space: Space, size: int):
