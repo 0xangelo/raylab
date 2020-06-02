@@ -4,7 +4,7 @@ import pytest
 from ray.rllib import SampleBatch
 
 from raylab.utils.debug import fake_batch
-from raylab.utils.replay_buffer import ReplayBuffer
+from raylab.utils.replay_buffer import ListReplayBuffer
 from raylab.utils.replay_buffer import ReplayField
 
 
@@ -15,7 +15,7 @@ def extra_fields(request):
 
 @pytest.fixture
 def replay():
-    return ReplayBuffer(size=int(1e4))
+    return ListReplayBuffer(size=int(1e4))
 
 
 @pytest.fixture
@@ -25,11 +25,11 @@ def sample_batch(obs_space, action_space):
 
 @pytest.fixture
 def replay_and_fields(extra_fields):
-    return ReplayBuffer(size=int(1e4), extra_fields=extra_fields), extra_fields
+    return ListReplayBuffer(size=int(1e4), extra_fields=extra_fields), extra_fields
 
 
 def test_size_zero():
-    ReplayBuffer(0)
+    ListReplayBuffer(0)
 
 
 def test_replay_init(replay_and_fields):

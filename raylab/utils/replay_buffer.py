@@ -2,6 +2,7 @@
 import random
 import sys
 from dataclasses import dataclass
+from typing import Tuple
 
 import numpy as np
 from gym.spaces import Space
@@ -20,16 +21,18 @@ class ReplayField:
     dtype: np.dtype = np.float32
 
 
-class ReplayBuffer(_ReplayBuffer):
-    """Replay buffer that returns a SampleBatch object when queried for samples.
+class ListReplayBuffer(_ReplayBuffer):
+    """Replay buffer as a list of tuples.
+
+    Returns a SampleBatch object when queried for samples.
 
     Arguments:
-        size (int): max number of transitions to store in the buffer. When the buffer
-            overflows the old memories are dropped.
-        extra_fiels (Tuple[ReplayField]): extra fields to store from sample batches.
+        size: max number of transitions to store in the buffer. When the buffer
+            overflows, the old memories are dropped.
+        extra_fiels: extra fields to store from sample batches.
     """
 
-    def __init__(self, size, extra_fields=()):
+    def __init__(self, size: int, extra_fields: Tuple[ReplayField] = ()):
         super().__init__(size)
         self._fields = (
             ReplayField(SampleBatch.CUR_OBS),
@@ -40,7 +43,7 @@ class ReplayBuffer(_ReplayBuffer):
         ) + tuple(extra_fields)
 
     @override(_ReplayBuffer)
-    def add(self, row):  # pylint: disable=arguments-differ
+    def add(self, row: dict):  # pylint: disable=arguments-differ
         """Add a row from a SampleBatch to storage.
 
         Arguments:
@@ -79,18 +82,18 @@ class ReplayBuffer(_ReplayBuffer):
         )
 
     @override(_ReplayBuffer)
-    def sample(self, batch_size):
+    def sample(self, batch_size: int) -> SampleBatch:
         idxes = random.choices(range(len(self._storage)), k=batch_size)
         return self.sample_with_idxes(idxes)
 
     @override(_ReplayBuffer)
-    def sample_with_idxes(self, idxes):
+    def sample_with_idxes(self, idxes: np.ndarray) -> SampleBatch:
         self._num_sampled += len(idxes)
         data = self._encode_sample(idxes)
         return SampleBatch(dict(zip([f.name for f in self._fields], data)))
 
-    def all_samples(self):
-        """Return all transitions in buffer as a SampleBatch."""
+    def all_samples(self) -> SampleBatch:
+        """All transitions stored in buffer."""
         return self.sample_with_idxes(range(len(self)))
 
 

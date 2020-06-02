@@ -6,7 +6,7 @@ from ray.rllib.utils import override
 from raylab.agents import Trainer
 from raylab.agents import with_common_config
 from raylab.utils.dictionaries import deep_merge
-from raylab.utils.replay_buffer import ReplayBuffer
+from raylab.utils.replay_buffer import ListReplayBuffer
 
 BASE_CONFIG = with_common_config(
     {
@@ -71,7 +71,7 @@ class OffPolicyTrainer(Trainer):
 
     def build_replay_buffer(self, config):
         """Construct replay buffer to hold samples."""
-        self.replay = ReplayBuffer(config["buffer_size"])
+        self.replay = ListReplayBuffer(config["buffer_size"])
 
     def sample_until_learning_starts(self):
         """
