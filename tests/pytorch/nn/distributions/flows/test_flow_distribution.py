@@ -3,9 +3,11 @@ import pytest
 import torch
 
 import raylab.pytorch.nn.distributions as ptd
+from raylab.pytorch.nn.distributions.flows import Transform
+from raylab.pytorch.nn.distributions.flows.utils import sum_rightmost
 
 
-class Basic1DFlow(ptd.flows.Transform):
+class Basic1DFlow(Transform):
     def __init__(self, distribution):
         super().__init__(event_dim=1)
         self.distribution = distribution
@@ -13,12 +15,12 @@ class Basic1DFlow(ptd.flows.Transform):
     def encode(self, inputs):
         out = self.distribution.cdf(inputs)
         log_abs_det_jacobian = self.distribution.log_prob(inputs)
-        return out, ptd.flows.utils.sum_rightmost(log_abs_det_jacobian, self.event_dim)
+        return out, sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
     def decode(self, inputs):
         out = self.distribution.icdf(inputs)
         log_abs_det_jacobian = -self.distribution.log_prob(out)
-        return out, ptd.flows.utils.sum_rightmost(log_abs_det_jacobian, self.event_dim)
+        return out, sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
 
 @pytest.fixture
