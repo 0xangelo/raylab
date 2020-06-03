@@ -27,33 +27,35 @@ Slightly modified from:
 https://github.com/bayesiains/nsf/blob/master/nde/transforms/nonlinearities.py
 """
 # pylint:disable=missing-class-docstring
+import math
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from ray.rllib.utils import override
 
-from raylab.pytorch.nn.distributions import CompositeTransform
-from raylab.pytorch.nn.distributions import InverseTransform
-from raylab.pytorch.nn.distributions import Transform
-from raylab.pytorch.nn.distributions.utils import _sum_rightmost
-
+from .abstract import CompositeTransform
+from .abstract import InverseTransform
+from .abstract import Transform
 from .splines import DEFAULT_MIN_BIN_HEIGHT
 from .splines import DEFAULT_MIN_BIN_WIDTH
 from .splines import DEFAULT_MIN_DERIVATIVE
 from .splines import unconstrained_rational_quadratic_spline
+from .utils import sum_rightmost
 
 
 class Tanh(Transform):
     def encode(self, inputs):
         outputs = torch.tanh(inputs)
         logabsdet = torch.log(1 - outputs ** 2)
-        logabsdet = _sum_rightmost(logabsdet, self.event_dim)
+        logabsdet = sum_rightmost(logabsdet, self.event_dim)
         return outputs, logabsdet
 
     def decode(self, inputs):
         outputs = 0.5 * torch.log((1 + inputs) / (1 - inputs))
         logabsdet = -torch.log(1 - inputs ** 2)
-        logabsdet = _sum_rightmost(logabsdet, self.event_dim)
+        logabsdet = sum_rightmost(logabsdet, self.event_dim)
         return outputs, logabsdet
 
 
@@ -92,7 +94,7 @@ class LogTanh(Transform):
         logabsdet[mask_middle] = torch.log(1 - outputs[mask_middle] ** 2)
         logabsdet[mask_right] = torch.log(self.alpha / inputs[mask_right])
         logabsdet[mask_left] = torch.log(-self.alpha / inputs[mask_left])
-        logabsdet = _sum_rightmost(logabsdet, self.event_dim)
+        logabsdet = sum_rightmost(logabsdet, self.event_dim)
 
         return outputs, logabsdet
 
@@ -117,7 +119,7 @@ class LogTanh(Transform):
         logabsdet[mask_left] = (
             -np.log(self.alpha * self.beta) - inputs[mask_left] / self.alpha
         )
-        logabsdet = _sum_rightmost(logabsdet, self.event_dim)
+        logabsdet = sum_rightmost(logabsdet, self.event_dim)
 
         return outputs, logabsdet
 
@@ -134,14 +136,14 @@ class LeakyReLU(Transform):
         outputs = F.leaky_relu(inputs, negative_slope=self.negative_slope)
         mask = (inputs < 0).type(torch.Tensor)
         logabsdet = self.log_negative_slope * mask
-        logabsdet = _sum_rightmost(logabsdet, self.event_dim)
+        logabsdet = sum_rightmost(logabsdet, self.event_dim)
         return outputs, logabsdet
 
     def decode(self, inputs):
         outputs = F.leaky_relu(inputs, negative_slope=(1 / self.negative_slope))
         mask = (inputs < 0).type(torch.Tensor)
         logabsdet = -self.log_negative_slope * mask
-        logabsdet = _sum_rightmost(logabsdet, self.event_dim)
+        logabsdet = sum_rightmost(logabsdet, self.event_dim)
         return outputs, logabsdet
 
 
@@ -154,7 +156,7 @@ class Sigmoid(Transform):
     def encode(self, inputs):
         inputs = self.temperature * inputs
         outputs = torch.sigmoid(inputs)
-        logabsdet = _sum_rightmost(
+        logabsdet = sum_rightmost(
             torch.log(self.temperature) - F.softplus(-inputs) - F.softplus(inputs),
             self.event_dim,
         )
@@ -167,7 +169,7 @@ class Sigmoid(Transform):
         inputs = torch.clamp(inputs, self.eps, 1 - self.eps)
 
         outputs = (1 / self.temperature) * (torch.log(inputs) - torch.log1p(-inputs))
-        logabsdet = -_sum_rightmost(
+        logabsdet = -sum_rightmost(
             torch.log(self.temperature)
             - F.softplus(-self.temperature * outputs)
             - F.softplus(self.temperature * outputs),
@@ -184,7 +186,7 @@ class Logit(InverseTransform):
 class CauchyCDF(Transform):
     def encode(self, inputs):
         outputs = (1 / np.pi) * torch.atan(inputs) + 0.5
-        logabsdet = _sum_rightmost(
+        logabsdet = sum_rightmost(
             -np.log(np.pi) - torch.log(1 + inputs ** 2), self.event_dim
         )
         return outputs, logabsdet
@@ -194,7 +196,7 @@ class CauchyCDF(Transform):
             raise ValueError("Input outside domain")
 
         outputs = torch.tan(np.pi * (inputs - 0.5))
-        logabsdet = -_sum_rightmost(
+        logabsdet = -sum_rightmost(
             -np.log(np.pi) - torch.log(1 + outputs ** 2), self.event_dim
         )
         return outputs, logabsdet
@@ -273,10 +275,106 @@ class PiecewiseRationalQuadraticCDF(Transform):
             min_derivative=self.min_derivative,
         )
 
-        return outputs, _sum_rightmost(logabsdet, self.event_dim)
+        return outputs, sum_rightmost(logabsdet, self.event_dim)
 
     def encode(self, inputs):
         return self._spline(inputs, inverse=False)
 
     def decode(self, inputs):
         return self._spline(inputs, inverse=True)
+
+
+##################################################################
+# Custom
+##################################################################
+
+
+class TanhTransform(Transform):
+    """Transform via the mapping :math:`y = \frac{e^x - e^{-x}} {e^x + e^{-x}}`."""
+
+    # pylint:disable=arguments-out-of-order
+
+    @override(Transform)
+    def encode(self, inputs):
+        outputs = torch.tanh(inputs)
+        return outputs, self.log_abs_det_jacobian(inputs, outputs)
+
+    @override(Transform)
+    def decode(self, inputs):
+        # torch.finfo(torch.float32).tiny
+        to_log1 = torch.clamp(1 + inputs, min=1.1754943508222875e-38)
+        to_log2 = torch.clamp(1 - inputs, min=1.1754943508222875e-38)
+        outputs = (torch.log(to_log1) - torch.log(to_log2)) / 2
+        return outputs, -self.log_abs_det_jacobian(outputs, inputs)
+
+    def log_abs_det_jacobian(self, inputs, outputs):
+        # pylint:disable=unused-argument,missing-docstring
+        # Taken from spinningup's implementation of SAC
+        return sum_rightmost(
+            2 * (math.log(2) - inputs - F.softplus(-2 * inputs)), self.event_dim
+        )
+
+
+class SigmoidTransform(Transform):
+    # pylint:disable=missing-docstring,arguments-out-of-order
+
+    @override(Transform)
+    def encode(self, inputs):
+        outputs = inputs.sigmoid()
+        return outputs, self.log_abs_det_jacobian(inputs, outputs)
+
+    @override(Transform)
+    def decode(self, inputs):
+        to_log = inputs.clamp(min=1.1754943508222875e-38)
+        outputs = to_log.log() - (-to_log).log1p()
+        return outputs, -self.log_abs_det_jacobian(outputs, inputs)
+
+    def log_abs_det_jacobian(self, inputs, outputs):
+        # pylint:disable=unused-argument,missing-docstring
+        return sum_rightmost(-F.softplus(-inputs) - F.softplus(inputs), self.event_dim)
+
+
+class AffineTransform(Transform):
+    # pylint:disable=missing-docstring,arguments-out-of-order
+
+    def __init__(self, loc, scale, **kwargs):
+        super().__init__(**kwargs)
+        self.register_buffer("loc", loc)
+        self.register_buffer("scale", scale)
+
+    @override(Transform)
+    def encode(self, inputs):
+        outputs = inputs * self.scale + self.loc
+        return outputs, self.log_abs_det_jacobian(inputs, outputs)
+
+    @override(Transform)
+    def decode(self, inputs):
+        outputs = (inputs - self.loc) / self.scale
+        return outputs, -self.log_abs_det_jacobian(outputs, inputs)
+
+    def log_abs_det_jacobian(self, inputs, outputs):
+        # pylint:disable=unused-argument,missing-docstring
+        _, scale = torch.broadcast_tensors(inputs, self.scale)
+        return sum_rightmost(scale.abs().log(), self.event_dim)
+
+
+class TanhSquashTransform(Transform):
+    """Squashes samples to the desired range using Tanh."""
+
+    def __init__(self, low, high, event_dim=0):
+        divide = AffineTransform(loc=torch.zeros_like(low), scale=2 / (high - low))
+        squash = TanhTransform()
+        shift = AffineTransform(loc=(high + low) / 2, scale=(high - low) / 2)
+        compose = CompositeTransform([divide, squash, shift], event_dim=event_dim)
+        super().__init__(cond_transform=compose)
+
+
+class SigmoidSquashTransform(Transform):
+    """Squashes samples to the desired range using Sigmoid."""
+
+    def __init__(self, low, high, event_dim=0):
+        divide = AffineTransform(loc=torch.zeros_like(low), scale=1 / (high - low))
+        squash = SigmoidTransform()
+        shift = AffineTransform(loc=low, scale=(high - low))
+        compose = CompositeTransform([divide, squash, shift], event_dim=event_dim)
+        super().__init__(cond_transform=compose)

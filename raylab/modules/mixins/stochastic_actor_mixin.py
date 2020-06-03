@@ -6,19 +6,13 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.pytorch.nn import CategoricalParams
-from raylab.pytorch.nn import FullyConnected
-from raylab.pytorch.nn import NormalParams
-from raylab.pytorch.nn.distributions import Categorical
-from raylab.pytorch.nn.distributions import Independent
-from raylab.pytorch.nn.distributions import Normal
-from raylab.pytorch.nn.distributions import TanhSquashTransform
-from raylab.pytorch.nn.distributions import TransformedDistribution
+import raylab.pytorch.nn as nnx
+import raylab.pytorch.nn.distributions as ptd
 from raylab.utils.dictionaries import deep_merge
 
 
 def _build_fully_connected(obs_space, config):
-    return FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
+    return nnx.FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
 
 
 class StochasticActorMixin:
@@ -45,20 +39,20 @@ class StochasticActorMixin:
 
         if isinstance(action_space, spaces.Discrete):
             logits = _build_fully_connected(obs_space, config)
-            params = CategoricalParams(logits.out_features, action_space.n)
+            params = nnx.CategoricalParams(logits.out_features, action_space.n)
             params_module = nn.Sequential(logits, params)
-            dist_module = Categorical()
+            dist_module = ptd.Categorical()
         elif isinstance(action_space, spaces.Box):
             logits = _build_fully_connected(obs_space, config)
-            params = NormalParams(
+            params = nnx.NormalParams(
                 logits.out_features,
                 action_space.shape[0],
                 input_dependent_scale=config["input_dependent_scale"],
             )
             params_module = nn.Sequential(logits, params)
-            dist_module = TransformedDistribution(
-                Independent(Normal(), reinterpreted_batch_ndims=1),
-                TanhSquashTransform(
+            dist_module = ptd.TransformedDistribution(
+                ptd.Independent(ptd.Normal(), reinterpreted_batch_ndims=1),
+                ptd.flows.TanhSquashTransform(
                     low=torch.as_tensor(action_space.low),
                     high=torch.as_tensor(action_space.high),
                     event_dim=1,

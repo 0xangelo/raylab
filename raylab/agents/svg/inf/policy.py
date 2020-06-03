@@ -7,10 +7,10 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
-import raylab.utils.pytorch as ptu
 from raylab.agents.svg import SVGTorchPolicy
 from raylab.losses import TrajectorySVG
 from raylab.policy import AdaptiveKLCoeffMixin
+from raylab.pytorch.optim import build_optimizer
 
 
 class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
@@ -51,7 +51,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             "off_policy": nn.ModuleList([self.module.model, self.module.critic]),
         }
 
-        optims = {k: ptu.build_optimizer(module[k], config[k]) for k in components}
+        optims = {k: build_optimizer(module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @override(SVGTorchPolicy)

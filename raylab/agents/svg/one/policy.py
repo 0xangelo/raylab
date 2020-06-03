@@ -4,10 +4,10 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
-import raylab.utils.pytorch as ptu
 from raylab.agents.svg import SVGTorchPolicy
 from raylab.losses import OneStepSVG
 from raylab.policy import AdaptiveKLCoeffMixin
+from raylab.pytorch.optim import get_optimizer_class
 
 
 class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
@@ -42,7 +42,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def make_optimizer(self):
         """PyTorch optimizer to use."""
-        optim_cls = ptu.get_optimizer_class(self.config["torch_optimizer"])
+        optim_cls = get_optimizer_class(self.config["torch_optimizer"])
         options = self.config["torch_optimizer_options"]
         params = [
             dict(params=self.module[k].parameters(), **options[k]) for k in options

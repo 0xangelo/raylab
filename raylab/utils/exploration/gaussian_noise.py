@@ -2,7 +2,7 @@
 import torch
 from ray.rllib.utils import override
 
-from raylab.pytorch.nn.distributions import TanhSquashTransform
+from raylab.pytorch.nn.distributions.flows import TanhSquashTransform
 
 from .random_uniform import RandomUniform
 

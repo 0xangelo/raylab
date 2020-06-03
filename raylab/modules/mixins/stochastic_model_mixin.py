@@ -5,10 +5,8 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.pytorch.nn import NormalParams
-from raylab.pytorch.nn import StateActionEncoder
-from raylab.pytorch.nn.distributions import Independent
-from raylab.pytorch.nn.distributions import Normal
+import raylab.pytorch.nn as nnx
+import raylab.pytorch.nn.distributions as ptd
 from raylab.utils.dictionaries import deep_merge
 
 
@@ -57,7 +55,7 @@ class StochasticModelMixin:
     def build_single_model(obs_space, action_space, config):
         """Build a stochastic model module."""
         params_module = GaussianDynamicsParams(obs_space, action_space, config)
-        dist_module = Independent(Normal(), reinterpreted_batch_ndims=1)
+        dist_module = ptd.Independent(ptd.Normal(), reinterpreted_batch_ndims=1)
 
         return StochasticModel.assemble(params_module, dist_module, config)
 
@@ -70,8 +68,8 @@ class GaussianDynamicsParams(nn.Module):
     def __init__(self, obs_space, action_space, config):
         super().__init__()
         obs_size, act_size = obs_space.shape[0], action_space.shape[0]
-        self.logits = StateActionEncoder(obs_size, act_size, **config["encoder"])
-        self.params = NormalParams(
+        self.logits = nnx.StateActionEncoder(obs_size, act_size, **config["encoder"])
+        self.params = nnx.NormalParams(
             self.logits.out_features,
             obs_size,
             input_dependent_scale=config["input_dependent_scale"],

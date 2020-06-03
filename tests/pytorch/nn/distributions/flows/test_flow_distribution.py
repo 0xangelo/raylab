@@ -2,16 +2,10 @@
 import pytest
 import torch
 
-from raylab.pytorch.nn.distributions import Distribution
-from raylab.pytorch.nn.distributions import Independent
-from raylab.pytorch.nn.distributions import Normal
-from raylab.pytorch.nn.distributions import TransformedDistribution
-from raylab.pytorch.nn.distributions import Uniform
-from raylab.pytorch.nn.distributions.utils import _sum_rightmost
-from raylab.pytorch.nn.flows import Transform
+import raylab.pytorch.nn.distributions as ptd
 
 
-class Basic1DFlow(Transform):
+class Basic1DFlow(ptd.flows.Transform):
     def __init__(self, distribution):
         super().__init__(event_dim=1)
         self.distribution = distribution
@@ -19,31 +13,32 @@ class Basic1DFlow(Transform):
     def encode(self, inputs):
         out = self.distribution.cdf(inputs)
         log_abs_det_jacobian = self.distribution.log_prob(inputs)
-        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
+        return out, ptd.flows.utils.sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
     def decode(self, inputs):
         out = self.distribution.icdf(inputs)
         log_abs_det_jacobian = -self.distribution.log_prob(out)
-        return out, _sum_rightmost(log_abs_det_jacobian, self.event_dim)
+        return out, ptd.flows.utils.sum_rightmost(log_abs_det_jacobian, self.event_dim)
 
 
 @pytest.fixture
 def flow():
     return Basic1DFlow(
-        Distribution(
-            cond_dist=Normal(), params={"loc": torch.zeros(2), "scale": torch.ones(2)},
+        ptd.Distribution(
+            cond_dist=ptd.Normal(),
+            params={"loc": torch.zeros(2), "scale": torch.ones(2)},
         )
     )
 
 
 @pytest.fixture
 def dist(flow, torch_script):
-    base_dist = Distribution(
-        cond_dist=Independent(Uniform(), reinterpreted_batch_ndims=1),
+    base_dist = ptd.Distribution(
+        cond_dist=ptd.Independent(ptd.Uniform(), reinterpreted_batch_ndims=1),
         params={"low": torch.zeros(2), "high": torch.ones(2)},
     )
-    module = TransformedDistribution(base_dist, flow)
-    module = Distribution(cond_dist=module)
+    module = ptd.TransformedDistribution(base_dist, flow)
+    module = ptd.Distribution(cond_dist=module)
     return torch.jit.script(module) if torch_script else module
 
 

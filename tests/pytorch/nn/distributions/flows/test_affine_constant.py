@@ -3,8 +3,8 @@ import pytest
 import torch
 import torch.nn as nn
 
-from raylab.pytorch.nn.flows import ActNorm
-from raylab.pytorch.nn.flows import AffineConstantFlow
+from raylab.pytorch.nn.distributions.flows import ActNorm
+from raylab.pytorch.nn.distributions.flows import AffineConstantFlow
 
 
 @pytest.fixture(params=(True, False), ids=("LearnScale", "ConstScale"))

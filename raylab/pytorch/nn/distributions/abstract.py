@@ -1,4 +1,4 @@
-"""Distributions as PyTorch modules compatible with TorchScript."""
+"""Base classes for distribution modules."""
 from typing import Dict
 from typing import List
 
@@ -7,9 +7,7 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from .transforms import ConditionalTransform
-from .transforms import Transform
-from .utils import _sum_rightmost
+from . import flows
 
 
 class ConditionalDistribution(nn.Module):
@@ -21,7 +19,7 @@ class ConditionalDistribution(nn.Module):
 
     # pylint:disable=abstract-method,unused-argument,not-callable
 
-    def __init__(self, *, distribution=None):
+    def __init__(self, *, distribution: nn.Module = None):
         super().__init__()
         self.distribution = distribution
 
@@ -48,7 +46,7 @@ class ConditionalDistribution(nn.Module):
         return torch.tensor(np.nan).float(), torch.tensor(np.nan).float()
 
     @torch.jit.export
-    def log_prob(self, value, params: Dict[str, torch.Tensor]):
+    def log_prob(self, value: torch.Tensor, params: Dict[str, torch.Tensor]):
         """
         Returns the log of the probability density/mass function evaluated at `value`.
         """
@@ -57,14 +55,14 @@ class ConditionalDistribution(nn.Module):
         return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
-    def cdf(self, value, params: Dict[str, torch.Tensor]):
+    def cdf(self, value: torch.Tensor, params: Dict[str, torch.Tensor]):
         """Returns the cumulative density/mass function evaluated at `value`."""
         if self.distribution is not None:
             return self.distribution.cdf(value)
         return torch.tensor(np.nan).float().expand_as(value)
 
     @torch.jit.export
-    def icdf(self, value, params: Dict[str, torch.Tensor]):
+    def icdf(self, value: torch.Tensor, params: Dict[str, torch.Tensor]):
         """Returns the inverse cumulative density/mass function evaluated at `value`."""
         if self.distribution is not None:
             return self.distribution.icdf(value)
@@ -83,7 +81,7 @@ class ConditionalDistribution(nn.Module):
         return self.entropy(params).exp()
 
     @torch.jit.export
-    def reproduce(self, value, params: Dict[str, torch.Tensor]):
+    def reproduce(self, value: torch.Tensor, params: Dict[str, torch.Tensor]):
         """Produce a reparametrized sample with the same value as `value`."""
         if self.distribution is not None:
             return self.distribution.reproduce(value)
@@ -115,7 +113,9 @@ class Distribution(nn.Module):
     # pylint:disable=abstract-method,not-callable
     params: Dict[str, torch.Tensor]
 
-    def __init__(self, *, cond_dist=None, params=None):
+    def __init__(
+        self, *, cond_dist: nn.Module = None, params: Dict[str, torch.Tensor] = None
+    ):
         super().__init__()
         self.cond_dist = cond_dist
         self.params = params or {}
@@ -221,49 +221,63 @@ class Independent(ConditionalDistribution):
     @torch.jit.export
     def sample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         out, base_log_prob = self.base_dist.sample(params, sample_shape)
-        return out, _sum_rightmost(base_log_prob, self.reinterpreted_batch_ndims)
+        return (
+            out,
+            flows.utils.sum_rightmost(base_log_prob, self.reinterpreted_batch_ndims),
+        )
 
     @override(ConditionalDistribution)
     @torch.jit.export
     def rsample(self, params: Dict[str, torch.Tensor], sample_shape: List[int] = ()):
         out, base_log_prob = self.base_dist.rsample(params, sample_shape)
         if out is not None:
-            return out, _sum_rightmost(base_log_prob, self.reinterpreted_batch_ndims)
+            return (
+                out,
+                flows.utils.sum_rightmost(
+                    base_log_prob, self.reinterpreted_batch_ndims
+                ),
+            )
         return out, base_log_prob
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def log_prob(self, value, params: Dict[str, torch.Tensor]):
+    def log_prob(self, value: torch.Tensor, params: Dict[str, torch.Tensor]):
         base_log_prob = self.base_dist.log_prob(value, params)
-        return _sum_rightmost(base_log_prob, self.reinterpreted_batch_ndims)
+        return flows.utils.sum_rightmost(base_log_prob, self.reinterpreted_batch_ndims)
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def cdf(self, value, params: Dict[str, torch.Tensor]):
+    def cdf(self, value: torch.Tensor, params: Dict[str, torch.Tensor]):
         return self.base_dist.cdf(value, params)
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def icdf(self, value, params: Dict[str, torch.Tensor]):
+    def icdf(self, value: torch.Tensor, params: Dict[str, torch.Tensor]):
         return self.base_dist.icdf(value, params)
 
     @override(ConditionalDistribution)
     @torch.jit.export
     def entropy(self, params: Dict[str, torch.Tensor]):
         base_entropy = self.base_dist.entropy(params)
-        return _sum_rightmost(base_entropy, self.reinterpreted_batch_ndims)
+        return flows.utils.sum_rightmost(base_entropy, self.reinterpreted_batch_ndims)
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def reproduce(self, value, params: Dict[str, torch.Tensor]):
+    def reproduce(self, value: torch.Tensor, params: Dict[str, torch.Tensor]):
         sample_, log_prob_ = self.base_dist.reproduce(value, params)
-        return sample_, _sum_rightmost(log_prob_, self.reinterpreted_batch_ndims)
+        return (
+            sample_,
+            flows.utils.sum_rightmost(log_prob_, self.reinterpreted_batch_ndims),
+        )
 
     @override(ConditionalDistribution)
     @torch.jit.export
     def deterministic(self, params: Dict[str, torch.Tensor]):
         sample, log_prob = self.base_dist.deterministic(params)
-        return sample, _sum_rightmost(log_prob, self.reinterpreted_batch_ndims)
+        return (
+            sample,
+            flows.utils.sum_rightmost(log_prob, self.reinterpreted_batch_ndims),
+        )
 
 
 class TransformedDistribution(ConditionalDistribution):
@@ -282,8 +296,8 @@ class TransformedDistribution(ConditionalDistribution):
             else base_dist
         )
         self.transform = (
-            ConditionalTransform(transform=transform)
-            if isinstance(transform, Transform)
+            flows.ConditionalTransform(transform=transform)
+            if isinstance(transform, flows.Transform)
             else transform
         )
 
@@ -303,14 +317,14 @@ class TransformedDistribution(ConditionalDistribution):
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def log_prob(self, value, params: Dict[str, torch.Tensor]):
+    def log_prob(self, value: torch.Tensor, params: Dict[str, torch.Tensor]):
         latent, log_abs_det_jacobian = self.transform(value, params, reverse=True)
         base_log_prob = self.base_dist.log_prob(latent, params)
         return base_log_prob + log_abs_det_jacobian
 
     @override(ConditionalDistribution)
     @torch.jit.export
-    def reproduce(self, value, params: Dict[str, torch.Tensor]):
+    def reproduce(self, value: torch.Tensor, params: Dict[str, torch.Tensor]):
         latent, _ = self.transform(value, params, reverse=True)
         latent_, base_log_prob_ = self.base_dist.reproduce(latent, params)
         value_, log_abs_det_jacobian_ = self.transform(latent_, params)

@@ -35,14 +35,13 @@ import numpy as np
 import torch
 from ray.rllib.utils import override
 
-from raylab.pytorch.nn.distributions import ConditionalTransform
-from raylab.pytorch.nn.distributions.utils import _sum_rightmost
-
+from .abstract import ConditionalTransform
 from .nonlinearities import PiecewiseRationalQuadraticCDF
 from .splines import DEFAULT_MIN_BIN_HEIGHT
 from .splines import DEFAULT_MIN_BIN_WIDTH
 from .splines import DEFAULT_MIN_DERIVATIVE
 from .splines import unconstrained_rational_quadratic_spline
+from .utils import sum_rightmost
 
 
 class CouplingTransform(ConditionalTransform, metaclass=ABCMeta):
@@ -185,14 +184,14 @@ class AffineCouplingTransform(CouplingTransform):
     def coupling_transform_forward(self, inputs, transform_params):
         scale, shift, log_scale = self._scale_and_shift(transform_params)
         outputs = inputs * scale + shift
-        logabsdet = _sum_rightmost(log_scale, self.event_dim)
+        logabsdet = sum_rightmost(log_scale, self.event_dim)
         return outputs, logabsdet
 
     @override(CouplingTransform)
     def coupling_transform_inverse(self, inputs, transform_params):
         scale, shift, log_scale = self._scale_and_shift(transform_params)
         outputs = (inputs - shift) / scale
-        logabsdet = -_sum_rightmost(log_scale, self.event_dim)
+        logabsdet = -sum_rightmost(log_scale, self.event_dim)
         return outputs, logabsdet
 
 
@@ -237,7 +236,7 @@ class PiecewiseCouplingTransform(CouplingTransform):
             inputs, transform_params, reverse=reverse
         )
 
-        return outputs, _sum_rightmost(logabsdet, self.event_dim)
+        return outputs, sum_rightmost(logabsdet, self.event_dim)
 
     @abstractmethod
     def _piecewise_cdf(self, inputs, transform_params, reverse: bool = False):

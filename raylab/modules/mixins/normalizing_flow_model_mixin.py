@@ -5,14 +5,8 @@ import gym.spaces as spaces
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.pytorch.nn import flows
-from raylab.pytorch.nn import NormalParams
-from raylab.pytorch.nn import StateActionEncoder
-from raylab.pytorch.nn import StdNormalParams
-from raylab.pytorch.nn.distributions import CompositeTransform
-from raylab.pytorch.nn.distributions import Independent
-from raylab.pytorch.nn.distributions import Normal
-from raylab.pytorch.nn.distributions import TransformedDistribution
+import raylab.pytorch.nn as nnx
+import raylab.pytorch.nn.distributions as ptd
 from raylab.utils.dictionaries import deep_merge
 
 from .. import networks
@@ -70,8 +64,8 @@ class NormalizingFlowModelMixin(StochasticModelMixin):
         transforms = self._make_model_transforms(
             obs_space, params_module.state_size, config
         )
-        dist_module = TransformedDistribution(
-            base_dist=base_dist, transform=CompositeTransform(transforms),
+        dist_module = ptd.TransformedDistribution(
+            base_dist=base_dist, transform=ptd.flows.CompositeTransform(transforms),
         )
 
         return StochasticModel.assemble(params_module, dist_module, config)
@@ -81,24 +75,24 @@ class NormalizingFlowModelMixin(StochasticModelMixin):
         # Ensure we're not encoding the inputs for nothing
         obs_size, act_size = obs_space.shape[0], action_space.shape[0]
         if config["conditional_prior"] or config["conditional_flow"]:
-            input_encoder = StateActionEncoder(
+            input_encoder = nnx.StateActionEncoder(
                 obs_size, act_size, **config["input_encoder"]
             )
         else:
             warnings.warn("Model is blind to the observations")
-            input_encoder = StateActionEncoder(obs_size, act_size, units=())
+            input_encoder = nnx.StateActionEncoder(obs_size, act_size, units=())
 
         params_module = NFNormalParams(input_encoder, obs_space, config)
-        base_dist = Independent(Normal(), reinterpreted_batch_ndims=1)
+        base_dist = ptd.Independent(ptd.Normal(), reinterpreted_batch_ndims=1)
         return params_module, base_dist
 
     @staticmethod
     def _make_model_transforms(obs_space, state_size, config):
         obs_size = obs_space.shape[0]
         flow_config = config["flow"].copy()
-        cls = getattr(flows, flow_config.pop("type"))
+        cls = getattr(ptd.flows, flow_config.pop("type"))
 
-        if issubclass(cls, flows.CouplingTransform):
+        if issubclass(cls, ptd.flows.CouplingTransform):
             net_config = flow_config.pop("transform_net")
             net_config.setdefault("hidden_features", obs_size)
             transform_net = getattr(networks, net_config.pop("type"))
@@ -112,7 +106,7 @@ class NormalizingFlowModelMixin(StochasticModelMixin):
                 )
 
             masks = [
-                flows.masks.create_alternating_binary_mask(obs_size, bool(i % 2))
+                ptd.flows.masks.create_alternating_binary_mask(obs_size, bool(i % 2))
                 for i in range(config["num_flows"])
             ]
             transforms = [cls(m, transform_net_create_fn, **flow_config) for m in masks]
@@ -133,9 +127,9 @@ class NFNormalParams(nn.Module):
 
         obs_size = obs_space.shape[0]
         if config["conditional_prior"]:
-            self.params = NormalParams(self.state_size, obs_size)
+            self.params = nnx.NormalParams(self.state_size, obs_size)
         else:
-            self.params = StdNormalParams(1, obs_size)
+            self.params = nnx.StdNormalParams(1, obs_size)
 
     @override(nn.Module)
     def forward(self, obs, act):  # pylint:disable=arguments-differ

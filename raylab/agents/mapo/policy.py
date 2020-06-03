@@ -6,12 +6,12 @@ import torch.nn as nn
 from ray.rllib.utils import override
 
 import raylab.policy as raypi
-import raylab.utils.pytorch as ptu
 from raylab.envs import get_reward_fn
 from raylab.losses import ClippedDoubleQLearning
 from raylab.losses import DPGAwareModelLearning
 from raylab.losses import MaximumLikelihood
 from raylab.losses import ModelAwareDPG
+from raylab.pytorch.optim import build_optimizer
 
 
 class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
@@ -84,7 +84,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         if self.config["true_model"]:
             components = components[1:]
 
-        optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
+        optims = {k: build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     def set_transition_kernel(self, transition_kernel):

@@ -7,14 +7,14 @@ import torch.nn as nn
 from ray.rllib.utils import merge_dicts
 from ray.rllib.utils import override
 
-from raylab.pytorch.nn import flows
 from raylab.pytorch.nn import FullyConnected
-from raylab.pytorch.nn.distributions import CompositeTransform
+from raylab.pytorch.nn.distributions import flows
 from raylab.pytorch.nn.distributions import Independent
 from raylab.pytorch.nn.distributions import Normal
-from raylab.pytorch.nn.distributions import TanhSquashTransform
 from raylab.pytorch.nn.distributions import TransformedDistribution
-from raylab.utils.pytorch import initialize_
+from raylab.pytorch.nn.distributions.flows import CompositeTransform
+from raylab.pytorch.nn.distributions.flows import TanhSquashTransform
+from raylab.pytorch.nn.init import initialize_
 
 from . import networks
 from .abstract import AbstractActorCritic

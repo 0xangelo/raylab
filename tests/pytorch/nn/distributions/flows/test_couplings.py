@@ -4,10 +4,10 @@ import torch
 
 from raylab.modules.networks import MLP
 from raylab.modules.networks import ResidualNet
-from raylab.pytorch.nn.flows.coupling import AdditiveCouplingTransform
-from raylab.pytorch.nn.flows.coupling import AffineCouplingTransform
-from raylab.pytorch.nn.flows.coupling import PiecewiseRQSCouplingTransform
-from raylab.pytorch.nn.flows.masks import create_alternating_binary_mask
+from raylab.pytorch.nn.distributions.flows.coupling import AdditiveCouplingTransform
+from raylab.pytorch.nn.distributions.flows.coupling import AffineCouplingTransform
+from raylab.pytorch.nn.distributions.flows.coupling import PiecewiseRQSCouplingTransform
+from raylab.pytorch.nn.distributions.flows.masks import create_alternating_binary_mask
 
 PARITIES = (True, False)
 IN_SIZES = (2, 3)

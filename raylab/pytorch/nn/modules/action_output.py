@@ -1,7 +1,7 @@
 # pylint: disable=missing-docstring
 import torch.nn as nn
 
-from .normalized_linear import NormalizedLinear
+from .linear import NormalizedLinear
 from .tanh_squash import TanhSquash
 
 

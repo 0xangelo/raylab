@@ -6,15 +6,8 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.pytorch.nn import flows
-from raylab.pytorch.nn import FullyConnected
-from raylab.pytorch.nn import NormalParams
-from raylab.pytorch.nn import StdNormalParams
-from raylab.pytorch.nn.distributions import CompositeTransform
-from raylab.pytorch.nn.distributions import Independent
-from raylab.pytorch.nn.distributions import Normal
-from raylab.pytorch.nn.distributions import TanhSquashTransform
-from raylab.pytorch.nn.distributions import TransformedDistribution
+import raylab.pytorch.nn as nnx
+import raylab.pytorch.nn.distributions as ptd
 from raylab.utils.dictionaries import deep_merge
 
 from .. import networks
@@ -58,8 +51,8 @@ class NormalizingFlowActorMixin:
         transforms = self._make_actor_transforms(
             action_space, params_module.state_size, config
         )
-        dist_module = TransformedDistribution(
-            base_dist=base_dist, transform=CompositeTransform(transforms),
+        dist_module = ptd.TransformedDistribution(
+            base_dist=base_dist, transform=ptd.flows.CompositeTransform(transforms),
         )
 
         return {"actor": StochasticPolicy(params_module, dist_module)}
@@ -68,22 +61,24 @@ class NormalizingFlowActorMixin:
     def _make_actor_prior(obs_space, action_space, config):
         # Ensure we're not encoding the observation for nothing
         if config["conditional_prior"] or config["conditional_flow"]:
-            obs_encoder = FullyConnected(obs_space.shape[0], **config["obs_encoder"])
+            obs_encoder = nnx.FullyConnected(
+                obs_space.shape[0], **config["obs_encoder"]
+            )
         else:
             warnings.warn("Policy is blind to the observations")
-            obs_encoder = FullyConnected(obs_space.shape[0], units=())
+            obs_encoder = nnx.FullyConnected(obs_space.shape[0], units=())
 
         params_module = NFNormalParams(obs_encoder, action_space, config)
-        base_dist = Independent(Normal(), reinterpreted_batch_ndims=1)
+        base_dist = ptd.Independent(ptd.Normal(), reinterpreted_batch_ndims=1)
         return params_module, base_dist
 
     @staticmethod
     def _make_actor_transforms(action_space, state_size, config):
         act_size = action_space.shape[0]
         flow_config = config["flow"].copy()
-        cls = getattr(flows, flow_config.pop("type"))
+        cls = getattr(ptd.flows, flow_config.pop("type"))
 
-        if issubclass(cls, flows.CouplingTransform):
+        if issubclass(cls, ptd.flows.CouplingTransform):
             net_config = flow_config.pop("transform_net")
             net_config.setdefault("hidden_features", act_size)
             transform_net = getattr(networks, net_config.pop("type"))
@@ -97,7 +92,7 @@ class NormalizingFlowActorMixin:
                 )
 
             masks = [
-                flows.masks.create_alternating_binary_mask(act_size, bool(i % 2))
+                ptd.flows.masks.create_alternating_binary_mask(act_size, bool(i % 2))
                 for i in range(config["num_flows"])
             ]
             transforms = [cls(m, transform_net_create_fn, **flow_config) for m in masks]
@@ -105,7 +100,7 @@ class NormalizingFlowActorMixin:
         else:
             raise NotImplementedError(f"Unsupported flow type {cls}")
 
-        squash = TanhSquashTransform(
+        squash = ptd.flows.TanhSquashTransform(
             low=torch.as_tensor(action_space.low),
             high=torch.as_tensor(action_space.high),
             event_dim=1,
@@ -123,9 +118,9 @@ class NFNormalParams(nn.Module):
 
         act_size = action_space.shape[0]
         if config["conditional_prior"]:
-            self.params = NormalParams(self.state_size, act_size)
+            self.params = nnx.NormalParams(self.state_size, act_size)
         else:
-            self.params = StdNormalParams(1, act_size)
+            self.params = nnx.StdNormalParams(1, act_size)
 
     @override(nn.Module)
     def forward(self, obs):  # pylint:disable=arguments-differ

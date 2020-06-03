@@ -4,8 +4,8 @@ import torch.nn as nn
 from ray.rllib.utils import override
 
 import raylab.policy as raypi
-import raylab.utils.pytorch as ptu
 from raylab.losses import ClippedDoubleQLearning
+from raylab.pytorch.optim import build_optimizer
 
 
 class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
@@ -46,7 +46,7 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     @override(raypi.TorchPolicy)
     def make_optimizer(self):
-        return ptu.build_optimizer(self.module.critics, self.config["torch_optimizer"])
+        return build_optimizer(self.module.critics, self.config["torch_optimizer"])
 
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):

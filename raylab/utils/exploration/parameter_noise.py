@@ -5,10 +5,10 @@ from ray.rllib.utils import override
 from ray.rllib.utils.exploration import Exploration
 from ray.rllib.utils.torch_ops import convert_to_non_torch_type
 
-from raylab.pytorch.nn.distributions import TanhSquashTransform
+from raylab.pytorch.nn.distributions.flows import TanhSquashTransform
+from raylab.pytorch.nn.utils import perturb_module_params
 from raylab.utils.param_noise import AdaptiveParamNoiseSpec
 from raylab.utils.param_noise import ddpg_distance_metric
-from raylab.utils.pytorch import perturb_module_params
 
 from .random_uniform import RandomUniform
 

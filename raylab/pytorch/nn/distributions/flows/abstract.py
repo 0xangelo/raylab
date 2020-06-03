@@ -1,13 +1,11 @@
 """Distribution transforms as PyTorch modules compatible with TorchScript."""
-import math
 from typing import Dict
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from ray.rllib.utils import override
 
-from .utils import _sum_rightmost
+from .utils import sum_rightmost
 
 
 class Transform(nn.Module):
@@ -136,7 +134,7 @@ class CompositeTransform(ConditionalTransform):
         log_abs_det_jacobian = 0.0
         for transform in self.transforms:
             out, log_det = transform(out, params, reverse=False)
-            log_abs_det_jacobian += _sum_rightmost(
+            log_abs_det_jacobian += sum_rightmost(
                 log_det, self.event_dim - transform.event_dim
             )
         return out, log_abs_det_jacobian
@@ -147,98 +145,7 @@ class CompositeTransform(ConditionalTransform):
         log_abs_det_jacobian = 0.0
         for transform in self.inv_transforms:
             out, log_det = transform(out, params, reverse=True)
-            log_abs_det_jacobian += _sum_rightmost(
+            log_abs_det_jacobian += sum_rightmost(
                 log_det, self.event_dim - transform.event_dim
             )
         return out, log_abs_det_jacobian
-
-
-class TanhTransform(Transform):
-    """Transform via the mapping :math:`y = \frac{e^x - e^{-x}} {e^x + e^{-x}}`."""
-
-    # pylint:disable=arguments-out-of-order
-
-    @override(Transform)
-    def encode(self, inputs):
-        outputs = torch.tanh(inputs)
-        return outputs, self.log_abs_det_jacobian(inputs, outputs)
-
-    @override(Transform)
-    def decode(self, inputs):
-        # torch.finfo(torch.float32).tiny
-        to_log1 = torch.clamp(1 + inputs, min=1.1754943508222875e-38)
-        to_log2 = torch.clamp(1 - inputs, min=1.1754943508222875e-38)
-        outputs = (torch.log(to_log1) - torch.log(to_log2)) / 2
-        return outputs, -self.log_abs_det_jacobian(outputs, inputs)
-
-    def log_abs_det_jacobian(self, inputs, outputs):
-        # pylint:disable=unused-argument,missing-docstring
-        # Taken from spinningup's implementation of SAC
-        return _sum_rightmost(
-            2 * (math.log(2) - inputs - F.softplus(-2 * inputs)), self.event_dim
-        )
-
-
-class SigmoidTransform(Transform):
-    # pylint:disable=missing-docstring,arguments-out-of-order
-
-    @override(Transform)
-    def encode(self, inputs):
-        outputs = inputs.sigmoid()
-        return outputs, self.log_abs_det_jacobian(inputs, outputs)
-
-    @override(Transform)
-    def decode(self, inputs):
-        to_log = inputs.clamp(min=1.1754943508222875e-38)
-        outputs = to_log.log() - (-to_log).log1p()
-        return outputs, -self.log_abs_det_jacobian(outputs, inputs)
-
-    def log_abs_det_jacobian(self, inputs, outputs):
-        # pylint:disable=unused-argument,missing-docstring
-        return _sum_rightmost(-F.softplus(-inputs) - F.softplus(inputs), self.event_dim)
-
-
-class AffineTransform(Transform):
-    # pylint:disable=missing-docstring,arguments-out-of-order
-
-    def __init__(self, loc, scale, **kwargs):
-        super().__init__(**kwargs)
-        self.register_buffer("loc", loc)
-        self.register_buffer("scale", scale)
-
-    @override(Transform)
-    def encode(self, inputs):
-        outputs = inputs * self.scale + self.loc
-        return outputs, self.log_abs_det_jacobian(inputs, outputs)
-
-    @override(Transform)
-    def decode(self, inputs):
-        outputs = (inputs - self.loc) / self.scale
-        return outputs, -self.log_abs_det_jacobian(outputs, inputs)
-
-    def log_abs_det_jacobian(self, inputs, outputs):
-        # pylint:disable=unused-argument,missing-docstring
-        _, scale = torch.broadcast_tensors(inputs, self.scale)
-        return _sum_rightmost(scale.abs().log(), self.event_dim)
-
-
-class TanhSquashTransform(Transform):
-    """Squashes samples to the desired range using Tanh."""
-
-    def __init__(self, low, high, event_dim=0):
-        divide = AffineTransform(loc=torch.zeros_like(low), scale=2 / (high - low))
-        squash = TanhTransform()
-        shift = AffineTransform(loc=(high + low) / 2, scale=(high - low) / 2)
-        compose = CompositeTransform([divide, squash, shift], event_dim=event_dim)
-        super().__init__(cond_transform=compose)
-
-
-class SigmoidSquashTransform(Transform):
-    """Squashes samples to the desired range using Sigmoid."""
-
-    def __init__(self, low, high, event_dim=0):
-        divide = AffineTransform(loc=torch.zeros_like(low), scale=1 / (high - low))
-        squash = SigmoidTransform()
-        shift = AffineTransform(loc=low, scale=(high - low))
-        compose = CompositeTransform([divide, squash, shift], event_dim=event_dim)
-        super().__init__(cond_transform=compose)

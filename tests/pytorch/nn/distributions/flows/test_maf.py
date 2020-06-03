@@ -2,8 +2,8 @@
 import pytest
 import torch
 
-from raylab.pytorch.nn.flows import IAF
-from raylab.pytorch.nn.flows import MAF
+from raylab.pytorch.nn.distributions.flows import IAF
+from raylab.pytorch.nn.distributions.flows import MAF
 
 
 @pytest.fixture(params=(MAF, IAF))
