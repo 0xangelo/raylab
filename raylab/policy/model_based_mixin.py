@@ -31,6 +31,9 @@ class DataloaderSpec:
     batch_size: int = 256
     replacement: bool = False
 
+    def __post_init__(self):
+        assert self.batch_size > 0, "Model batch size must be positive"
+
 
 @dataclass
 class TrainingSpec:
@@ -39,7 +42,7 @@ class TrainingSpec:
     dataloader: DataloaderSpec = DataloaderSpec()
     max_epochs: Optional[int] = 120
     max_grad_steps: Optional[int] = 120
-    max_train_s: Optional[float] = 5
+    max_time: Optional[float] = 20
     patience_epochs: Optional[int] = 5
     improvement_threshold: float = 0.01
 
@@ -50,6 +53,22 @@ class TrainingSpec:
         dic["dataloader"] = DataloaderSpec(**dic["dataloader"])
         return cls(**dic)
 
+    def __post_init__(self):
+        assert (
+            not self.max_epochs or self.max_epochs > 0
+        ), "Cannot train model for a negative number of epochs"
+        assert not self.max_grad_steps or self.max_grad_steps > 0
+        assert (
+            not self.patience_epochs or self.patience_epochs > 0
+        ), "Must wait a positive number of epochs for any model to improve"
+        assert (
+            not self.max_time or self.max_time > 0
+        ), "Maximum training time must be positive"
+
+        assert (
+            self.max_epochs or self.max_grad_steps or self.patience_epochs
+        ), "Need at least one stopping criterion"
+
 
 @dataclass
 class ModelBasedSpec:
@@ -58,6 +77,12 @@ class ModelBasedSpec:
     training: TrainingSpec = TrainingSpec()
     num_elites: int = 5
     rollout_length: int = 1
+
+    def __post_init__(self):
+        assert self.num_elites > 0
+        assert (
+            self.rollout_length > 0
+        ), "Length of model-based rollouts must be positive"
 
     @classmethod
     def from_dict(cls, dictionary: dict) -> ModelBasedSpec:
