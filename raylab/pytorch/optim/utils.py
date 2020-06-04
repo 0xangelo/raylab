@@ -9,6 +9,9 @@ from raylab.utils.dictionaries import all_except
 from .kfac import EKFAC
 from .kfac import KFAC
 from .kfac import KFACMixin
+from .radam import AdamW
+from .radam import PlainRAdam
+from .radam import RAdam
 
 
 OPTIMIZERS = {
@@ -16,7 +19,15 @@ OPTIMIZERS = {
     for name, cls in [(k, getattr(torch.optim, k)) for k in dir(torch.optim)]
     if isinstance(cls, type) and issubclass(cls, Optimizer) and cls is not Optimizer
 }
-OPTIMIZERS.update({"KFAC": KFAC, "EKFAC": EKFAC})
+OPTIMIZERS.update(
+    {
+        "KFAC": KFAC,
+        "EKFAC": EKFAC,
+        "RAdam": RAdam,
+        "PlainRAdam": PlainRAdam,
+        "AdamW": AdamW,
+    }
+)
 
 
 def build_optimizer(module, config):
