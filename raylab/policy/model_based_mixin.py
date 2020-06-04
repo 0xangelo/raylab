@@ -110,6 +110,17 @@ class ModelBasedMixin:
 
     Expects a `models` attribute in `self.module` and a `model_based` config
     keyword.
+
+    Attributes:
+        model_based_spec: Specifications for model training and sampling
+        reward_fn: Callable that computes the reward tensors for a batch of
+            transitions
+        termination_fn: Callable that computes the termination tensors for
+            a batch of transitions
+        elite_models: Sequence of the `num` best models since last training.
+            Initial models are picked at random
+        rng: Random number generator for picking from the elite models for
+            sampling and picking the initial elite models
     """
 
     def __init__(self, *args, **kwargs):
