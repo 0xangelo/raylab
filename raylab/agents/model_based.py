@@ -11,22 +11,23 @@ from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 BASE_CONFIG = with_off_policy_config(
     {
-        # === Model Training ===
+        # === ModelBasedTrainer ===
+        # === Model Data ===
         # Fraction of replay buffer to use as validation dataset
         # (hence not for training)
         "holdout_ratio": 0.2,
         # Maximum number of samples to use as validation dataset
         "max_holdout": 5000,
+        # === Virtual Replay ===
+        # Size of the buffer for virtual samples
+        "virtual_buffer_size": int(1e6),
+        # number of model rollouts to add to augmented replay per real environment step
+        "model_rollouts": 40,
         # === Policy Training ===
         # Number of policy improvement steps per real environment step
         "policy_improvements": 10,
         # Fraction of each policy minibatch to sample from environment replay pool
         "real_data_ratio": 0.1,
-        # === Replay buffer ===
-        # Size of the buffer for virtual samples
-        "virtual_buffer_size": int(1e6),
-        # number of model rollouts to add to augmented replay per real environment step
-        "model_rollouts": 40,
     }
 )
 
@@ -105,7 +106,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
         )
         train_data, eval_data = samples.slice(holdout, None), samples.slice(0, holdout)
 
-        policy = self.workers.local_worker().get_policy()
+        policy = self.get_policy()
         stats = get_learner_stats(policy.optimize_model(train_data, eval_data))
 
         return stats
@@ -116,14 +117,14 @@ class ModelBasedTrainer(OffPolicyTrainer):
             return
 
         real_samples = self.replay.sample(self.config["model_rollouts"] * num_env_steps)
-        policy = self.workers.local_worker().get_policy()
+        policy = self.get_policy()
         virtual_samples = policy.generate_virtual_sample_batch(real_samples)
         for row in virtual_samples.rows():
             self.virtual_replay.add(row)
 
     def improve_policy(self, num_env_steps):
         """Call the policy to perform policy improvement using the augmented replay."""
-        policy = self.workers.local_worker().get_policy()
+        policy = self.get_policy()
         batch_size = self.config["train_batch_size"]
         env_batch_size = int(batch_size * self.config["real_data_ratio"])
         model_batch_size = batch_size - env_batch_size
