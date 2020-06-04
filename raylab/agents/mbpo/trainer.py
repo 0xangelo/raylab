@@ -1,6 +1,7 @@
 """Trainer and configuration for MBPO."""
 from raylab.agents.model_based import ModelBasedTrainer
 from raylab.agents.model_based import with_base_config
+from raylab.policy.model_based_mixin import ModelBasedSpec
 
 from .policy import MBPOTorchPolicy
 
@@ -31,18 +32,7 @@ DEFAULT_CONFIG = with_base_config(
         # === ModelBasedMixin ===
         # Specifications for model training and sampling
         # See `raylab.policy.model_based_mixin`
-        "model_based": {
-            "training": {
-                "dataloader": {"batch_size": 256, "replacement": False},
-                "max_epochs": 120,
-                "max_grad_steps": 120,
-                "max_time": 20,
-                "patience_epochs": 5,
-                "improvement_threshold": 0.01,
-            },
-            "num_elites": 5,
-            "rollout_length": 1,
-        },
+        "model_based": ModelBasedSpec().to_dict(),
         # === Replay buffer ===
         # Size of the replay buffer.
         "buffer_size": int(1e5),
