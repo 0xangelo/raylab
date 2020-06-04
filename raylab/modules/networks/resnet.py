@@ -31,7 +31,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import raylab.utils.pytorch as ptu
+from raylab.pytorch.nn.utils import get_activation
 
 
 class ResidualBlock(nn.Module):
@@ -48,7 +48,7 @@ class ResidualBlock(nn.Module):
     ):
         # pylint:disable=too-many-arguments
         super().__init__()
-        activation = ptu.get_activation(activation)
+        activation = get_activation(activation)
 
         layers = []
         if use_batch_norm:

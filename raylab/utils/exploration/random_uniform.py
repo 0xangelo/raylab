@@ -3,7 +3,7 @@ import numpy as np
 from ray.rllib.utils import override
 from ray.rllib.utils.exploration import Exploration
 
-import raylab.utils.pytorch as ptu
+import raylab.pytorch.utils as ptu
 
 
 class RandomUniform(Exploration):

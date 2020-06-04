@@ -16,8 +16,8 @@ from ray.tune.logger import pretty_print
 
 from raylab.agents import Trainer
 from raylab.modules.catalog import get_module
+from raylab.pytorch.utils import convert_to_tensor
 from raylab.utils.dictionaries import deep_merge
-from raylab.utils.pytorch import convert_to_tensor
 
 from .action_dist import WrapModuleDist
 

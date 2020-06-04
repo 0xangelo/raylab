@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from raylab.envs.wrappers import GaussianRandomWalks
-from raylab.utils.pytorch import convert_to_tensor
+from raylab.pytorch.utils import convert_to_tensor
 
 
 @pytest.fixture(params=(1, 2, 4))

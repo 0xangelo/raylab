@@ -1,6 +1,6 @@
 # pylint: disable=missing-docstring
 # pylint: enable=missing-docstring
-from raylab.utils.pytorch import update_polyak
+from raylab.pytorch.nn.utils import update_polyak
 
 
 class TargetNetworksMixin:

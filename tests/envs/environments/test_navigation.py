@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import torch
 
-from raylab.utils.pytorch import convert_to_tensor
+from raylab.pytorch.utils import convert_to_tensor
 
 DECELERATION_ZONES = (
     {"center": [[0.0, 0.0]], "decay": [2.0]},

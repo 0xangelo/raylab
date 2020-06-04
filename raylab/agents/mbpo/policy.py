@@ -9,11 +9,11 @@ import torch
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
-import raylab.utils.pytorch as ptu
 from raylab.agents.sac import SACTorchPolicy
 from raylab.envs import get_reward_fn
 from raylab.envs import get_termination_fn
 from raylab.losses import ModelEnsembleMLE
+from raylab.pytorch.optim import build_optimizer
 
 
 ModelSnapshot = collections.namedtuple("ModelSnapshot", "epoch loss state_dict")
@@ -53,7 +53,7 @@ class MBPOTorchPolicy(SACTorchPolicy):
         config = self.config["torch_optimizer"]
         components = "models actor critics alpha".split()
 
-        optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
+        optims = {k: build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @torch.no_grad()

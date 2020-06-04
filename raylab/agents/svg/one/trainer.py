@@ -4,6 +4,7 @@ from ray.rllib.utils import override
 
 from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.agents.off_policy import with_base_config
+from raylab.utils.replay_buffer import ReplayField
 
 from .policy import SVGOneTorchPolicy
 
@@ -30,7 +31,7 @@ DEFAULT_CONFIG = with_base_config(
         "polyak": 0.995,
         # === Regularization ===
         # Options for adaptive KL coefficient. See raylab.utils.adaptive_kl
-        "kl_schedule": {},
+        "kl_schedule": {"initial_coeff": 0},
         # Whether to penalize KL divergence with the current policy or past policies
         # that generated the replay pool.
         "replay_kl": True,
@@ -67,11 +68,14 @@ class SVGOneTrainer(OffPolicyTrainer):
     """Single agent trainer for SVG(1)."""
 
     # pylint: disable=attribute-defined-outside-init
-
     _name = "SVG(1)"
     _default_config = DEFAULT_CONFIG
     _policy = SVGOneTorchPolicy
-    _extra_replay_keys = (SampleBatch.ACTION_LOGP,)
+
+    @override(OffPolicyTrainer)
+    def build_replay_buffer(self, config):
+        super().build_replay_buffer(config)
+        self.replay.add_fields(ReplayField(SampleBatch.ACTION_LOGP))
 
     @override(OffPolicyTrainer)
     def _before_replay_steps(self, policy):
