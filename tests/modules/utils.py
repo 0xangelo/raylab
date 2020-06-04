@@ -4,8 +4,8 @@ from functools import partial
 import torch
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
 
+from raylab.pytorch.utils import convert_to_tensor
 from raylab.utils.debug import fake_batch
-from raylab.utils.pytorch import convert_to_tensor
 
 
 def make_module(module_cls, obs_space, action_space, config, torch_script):

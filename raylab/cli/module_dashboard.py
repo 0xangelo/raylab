@@ -14,8 +14,8 @@ from bokeh.plotting import figure
 from ray.rllib import SampleBatch
 
 import raylab
+import raylab.pytorch.utils as ptu
 import raylab.utils.dictionaries as dutil
-import raylab.utils.pytorch as ptu
 from raylab.utils.checkpoints import get_agent_from_checkpoint
 
 # pylint:disable=invalid-name,missing-docstring,pointless-string-statement

@@ -5,12 +5,12 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-import raylab.utils.pytorch as ptu
 from raylab.losses import MaximumEntropyDual
 from raylab.losses import ReparameterizedSoftPG
 from raylab.losses import SoftCDQLearning
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
+from raylab.pytorch.optim import build_optimizer
 
 
 class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
@@ -60,7 +60,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         config = self.config["torch_optimizer"]
         components = "actor critics alpha".split()
 
-        optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
+        optims = {k: build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @override(TorchPolicy)

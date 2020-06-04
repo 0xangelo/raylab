@@ -6,9 +6,9 @@ import torch.nn as nn
 from ray.rllib.utils import override
 
 import raylab.policy as raypi
-import raylab.utils.pytorch as ptu
 from raylab.losses import ClippedDoubleQLearning
 from raylab.losses import DeterministicPolicyGradient
+from raylab.pytorch.optim import build_optimizer
 
 
 class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
@@ -55,7 +55,7 @@ class SOPTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         config = self.config["torch_optimizer"]
         components = ["actor", "critics"]
 
-        optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
+        optims = {k: build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @override(raypi.TorchPolicy)

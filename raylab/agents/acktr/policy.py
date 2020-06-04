@@ -10,12 +10,12 @@ from ray.rllib.evaluation.postprocessing import Postprocessing
 from ray.rllib.utils import override
 
 import raylab.utils.dictionaries as dutil
-import raylab.utils.pytorch as ptu
-from raylab.modules.distributions import Normal
 from raylab.policy import TorchPolicy
-from raylab.utils import hf_util
+from raylab.pytorch.nn.distributions import Normal
+from raylab.pytorch.optim import build_optimizer
+from raylab.pytorch.optim.hessian_free import line_search
+from raylab.pytorch.optim.kfac import KFACMixin
 from raylab.utils.explained_variance import explained_variance
-from raylab.utils.kfac import KFACMixin
 
 
 DEFAULT_OPTIM_CONFIG = {
@@ -71,7 +71,7 @@ class ACKTRTorchPolicy(TorchPolicy):
             "EKFAC",
         ], "ACKTR must use optimizer with Kronecker Factored curvature estimation."
 
-        optims = {k: ptu.build_optimizer(self.module[k], config[k]) for k in components}
+        optims = {k: build_optimizer(self.module[k], config[k]) for k in components}
         return collections.namedtuple("OptimizerCollection", components)(**optims)
 
     @torch.no_grad()
@@ -167,7 +167,7 @@ class ACKTRTorchPolicy(TorchPolicy):
             avg_kl = torch.mean(old_logp - new_logp)
             return surr_loss.item() if avg_kl < kl_clip else np.inf
 
-        scale, expected_improvement, improvement = hf_util.line_search(
+        scale, expected_improvement, improvement = line_search(
             f_barrier,
             1,
             1,

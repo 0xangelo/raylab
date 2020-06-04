@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from raylab.modules import MADE
+from raylab.pytorch.nn import MADE
 
 
 @pytest.fixture(params=(True, False), ids=("NaturalOrder", "RandomOrder"))

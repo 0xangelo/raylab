@@ -5,10 +5,10 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.modules import FullyConnected
-from raylab.modules import NormalizedLinear
-from raylab.modules import TanhSquash
-from raylab.modules import TrilMatrix
+from raylab.pytorch.nn import FullyConnected
+from raylab.pytorch.nn import NormalizedLinear
+from raylab.pytorch.nn import TanhSquash
+from raylab.pytorch.nn import TrilMatrix
 from raylab.utils.dictionaries import deep_merge
 
 from .mixins import DeterministicPolicy

@@ -5,7 +5,7 @@ from typing import Optional
 import torch
 import torch.nn as nn
 
-import raylab.utils.pytorch as ptu
+from raylab.pytorch.nn.utils import get_activation
 
 
 class MLP(nn.Module):
@@ -23,7 +23,7 @@ class MLP(nn.Module):
     ):
         # pylint:disable=too-many-arguments
         super().__init__()
-        activation = ptu.get_activation(activation)
+        activation = get_activation(activation)
         self.stateful = bool(state_features)
         if self.stateful:
             self.initial_layer = nn.Linear(

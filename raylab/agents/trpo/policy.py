@@ -9,9 +9,12 @@ from ray.rllib.utils import override
 from torch.nn.utils import parameters_to_vector
 from torch.nn.utils import vector_to_parameters
 
-import raylab.utils.pytorch as ptu
 from raylab.policy import TorchPolicy
-from raylab.utils import hf_util
+from raylab.pytorch.optim import build_optimizer
+from raylab.pytorch.optim.hessian_free import conjugate_gradient
+from raylab.pytorch.optim.hessian_free import hessian_vector_product
+from raylab.pytorch.optim.hessian_free import line_search
+from raylab.pytorch.utils import flat_grad
 from raylab.utils.dictionaries import get_keys
 from raylab.utils.explained_variance import explained_variance
 
@@ -32,7 +35,7 @@ class TRPOTorchPolicy(TorchPolicy):
 
     @override(TorchPolicy)
     def make_optimizer(self):
-        return ptu.build_optimizer(self.module.critic, self.config["torch_optimizer"])
+        return build_optimizer(self.module.critic, self.config["torch_optimizer"])
 
     @torch.no_grad()
     @override(TorchPolicy)
@@ -82,7 +85,7 @@ class TRPOTorchPolicy(TorchPolicy):
 
         # Compute Policy Gradient
         surr_loss = -(self.module.actor.log_prob(cur_obs, actions) * advantages).mean()
-        pol_grad = ptu.flat_grad(surr_loss, self.module.actor.parameters())
+        pol_grad = flat_grad(surr_loss, self.module.actor.parameters())
         info["grad_norm(pg)"] = pol_grad.norm().item()
 
         # Compute Natural Gradient
@@ -124,9 +127,9 @@ class TRPOTorchPolicy(TorchPolicy):
             return self.module.actor.log_prob(obs, ent_acts).neg().mean()
 
         def fvp(vec):
-            return hf_util.hessian_vector_product(entropy(), params, vec)
+            return hessian_vector_product(entropy(), params, vec)
 
-        descent_direction, elapsed_iters, residual = hf_util.conjugate_gradient(
+        descent_direction, elapsed_iters, residual = conjugate_gradient(
             lambda x: fvp(x) + config["cg_damping"] * x,
             pol_grad,
             cg_iters=config["cg_iters"],
@@ -158,7 +161,7 @@ class TRPOTorchPolicy(TorchPolicy):
             avg_kl = torch.mean(old_logp - new_logp)
             return surr_loss.item() if avg_kl < self.config["delta"] else np.inf
 
-        new_params, expected_improvement, improvement = hf_util.line_search(
+        new_params, expected_improvement, improvement = line_search(
             f_barrier,
             parameters_to_vector(self.module.actor.parameters()),
             descent_step,
