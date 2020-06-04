@@ -1,6 +1,7 @@
 """Customized modules."""
 
 from .action_output import ActionOutput
+from .activation import Swish
 from .dist_params import CategoricalParams
 from .dist_params import NormalParams
 from .dist_params import StdNormalParams
@@ -17,6 +18,7 @@ from .tril_matrix import TrilMatrix
 
 __all__ = [
     "ActionOutput",
+    "Swish",
     "CategoricalParams",
     "LeafParameter",
     "FullyConnected",

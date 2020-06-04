@@ -1,5 +1,6 @@
 """Utilities for manipulating neural network modules."""
 import functools
+from typing import Callable
 from typing import Union
 
 import torch
@@ -8,11 +9,18 @@ import torch.nn as nn
 from . import modules
 
 
-def get_activation(activation: Union[str, dict, None]):
-    """Return activation module type from specification.
+def get_activation(activation: Union[str, dict, None]) -> Callable[[], nn.Module]:
+    """Return activation module constructor from specification.
 
     Args:
-        activation: the activation function's specification
+        activation: the activation function's specification. Can be either
+        a string with the activation module class' name, a dict with the name
+        as the `name` field and additional keyword arguments, or None, in which
+        case the indentity module class is returned.
+
+    Raises:
+        ValueError: If the type corresponding to the activation's name cannot
+            be found.
     """
     if activation is None:
         return nn.Identity
