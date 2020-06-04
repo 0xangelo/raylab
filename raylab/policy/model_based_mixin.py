@@ -24,9 +24,14 @@ from raylab.pytorch.utils import TensorDictDataset
 ModelSnapshot = collections.namedtuple("ModelSnapshot", "epoch loss state_dict")
 
 
-@dataclass
+@dataclass(frozen=True)
 class DataloaderSpec:
-    """Specifications for creating the data loader."""
+    """Specifications for creating the data loader.
+
+    Attributes:
+        batch_size: Size of minibatch for dynamics model training
+        replacement: Whether to sample transitions with replacement
+    """
 
     batch_size: int = 256
     replacement: bool = False
@@ -35,9 +40,21 @@ class DataloaderSpec:
         assert self.batch_size > 0, "Model batch size must be positive"
 
 
-@dataclass
+@dataclass(frozen=True)
 class TrainingSpec:
-    """Specifications for training the model."""
+    """Specifications for training the model.
+
+    Attributes:
+        dataloader: specifications for creating the data loader
+        max_epochs: Maximum number of full model passes through the data
+        max_grad_steps: Maximum number of model gradient steps
+        improvement_threshold: Minimum expected relative improvement in model
+            validation loss
+        patience_epochs: Number of epochs to wait for any of the models to
+            improve on the validation dataset before early stopping
+        max_time: Maximum time in seconds for training the model. We
+            check this after each epoch (not minibatch)
+    """
 
     dataloader: DataloaderSpec = DataloaderSpec()
     max_epochs: Optional[int] = 120
@@ -70,9 +87,17 @@ class TrainingSpec:
         ), "Need at least one stopping criterion"
 
 
-@dataclass
+@dataclass(frozen=True)
 class ModelBasedSpec:
-    """Specifications for model training and sampling."""
+    """Specifications for model training and sampling.
+
+    Attributes:
+        training: Specifications for training the model
+        num_elites: Use this number of best performing models on the
+            validation dataset to sample transitions
+        rollout_length: Lenght of model-based rollouts from each state
+            sampled from replay
+    """
 
     training: TrainingSpec = TrainingSpec()
     num_elites: int = 5
@@ -209,16 +234,16 @@ class ModelBasedMixin:
     def _terminate_epoch(
         epoch: int,
         snapshots: List[ModelSnapshot],
-        start_time_s: float,
+        start_time: float,
         model_steps: int,
         spec: TrainingSpec,
     ) -> bool:
         patience_epochs = spec.patience_epochs or float("inf")
-        max_train_s = spec.max_train_s or float("inf")
+        max_time = spec.max_time or float("inf")
         max_grad_steps = spec.max_grad_steps or float("inf")
 
         return (
-            time.time() - start_time_s >= max_train_s
+            time.time() - start_time >= max_time
             or epoch - max(s.epoch for s in snapshots) >= patience_epochs
             or model_steps >= max_grad_steps
         )
