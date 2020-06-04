@@ -5,6 +5,8 @@ from typing import Union
 import torch
 import torch.nn as nn
 
+from . import modules
+
 
 def get_activation(activation: Union[str, dict, None]):
     """Return activation module type from specification.
@@ -26,6 +28,12 @@ def get_activation(activation: Union[str, dict, None]):
         cls = getattr(nn.modules.activation, name)
         if issubclass(cls, nn.Module):
             return functools.partial(cls, **options)
+
+    if name in dir(modules.activation):
+        cls = getattr(modules.activation, name)
+        if issubclass(cls, nn.Module):
+            return functools.partial(cls, **options)
+
     raise ValueError(f"Couldn't find activation with name '{name}'")
 
 
