@@ -6,6 +6,7 @@ import copy
 import itertools
 import time
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Dict
 from typing import Iterator
 from typing import List
@@ -56,7 +57,7 @@ class TrainingSpec:
             check this after each epoch (not minibatch)
     """
 
-    dataloader: DataloaderSpec = DataloaderSpec()
+    dataloader: DataloaderSpec = field(default_factory=DataloaderSpec, repr=True)
     max_epochs: Optional[int] = 120
     max_grad_steps: Optional[int] = 120
     max_time: Optional[float] = 20
@@ -99,7 +100,7 @@ class ModelBasedSpec:
             sampled from replay
     """
 
-    training: TrainingSpec = TrainingSpec()
+    training: TrainingSpec = field(default_factory=TrainingSpec, repr=True)
     num_elites: int = 5
     rollout_length: int = 1
 
