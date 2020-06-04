@@ -1,16 +1,16 @@
-# pylint:disable=missing-docstring
-# pylint:enable=missing-docstring
+"""Utilities for manipulating neural network modules."""
 import functools
+from typing import Union
 
 import torch
 import torch.nn as nn
 
 
-def get_activation(activation):
-    """Return activation module type from string.
+def get_activation(activation: Union[str, dict, None]):
+    """Return activation module type from specification.
 
-    Arguments:
-        activation (str, dict or None): the activation function's description
+    Args:
+        activation: the activation function's specification
     """
     if activation is None:
         return nn.Identity
@@ -29,61 +29,36 @@ def get_activation(activation):
     raise ValueError(f"Couldn't find activation with name '{name}'")
 
 
-def update_polyak(from_module, to_module, polyak):
+def update_polyak(from_module: nn.Module, to_module: nn.Module, polyak: float):
     """Update parameters between modules by polyak averaging.
 
-    Arguments:
-        from_module (nn.Module): Module whose parameters are targets.
-        to_module (nn.Module): Module whose parameters are updated towards the targets.
-        polyak (float): Averaging factor. The higher it is, the slower the parameters
+    Args:
+        from_module: Module whose parameters are targets.
+        to_module: Module whose parameters are updated towards the targets.
+        polyak: Averaging factor. The higher it is, the slower the parameters
             are updated.
     """
     for source, target in zip(from_module.parameters(), to_module.parameters()):
         target.data.mul_(polyak).add_(source.data, alpha=1 - polyak)
 
 
-def perturb_module_params(module, target_module, stddev):
-    """Load state dict from another module and perturb parameters not in layer norms.
+def perturb_params(target: nn.Module, origin: nn.Module, stddev: float):
+    """Set the parameters of a module to a noisy version of another's.
 
-    Arguments:
-        module (nn.Module): the module to perturb
-        target_module (nn.Module): the module to copy from
-        stddev (float): the gaussian standard deviation with which to perturb parameters
-            excluding those from layer norms
+    Loads state dict from the origin module and perturbs the parameters of the
+    target module. Layer normalization parameters are ignored.
+
+    Args:
+        target: the module to perturb
+        origin: the module to copy from
+        stddev: the gaussian standard deviation of the noise added to the origin
+            model's parameters
     """
-    module.load_state_dict(target_module.state_dict())
+    target.load_state_dict(origin.state_dict())
 
-    layer_norms = (m for m in module.modules() if isinstance(m, nn.LayerNorm))
+    layer_norms = (m for m in target.modules() if isinstance(m, nn.LayerNorm))
     layer_norm_params = set(p for m in layer_norms for p in m.parameters())
-    to_perturb = (p for p in module.parameters() if p not in layer_norm_params)
+    to_perturb = (p for p in target.parameters() if p not in layer_norm_params)
 
     for param in to_perturb:
         param.data.add_(torch.randn_like(param) * stddev)
-
-
-def _sum_rightmost(value, dim: int):
-    r"""
-    Sum out ``dim`` many rightmost dimensions of a given tensor.
-
-    Args:
-        value (Tensor): A tensor of ``.dim()`` at least ``dim``.
-        dim (int): The number of rightmost dims to sum out.
-    """
-    if dim == 0:
-        return value
-    required_shape = value.shape[:-dim] + (-1,)
-    return value.reshape(required_shape).sum(-1)
-
-
-def _multiply_rightmost(value, dim: int):
-    r"""
-    Multiply out ``dim`` many rightmost dimensions of a given tensor.
-
-    Args:
-        value (Tensor): A tensor of ``.dim()`` at least ``dim``.
-        dim (int): The number of rightmost dims to multiply out.
-    """
-    if dim == 0:
-        return value
-    required_shape = value.shape[:-dim] + (-1,)
-    return value.reshape(required_shape).prod(-1)
