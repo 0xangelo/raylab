@@ -14,9 +14,9 @@ def get_activation(activation: Union[str, dict, None]) -> Callable[[], nn.Module
 
     Args:
         activation: the activation function's specification. Can be either
-        a string with the activation module class' name, a dict with the name
-        as the `name` field and additional keyword arguments, or None, in which
-        case the indentity module class is returned.
+            a string with the activation module class' name, a dict with the
+            name as the `name` field and additional keyword arguments, or None,
+            in which case the indentity module class is returned.
 
     Raises:
         ValueError: If the type corresponding to the activation's name cannot
