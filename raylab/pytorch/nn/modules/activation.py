@@ -11,8 +11,9 @@ class Swish(nn.Module):
         where :math:`sigma` is the sigmoid function.
 
     Reference:
-        Eger, Steffen, Paul Youssef, and Iryna Gurevych. "Is it time to swish?
-        Comparing deep learning activation functions across NLP tasks."
+        Eger, Steffen, Paul Youssef, and Iryna Gurevych.
+        "Is it time to swish? Comparing deep learning activation functions
+        across NLP tasks."
         arXiv preprint arXiv:1901.02671 (2019).
     """
     # pylint:disable=arguments-differ
