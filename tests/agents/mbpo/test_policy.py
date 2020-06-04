@@ -18,13 +18,18 @@ def ensemble_size(request):
 @pytest.fixture(scope="module")
 def config(ensemble_size):
     return {
-        "max_model_epochs": 10,
-        "model_batch_size": 32,
-        "max_model_train_s": 4,
-        "improvement_threshold": 0.01,
-        "patience_epochs": 5,
+        "model_based": {
+            "training": {
+                "dataloader": {"batch_size": 32, "replacement": False},
+                "max_epochs": 10,
+                "max_time": 4,
+                "improvement_threshold": 0.01,
+                "patience_epochs": 5,
+            },
+            "rollout_length": 10,
+            "num_elites": 1,
+        },
         "module": {"ensemble_size": ensemble_size},
-        "model_rollout_length": 10,
     }
 
 
@@ -55,7 +60,7 @@ def test_generate_virtual_sample_batch(policy):
     assert SampleBatch.REWARDS in batch
     assert SampleBatch.DONES in batch
 
-    total_count = policy.config["model_rollout_length"] * initial_states
+    total_count = policy.model_based_spec.rollout_length * initial_states
     assert batch.count == total_count
     assert batch[SampleBatch.CUR_OBS].shape == (total_count,) + obs_space.shape
     assert batch[SampleBatch.ACTIONS].shape == (total_count,) + action_space.shape
@@ -74,7 +79,8 @@ def test_optimize_model(policy):
     assert "model_epochs" in info
     assert "loss(models)" in info
     assert all(
-        f"loss(model[{i}])" in info
+        f"loss(models[{i}])" in info
         for i in range(policy.config["module"]["model"]["ensemble_size"])
     )
+    assert "loss(models[elites])" in info
     assert "grad_norm(models)" in info
