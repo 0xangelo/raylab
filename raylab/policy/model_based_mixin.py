@@ -1,6 +1,4 @@
 """Environment model handling mixins for TorchPolicy."""
-from __future__ import annotations
-
 import collections
 import copy
 import itertools
@@ -15,6 +13,7 @@ from typing import Tuple
 
 import numpy as np
 import torch
+from dataclasses_json import DataClassJsonMixin
 from ray.rllib import SampleBatch
 from torch.utils.data import DataLoader
 from torch.utils.data import RandomSampler
@@ -26,7 +25,7 @@ ModelSnapshot = collections.namedtuple("ModelSnapshot", "epoch loss state_dict")
 
 
 @dataclass(frozen=True)
-class DataloaderSpec:
+class DataloaderSpec(DataClassJsonMixin):
     """Specifications for creating the data loader.
 
     Attributes:
@@ -42,7 +41,7 @@ class DataloaderSpec:
 
 
 @dataclass(frozen=True)
-class TrainingSpec:
+class TrainingSpec(DataClassJsonMixin):
     """Specifications for training the model.
 
     Attributes:
@@ -64,13 +63,6 @@ class TrainingSpec:
     patience_epochs: Optional[int] = 5
     improvement_threshold: float = 0.01
 
-    @classmethod
-    def from_dict(cls, dictionary: dict) -> TrainingSpec:
-        """Instantiate a TrainingSpec from a dictionary."""
-        dic = dictionary.copy()
-        dic["dataloader"] = DataloaderSpec(**dic["dataloader"])
-        return cls(**dic)
-
     def __post_init__(self):
         assert (
             not self.max_epochs or self.max_epochs > 0
@@ -89,7 +81,7 @@ class TrainingSpec:
 
 
 @dataclass(frozen=True)
-class ModelBasedSpec:
+class ModelBasedSpec(DataClassJsonMixin):
     """Specifications for model training and sampling.
 
     Attributes:
@@ -109,13 +101,6 @@ class ModelBasedSpec:
         assert (
             self.rollout_length > 0
         ), "Length of model-based rollouts must be positive"
-
-    @classmethod
-    def from_dict(cls, dictionary: dict) -> ModelBasedSpec:
-        """Instantiate a ModelBasedSpec from a dictionary."""
-        dic = dictionary.copy()
-        dic["training"] = TrainingSpec.from_dict(dic["training"])
-        return cls(**dic)
 
 
 class ModelBasedMixin:
