@@ -18,6 +18,8 @@ from ray.rllib import SampleBatch
 from torch.utils.data import DataLoader
 from torch.utils.data import RandomSampler
 
+from raylab.envs import get_reward_fn
+from raylab.envs import get_termination_fn
 from raylab.pytorch.utils import TensorDictDataset
 
 
@@ -113,10 +115,16 @@ class ModelBasedMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.model_based_spec = ModelBasedSpec.from_dict(self.config["model_based"])
+        self.reward_fn = get_reward_fn(self.config["env"], self.config["env_config"])
+        self.termination_fn = get_termination_fn(
+            self.config["env"], self.config["env_config"]
+        )
+        self.rng = np.random.default_rng(self.config["seed"])
+
         models = self.module.models
         num_elites = self.config["model_based"]["num_elites"]
         assert num_elites <= len(models), "Cannot have more elites than models"
-        self.rng = np.random.default_rng(self.config["seed"])
         self.elite_models = self.rng.choice(models, size=num_elites, replace=False)
 
     def optimize_model(
@@ -131,7 +139,7 @@ class ModelBasedMixin:
         Returns:
             A dictionary with training statistics
         """
-        spec = ModelBasedSpec.from_dict(self.config["model_based"])
+        spec = self.model_based_spec
         snapshots = self._build_snapshots()
         dataloader = self._build_dataloader(train_samples, spec.training.dataloader)
         eval_tensors = self._lazy_tensor_dict(eval_samples) if eval_samples else None
@@ -264,7 +272,7 @@ class ModelBasedMixin:
         Returns:
             A batch of transitions sampled from the model
         """
-        spec = ModelBasedSpec.from_dict(self.config["model_based"])
+        spec = self.model_based_spec
         virtual_samples = []
         obs = init_obs = self.convert_to_tensor(samples[SampleBatch.CUR_OBS])
 
