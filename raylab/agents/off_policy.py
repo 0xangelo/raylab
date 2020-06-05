@@ -54,11 +54,13 @@ class OffPolicyTrainer(Trainer):
 
         worker = self.workers.local_worker()
         policy = worker.get_policy()
+        stats = {}
         while not self._iteration_done():
             samples = worker.sample()
             self.optimizer.num_steps_sampled += samples.count
             for row in samples.rows():
                 self.replay.add(row)
+            stats.update(policy.get_exploration_info())
 
             self._before_replay_steps(policy)
             for _ in range(samples.count):

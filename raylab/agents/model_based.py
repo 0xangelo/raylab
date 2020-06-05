@@ -138,4 +138,5 @@ class ModelBasedTrainer(OffPolicyTrainer):
             batch = SampleBatch.concat_samples(samples)
             stats = get_learner_stats(policy.learn_on_batch(batch))
             self.optimizer.num_steps_trained += batch.count
+        stats.update(policy.get_exploration_info())
         return stats
