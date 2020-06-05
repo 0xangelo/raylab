@@ -159,8 +159,10 @@ class ModelTrainingMixin:
         for epoch in self._model_epochs(spec):
             for minibatch in dataloader:
                 with self.optimizer.models.optimize():
-                    losses, _ = self.loss_model(minibatch)
+                    losses, train_info = self.loss_model(minibatch)
                     losses.mean().backward()
+
+                info.update({"train_" + k: v for k, v in train_info.items()})
                 grad_steps += 1
                 if spec.max_grad_steps and grad_steps >= spec.max_grad_steps:
                     break
@@ -171,7 +173,7 @@ class ModelTrainingMixin:
                     eval_losses = eval_losses.tolist()
 
                 snapshots = self._updated_snapshots(snapshots, epoch, eval_losses, spec)
-                info.update(eval_info)
+                info.update({"eval_" + k: v for k, v in eval_info.items()})
 
             if self._terminate_epoch(epoch, snapshots, start, grad_steps, spec):
                 break
