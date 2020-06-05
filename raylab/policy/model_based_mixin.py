@@ -160,7 +160,7 @@ class ModelBasedMixin:
         )
         info.update(self._restore_models_and_set_elites(snapshots))
 
-        info.update(self.extra_grad_info("models"))
+        info.update(self.model_grad_info())
         return self._learner_stats(info)
 
     def _build_snapshots(self) -> List[ModelSnapshot]:
@@ -266,6 +266,15 @@ class ModelBasedMixin:
         info["loss(models[elites])"] = np.mean([snapshots[i].loss for i in elite_idxs])
         self.elite_models = [self.module.models[i] for i in elite_idxs]
         return info
+
+    @torch.no_grad()
+    def model_grad_info(self) -> Dict[str, float]:
+        """Returns the average gradient norm accross models."""
+        grad_norms = [
+            torch.nn.utils.clip_grad_norm_(m.parameters(), float("inf")).item()
+            for m in self.module.models
+        ]
+        return {"grad_norm(models)": np.mean(grad_norms)}
 
     @torch.no_grad()
     def generate_virtual_sample_batch(self, samples: SampleBatch) -> SampleBatch:
