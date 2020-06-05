@@ -57,6 +57,7 @@ def config(ensemble_size, rollout_len):
             "rollout_length": rollout_len,
         },
         "module": {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}},
+        "seed": 123,
     }
 
 
