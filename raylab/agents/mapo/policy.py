@@ -25,28 +25,26 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         ), "MAPO uses operations incompatible with TorchScript."
         super().__init__(observation_space, action_space, config)
 
+        self.loss_daml = DPGAwareModelLearning(
+            self.module.actor,
+            self.module.critics,
+            gamma=self.config["gamma"],
+            grad_estimator=self.config["grad_estimator"],
+        )
         self.reward_fn = get_reward_fn(self.config["env"], self.config["env_config"])
+        transition = (
+            self.module.model.rsample
+            if self.config["grad_estimator"] == "PD"
+            else self.module.model.sample
+        )
+        self.loss_daml.set_model(transition)
+        self.loss_daml.set_reward_fn(self.reward_fn)
+        self.loss_mle = MaximumLikelihood(self.module.model)
 
-        self.loss_daml = None
-        self.loss_mle = None
         self.loss_actor = None
         if not self.config["true_model"]:
-            transition = (
-                self.module.model.rsample
-                if self.config["grad_estimator"] == "PD"
-                else self.module.model.sample
-            )
             self.setup_madpg(transition)
             self.module.model.zero_grad()
-            self.loss_daml = DPGAwareModelLearning(
-                transition,
-                self.module.actor,
-                self.module.critics,
-                self.reward_fn,
-                gamma=self.config["gamma"],
-                grad_estimator=self.config["grad_estimator"],
-            )
-            self.loss_mle = MaximumLikelihood(self.module.model)
 
         self.loss_critic = ClippedDoubleQLearning(
             self.module.critics,
