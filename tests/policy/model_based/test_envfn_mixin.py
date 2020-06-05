@@ -78,3 +78,37 @@ def test_set_reward_from_config(policy, envs):  # pylint:disable=unused-argument
     rew = policy.reward_fn(obs, act, new_obs)
 
     assert torch.allclose(rew, expected_rew)
+
+
+def test_set_termination_from_config(policy, envs):  # pylint:disable=unused-argument
+    obs_space, action_space = policy.observation_space, policy.action_space
+    batch_size = 10
+    obs = fake_space_samples(obs_space, batch_size=batch_size)
+    act = fake_space_samples(action_space, batch_size=batch_size)
+    new_obs = fake_space_samples(obs_space, batch_size=batch_size)
+    obs, act, new_obs = map(policy.convert_to_tensor, (obs, act, new_obs))
+
+    policy.set_termination_from_config("MockEnv", {})
+
+    done = policy.termination_fn(obs, act, new_obs)
+    assert torch.is_tensor(done)
+    assert done.dtype == torch.bool
+    assert done.shape == obs.shape[:-1]
+
+
+def test_set_reward_from_callable(policy, reward_fn):
+    policy.set_reward_from_callable(reward_fn)
+    assert hasattr(policy, "reward_fn")
+    assert policy.reward_fn is reward_fn
+
+
+def test_set_termination_from_callable(policy, termination_fn):
+    policy.set_termination_from_callable(termination_fn)
+    assert hasattr(policy, "termination_fn")
+    assert policy.termination_fn is termination_fn
+
+
+def test_set_dynamics_from_callable(policy, dynamics_fn):
+    policy.set_dynamics_from_callable(dynamics_fn)
+    assert hasattr(policy, "dynamics_fn")
+    assert policy.dynamics_fn is dynamics_fn
