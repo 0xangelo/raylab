@@ -1,5 +1,6 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import functools
+import math
 
 import pytest
 import torch
@@ -90,6 +91,25 @@ def test_optimize_model(policy):
     assert isinstance(losses, list)
     assert all(isinstance(loss, float) for loss in losses)
 
+    assert isinstance(info, dict)
     assert "model_epochs" in info
+    assert info["model_epochs"] >= 0
     assert "loss(models)" in info
+    assert "grad_norm(models)" in info
+
+
+def test_optimize_with_no_eval(policy):
+    obs_space, action_space = policy.observation_space, policy.action_space
+    train_samples = fake_batch(obs_space, action_space, batch_size=80)
+
+    losses, info = policy.optimize_model(train_samples)
+
+    print(losses)
+    assert isinstance(losses, list)
+    assert all(math.isnan(loss) for loss in losses)
+
+    assert isinstance(info, dict)
+    assert "model_epochs" in info
+    assert info["model_epochs"] >= 0
+    assert "loss(models)" not in info
     assert "grad_norm(models)" in info
