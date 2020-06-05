@@ -1,15 +1,11 @@
 """Mixins to add environment mimicking functions."""
-from typing import Callable
 from typing import Optional
-from typing import Tuple
-
-from torch import Tensor
 
 from raylab.envs import get_reward_fn
 from raylab.envs import get_termination_fn
-
-TripletFn = Callable[[Tensor, Tensor, Tensor], Tensor]
-ProbFn = Callable[[Tensor, Tensor], Tuple[Tensor, Tensor]]
+from raylab.utils.annotations import DynamicsFn
+from raylab.utils.annotations import RewardFn
+from raylab.utils.annotations import TerminationFn
 
 
 class EnvFnMixin:
@@ -26,9 +22,9 @@ class EnvFnMixin:
             log-probability) pairs
     """
 
-    reward_fn: Optional[TripletFn]
-    termination_fn: Optional[TripletFn]
-    dynamics_fn: Optional[ProbFn]
+    reward_fn: Optional[RewardFn]
+    termination_fn: Optional[TerminationFn]
+    dynamics_fn: Optional[DynamicsFn]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -45,7 +41,7 @@ class EnvFnMixin:
         """
         self.reward_fn = get_reward_fn(env_name, env_config)
 
-    def set_reward_from_callable(self, function: TripletFn):
+    def set_reward_from_callable(self, function: RewardFn):
         """Set the reward function from an external callable.
 
         Args:
@@ -63,7 +59,7 @@ class EnvFnMixin:
         """
         self.termination_fn = get_termination_fn(env_name, env_config)
 
-    def set_termination_from_callable(self, function: TripletFn):
+    def set_termination_from_callable(self, function: TerminationFn):
         """Set the termination function from an external callable.
 
         Args:
@@ -72,7 +68,7 @@ class EnvFnMixin:
         """
         self.termination_fn = function
 
-    def set_dynamics_from_callable(self, function: ProbFn):
+    def set_dynamics_from_callable(self, function: DynamicsFn):
         """Set the dynamics function from an external callable.
 
         Args:
