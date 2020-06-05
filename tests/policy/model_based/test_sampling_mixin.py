@@ -29,6 +29,17 @@ class DummyPolicy(ModelSamplingMixin, TorchPolicy):
         self.reward_fn = reward_fn
         self.termination_fn = termination_fn
 
+    @staticmethod
+    def get_default_config():
+        return {
+            "model_sampling": ModelSamplingMixin.model_sampling_defaults(),
+            "module": {"type": "ModelBasedSAC"},
+            "seed": None,
+        }
+
+    def make_optimizer(self):
+        pass
+
 
 @pytest.fixture(scope="module")
 def policy_cls(obs_space, action_space):
@@ -107,7 +118,7 @@ def test_generate_virtual_sample_batch(policy):
     assert SampleBatch.REWARDS in batch
     assert SampleBatch.DONES in batch
 
-    total_count = policy.model_based_spec.rollout_length * initial_states
+    total_count = policy.model_sampling_spec.rollout_length * initial_states
     assert batch.count == total_count
     assert batch[SampleBatch.CUR_OBS].shape == (total_count,) + obs_space.shape
     assert batch[SampleBatch.ACTIONS].shape == (total_count,) + action_space.shape
