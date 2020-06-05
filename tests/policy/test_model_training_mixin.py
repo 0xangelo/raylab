@@ -94,7 +94,8 @@ def test_optimize_model(policy):
     assert isinstance(info, dict)
     assert "model_epochs" in info
     assert info["model_epochs"] >= 0
-    assert "loss(models)" in info
+    assert "train_loss(models)" in info
+    assert "eval_loss(models)" in info
     assert "grad_norm(models)" in info
 
 
@@ -111,5 +112,6 @@ def test_optimize_with_no_eval(policy):
     assert isinstance(info, dict)
     assert "model_epochs" in info
     assert info["model_epochs"] >= 0
-    assert "loss(models)" not in info
+    assert "train_loss(models)" in info
+    assert "eval_loss(models)" not in info
     assert "grad_norm(models)" in info
