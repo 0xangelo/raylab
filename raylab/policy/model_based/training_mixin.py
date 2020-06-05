@@ -95,9 +95,11 @@ class ModelTrainingMixin:
         model_training_spec: Specifications for training the model
     """
 
+    model_training_spec: TrainingSpec
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.model_based_spec = TrainingSpec.from_dict(self.config["model_training"])
+        self.model_training_spec = TrainingSpec.from_dict(self.config["model_training"])
 
     def optimize_model(
         self, train_samples: SampleBatch, eval_samples: SampleBatch = None
@@ -112,13 +114,13 @@ class ModelTrainingMixin:
             A tuple with a list of each model's evaluation loss and a dictionary
             with training statistics
         """
-        spec = self.model_based_spec
+        spec = self.model_training_spec
         snapshots = self._build_snapshots()
-        dataloader = self._build_dataloader(train_samples, spec.training.dataloader)
+        dataloader = self._build_dataloader(train_samples, spec.dataloader)
         eval_tensors = self._lazy_tensor_dict(eval_samples) if eval_samples else None
 
         info, snapshots = self._train_model_epochs(
-            dataloader, snapshots, eval_tensors, spec.training
+            dataloader, snapshots, eval_tensors, spec
         )
 
         info.update(self._restore_models(snapshots))
@@ -237,3 +239,8 @@ class ModelTrainingMixin:
             for m in self.module.models
         ]
         return {"grad_norm(models)": np.mean(grad_norms)}
+
+    @staticmethod
+    def model_training_defaults():
+        """The default configuration dict for model training."""
+        return TrainingSpec().to_dict()
