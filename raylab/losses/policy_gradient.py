@@ -1,6 +1,16 @@
 """Losses for computing policy gradients."""
+from typing import Dict
+from typing import List
+from typing import Tuple
+
 import torch
 from ray.rllib import SampleBatch
+from torch import Tensor
+
+from raylab.utils.annotations import ActionValue
+from raylab.utils.annotations import DetPolicy
+from raylab.utils.annotations import DynamicsFn
+from raylab.utils.annotations import RewardFn
 
 from .utils import clipped_action_value
 
@@ -69,23 +79,36 @@ class ModelAwareDPG:
     """Loss function for Model-Aware Deterministic Policy Gradient.
 
     Args:
-        model (callable): stochastic model that returns next state and its log density
-        actor (callable): deterministic policy
-        critics (list): callables for action-values
-        reward_fn (callable): reward function for state, action, and next state tuples
+        actor: deterministic policy
+        critics: callables for action-values
         gamma (float): discount factor
         num_model_samples (int): number of next states to draw from the model
-        grad_estimator (str): one of 'PD' or 'SF'
+        grad_estimator (str): gradient estimator for expecations ('PD' or 'SF')
+
+    Attributes:
+        reward_fn (Optional[RewardFn]): reward function for state, action, and
+            next state tuples
+        model (Optional[DynamicsFn]): stochastic model that returns next state
+            and its log density
     """
 
-    def __init__(self, model, actor, critics, reward_fn, **config):
-        self.model = model
+    def __init__(self, actor: DetPolicy, critics: List[ActionValue], **config):
         self.actor = actor
         self.critics = critics
-        self.reward_fn = reward_fn
         self.config = config
 
-    def __call__(self, batch):
+        self.reward_fn = None
+        self.model = None
+
+    def set_reward_fn(self, function: RewardFn):
+        """Set reward function to provided callable."""
+        self.reward_fn = function
+
+    def set_model(self, function: DynamicsFn):
+        """Set model to provided callable."""
+        self.model = function
+
+    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
         """Compute loss for Model-Aware Deterministic Policy Gradient."""
         obs = batch[SampleBatch.CUR_OBS]
 

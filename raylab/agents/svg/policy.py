@@ -2,20 +2,19 @@
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.envs import get_reward_fn
 from raylab.losses import ISFittedVIteration
 from raylab.losses import MaximumLikelihood
+from raylab.policy import EnvFnMixin
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
 
 
-class SVGTorchPolicy(TargetNetworksMixin, TorchPolicy):
+class SVGTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
     """Stochastic Value Gradients policy using PyTorch."""
 
     # pylint: disable=abstract-method
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self.reward = get_reward_fn(self.config["env"], self.config["env_config"])
         self.loss_model = MaximumLikelihood(self.module.model)
         self.loss_critic = ISFittedVIteration(
             self.module.critic, self.module.target_critic, gamma=self.config["gamma"]

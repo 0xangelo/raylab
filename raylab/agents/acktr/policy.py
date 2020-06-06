@@ -107,6 +107,7 @@ class ACKTRTorchPolicy(TorchPolicy):
         info.update(self._update_actor(batch_tensors))
         info.update(self._update_critic(batch_tensors))
         info.update(self.extra_grad_info(batch_tensors))
+        info.update(self.get_exploration_info())
 
         return self._learner_stats(info)
 

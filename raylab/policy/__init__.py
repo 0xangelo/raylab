@@ -1,4 +1,17 @@
 """Collection of custom RLlib Policy classes."""
-from raylab.policy.kl_coeff_mixin import AdaptiveKLCoeffMixin
-from raylab.policy.target_networks_mixin import TargetNetworksMixin
-from raylab.policy.torch_policy import TorchPolicy
+
+from .kl_coeff_mixin import AdaptiveKLCoeffMixin
+from .model_based import EnvFnMixin
+from .model_based import ModelSamplingMixin
+from .model_based import ModelTrainingMixin
+from .target_networks_mixin import TargetNetworksMixin
+from .torch_policy import TorchPolicy
+
+__all__ = [
+    "AdaptiveKLCoeffMixin",
+    "EnvFnMixin",
+    "ModelSamplingMixin",
+    "ModelTrainingMixin",
+    "TargetNetworksMixin",
+    "TorchPolicy",
+]

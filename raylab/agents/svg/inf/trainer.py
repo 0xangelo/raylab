@@ -88,6 +88,8 @@ class SVGInfTrainer(Trainer):
         self.optimizer = PolicyOptimizer(self.workers)
 
         policy = self.get_policy()
+        policy.set_reward_from_config(config["env"], config["env_config"])
+
         self.replay = NumpyReplayBuffer(
             policy.observation_space, policy.action_space, config["buffer_size"]
         )
@@ -103,14 +105,15 @@ class SVGInfTrainer(Trainer):
         self.optimizer.num_steps_sampled += samples.count
         for row in samples.rows():
             self.replay.add(row)
+        stats = policy.get_exploration_info()
 
         with policy.learning_off_policy():
             for _ in range(int(samples.count * self.config["updates_per_step"])):
                 batch = self.replay.sample(self.config["train_batch_size"])
                 off_policy_stats = get_learner_stats(policy.learn_on_batch(batch))
                 self.optimizer.num_steps_trained += batch.count
+        stats.update(off_policy_stats)
 
-        on_policy_stats = get_learner_stats(policy.learn_on_batch(samples))
+        stats.update(get_learner_stats(policy.learn_on_batch(samples)))
 
-        learner_stats = {**off_policy_stats, **on_policy_stats}
-        return self._log_metrics(learner_stats)
+        return self._log_metrics(stats)

@@ -1,18 +1,25 @@
 """Base for all PyTorch policies."""
 import contextlib
 import io
+import textwrap
 from abc import abstractmethod
+from typing import Dict
+from typing import List
+from typing import Tuple
 
 import torch
+import torch.nn as nn
+from gym.spaces import Space
 from ray.rllib import SampleBatch
+from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.model import flatten
 from ray.rllib.models.model import restore_original_dimensions
 from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.policy.policy import Policy
 from ray.rllib.utils import override
-from ray.rllib.utils.torch_ops import convert_to_non_torch_type
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.tune.logger import pretty_print
+from torch import Tensor
 
 from raylab.agents import Trainer
 from raylab.modules.catalog import get_module
@@ -23,9 +30,19 @@ from .action_dist import WrapModuleDist
 
 
 class TorchPolicy(Policy):
-    """Custom TorchPolicy that aims to be more general than RLlib's one."""
+    """A Policy that uses PyTorch as a backend.
 
-    def __init__(self, observation_space, action_space, config):
+    Attributes:
+        device (torch.device): Device in which the parameter tensors reside.
+            All input samples will be converted to tensors and moved to this
+            device
+        module (nn.Module): The policy's neural network module. Should be
+            compilable to TorchScript
+        optimizer (Optimizer): The torch optimizer bound to the neural network
+            (or one of its submodules)
+    """
+
+    def __init__(self, observation_space: Space, action_space: Space, config: dict):
         self.framework = "torch"
         config = deep_merge(
             {**self.get_default_config(), "worker_index": None},
@@ -36,20 +53,18 @@ class TorchPolicy(Policy):
         )
         super().__init__(observation_space, action_space, config)
 
-        self.exploration = self._create_exploration()
-        # Already set in Policy, might as well use it
-        self.dist_class = WrapModuleDist
-
-        self.device = (
-            torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        )
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.module = self.make_module(observation_space, action_space, self.config)
         self.module.to(self.device)
         self.optimizer = self.make_optimizer()
 
+        # === Policy attributes ===
+        self.exploration = self._create_exploration()
+        self.dist_class = WrapModuleDist
+
     @staticmethod
     @abstractmethod
-    def get_default_config():
+    def get_default_config() -> dict:
         """Return the default config for this policy class."""
 
     @abstractmethod
@@ -57,13 +72,13 @@ class TorchPolicy(Policy):
         """PyTorch optimizer to use."""
 
     @staticmethod
-    def make_module(obs_space, action_space, config):
+    def make_module(obs_space: Space, action_space: Space, config: dict) -> nn.Module:
         """Build the PyTorch nn.Module to be used by this policy.
 
-        Arguments:
-            obs_space (gym.spaces.Space): the observation space for this policy
-            action_space (gym.spaces.Space): the action_space for this policy
-            config (dict): the user config containing the 'module' key
+        Args:
+            obs_space: the observation space for this policy
+            action_space: the action_space for this policy
+            config: the user config containing the 'module' key
 
         Returns:
             A neural network module.
@@ -82,7 +97,7 @@ class TorchPolicy(Policy):
         episodes=None,
         explore=None,
         timestep=None,
-        **kwargs
+        **kwargs,
     ):
         # pylint:disable=too-many-arguments,too-many-locals
         explore = explore if explore is not None else self.config["explore"]
@@ -118,11 +133,11 @@ class TorchPolicy(Policy):
         )
 
         if logp is not None:
-            prob, logp = map(convert_to_non_torch_type, (logp.exp(), logp))
+            prob, logp = map(lambda x: x.numpy(), (logp.exp(), logp))
             extra_fetches[SampleBatch.ACTION_PROB] = prob
             extra_fetches[SampleBatch.ACTION_LOGP] = logp
 
-        return convert_to_non_torch_type((actions, state_out, extra_fetches))
+        return actions.numpy(), [s.numpy() for s in state_out], extra_fetches
 
     def _unpack_observations(self, input_dict):
         restored = input_dict.copy()
@@ -135,7 +150,9 @@ class TorchPolicy(Policy):
             restored["obs_flat"] = input_dict["obs"]
         return restored
 
-    def compute_module_output(self, input_dict, state, seq_lens):
+    def compute_module_output(
+        self, input_dict: Dict[str, Tensor], state: List[Tensor], seq_lens: Tensor
+    ) -> Tuple[Dict[str, Tensor], List[Tensor]]:
         """Call the module with the given input tensors and state.
 
         This mirrors the method used by RLlib to execute the forward pass. Nested
@@ -144,15 +161,38 @@ class TorchPolicy(Policy):
         Subclasses should override this for custom forward passes (e.g., for recurrent
         networks).
 
-        Arguments:
-            input_dict (dict): dictionary of input tensors, including "obs",
+        Args:
+            input_dict: dictionary of input tensors, including "obs",
                 "prev_action", "prev_reward", "is_training"
-            state (list): list of state tensors with sizes matching those
-                returned by get_initial_state + the batch dimension
-            seq_lens (Tensor): 1d tensor holding input sequence lengths
+            state: list of state tensors with sizes matching those returned
+                by get_initial_state + the batch dimension
+            seq_lens: 1d tensor holding input sequence lengths
+
+        Returns:
+            A tuple containg an input dictionary to the policy's `dist_class`
+            and a list of rnn state tensors
         """
         # pylint:disable=unused-argument,no-self-use
         return {"obs": input_dict["obs"]}, state
+
+    def extra_action_out(
+        self,
+        input_dict: Dict[str, Tensor],
+        state_batches: List[Tensor],
+        module: nn.Module,
+        action_dist: ActionDistribution,
+    ) -> Dict[str, float]:
+        """Returns dict of extra info to include in experience batch.
+
+        Args:
+            input_dict: Dict of model input tensors.
+            state_batches: List of state tensors.
+            model: Reference to the model.
+            action_dist: Action dist object
+                to get log-probs (e.g. for already sampled actions).
+        """
+        # pylint:disable=unused-argument,no-self-use
+        return {}
 
     @torch.no_grad()
     @override(Policy)
@@ -211,21 +251,12 @@ class TorchPolicy(Policy):
         for optim, state in zip(optims, states[1:]):
             optim.load_state_dict(state)
 
-    def extra_action_out(self, input_dict, state_batches, module, action_dist):
-        """Returns dict of extra info to include in experience batch.
+    def convert_to_tensor(self, arr) -> Tensor:
+        """Convert an array to a PyTorch tensor in this policy's device.
 
-        Arguments:
-            input_dict (dict): Dict of model input tensors.
-            state_batches (list): List of state tensors.
-            model (nn.Module): Reference to the model.
-            action_dist (ActionDistribution): Action dist object
-                to get log-probs (e.g. for already sampled actions).
+        Args:
+            arr (array_like): object which can be converted using `np.asarray`
         """
-        # pylint:disable=unused-argument,no-self-use
-        return {}
-
-    def convert_to_tensor(self, arr):
-        """Convert an array to a PyTorch tensor in this policy's device."""
         return convert_to_tensor(arr, self.device)
 
     def _lazy_tensor_dict(self, sample_batch):
@@ -233,14 +264,16 @@ class TorchPolicy(Policy):
         tensor_batch.set_get_interceptor(self.convert_to_tensor)
         return tensor_batch
 
-    def _learner_stats(self, info):
-        return {LEARNER_STATS_KEY: {**info, **self.get_exploration_info()}}
+    @staticmethod
+    def _learner_stats(info):
+        return {LEARNER_STATS_KEY: info}
 
     @contextlib.contextmanager
-    def freeze_nets(self, *names):
+    def freeze_nets(self, *names: str):
         """Disable gradient requirements for the desired modules in this context.
 
-        WARNING: `.requires_grad_()` is incompatible with TorchScript.
+        Warnings:
+            `.requires_grad_()` is incompatible with TorchScript.
         """
         try:
             for name in names:
@@ -251,38 +284,20 @@ class TorchPolicy(Policy):
                 self.module[name].requires_grad_(True)
 
     def __repr__(self):
-        args = ["{name}(", "{observation_space}, ", "{action_space}, ", "{config}", ")"]
+        name = self.__class__.__name__
+        args = [f"{self.observation_space},", f"{self.action_space},"]
+
         config = pretty_print(self.config).rstrip("\n")
-        kwargs = dict(
-            name=self.__class__.__name__,
-            observation_space=self.observation_space,
-            action_space=self.action_space,
-        )
-
         if "\n" in config:
+            config = textwrap.indent(config, " " * 2)
             config = "{\n" + config + "\n}"
-            config = _addindent(config, 2)
 
-            fmt = "\n".join(args)
-            fmt = fmt.format(config=config, **kwargs)
-            fmt = _addindent(fmt, 2)
+            args += [config]
+            args_repr = "\n".join(args)
+            args_repr = textwrap.indent(args_repr, " " * 2)
+            constructor = f"{name}(\n{args_repr}\n)"
         else:
-            fmt = "".join(args)
-            fmt = fmt.format(config=config, **kwargs)
-        return fmt
-
-
-def _addindent(tex_, num_spaces):
-    tex = tex_.split("\n")
-    # don't do anything for single-line stuff
-    if len(tex) == 1:
-        return tex_
-    first = tex.pop(0)
-    last = ""
-    if len(tex) > 2:
-        last = tex.pop()
-    tex = [(num_spaces * " ") + line for line in tex]
-    tex = "\n".join(tex)
-    tex = first + "\n" + tex
-    tex = tex + "\n" + last
-    return tex
+            args += [config]
+            args_repr = " ".join(args[1:-1])
+            constructor = f"{name}({args_repr})"
+        return constructor

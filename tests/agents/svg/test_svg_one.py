@@ -8,7 +8,9 @@ from raylab.utils.dictionaries import get_keys
 
 @pytest.fixture
 def policy_and_batch(policy_and_batch_fn, svg_one_policy):
-    return policy_and_batch_fn(svg_one_policy, {})
+    policy, batch = policy_and_batch_fn(svg_one_policy, {})
+    policy.set_reward_from_config(policy.config["env"], policy.config["env_config"])
+    return policy, batch
 
 
 def test_truncated_svg(policy_and_batch):

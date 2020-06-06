@@ -72,6 +72,11 @@ class SoftSVGTrainer(OffPolicyTrainer):
     _policy = SoftSVGTorchPolicy
 
     @override(OffPolicyTrainer)
+    def _init(self, config, env_creator):
+        super()._init(config, env_creator)
+        self.get_policy().set_reward_from_config(config["env"], config["env_config"])
+
+    @override(OffPolicyTrainer)
     def build_replay_buffer(self, config):
         super().build_replay_buffer(config)
         self.replay.add_fields(ReplayField(SampleBatch.ACTION_LOGP))

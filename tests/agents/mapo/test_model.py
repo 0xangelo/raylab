@@ -55,6 +55,7 @@ def test_pathwise_derivative(policy_and_batch_fn, num_model_samples):
 def test_daml_loss(policy_and_batch_fn, grad_estimator, num_model_samples):
     config = {"grad_estimator": grad_estimator, "num_model_samples": num_model_samples}
     policy, batch = policy_and_batch_fn(config)
+    policy.set_reward_from_config(policy.config["env"], policy.config["env_config"])
 
     policy.module.zero_grad()
     params = list(policy.module.model.parameters())
