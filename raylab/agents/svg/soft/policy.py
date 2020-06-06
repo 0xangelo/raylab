@@ -10,6 +10,7 @@ from raylab.agents.svg import SVGTorchPolicy
 from raylab.losses import ISSoftVIteration
 from raylab.losses import MaximumEntropyDual
 from raylab.losses import OneStepSoftSVG
+from raylab.policy import EnvFnMixin
 from raylab.pytorch.optim import build_optimizer
 
 
@@ -26,7 +27,6 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
             self.module.model.reproduce,
             self.module.actor.reproduce,
             self.module.critic,
-            self.reward,
             alpha=self.module.alpha,
             gamma=self.config["gamma"],
         )
@@ -45,6 +45,11 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         self.loss_alpha = MaximumEntropyDual(
             self.module.alpha, self.module.actor.sample, target_entropy
         )
+
+    @override(EnvFnMixin)
+    def set_reward_from_config(self, env_name: str, env_config: dict):
+        super().set_reward_from_config(env_name, env_config)
+        self.loss_actor.set_reward_fn(self.reward_fn)
 
     @staticmethod
     @override(SVGTorchPolicy)

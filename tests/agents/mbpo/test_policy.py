@@ -14,17 +14,14 @@ def ensemble_size(request):
 @pytest.fixture(scope="module")
 def config(ensemble_size):
     return {
-        "model_based": {
-            "training": {
-                "dataloader": {"batch_size": 32, "replacement": False},
-                "max_epochs": 10,
-                "max_time": 4,
-                "improvement_threshold": 0.01,
-                "patience_epochs": 5,
-            },
-            "rollout_length": 10,
-            "num_elites": 1,
+        "model_training": {
+            "dataloader": {"batch_size": 32, "replacement": False},
+            "max_epochs": 10,
+            "max_time": 4,
+            "improvement_threshold": 0.01,
+            "patience_epochs": 5,
         },
+        "model_sampling": {"rollout_length": 10, "num_elites": 1},
         "module": {"ensemble_size": ensemble_size},
     }
 

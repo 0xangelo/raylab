@@ -4,6 +4,7 @@ from typing import List
 from typing import Tuple
 
 from ray.rllib import SampleBatch
+from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.utils import override
 
 from raylab.agents.off_policy import OffPolicyTrainer
@@ -44,6 +45,13 @@ class ModelBasedTrainer(OffPolicyTrainer):
     """Generic trainer for model-based agents."""
 
     # pylint: disable=attribute-defined-outside-init
+
+    @override(OffPolicyTrainer)
+    def _init(self, config, env_creator):
+        super()._init(config, env_creator)
+        policy = self.get_policy()
+        policy.set_reward_from_config(config["env"], config["env_config"])
+        policy.set_termination_from_config(config["env"], config["env_config"])
 
     @staticmethod
     @override(OffPolicyTrainer)
@@ -164,7 +172,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
             if model_batch_size:
                 samples += [self.virtual_replay.sample(model_batch_size)]
             batch = SampleBatch.concat_samples(samples)
-            stats = policy.learn_on_batch(batch)
+            stats = get_learner_stats(policy.learn_on_batch(batch))
             self.optimizer.num_steps_trained += batch.count
 
         stats.update(policy.get_exploration_info())

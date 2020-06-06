@@ -1,7 +1,8 @@
 """Trainer and configuration for MBPO."""
 from raylab.agents.model_based import ModelBasedTrainer
 from raylab.agents.model_based import with_base_config
-from raylab.policy.model_based_mixin import ModelBasedSpec
+from raylab.policy.model_based.sampling_mixin import SamplingSpec
+from raylab.policy.model_based.training_mixin import TrainingSpec
 
 from .policy import MBPOTorchPolicy
 
@@ -29,10 +30,15 @@ DEFAULT_CONFIG = with_base_config(
         # Fraction of each policy minibatch to sample from environment replay pool
         "real_data_ratio": 0.1,
         "train_batch_size": 512,
-        # === ModelBasedMixin ===
-        # Specifications for model training and sampling
-        # See `raylab.policy.model_based_mixin`
-        "model_based": ModelBasedSpec().to_dict(),
+        # Wait until this many steps have been sampled before starting optimization.
+        "learning_starts": 10000,
+        # === Policy mixins ===
+        # Specifications for model training
+        # See `raylab.policy.model_based.training_mixin`
+        "model_training": TrainingSpec().to_dict(),
+        # Specifications for model sampling
+        # See `raylab.policy.model_based.sampling_mixin`
+        "model_sampling": SamplingSpec().to_dict(),
         # === Replay buffer ===
         # Size of the replay buffer.
         "buffer_size": int(1e5),
@@ -46,8 +52,6 @@ DEFAULT_CONFIG = with_base_config(
         },
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
-        # Wait until this many steps have been sampled before starting optimization.
-        "learning_starts": 10000,
         # === Network ===
         "module": {
             "type": "ModelBasedSAC",

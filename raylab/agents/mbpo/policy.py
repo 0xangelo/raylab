@@ -5,14 +5,18 @@ from ray.rllib.utils import override
 
 from raylab.agents.sac import SACTorchPolicy
 from raylab.losses import ModelEnsembleMLE
-from raylab.policy import ModelBasedMixin
+from raylab.policy import EnvFnMixin
+from raylab.policy import ModelSamplingMixin
+from raylab.policy import ModelTrainingMixin
 from raylab.pytorch.optim import build_optimizer
 
 
-class MBPOTorchPolicy(ModelBasedMixin, SACTorchPolicy):
+class MBPOTorchPolicy(
+    EnvFnMixin, ModelTrainingMixin, ModelSamplingMixin, SACTorchPolicy
+):
     """Model-Based Policy Optimization policy in PyTorch to use with RLlib."""
 
-    # pylint:disable=abstract-method
+    # pylint:disable=abstract-method,too-many-ancestors
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)

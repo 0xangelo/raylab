@@ -22,15 +22,16 @@ class DPGAwareModelLearning:
     Args:
         actor: deterministic policy
         critics: callables for action-values
-        gamma (float): discount factor
-        grad_estimator (str): one of 'PD' or 'SF'
+        gamma: discount factor
+        grad_estimator: gradient estimator for expectations. One of 'PD' or 'SF'
 
     Atributes:
         actor: deterministic policy
         critics: callables for action-values
-        gamma (float): discount factor
-        grad_estimator (str): one of 'PD' or 'SF'
+        gamma: discount factor
+        grad_estimator: gradient estimator for expectations. One of 'PD' or 'SF'
         model: stochastic model that returns next state and its log density
+        reward_fn: callable that computes rewards for transitions
     """
 
     model: Optional[DynamicsFn]

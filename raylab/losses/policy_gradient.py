@@ -1,7 +1,14 @@
 """Losses for computing policy gradients."""
+from typing import Dict
+from typing import List
+from typing import Tuple
+
 import torch
 from ray.rllib import SampleBatch
+from torch import Tensor
 
+from raylab.utils.annotations import ActionValue
+from raylab.utils.annotations import DetPolicy
 from raylab.utils.annotations import DynamicsFn
 from raylab.utils.annotations import RewardFn
 
@@ -72,11 +79,11 @@ class ModelAwareDPG:
     """Loss function for Model-Aware Deterministic Policy Gradient.
 
     Args:
-        actor (callable): deterministic policy
-        critics (list): callables for action-values
+        actor: deterministic policy
+        critics: callables for action-values
         gamma (float): discount factor
         num_model_samples (int): number of next states to draw from the model
-        grad_estimator (str): one of 'PD' or 'SF'
+        grad_estimator (str): gradient estimator for expecations ('PD' or 'SF')
 
     Attributes:
         reward_fn (Optional[RewardFn]): reward function for state, action, and
@@ -85,7 +92,7 @@ class ModelAwareDPG:
             and its log density
     """
 
-    def __init__(self, actor, critics, **config):
+    def __init__(self, actor: DetPolicy, critics: List[ActionValue], **config):
         self.actor = actor
         self.critics = critics
         self.config = config
@@ -101,7 +108,7 @@ class ModelAwareDPG:
         """Set model to provided callable."""
         self.model = function
 
-    def __call__(self, batch):
+    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
         """Compute loss for Model-Aware Deterministic Policy Gradient."""
         obs = batch[SampleBatch.CUR_OBS]
 
