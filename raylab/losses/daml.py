@@ -1,6 +1,17 @@
 """Loss functions for Decision-Aware Model Learning."""
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+
 import torch
 from ray.rllib import SampleBatch
+from torch import Tensor
+
+from raylab.utils.annotations import ActionValue
+from raylab.utils.annotations import DetPolicy
+from raylab.utils.annotations import DynamicsFn
+from raylab.utils.annotations import RewardFn
 
 from .utils import clipped_action_value
 
@@ -9,23 +20,48 @@ class DPGAwareModelLearning:
     """Loss function for Deterministic Policy Gradient-Aware model learning.
 
     Args:
-        model (callable): stochastic model that returns next state and its log density
-        actor (callable): deterministic policy
-        critics (list): callables for action-values
-        reward_fn (callable): reward function for state, action, and next state tuples
-        gamma (float): discount factor
-        grad_estimator (str): one of 'PD' or 'SF'
+        actor: deterministic policy
+        critics: callables for action-values
+        gamma: discount factor
+        grad_estimator: gradient estimator for expectations. One of 'PD' or 'SF'
+
+    Atributes:
+        actor: deterministic policy
+        critics: callables for action-values
+        gamma: discount factor
+        grad_estimator: gradient estimator for expectations. One of 'PD' or 'SF'
+        model: stochastic model that returns next state and its log density
+        reward_fn: callable that computes rewards for transitions
     """
 
-    # pylint:disable=too-many-arguments
-    def __init__(self, model, actor, critics, reward_fn, **config):
-        self.model = model
+    model: Optional[DynamicsFn]
+    reward_fn: Optional[RewardFn]
+    batch_keys = (SampleBatch.CUR_OBS,)
+
+    def __init__(
+        self,
+        actor: DetPolicy,
+        critics: List[ActionValue],
+        gamma: float = 0.99,
+        grad_estimator: str = "SF",
+    ):
         self.actor = actor
         self.critics = critics
-        self.reward_fn = reward_fn
-        self.config = config
+        self.gamma = gamma
+        self.grad_estimator = grad_estimator
 
-    def __call__(self, batch):
+        self.model = None
+        self.reward_fn = None
+
+    def set_model(self, function: DynamicsFn):
+        """Set model to provided callable."""
+        self.model = function
+
+    def set_reward_fn(self, function: RewardFn):
+        """Set reward function to provided callable."""
+        self.reward_fn = function
+
+    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, dict]:
         """Compute policy gradient-aware (PGA) model loss."""
         obs = batch[SampleBatch.CUR_OBS]
         actions = self.actor(obs).detach().requires_grad_()
@@ -44,7 +80,9 @@ class DPGAwareModelLearning:
             {"loss(action)": temporal_diff.item(), "loss(model)": daml_loss.item()},
         )
 
-    def one_step_action_value_surrogate(self, obs, actions, model_samples=1):
+    def one_step_action_value_surrogate(
+        self, obs: Tensor, actions: Tensor, model_samples: int = 1
+    ) -> Tensor:
         """
         Compute 1-step approximation of Q^{\\pi}(s, a) for Deterministic Policy Gradient
         using target networks and model transitions.
@@ -54,15 +92,17 @@ class DPGAwareModelLearning:
         with torch.no_grad():
             next_acts = self.actor(next_obs)
         next_values = clipped_action_value(next_obs, next_acts, self.critics)
-        values = rewards + self.config["gamma"] * next_values
+        values = rewards + self.gamma * next_values
 
-        if self.config["grad_estimator"] == "SF":
+        if self.grad_estimator == "SF":
             surrogate = torch.mean(logp * values.detach(), dim=0)
-        elif self.config["grad_estimator"] == "PD":
+        elif self.grad_estimator == "PD":
             surrogate = torch.mean(values, dim=0)
         return surrogate
 
-    def _generate_transition(self, obs, actions, num_samples):
+    def _generate_transition(
+        self, obs: Tensor, actions: Tensor, num_samples: int
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         """Compute virtual transition and its log density."""
         sample_shape = (num_samples,)
         obs = obs.expand(sample_shape + obs.shape)
@@ -72,6 +112,6 @@ class DPGAwareModelLearning:
         rewards = self.reward_fn(obs, actions, next_obs)
         return next_obs, rewards, logp
 
-    def zero_step_action_values(self, obs, actions):
+    def zero_step_action_values(self, obs: Tensor, actions: Tensor) -> Tensor:
         """Compute Q^{\\pi}(s, a) directly using approximate critic."""
         return clipped_action_value(obs, actions, self.critics)

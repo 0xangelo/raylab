@@ -5,16 +5,17 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-import raylab.policy as raypi
-from raylab.envs import get_reward_fn
 from raylab.losses import ClippedDoubleQLearning
 from raylab.losses import DPGAwareModelLearning
 from raylab.losses import MaximumLikelihood
 from raylab.losses import ModelAwareDPG
+from raylab.policy import EnvFnMixin
+from raylab.policy import TargetNetworksMixin
+from raylab.policy import TorchPolicy
 from raylab.pytorch.optim import build_optimizer
 
 
-class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
+class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
     """Model-Aware Policy Optimization policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
@@ -25,28 +26,30 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         ), "MAPO uses operations incompatible with TorchScript."
         super().__init__(observation_space, action_space, config)
 
-        self.reward_fn = get_reward_fn(self.config["env"], self.config["env_config"])
+        self.loss_daml = DPGAwareModelLearning(
+            self.module.actor,
+            self.module.critics,
+            gamma=self.config["gamma"],
+            grad_estimator=self.config["grad_estimator"],
+        )
+        transition = (
+            self.module.model.rsample
+            if self.config["grad_estimator"] == "PD"
+            else self.module.model.sample
+        )
+        self.loss_daml.set_model(transition)
+        self.loss_mle = MaximumLikelihood(self.module.model)
 
-        self.loss_daml = None
-        self.loss_mle = None
-        self.loss_actor = None
+        self.loss_actor = ModelAwareDPG(
+            self.module.actor,
+            self.module.critics,
+            gamma=self.config["gamma"],
+            num_model_samples=self.config["num_model_samples"],
+            grad_estimator=self.config["grad_estimator"],
+        )
         if not self.config["true_model"]:
-            transition = (
-                self.module.model.rsample
-                if self.config["grad_estimator"] == "PD"
-                else self.module.model.sample
-            )
             self.setup_madpg(transition)
             self.module.model.zero_grad()
-            self.loss_daml = DPGAwareModelLearning(
-                transition,
-                self.module.actor,
-                self.module.critics,
-                self.reward_fn,
-                gamma=self.config["gamma"],
-                grad_estimator=self.config["grad_estimator"],
-            )
-            self.loss_mle = MaximumLikelihood(self.module.model)
 
         self.loss_critic = ClippedDoubleQLearning(
             self.module.critics,
@@ -55,8 +58,14 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             gamma=self.config["gamma"],
         )
 
+    @override(EnvFnMixin)
+    def set_reward_from_config(self, env_name: str, env_config: dict):
+        super().set_reward_from_config(env_name, env_config)
+        self.loss_daml.set_reward_fn(self.reward_fn)
+        self.loss_actor.set_reward_fn(self.reward_fn)
+
     @staticmethod
-    @override(raypi.TorchPolicy)
+    @override(TorchPolicy)
     def get_default_config():
         """Return the default configuration for MAPO."""
         # pylint: disable=cyclic-import
@@ -64,7 +73,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
         return DEFAULT_CONFIG
 
-    @override(raypi.TorchPolicy)
+    @override(TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
         module_config.setdefault("critic", {})
@@ -77,7 +86,7 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         # pylint:disable=no-member
         return super().make_module(obs_space, action_space, config)
 
-    @override(raypi.TorchPolicy)
+    @override(TorchPolicy)
     def make_optimizer(self):
         config = self.config["torch_optimizer"]
         components = "model actor critics".split()
@@ -120,17 +129,9 @@ class MAPOTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
             ), "Transition grad w.r.t. state and action must exist for PD estimator"
             assert not torch.allclose(act.grad, torch.zeros_like(act))
 
-        self.loss_actor = ModelAwareDPG(
-            model,
-            self.module.actor,
-            self.module.critics,
-            self.reward_fn,
-            gamma=self.config["gamma"],
-            num_model_samples=self.config["num_model_samples"],
-            grad_estimator=self.config["grad_estimator"],
-        )
+        self.loss_actor.set_model(model)
 
-    @override(raypi.TorchPolicy)
+    @override(TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self._lazy_tensor_dict(samples)
 

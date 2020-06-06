@@ -10,6 +10,7 @@ from ray.rllib.utils import override
 from raylab.agents.svg import SVGTorchPolicy
 from raylab.losses import TrajectorySVG
 from raylab.policy import AdaptiveKLCoeffMixin
+from raylab.policy import EnvFnMixin
 from raylab.pytorch.optim import build_optimizer
 
 
@@ -27,10 +28,13 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             self.module.model,
             self.module.actor,
             self.module.critic,
-            self.reward,
-            gamma=self.config["gamma"],
             torch_script=self.config["module"].get("torch_script", False),
         )
+
+    @override(EnvFnMixin)
+    def set_reward_from_config(self, env_name: str, env_config: dict):
+        super().set_reward_from_config(env_name, env_config)
+        self.loss_actor.set_reward_fn(self.reward_fn)
 
     @staticmethod
     @override(SVGTorchPolicy)

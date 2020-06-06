@@ -19,6 +19,7 @@ def navigation_env(envs):
 def policy_and_env(mapo_policy, navigation_env, config):
     env = navigation_env({})
     policy = mapo_policy(env.observation_space, env.action_space, config)
+    policy.set_reward_from_config(policy.config["env"], policy.config["env_config"])
     policy.set_transition_kernel(env.transition_fn)
     return policy, env
 

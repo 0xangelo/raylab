@@ -88,6 +88,8 @@ class SVGInfTrainer(Trainer):
         self.optimizer = PolicyOptimizer(self.workers)
 
         policy = self.get_policy()
+        policy.set_reward_from_config(config["env"], config["env_config"])
+
         self.replay = NumpyReplayBuffer(
             policy.observation_space, policy.action_space, config["buffer_size"]
         )
