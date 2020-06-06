@@ -14,7 +14,9 @@ def grad_estimator(request):
 
 @pytest.fixture
 def policy_and_batch(policy_and_batch_fn, grad_estimator):
-    return policy_and_batch_fn({"grad_estimator": grad_estimator})
+    policy, batch = policy_and_batch_fn({"grad_estimator": grad_estimator})
+    policy.set_reward_from_config(policy.config["env"], policy.config["env_config"])
+    return policy, batch
 
 
 def test_next_action_grads_propagation(policy_and_batch):

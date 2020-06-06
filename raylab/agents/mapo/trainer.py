@@ -105,6 +105,8 @@ class MAPOTrainer(OffPolicyTrainer):
     @override(OffPolicyTrainer)
     def _init(self, config, env_creator):
         super()._init(config, env_creator)
+        policy = self.get_policy()
+        policy.set_reward_from_config(config["env"], config["env_config"])
         if config["true_model"]:
             self.set_transition_kernel()
 

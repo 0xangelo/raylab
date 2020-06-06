@@ -2,6 +2,9 @@
 import torch
 from ray.rllib import SampleBatch
 
+from raylab.utils.annotations import DynamicsFn
+from raylab.utils.annotations import RewardFn
+
 from .utils import clipped_action_value
 
 
@@ -69,21 +72,34 @@ class ModelAwareDPG:
     """Loss function for Model-Aware Deterministic Policy Gradient.
 
     Args:
-        model (callable): stochastic model that returns next state and its log density
         actor (callable): deterministic policy
         critics (list): callables for action-values
-        reward_fn (callable): reward function for state, action, and next state tuples
         gamma (float): discount factor
         num_model_samples (int): number of next states to draw from the model
         grad_estimator (str): one of 'PD' or 'SF'
+
+    Attributes:
+        reward_fn (Optional[RewardFn]): reward function for state, action, and
+            next state tuples
+        model (Optional[DynamicsFn]): stochastic model that returns next state
+            and its log density
     """
 
-    def __init__(self, model, actor, critics, reward_fn, **config):
-        self.model = model
+    def __init__(self, actor, critics, **config):
         self.actor = actor
         self.critics = critics
-        self.reward_fn = reward_fn
         self.config = config
+
+        self.reward_fn = None
+        self.model = None
+
+    def set_reward_fn(self, function: RewardFn):
+        """Set reward function to provided callable."""
+        self.reward_fn = function
+
+    def set_model(self, function: DynamicsFn):
+        """Set model to provided callable."""
+        self.model = function
 
     def __call__(self, batch):
         """Compute loss for Model-Aware Deterministic Policy Gradient."""
