@@ -19,8 +19,11 @@ def trainer(trainer_cls):
         env=MockEnv,
         config={
             "num_workers": 0,
+            "rollout_fragment_length": 10,
             "evaluation_config": {"explore": False},
             "evaluation_interval": 1,
+            "evaluation_num_episodes": 1,
+            "evaluation_num_workers": 0,
         },
     )
 
