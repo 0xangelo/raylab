@@ -93,7 +93,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
 
     @override(SVGTorchPolicy)
     def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
+        batch_tensors = self.lazy_tensor_dict(samples)
         batch_tensors, info = self.add_truncated_importance_sampling_ratios(
             batch_tensors
         )
@@ -105,7 +105,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
             info.update(self._update_alpha(batch_tensors))
 
         self.update_targets("critic", "target_critic")
-        return self._learner_stats(info)
+        return info
 
     def _update_model(self, batch_tensors):
         with self.optimizer.model.optimize():

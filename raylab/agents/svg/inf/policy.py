@@ -60,13 +60,13 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
 
     @override(SVGTorchPolicy)
     def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
+        batch_tensors = self.lazy_tensor_dict(samples)
         if self._off_policy_learning:
             info = self._learn_off_policy(batch_tensors)
         else:
             info = self._learn_on_policy(batch_tensors, samples)
         info.update(self.extra_grad_info(batch_tensors))
-        return self._learner_stats(info)
+        return info
 
     @contextmanager
     def learning_off_policy(self):
@@ -88,11 +88,11 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             loss.backward()
 
         self.update_targets("critic", "target_critic")
-        return self._learner_stats(info)
+        return info
 
     def _learn_on_policy(self, batch_tensors, samples):
         """Update on-policy components."""
-        episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
+        episodes = [self.lazy_tensor_dict(s) for s in samples.split_by_episode()]
 
         with self.optimizer.on_policy.optimize():
             loss, info = self.loss_actor(episodes)
@@ -106,7 +106,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     @torch.no_grad()
     @override(AdaptiveKLCoeffMixin)
     def _kl_divergence(self, sample_batch):
-        batch_tensors = self._lazy_tensor_dict(sample_batch)
+        batch_tensors = self.lazy_tensor_dict(sample_batch)
         return self._avg_kl_divergence(batch_tensors).item()
 
     def _avg_kl_divergence(self, batch_tensors):

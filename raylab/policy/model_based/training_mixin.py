@@ -117,7 +117,7 @@ class ModelTrainingMixin:
         spec = self.model_training_spec
         snapshots = self._build_snapshots()
         dataloader = self._build_dataloader(train_samples, spec.dataloader)
-        eval_tensors = self._lazy_tensor_dict(eval_samples) if eval_samples else None
+        eval_tensors = self.lazy_tensor_dict(eval_samples) if eval_samples else None
 
         info, snapshots = self._train_model_epochs(
             dataloader, snapshots, eval_tensors, spec
@@ -137,7 +137,7 @@ class ModelTrainingMixin:
     def _build_dataloader(
         self, train_samples: SampleBatch, spec: DataloaderSpec
     ) -> DataLoader:
-        train_tensors = self._lazy_tensor_dict(train_samples)
+        train_tensors = self.lazy_tensor_dict(train_samples)
         dataset = TensorDictDataset(
             {k: train_tensors[k] for k in self.loss_model.batch_keys}
         )

@@ -133,7 +133,7 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
+        batch_tensors = self.lazy_tensor_dict(samples)
 
         info = {}
         info.update(self._update_critic(batch_tensors))
@@ -142,29 +142,7 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
         info.update(self._update_actor(batch_tensors))
 
         self.update_targets("critics", "target_critics")
-        return self._learner_stats(info)
-
-    def learn_critic(self, samples):
-        """Update critics with samples."""
-        batch_tensors = self._lazy_tensor_dict(samples)
-        info = {}
-        info.update(self._update_critic(batch_tensors))
-        self.update_targets("critics", "target_critics")
-        return self._learner_stats(info)
-
-    def learn_model(self, samples):
-        """Update model with samples."""
-        batch_tensors = self._lazy_tensor_dict(samples)
-        info = {}
-        info.update(self._update_model(batch_tensors))
-        return self._learner_stats(info)
-
-    def learn_actor(self, samples):
-        """Update actor with samples."""
-        batch_tensors = self._lazy_tensor_dict(samples)
-        info = {}
-        info.update(self._update_actor(batch_tensors))
-        return self._learner_stats(info)
+        return info
 
     def _update_critic(self, batch_tensors):
         with self.optimizer.critics.optimize():

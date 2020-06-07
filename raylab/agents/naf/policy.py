@@ -50,14 +50,14 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
     @override(raypi.TorchPolicy)
     def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
+        batch_tensors = self.lazy_tensor_dict(samples)
         with self.optimizer.optimize():
             loss, info = self.loss_fn(batch_tensors)
             loss.backward()
 
         info.update(self.extra_grad_info())
         self.update_targets("vcritics", "target_vcritics")
-        return self._learner_stats(info)
+        return info
 
     @torch.no_grad()
     def extra_grad_info(self):

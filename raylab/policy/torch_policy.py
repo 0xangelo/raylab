@@ -1,5 +1,4 @@
 """Base for all PyTorch policies."""
-import contextlib
 import io
 import textwrap
 from abc import abstractmethod
@@ -10,12 +9,11 @@ from typing import Tuple
 import torch
 import torch.nn as nn
 from gym.spaces import Space
+from ray.rllib import Policy
 from ray.rllib import SampleBatch
 from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.model import flatten
 from ray.rllib.models.model import restore_original_dimensions
-from ray.rllib.policy.policy import LEARNER_STATS_KEY
-from ray.rllib.policy.policy import Policy
 from ray.rllib.utils import override
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.tune.logger import pretty_print
@@ -65,7 +63,7 @@ class TorchPolicy(Policy):
     @staticmethod
     @abstractmethod
     def get_default_config() -> dict:
-        """Return the default config for this policy class."""
+        """Return the default configuration for this policy class."""
 
     @abstractmethod
     def make_optimizer(self):
@@ -103,7 +101,7 @@ class TorchPolicy(Policy):
         explore = explore if explore is not None else self.config["explore"]
         timestep = timestep if timestep is not None else self.global_timestep
 
-        input_dict = self._lazy_tensor_dict(
+        input_dict = self.lazy_tensor_dict(
             {SampleBatch.CUR_OBS: obs_batch, "is_training": False}
         )
         if prev_action_batch:
@@ -205,7 +203,7 @@ class TorchPolicy(Policy):
         prev_reward_batch=None,
     ):
         # pylint:disable=too-many-arguments
-        input_dict = self._lazy_tensor_dict(
+        input_dict = self.lazy_tensor_dict(
             {SampleBatch.CUR_OBS: obs_batch, SampleBatch.ACTIONS: actions}
         )
         if prev_action_batch:
@@ -259,29 +257,22 @@ class TorchPolicy(Policy):
         """
         return convert_to_tensor(arr, self.device)
 
-    def _lazy_tensor_dict(self, sample_batch):
+    def lazy_tensor_dict(self, sample_batch: SampleBatch) -> UsageTrackingDict:
+        """Convert a sample batch into a dictionary of lazy tensors.
+
+        The sample batch is wrapped with a UsageTrackingDict to convert array-
+        likes into tensors upon querying.
+
+        Args:
+            sample_batch: the sample batch to convert
+
+        Returns:
+            A dictionary which intercepts key queries to lazily convert arrays
+            to tensors.
+        """
         tensor_batch = UsageTrackingDict(sample_batch)
         tensor_batch.set_get_interceptor(self.convert_to_tensor)
         return tensor_batch
-
-    @staticmethod
-    def _learner_stats(info):
-        return {LEARNER_STATS_KEY: info}
-
-    @contextlib.contextmanager
-    def freeze_nets(self, *names: str):
-        """Disable gradient requirements for the desired modules in this context.
-
-        Warnings:
-            `.requires_grad_()` is incompatible with TorchScript.
-        """
-        try:
-            for name in names:
-                self.module[name].requires_grad_(False)
-            yield
-        finally:
-            for name in names:
-                self.module[name].requires_grad_(True)
 
     def __repr__(self):
         name = self.__class__.__name__

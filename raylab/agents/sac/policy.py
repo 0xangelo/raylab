@@ -65,7 +65,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
+        batch_tensors = self.lazy_tensor_dict(samples)
         info = {}
 
         info.update(self._update_critic(batch_tensors))
@@ -74,7 +74,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
             info.update(self._update_alpha(batch_tensors))
 
         self.update_targets("critics", "target_critics")
-        return self._learner_stats(info)
+        return info
 
     def _update_critic(self, batch_tensors):
         with self.optimizer.critics.optimize():
