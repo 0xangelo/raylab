@@ -1,5 +1,4 @@
 """Base for all PyTorch policies."""
-import io
 import textwrap
 from abc import abstractmethod
 from typing import Dict
@@ -7,6 +6,7 @@ from typing import List
 from typing import Tuple
 from typing import Union
 
+import numpy as np
 import torch
 import torch.nn as nn
 from gym.spaces import Space
@@ -238,18 +238,21 @@ class TorchPolicy(Policy):
 
     @override(Policy)
     def get_weights(self):
-        buffer = io.BytesIO()
         state = [self.module.state_dict()]
         if self.optimizer:
             state += [self.optimizer.state_dict()]
 
-        torch.save(state, buffer)
-        return buffer.getvalue()
+        for state_dict in state:
+            _to_numpy_state_dict(state_dict)
+
+        return state
 
     @override(Policy)
     def set_weights(self, weights):
-        buffer = io.BytesIO(weights)
-        state = torch.load(buffer)
+        state = weights
+
+        for state_dict in state:
+            _from_numpy_state_dict(state_dict, self.device)
 
         self.module.load_state_dict(state[0])
         if self.optimizer:
@@ -298,3 +301,19 @@ class TorchPolicy(Policy):
             args_repr = " ".join(args[1:-1])
             constructor = f"{name}({args_repr})"
         return constructor
+
+
+def _to_numpy_state_dict(mapping):
+    for key, val in mapping.items():
+        if torch.is_tensor(val):
+            mapping[key] = val.cpu().detach().numpy()
+        elif isinstance(val, dict):
+            _to_numpy_state_dict(val)
+
+
+def _from_numpy_state_dict(mapping, device=None):
+    for key, val in mapping.items():
+        if isinstance(val, np.ndarray):
+            mapping[key] = convert_to_tensor(val, device)
+        elif isinstance(val, dict):
+            _from_numpy_state_dict(val)
