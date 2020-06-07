@@ -1,6 +1,5 @@
 # pylint: disable=missing-module-docstring
 from ray.rllib.evaluation.metrics import get_learner_stats
-from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils import override
 
 from raylab.agents import Trainer
@@ -44,8 +43,6 @@ class OffPolicyTrainer(Trainer):
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=0
         )
-        # Dummy optimizer to log stats since Trainer.collect_metrics is coupled with it
-        self.optimizer = PolicyOptimizer(self.workers)
         self.build_replay_buffer(config)
 
     @override(Trainer)
@@ -57,7 +54,7 @@ class OffPolicyTrainer(Trainer):
         stats = {}
         while not self._iteration_done():
             samples = worker.sample()
-            self.optimizer.num_steps_sampled += samples.count
+            self.tracker.num_steps_sampled += samples.count
             for row in samples.rows():
                 self.replay.add(row)
             stats.update(policy.get_exploration_info())
@@ -66,9 +63,9 @@ class OffPolicyTrainer(Trainer):
             for _ in range(samples.count):
                 batch = self.replay.sample(self.config["train_batch_size"])
                 stats = get_learner_stats(policy.learn_on_batch(batch))
-                self.optimizer.num_steps_trained += batch.count
+                self.tracker.num_steps_trained += batch.count
 
-        self.optimizer.num_steps_sampled += start_samples
+        self.tracker.num_steps_sampled += start_samples
         return self._log_metrics(stats)
 
     def build_replay_buffer(self, config):
@@ -87,7 +84,7 @@ class OffPolicyTrainer(Trainer):
         learning_starts = self.config["learning_starts"]
         worker = self.workers.local_worker()
         sample_count = 0
-        while self.optimizer.num_steps_sampled + sample_count < learning_starts:
+        while self.tracker.num_steps_sampled + sample_count < learning_starts:
             samples = worker.sample()
             sample_count += samples.count
             for row in samples.rows():

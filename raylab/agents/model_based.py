@@ -95,7 +95,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
         stats = {}
         while not self._iteration_done():
             samples = worker.sample()
-            self.optimizer.num_steps_sampled += samples.count
+            self.tracker.num_steps_sampled += samples.count
             for row in samples.rows():
                 self.replay.add(row)
 
@@ -109,7 +109,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
             stats.update(model_train_info)
             stats.update(policy_train_info)
 
-        self.optimizer.num_steps_sampled += start_samples
+        self.tracker.num_steps_sampled += start_samples
         return self._log_metrics(stats)
 
     def train_dynamics_model(self) -> Tuple[List[float], Dict[str, float]]:
@@ -173,7 +173,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
                 samples += [self.virtual_replay.sample(model_batch_size)]
             batch = SampleBatch.concat_samples(samples)
             stats = get_learner_stats(policy.learn_on_batch(batch))
-            self.optimizer.num_steps_trained += batch.count
+            self.tracker.num_steps_trained += batch.count
 
         stats.update(policy.get_exploration_info())
         return stats
