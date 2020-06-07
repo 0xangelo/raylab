@@ -1,6 +1,4 @@
 """ACKTR policy implemented in PyTorch."""
-import collections
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -11,6 +9,7 @@ from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.utils import override
 
 import raylab.utils.dictionaries as dutil
+from raylab.policy import OptimizerCollection
 from raylab.policy import TorchPolicy
 from raylab.pytorch.nn.distributions import Normal
 from raylab.pytorch.optim import build_optimizer
@@ -63,7 +62,7 @@ class ACKTRTorchPolicy(TorchPolicy):
 
     @override(TorchPolicy)
     def make_optimizer(self):
-        components = ["actor", "critic"]
+        components = "actor critic".split()
         config = dutil.deep_merge(
             DEFAULT_OPTIM_CONFIG, self.config["torch_optimizer"], False, [], components
         )
@@ -72,8 +71,13 @@ class ACKTRTorchPolicy(TorchPolicy):
             "EKFAC",
         ], "ACKTR must use optimizer with Kronecker Factored curvature estimation."
 
-        optims = {k: build_optimizer(self.module[k], config[k]) for k in components}
-        return collections.namedtuple("OptimizerCollection", components)(**optims)
+        optimizer = OptimizerCollection()
+        for name in components:
+            optimizer.add_optimizer(
+                name, build_optimizer(self.module[name], config[name])
+            )
+
+        return optimizer
 
     @torch.no_grad()
     @override(TorchPolicy)
@@ -129,7 +133,7 @@ class ACKTRTorchPolicy(TorchPolicy):
             log_prob.mean().backward()
 
         # Compute surrogate loss
-        with self.optimizer.actor.optimize():
+        with self.optimizer.optimize("actor"):
             surr_loss = -(
                 self.module.actor.log_prob(cur_obs, actions) * advantages
             ).mean()
@@ -212,7 +216,7 @@ class ACKTRTorchPolicy(TorchPolicy):
                     )
                     log_prob.mean().backward()
 
-            with self.optimizer.critic.optimize():
+            with self.optimizer.optimize("critic"):
                 mse_loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
                 mse_loss.backward()
 

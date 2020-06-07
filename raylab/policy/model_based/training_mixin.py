@@ -85,9 +85,8 @@ class ModelTrainingMixin:
 
     Expects:
     * A `models` attribute in `self.module`
-    * A `config` dict attribute
-    * A `model_training` dict in `self.config`
-    * An `optimizer` attribute with subattribute `models`
+    * A `config` dict attribute with a `model_training` subdict
+    * An `optimizer` OptimizerCollection with registered 'models' optimizer
     * A `loss_model` callable attribute that returns a 1d Tensor with each
       model's losses and an info dict
 
@@ -158,7 +157,7 @@ class ModelTrainingMixin:
         epoch = -1
         for epoch in self._model_epochs(spec):
             for minibatch in dataloader:
-                with self.optimizer.models.optimize():
+                with self.optimizer.optimize("models"):
                     losses, train_info = self.loss_model(minibatch)
                     losses.mean().backward()
 

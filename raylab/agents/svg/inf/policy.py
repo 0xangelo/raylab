@@ -1,5 +1,4 @@
 """SVG(inf) policy class using PyTorch."""
-import collections
 from contextlib import contextmanager
 
 import torch
@@ -11,6 +10,7 @@ from raylab.agents.svg import SVGTorchPolicy
 from raylab.losses import TrajectorySVG
 from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
+from raylab.policy import OptimizerCollection
 from raylab.pytorch.optim import build_optimizer
 
 
@@ -49,14 +49,16 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     def make_optimizer(self):
         """PyTorch optimizers to use."""
         config = self.config["torch_optimizer"]
-        components = ["on_policy", "off_policy"]
-        module = {
+        component_map = {
             "on_policy": self.module.actor,
             "off_policy": nn.ModuleList([self.module.model, self.module.critic]),
         }
 
-        optims = {k: build_optimizer(module[k], config[k]) for k in components}
-        return collections.namedtuple("OptimizerCollection", components)(**optims)
+        optimizer = OptimizerCollection()
+        for name, module in component_map.items():
+            optimizer.add_optimizer(name, build_optimizer(module, config[name]))
+
+        return optimizer
 
     @override(SVGTorchPolicy)
     def learn_on_batch(self, samples):
@@ -82,7 +84,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             batch_tensors
         )
 
-        with self.optimizer.off_policy.optimize():
+        with self.optimizer.optimize("off_policy"):
             loss, _info = self.compute_joint_model_value_loss(batch_tensors)
             info.update(_info)
             loss.backward()
@@ -94,7 +96,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
         """Update on-policy components."""
         episodes = [self.lazy_tensor_dict(s) for s in samples.split_by_episode()]
 
-        with self.optimizer.on_policy.optimize():
+        with self.optimizer.optimize("on_policy"):
             loss, info = self.loss_actor(episodes)
             kl_div = self._avg_kl_divergence(batch_tensors)
             loss = loss + kl_div * self.curr_kl_coeff

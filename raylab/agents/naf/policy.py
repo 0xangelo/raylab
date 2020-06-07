@@ -3,12 +3,13 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-import raylab.policy as raypi
 from raylab.losses import ClippedDoubleQLearning
+from raylab.policy import TargetNetworksMixin
+from raylab.policy import TorchPolicy
 from raylab.pytorch.optim import build_optimizer
 
 
-class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
+class NAFTorchPolicy(TargetNetworksMixin, TorchPolicy):
     """Normalized Advantage Function policy in Pytorch to use with RLlib."""
 
     # pylint: disable=abstract-method
@@ -24,7 +25,7 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         )
 
     @staticmethod
-    @override(raypi.TorchPolicy)
+    @override(TorchPolicy)
     def get_default_config():
         """Return the default config for NAF."""
         # pylint: disable=cyclic-import
@@ -32,7 +33,7 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
 
         return DEFAULT_CONFIG
 
-    @override(raypi.TorchPolicy)
+    @override(TorchPolicy)
     def make_module(self, obs_space, action_space, config):
         module_config = config["module"]
         module_config["type"] = "NAFModule"
@@ -44,11 +45,13 @@ class NAFTorchPolicy(raypi.TargetNetworksMixin, raypi.TorchPolicy):
         # pylint:disable=no-member
         return super().make_module(obs_space, action_space, config)
 
-    @override(raypi.TorchPolicy)
+    @override(TorchPolicy)
     def make_optimizer(self):
-        return build_optimizer(self.module.critics, self.config["torch_optimizer"])
+        return build_optimizer(
+            self.module.critics, self.config["torch_optimizer"], wrap=True
+        )
 
-    @override(raypi.TorchPolicy)
+    @override(TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self.lazy_tensor_dict(samples)
         with self.optimizer.optimize():

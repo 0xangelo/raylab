@@ -36,7 +36,9 @@ class TRPOTorchPolicy(TorchPolicy):
 
     @override(TorchPolicy)
     def make_optimizer(self):
-        return build_optimizer(self.module.critic, self.config["torch_optimizer"])
+        return build_optimizer(
+            self.module.critic, self.config["critic_optimizer"], wrap=True
+        )
 
     @torch.no_grad()
     @override(TorchPolicy)

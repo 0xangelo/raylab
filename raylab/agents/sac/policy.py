@@ -1,6 +1,4 @@
 """SAC policy class using PyTorch."""
-import collections
-
 import torch
 import torch.nn as nn
 from ray.rllib.utils import override
@@ -8,6 +6,7 @@ from ray.rllib.utils import override
 from raylab.losses import MaximumEntropyDual
 from raylab.losses import ReparameterizedSoftPG
 from raylab.losses import SoftCDQLearning
+from raylab.policy import OptimizerCollection
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
 from raylab.pytorch.optim import build_optimizer
@@ -60,8 +59,13 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         config = self.config["torch_optimizer"]
         components = "actor critics alpha".split()
 
-        optims = {k: build_optimizer(self.module[k], config[k]) for k in components}
-        return collections.namedtuple("OptimizerCollection", components)(**optims)
+        optimizer = OptimizerCollection()
+        for name in components:
+            optimizer.add_optimizer(
+                name, build_optimizer(self.module[name], config[name])
+            )
+
+        return optimizer
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
@@ -77,7 +81,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return info
 
     def _update_critic(self, batch_tensors):
-        with self.optimizer.critics.optimize():
+        with self.optimizer.optimize("critics"):
             critic_loss, info = self.loss_critic(batch_tensors)
             critic_loss.backward()
 
@@ -85,7 +89,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return info
 
     def _update_actor(self, batch_tensors):
-        with self.optimizer.actor.optimize():
+        with self.optimizer.optimize("actor"):
             actor_loss, info = self.loss_actor(batch_tensors)
             actor_loss.backward()
 
@@ -93,7 +97,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return info
 
     def _update_alpha(self, batch_tensors):
-        with self.optimizer.alpha.optimize():
+        with self.optimizer.optimize("alpha"):
             alpha_loss, info = self.loss_alpha(batch_tensors)
             alpha_loss.backward()
 

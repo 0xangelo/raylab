@@ -47,12 +47,18 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def make_optimizer(self):
         """PyTorch optimizer to use."""
-        optim_cls = get_optimizer_class(self.config["torch_optimizer"])
+        cls = get_optimizer_class(self.config["torch_optimizer"], wrap=True)
         options = self.config["torch_optimizer_options"]
-        params = [
-            dict(params=self.module[k].parameters(), **options[k]) for k in options
+        modules = {
+            "model": self.module.model,
+            "actor": self.module.actor,
+            "critic": self.module.critic,
+        }
+        param_groups = [
+            dict(params=mod.parameters(), **options[name])
+            for name, mod in modules.items()
         ]
-        return optim_cls(params)
+        return cls(param_groups)
 
     def update_old_policy(self):
         """Copy params of current policy into old one for future KL computation."""

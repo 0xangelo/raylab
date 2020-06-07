@@ -5,6 +5,7 @@ from abc import abstractmethod
 from typing import Dict
 from typing import List
 from typing import Tuple
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -18,6 +19,7 @@ from ray.rllib.utils import override
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.tune.logger import pretty_print
 from torch import Tensor
+from torch.optim import Optimizer
 
 from raylab.agents import Trainer
 from raylab.modules.catalog import get_module
@@ -25,20 +27,24 @@ from raylab.pytorch.utils import convert_to_tensor
 from raylab.utils.dictionaries import deep_merge
 
 from .action_dist import WrapModuleDist
+from .torch_optimizer import OptimizerCollection
 
 
 class TorchPolicy(Policy):
     """A Policy that uses PyTorch as a backend.
 
     Attributes:
-        device (torch.device): Device in which the parameter tensors reside.
-            All input samples will be converted to tensors and moved to this
-            device
-        module (nn.Module): The policy's neural network module. Should be
-            compilable to TorchScript
-        optimizer (Optimizer): The torch optimizer bound to the neural network
-            (or one of its submodules)
+        device: Device in which the parameter tensors reside. All input samples
+            will be converted to tensors and moved to this device
+        module: The policy's neural network module. Should be compilable to
+            TorchScript
+        optimizer: The torch Optimizer/OptimizerCollection bound to the neural
+            network (or its submodules)
     """
+
+    device: torch.device
+    module: nn.Module
+    optimizer: Union[OptimizerCollection, Optimizer, None]
 
     def __init__(self, observation_space: Space, action_space: Space, config: dict):
         self.framework = "torch"
@@ -66,7 +72,7 @@ class TorchPolicy(Policy):
         """Return the default configuration for this policy class."""
 
     @abstractmethod
-    def make_optimizer(self):
+    def make_optimizer(self) -> Union[OptimizerCollection, Optimizer, None]:
         """PyTorch optimizer to use."""
 
     @staticmethod
@@ -233,21 +239,21 @@ class TorchPolicy(Policy):
     @override(Policy)
     def get_weights(self):
         buffer = io.BytesIO()
-        module_state = self.module.state_dict()
-        optim = () if self.optimizer is None else self.optimizer
-        optims = optim if isinstance(optim, tuple) else [optim]
-        torch.save([module_state] + [o.state_dict() for o in optims], buffer)
+        state = [self.module.state_dict()]
+        if self.optimizer:
+            state += [self.optimizer.state_dict()]
+
+        torch.save(state, buffer)
         return buffer.getvalue()
 
     @override(Policy)
     def set_weights(self, weights):
         buffer = io.BytesIO(weights)
-        optim = () if self.optimizer is None else self.optimizer
-        optims = optim if isinstance(optim, tuple) else [optim]
-        states = torch.load(buffer)
-        self.module.load_state_dict(states[0])
-        for optim, state in zip(optims, states[1:]):
-            optim.load_state_dict(state)
+        state = torch.load(buffer)
+
+        self.module.load_state_dict(state[0])
+        if self.optimizer:
+            self.optimizer.load_state_dict(state[1])
 
     def convert_to_tensor(self, arr) -> Tensor:
         """Convert an array to a PyTorch tensor in this policy's device.
