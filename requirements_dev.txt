@@ -14,7 +14,7 @@ pytest==5.4.3
 pytest-runner==5.2
 ray[rllib,dashboard]==0.8.5
 torch==1.5.0
-gym-cartpole-swingup==0.0.9
+gym-cartpole-swingup==0.1.0
 pre-commit==2.5.1
 dataclasses-json==0.5.1
 streamlit==0.61.0
