@@ -81,13 +81,12 @@ class TrainingSpec(DataClassJsonMixin):
 
 
 class ModelTrainingMixin:
-    """Adds model related behavior to a TorchPolicy class.
+    """Adds model training behavior to a TorchPolicy class.
 
     Expects:
     * A `models` attribute in `self.module`
-    * A `config` dict attribute
     * A `model_training` dict in `self.config`
-    * An `optimizer` attribute with subattribute `models`
+    * A 'models' optimizer in `self.optimizers`
     * A `loss_model` callable attribute that returns a 1d Tensor with each
       model's losses and an info dict
 
@@ -117,7 +116,7 @@ class ModelTrainingMixin:
         spec = self.model_training_spec
         snapshots = self._build_snapshots()
         dataloader = self._build_dataloader(train_samples, spec.dataloader)
-        eval_tensors = self._lazy_tensor_dict(eval_samples) if eval_samples else None
+        eval_tensors = self.lazy_tensor_dict(eval_samples) if eval_samples else None
 
         info, snapshots = self._train_model_epochs(
             dataloader, snapshots, eval_tensors, spec
@@ -137,7 +136,7 @@ class ModelTrainingMixin:
     def _build_dataloader(
         self, train_samples: SampleBatch, spec: DataloaderSpec
     ) -> DataLoader:
-        train_tensors = self._lazy_tensor_dict(train_samples)
+        train_tensors = self.lazy_tensor_dict(train_samples)
         dataset = TensorDictDataset(
             {k: train_tensors[k] for k in self.loss_model.batch_keys}
         )
@@ -158,7 +157,7 @@ class ModelTrainingMixin:
         epoch = -1
         for epoch in self._model_epochs(spec):
             for minibatch in dataloader:
-                with self.optimizer.models.optimize():
+                with self.optimizers.optimize("models"):
                     losses, train_info = self.loss_model(minibatch)
                     losses.mean().backward()
 

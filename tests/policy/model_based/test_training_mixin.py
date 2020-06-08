@@ -7,6 +7,7 @@ import torch
 from ray.rllib import SampleBatch
 
 from raylab.policy import ModelTrainingMixin
+from raylab.policy import OptimizerCollection
 from raylab.policy import TorchPolicy
 from raylab.pytorch.optim import build_optimizer
 from raylab.utils.debug import fake_batch
@@ -27,12 +28,6 @@ class DummyLoss:
         return losses, {"loss(models)": losses.mean().item()}
 
 
-class DummyOptimizer:
-    # pylint:disable=all
-    def __init__(self, models):
-        self.models = build_optimizer(models, {"type": "Adam"})
-
-
 class DummyPolicy(ModelTrainingMixin, TorchPolicy):
     # pylint:disable=abstract-method
     def __init__(self, observation_space, action_space, config):
@@ -46,8 +41,8 @@ class DummyPolicy(ModelTrainingMixin, TorchPolicy):
             "module": {"type": "ModelBasedSAC"},
         }
 
-    def make_optimizer(self):
-        return DummyOptimizer(self.module.models)
+    def make_optimizers(self):
+        return {"models": build_optimizer(self.module.models, {"type": "Adam"})}
 
 
 @pytest.fixture(scope="module")

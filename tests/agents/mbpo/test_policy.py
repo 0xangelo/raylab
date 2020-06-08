@@ -37,4 +37,7 @@ def test_policy_creation(policy):
     assert "critics" in policy.module
     assert "alpha" in policy.module
 
-    assert len(policy.optimizer) == 4
+    assert "models" in policy.optimizers
+    assert "actor" in policy.optimizers
+    assert "critics" in policy.optimizers
+    assert "alpha" in policy.optimizers

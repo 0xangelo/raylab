@@ -1,6 +1,4 @@
 """Policy for MBPO using PyTorch."""
-import collections
-
 from ray.rllib.utils import override
 
 from raylab.agents.sac import SACTorchPolicy
@@ -34,9 +32,11 @@ class MBPOTorchPolicy(
         return DEFAULT_CONFIG
 
     @override(SACTorchPolicy)
-    def make_optimizer(self):
+    def make_optimizers(self):
         config = self.config["torch_optimizer"]
         components = "models actor critics alpha".split()
 
-        optims = {k: build_optimizer(self.module[k], config[k]) for k in components}
-        return collections.namedtuple("OptimizerCollection", components)(**optims)
+        return {
+            name: build_optimizer(self.module[name], config[name])
+            for name in components
+        }

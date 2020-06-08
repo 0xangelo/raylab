@@ -1,6 +1,5 @@
 """Trainer and configuration for SVG(inf)."""
 from ray.rllib import SampleBatch
-from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils import override
 
@@ -110,10 +109,10 @@ class SVGInfTrainer(Trainer):
         with policy.learning_off_policy():
             for _ in range(int(samples.count * self.config["updates_per_step"])):
                 batch = self.replay.sample(self.config["train_batch_size"])
-                off_policy_stats = get_learner_stats(policy.learn_on_batch(batch))
+                off_policy_stats = policy.learn_on_batch(batch)
                 self.optimizer.num_steps_trained += batch.count
         stats.update(off_policy_stats)
 
-        stats.update(get_learner_stats(policy.learn_on_batch(samples)))
+        stats.update(policy.learn_on_batch(samples))
 
         return self._log_metrics(stats)

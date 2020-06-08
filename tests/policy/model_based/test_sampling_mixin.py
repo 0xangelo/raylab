@@ -37,9 +37,6 @@ class DummyPolicy(ModelSamplingMixin, TorchPolicy):
             "seed": None,
         }
 
-    def make_optimizer(self):
-        pass
-
 
 @pytest.fixture(scope="module")
 def policy_cls(obs_space, action_space):

@@ -1,25 +1,24 @@
 """Base for all PyTorch policies."""
-import contextlib
-import io
 import textwrap
 from abc import abstractmethod
 from typing import Dict
 from typing import List
 from typing import Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
 from gym.spaces import Space
+from ray.rllib import Policy
 from ray.rllib import SampleBatch
 from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.model import flatten
 from ray.rllib.models.model import restore_original_dimensions
-from ray.rllib.policy.policy import LEARNER_STATS_KEY
-from ray.rllib.policy.policy import Policy
 from ray.rllib.utils import override
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.tune.logger import pretty_print
 from torch import Tensor
+from torch.optim import Optimizer
 
 from raylab.agents import Trainer
 from raylab.modules.catalog import get_module
@@ -27,23 +26,25 @@ from raylab.pytorch.utils import convert_to_tensor
 from raylab.utils.dictionaries import deep_merge
 
 from .action_dist import WrapModuleDist
+from .optimizer_collection import OptimizerCollection
 
 
 class TorchPolicy(Policy):
     """A Policy that uses PyTorch as a backend.
 
     Attributes:
-        device (torch.device): Device in which the parameter tensors reside.
-            All input samples will be converted to tensors and moved to this
-            device
-        module (nn.Module): The policy's neural network module. Should be
-            compilable to TorchScript
-        optimizer (Optimizer): The torch optimizer bound to the neural network
-            (or one of its submodules)
+        device: Device in which the parameter tensors reside. All input samples
+            will be converted to tensors and moved to this device
+        module: The policy's neural network module. Should be compilable to
+            TorchScript
+        optimizers: The optimizers bound to the neural network (or submodules)
     """
 
+    device: torch.device
+    module: nn.Module
+    optimizers: OptimizerCollection
+
     def __init__(self, observation_space: Space, action_space: Space, config: dict):
-        self.framework = "torch"
         config = deep_merge(
             {**self.get_default_config(), "worker_index": None},
             config,
@@ -56,20 +57,31 @@ class TorchPolicy(Policy):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.module = self.make_module(observation_space, action_space, self.config)
         self.module.to(self.device)
-        self.optimizer = self.make_optimizer()
+
+        self.optimizers = OptimizerCollection()
+        for name, optimizer in self.make_optimizers().items():
+            self.optimizers[name] = optimizer
 
         # === Policy attributes ===
-        self.exploration = self._create_exploration()
         self.dist_class = WrapModuleDist
+        self.framework = "torch"  # Needed to create exploration
+        self.exploration = self._create_exploration()
 
     @staticmethod
     @abstractmethod
     def get_default_config() -> dict:
-        """Return the default config for this policy class."""
+        """Return the default configuration for this policy class."""
 
-    @abstractmethod
-    def make_optimizer(self):
-        """PyTorch optimizer to use."""
+    def make_optimizers(self) -> Dict[str, Optimizer]:
+        """PyTorch optimizers to use.
+
+        The result will be added to the policy's optimizer collection.
+
+        Returns:
+            A mapping from names to optimizer instances.
+        """
+        # pylint:disable=no-self-use
+        return {}
 
     @staticmethod
     def make_module(obs_space: Space, action_space: Space, config: dict) -> nn.Module:
@@ -103,7 +115,7 @@ class TorchPolicy(Policy):
         explore = explore if explore is not None else self.config["explore"]
         timestep = timestep if timestep is not None else self.global_timestep
 
-        input_dict = self._lazy_tensor_dict(
+        input_dict = self.lazy_tensor_dict(
             {SampleBatch.CUR_OBS: obs_batch, "is_training": False}
         )
         if prev_action_batch:
@@ -205,7 +217,7 @@ class TorchPolicy(Policy):
         prev_reward_batch=None,
     ):
         # pylint:disable=too-many-arguments
-        input_dict = self._lazy_tensor_dict(
+        input_dict = self.lazy_tensor_dict(
             {SampleBatch.CUR_OBS: obs_batch, SampleBatch.ACTIONS: actions}
         )
         if prev_action_batch:
@@ -234,22 +246,21 @@ class TorchPolicy(Policy):
 
     @override(Policy)
     def get_weights(self):
-        buffer = io.BytesIO()
-        module_state = self.module.state_dict()
-        optim = () if self.optimizer is None else self.optimizer
-        optims = optim if isinstance(optim, tuple) else [optim]
-        torch.save([module_state] + [o.state_dict() for o in optims], buffer)
-        return buffer.getvalue()
+        state = {
+            "module": self.module.state_dict(),
+            "optimizers": self.optimizers.state_dict(),
+        }
+
+        _to_numpy_state_dict(state)
+        return state
 
     @override(Policy)
     def set_weights(self, weights):
-        buffer = io.BytesIO(weights)
-        optim = () if self.optimizer is None else self.optimizer
-        optims = optim if isinstance(optim, tuple) else [optim]
-        states = torch.load(buffer)
-        self.module.load_state_dict(states[0])
-        for optim, state in zip(optims, states[1:]):
-            optim.load_state_dict(state)
+        state = weights
+        _from_numpy_state_dict(state)
+
+        self.module.load_state_dict(state["module"])
+        self.optimizers.load_state_dict(state["optimizers"])
 
     def convert_to_tensor(self, arr) -> Tensor:
         """Convert an array to a PyTorch tensor in this policy's device.
@@ -259,29 +270,22 @@ class TorchPolicy(Policy):
         """
         return convert_to_tensor(arr, self.device)
 
-    def _lazy_tensor_dict(self, sample_batch):
+    def lazy_tensor_dict(self, sample_batch: SampleBatch) -> UsageTrackingDict:
+        """Convert a sample batch into a dictionary of lazy tensors.
+
+        The sample batch is wrapped with a UsageTrackingDict to convert array-
+        likes into tensors upon querying.
+
+        Args:
+            sample_batch: the sample batch to convert
+
+        Returns:
+            A dictionary which intercepts key queries to lazily convert arrays
+            to tensors.
+        """
         tensor_batch = UsageTrackingDict(sample_batch)
         tensor_batch.set_get_interceptor(self.convert_to_tensor)
         return tensor_batch
-
-    @staticmethod
-    def _learner_stats(info):
-        return {LEARNER_STATS_KEY: info}
-
-    @contextlib.contextmanager
-    def freeze_nets(self, *names: str):
-        """Disable gradient requirements for the desired modules in this context.
-
-        Warnings:
-            `.requires_grad_()` is incompatible with TorchScript.
-        """
-        try:
-            for name in names:
-                self.module[name].requires_grad_(False)
-            yield
-        finally:
-            for name in names:
-                self.module[name].requires_grad_(True)
 
     def __repr__(self):
         name = self.__class__.__name__
@@ -301,3 +305,19 @@ class TorchPolicy(Policy):
             args_repr = " ".join(args[1:-1])
             constructor = f"{name}({args_repr})"
         return constructor
+
+
+def _to_numpy_state_dict(mapping):
+    for key, val in mapping.items():
+        if torch.is_tensor(val):
+            mapping[key] = val.cpu().detach().numpy()
+        elif isinstance(val, dict):
+            _to_numpy_state_dict(val)
+
+
+def _from_numpy_state_dict(mapping, device=None):
+    for key, val in mapping.items():
+        if isinstance(val, np.ndarray):
+            mapping[key] = convert_to_tensor(val, device)
+        elif isinstance(val, dict):
+            _from_numpy_state_dict(val)

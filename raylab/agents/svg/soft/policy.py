@@ -1,6 +1,4 @@
 """SoftSVG policy class using PyTorch."""
-import collections
-
 import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
@@ -61,13 +59,19 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         return DEFAULT_CONFIG
 
     @override(SVGTorchPolicy)
-    def make_optimizer(self):
-        """PyTorch optimizer to use."""
+    def make_optimizers(self):
         config = self.config["torch_optimizer"]
-        components = "model actor critic alpha".split()
+        components = {
+            "model": self.module.model,
+            "actor": self.module.actor,
+            "critic": self.module.critic,
+            "alpha": self.module.alpha,
+        }
 
-        optims = {k: build_optimizer(self.module[k], config[k]) for k in components}
-        return collections.namedtuple("OptimizerCollection", components)(**optims)
+        return {
+            name: build_optimizer(module, config[name])
+            for name, module in components.items()
+        }
 
     @torch.no_grad()
     @override(SVGTorchPolicy)
@@ -93,7 +97,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
 
     @override(SVGTorchPolicy)
     def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
+        batch_tensors = self.lazy_tensor_dict(samples)
         batch_tensors, info = self.add_truncated_importance_sampling_ratios(
             batch_tensors
         )
@@ -105,10 +109,10 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
             info.update(self._update_alpha(batch_tensors))
 
         self.update_targets("critic", "target_critic")
-        return self._learner_stats(info)
+        return info
 
     def _update_model(self, batch_tensors):
-        with self.optimizer.model.optimize():
+        with self.optimizers.optimize("model"):
             model_loss, info = self.loss_model(batch_tensors)
             model_loss.backward()
 
@@ -116,7 +120,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         return info
 
     def _update_critic(self, batch_tensors):
-        with self.optimizer.critic.optimize():
+        with self.optimizers.optimize("critic"):
             value_loss, info = self.loss_critic(batch_tensors)
             value_loss.backward()
 
@@ -124,7 +128,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         return info
 
     def _update_actor(self, batch_tensors):
-        with self.optimizer.actor.optimize():
+        with self.optimizers.optimize("actor"):
             svg_loss, info = self.loss_actor(batch_tensors)
             svg_loss.backward()
 
@@ -132,7 +136,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         return info
 
     def _update_alpha(self, batch_tensors):
-        with self.optimizer.alpha.optimize():
+        with self.optimizers.optimize("alpha"):
             alpha_loss, info = self.loss_alpha(batch_tensors)
             alpha_loss.backward()
 
