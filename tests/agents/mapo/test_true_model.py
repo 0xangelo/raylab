@@ -43,7 +43,7 @@ def test_model_output(policy_and_env):
 
 def test_madpg_loss(policy_and_env):
     policy, _ = policy_and_env
-    batch = policy._lazy_tensor_dict(
+    batch = policy.lazy_tensor_dict(
         fake_batch(policy.observation_space, policy.action_space, batch_size=10)
     )
 

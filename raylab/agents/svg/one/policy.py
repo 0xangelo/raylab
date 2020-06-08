@@ -47,12 +47,18 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def make_optimizer(self):
         """PyTorch optimizer to use."""
-        optim_cls = get_optimizer_class(self.config["torch_optimizer"])
+        cls = get_optimizer_class(self.config["torch_optimizer"], wrap=True)
         options = self.config["torch_optimizer_options"]
-        params = [
-            dict(params=self.module[k].parameters(), **options[k]) for k in options
+        modules = {
+            "model": self.module.model,
+            "actor": self.module.actor,
+            "critic": self.module.critic,
+        }
+        param_groups = [
+            dict(params=mod.parameters(), **options[name])
+            for name, mod in modules.items()
         ]
-        return optim_cls(params)
+        return cls(param_groups)
 
     def update_old_policy(self):
         """Copy params of current policy into old one for future KL computation."""
@@ -60,7 +66,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
 
     @override(SVGTorchPolicy)
     def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
+        batch_tensors = self.lazy_tensor_dict(samples)
         batch_tensors, info = self.add_truncated_importance_sampling_ratios(
             batch_tensors
         )
@@ -70,21 +76,26 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             info.update(stats)
             model_value_loss.backward()
 
-            with self.freeze_nets("model", "critic"):
-                svg_loss, stats = self.loss_actor(batch_tensors)
-                info.update(stats)
-                kl_loss = self.curr_kl_coeff * self._avg_kl_divergence(batch_tensors)
-                (svg_loss + kl_loss).backward()
+            self.module.model.requires_grad_(False)
+            self.module.critic.requires_grad_(False)
+
+            svg_loss, stats = self.loss_actor(batch_tensors)
+            info.update(stats)
+            kl_loss = self.curr_kl_coeff * self._avg_kl_divergence(batch_tensors)
+            (svg_loss + kl_loss).backward()
+
+            self.module.model.requires_grad_(True)
+            self.module.critic.requires_grad_(True)
 
         info.update(self.extra_grad_info(batch_tensors))
         info.update(self.update_kl_coeff(samples))
         self.update_targets("critic", "target_critic")
-        return self._learner_stats(info)
+        return info
 
     @torch.no_grad()
     @override(AdaptiveKLCoeffMixin)
     def _kl_divergence(self, sample_batch):
-        batch_tensors = self._lazy_tensor_dict(sample_batch)
+        batch_tensors = self.lazy_tensor_dict(sample_batch)
         return self._avg_kl_divergence(batch_tensors).item()
 
     def _avg_kl_divergence(self, batch_tensors):

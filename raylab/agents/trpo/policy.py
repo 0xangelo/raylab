@@ -5,6 +5,7 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.postprocessing import compute_advantages
 from ray.rllib.evaluation.postprocessing import Postprocessing
+from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.utils import override
 from torch.nn.utils import parameters_to_vector
 from torch.nn.utils import vector_to_parameters
@@ -35,7 +36,9 @@ class TRPOTorchPolicy(TorchPolicy):
 
     @override(TorchPolicy)
     def make_optimizer(self):
-        return build_optimizer(self.module.critic, self.config["torch_optimizer"])
+        return build_optimizer(
+            self.module.critic, self.config["critic_optimizer"], wrap=True
+        )
 
     @torch.no_grad()
     @override(TorchPolicy)
@@ -64,7 +67,7 @@ class TRPOTorchPolicy(TorchPolicy):
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
+        batch_tensors = self.lazy_tensor_dict(samples)
         info = {}
 
         info.update(self._update_actor(batch_tensors))
@@ -72,7 +75,7 @@ class TRPOTorchPolicy(TorchPolicy):
         info.update(self.extra_grad_info(batch_tensors))
         info.update(self.get_exploration_info())
 
-        return self._learner_stats(info)
+        return {LEARNER_STATS_KEY: info}
 
     def _update_actor(self, batch_tensors):
         info = {}

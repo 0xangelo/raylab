@@ -31,18 +31,17 @@ OPTIMIZERS.update(
 )
 
 
-def build_optimizer(module: nn.Module, config: dict) -> Optimizer:
+def build_optimizer(module: nn.Module, config: dict, wrap: bool = False) -> Optimizer:
     """Build optimizer with the desired config and tied to a module.
 
     Args:
         module: the module to tie the optimizer to (or its parameters)
         config: mapping containing the 'type' of the optimizer and additional
             kwargs.
+        wrap: whether to wrap the class with :func:`wrap_optim_cls`.
     """
-    cls = get_optimizer_class(config["type"], wrap=True)
-    if issubclass(cls, (EKFAC, KFAC)):
-        return cls(module, **all_except(config, "type"))
-    return cls(module.parameters(), **all_except(config, "type"))
+    cls = get_optimizer_class(config["type"], wrap=wrap)
+    return link_optimizer(cls, module, all_except(config, "type"))
 
 
 def get_optimizer_class(name: str, wrap: bool = True) -> Type[Optimizer]:
@@ -50,10 +49,10 @@ def get_optimizer_class(name: str, wrap: bool = True) -> Type[Optimizer]:
 
     Args:
         name: the optimizer's name
-        wrap: whether to wrap the clas with `wrap_optim_cls`.
+        wrap: whether to wrap the class with :func:`wrap_optim_cls`.
 
     Returns:
-        The corresponding `torch.optim.Optimizer` subclass
+        The optimizer class
     """
     try:
         cls = OPTIMIZERS[name]
@@ -75,3 +74,19 @@ def wrap_optim_cls(cls: Type[Optimizer]) -> Type[Optimizer]:
             self.step()
 
     return ContextManagerOptim
+
+
+def link_optimizer(cls: Type[Optimizer], module: nn.Module, config: dict) -> Optimizer:
+    """Construct optimizer tied to a module.
+
+    Args:
+        cls: the type of the optimizer
+        module: the neural network module
+        config: options to pass to the optimizer's constructor
+
+    Returns:
+        The optimizer instance
+    """
+    if issubclass(cls, (EKFAC, KFAC)):
+        return cls(module, **config)
+    return cls(module.parameters(), **config)

@@ -1,5 +1,4 @@
 """SVG(inf) policy class using PyTorch."""
-import collections
 from contextlib import contextmanager
 
 import torch
@@ -11,6 +10,7 @@ from raylab.agents.svg import SVGTorchPolicy
 from raylab.losses import TrajectorySVG
 from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
+from raylab.policy import OptimizerCollection
 from raylab.pytorch.optim import build_optimizer
 
 
@@ -49,24 +49,26 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     def make_optimizer(self):
         """PyTorch optimizers to use."""
         config = self.config["torch_optimizer"]
-        components = ["on_policy", "off_policy"]
-        module = {
+        component_map = {
             "on_policy": self.module.actor,
             "off_policy": nn.ModuleList([self.module.model, self.module.critic]),
         }
 
-        optims = {k: build_optimizer(module[k], config[k]) for k in components}
-        return collections.namedtuple("OptimizerCollection", components)(**optims)
+        optimizer = OptimizerCollection()
+        for name, module in component_map.items():
+            optimizer.add_optimizer(name, build_optimizer(module, config[name]))
+
+        return optimizer
 
     @override(SVGTorchPolicy)
     def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
+        batch_tensors = self.lazy_tensor_dict(samples)
         if self._off_policy_learning:
             info = self._learn_off_policy(batch_tensors)
         else:
             info = self._learn_on_policy(batch_tensors, samples)
         info.update(self.extra_grad_info(batch_tensors))
-        return self._learner_stats(info)
+        return info
 
     @contextmanager
     def learning_off_policy(self):
@@ -82,19 +84,19 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             batch_tensors
         )
 
-        with self.optimizer.off_policy.optimize():
+        with self.optimizer.optimize("off_policy"):
             loss, _info = self.compute_joint_model_value_loss(batch_tensors)
             info.update(_info)
             loss.backward()
 
         self.update_targets("critic", "target_critic")
-        return self._learner_stats(info)
+        return info
 
     def _learn_on_policy(self, batch_tensors, samples):
         """Update on-policy components."""
-        episodes = [self._lazy_tensor_dict(s) for s in samples.split_by_episode()]
+        episodes = [self.lazy_tensor_dict(s) for s in samples.split_by_episode()]
 
-        with self.optimizer.on_policy.optimize():
+        with self.optimizer.optimize("on_policy"):
             loss, info = self.loss_actor(episodes)
             kl_div = self._avg_kl_divergence(batch_tensors)
             loss = loss + kl_div * self.curr_kl_coeff
@@ -106,7 +108,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     @torch.no_grad()
     @override(AdaptiveKLCoeffMixin)
     def _kl_divergence(self, sample_batch):
-        batch_tensors = self._lazy_tensor_dict(sample_batch)
+        batch_tensors = self.lazy_tensor_dict(sample_batch)
         return self._avg_kl_divergence(batch_tensors).item()
 
     def _avg_kl_divergence(self, batch_tensors):

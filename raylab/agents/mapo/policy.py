@@ -1,6 +1,4 @@
 """Policy for MAPO using PyTorch."""
-import collections
-
 import torch
 import torch.nn as nn
 from ray.rllib.utils import override
@@ -10,6 +8,7 @@ from raylab.losses import DPGAwareModelLearning
 from raylab.losses import MaximumLikelihood
 from raylab.losses import ModelAwareDPG
 from raylab.policy import EnvFnMixin
+from raylab.policy import OptimizerCollection
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
 from raylab.pytorch.optim import build_optimizer
@@ -93,8 +92,13 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
         if self.config["true_model"]:
             components = components[1:]
 
-        optims = {k: build_optimizer(self.module[k], config[k]) for k in components}
-        return collections.namedtuple("OptimizerCollection", components)(**optims)
+        optimizer = OptimizerCollection()
+        for name in components:
+            optimizer.add_optimizer(
+                name, build_optimizer(self.module[name], config[name])
+            )
+
+        return optimizer
 
     def set_transition_kernel(self, transition_kernel):
         """Use an external transition kernel to sample imaginary states."""
@@ -133,7 +137,7 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
-        batch_tensors = self._lazy_tensor_dict(samples)
+        batch_tensors = self.lazy_tensor_dict(samples)
 
         info = {}
         info.update(self._update_critic(batch_tensors))
@@ -142,32 +146,10 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
         info.update(self._update_actor(batch_tensors))
 
         self.update_targets("critics", "target_critics")
-        return self._learner_stats(info)
-
-    def learn_critic(self, samples):
-        """Update critics with samples."""
-        batch_tensors = self._lazy_tensor_dict(samples)
-        info = {}
-        info.update(self._update_critic(batch_tensors))
-        self.update_targets("critics", "target_critics")
-        return self._learner_stats(info)
-
-    def learn_model(self, samples):
-        """Update model with samples."""
-        batch_tensors = self._lazy_tensor_dict(samples)
-        info = {}
-        info.update(self._update_model(batch_tensors))
-        return self._learner_stats(info)
-
-    def learn_actor(self, samples):
-        """Update actor with samples."""
-        batch_tensors = self._lazy_tensor_dict(samples)
-        info = {}
-        info.update(self._update_actor(batch_tensors))
-        return self._learner_stats(info)
+        return info
 
     def _update_critic(self, batch_tensors):
-        with self.optimizer.critics.optimize():
+        with self.optimizer.optimize("critics"):
             critic_loss, info = self.loss_critic(batch_tensors)
             critic_loss.backward()
 
@@ -175,7 +157,7 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
         return info
 
     def _update_model(self, batch_tensors):
-        with self.optimizer.model.optimize():
+        with self.optimizer.optimize("model"):
             mle_loss, info = self.loss_mle(batch_tensors)
             info["loss(mle)"] = mle_loss.item()
 
@@ -196,7 +178,7 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
         return info
 
     def _update_actor(self, batch_tensors):
-        with self.optimizer.actor.optimize():
+        with self.optimizer.optimize("actor"):
             policy_loss, info = self.loss_actor(batch_tensors)
             policy_loss.backward()
 
