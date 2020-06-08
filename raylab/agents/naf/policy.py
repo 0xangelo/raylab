@@ -46,15 +46,15 @@ class NAFTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return super().make_module(obs_space, action_space, config)
 
     @override(TorchPolicy)
-    def make_optimizer(self):
-        return build_optimizer(
-            self.module.critics, self.config["torch_optimizer"], wrap=True
-        )
+    def make_optimizers(self):
+        return {
+            "naf": build_optimizer(self.module.critics, self.config["torch_optimizer"])
+        }
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self.lazy_tensor_dict(samples)
-        with self.optimizer.optimize():
+        with self.optimizers.optimize("naf"):
             loss, info = self.loss_fn(batch_tensors)
             loss.backward()
 

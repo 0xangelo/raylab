@@ -9,7 +9,6 @@ from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.utils import override
 
 import raylab.utils.dictionaries as dutil
-from raylab.policy import OptimizerCollection
 from raylab.policy import TorchPolicy
 from raylab.pytorch.nn.distributions import Normal
 from raylab.pytorch.optim import build_optimizer
@@ -61,23 +60,23 @@ class ACKTRTorchPolicy(TorchPolicy):
         return DEFAULT_CONFIG
 
     @override(TorchPolicy)
-    def make_optimizer(self):
-        components = "actor critic".split()
+    def make_optimizers(self):
         config = dutil.deep_merge(
-            DEFAULT_OPTIM_CONFIG, self.config["torch_optimizer"], False, [], components
+            DEFAULT_OPTIM_CONFIG,
+            self.config["torch_optimizer"],
+            False,
+            [],
+            ["actor", "critic"],
         )
         assert config["actor"]["type"] in [
             "KFAC",
             "EKFAC",
         ], "ACKTR must use optimizer with Kronecker Factored curvature estimation."
 
-        optimizer = OptimizerCollection()
-        for name in components:
-            optimizer.add_optimizer(
-                name, build_optimizer(self.module[name], config[name])
-            )
-
-        return optimizer
+        return {
+            "actor": build_optimizer(self.module.actor, config["actor"]),
+            "critic": build_optimizer(self.module.critic, config["critic"]),
+        }
 
     @torch.no_grad()
     @override(TorchPolicy)
@@ -128,12 +127,12 @@ class ACKTRTorchPolicy(TorchPolicy):
 
         # Compute whitening matrices
         n_samples = self.config["logp_samples"]
-        with self.optimizer.actor.record_stats():
+        with self.optimizers["actor"].record_stats():
             _, log_prob = self.module.actor.sample(cur_obs, (n_samples,))
             log_prob.mean().backward()
 
         # Compute surrogate loss
-        with self.optimizer.optimize("actor"):
+        with self.optimizers.optimize("actor"):
             surr_loss = -(
                 self.module.actor.log_prob(cur_obs, actions) * advantages
             ).mean()
@@ -148,7 +147,7 @@ class ACKTRTorchPolicy(TorchPolicy):
 
     def _perform_line_search(self, pol_grad, surr_loss, batch_tensors):
         # pylint:disable=too-many-locals
-        kl_clip = self.optimizer.actor.state["kl_clip"]
+        kl_clip = self.optimizers["actor"].state["kl_clip"]
         expected_improvement = sum(
             (g * p.grad.data).sum()
             for g, p in zip(pol_grad, self.module.actor.parameters())
@@ -206,9 +205,9 @@ class ACKTRTorchPolicy(TorchPolicy):
         fake_scale = torch.ones_like(value_targets)
 
         for _ in range(self.config["vf_iters"]):
-            if isinstance(self.optimizer.critic, KFACMixin):
+            if isinstance(self.optimizers["critic"], KFACMixin):
                 # Compute whitening matrices
-                with self.optimizer.critic.record_stats():
+                with self.optimizers["critic"].record_stats():
                     values = self.module.critic(cur_obs).squeeze(-1)
                     fake_samples = values + torch.randn_like(values)
                     log_prob = fake_dist.log_prob(
@@ -216,7 +215,7 @@ class ACKTRTorchPolicy(TorchPolicy):
                     )
                     log_prob.mean().backward()
 
-            with self.optimizer.optimize("critic"):
+            with self.optimizers.optimize("critic"):
                 mse_loss = mse(self.module.critic(cur_obs).squeeze(-1), value_targets)
                 mse_loss.backward()
 

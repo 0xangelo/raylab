@@ -5,7 +5,6 @@ from ray.rllib.utils import override
 
 from raylab.losses import ClippedDoubleQLearning
 from raylab.losses import DeterministicPolicyGradient
-from raylab.policy import OptimizerCollection
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
 from raylab.pytorch.optim import build_optimizer
@@ -51,17 +50,14 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return super().make_module(obs_space, action_space, config)
 
     @override(TorchPolicy)
-    def make_optimizer(self):
+    def make_optimizers(self):
         config = self.config["torch_optimizer"]
         components = "actor critics".split()
 
-        optimizer = OptimizerCollection()
-        for name in components:
-            optimizer.add_optimizer(
-                name, build_optimizer(self.module[name], config[name])
-            )
-
-        return optimizer
+        return {
+            name: build_optimizer(self.module[name], config[name])
+            for name in components
+        }
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
@@ -75,17 +71,17 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return info
 
     def _update_critic(self, batch_tensors):
-        with self.optimizer.optimize("critics"):
-            critic_loss, info = self.loss_critic(batch_tensors)
-            critic_loss.backward()
+        with self.optimizers.optimize("critics"):
+            loss, info = self.loss_critic(batch_tensors)
+            loss.backward()
 
         info.update(self.extra_grad_info("critics"))
         return info
 
     def _update_policy(self, batch_tensors):
-        with self.optimizer.optimize("actor"):
-            policy_loss, info = self.loss_actor(batch_tensors)
-            policy_loss.backward()
+        with self.optimizers.optimize("actor"):
+            loss, info = self.loss_actor(batch_tensors)
+            loss.backward()
 
         info.update(self.extra_grad_info("actor"))
         return info

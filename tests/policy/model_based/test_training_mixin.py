@@ -41,12 +41,8 @@ class DummyPolicy(ModelTrainingMixin, TorchPolicy):
             "module": {"type": "ModelBasedSAC"},
         }
 
-    def make_optimizer(self):
-        optimizer = OptimizerCollection()
-        optimizer.add_optimizer(
-            "models", build_optimizer(self.module.models, {"type": "Adam"})
-        )
-        return optimizer
+    def make_optimizers(self):
+        return {"models": build_optimizer(self.module.models, {"type": "Adam"})}
 
 
 @pytest.fixture(scope="module")

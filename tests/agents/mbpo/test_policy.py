@@ -37,8 +37,7 @@ def test_policy_creation(policy):
     assert "critics" in policy.module
     assert "alpha" in policy.module
 
-    optim = policy.optimizer
-    assert hasattr(optim, "models")
-    assert hasattr(optim, "actor")
-    assert hasattr(optim, "critics")
-    assert hasattr(optim, "alpha")
+    assert "models" in policy.optimizers
+    assert "actor" in policy.optimizers
+    assert "critics" in policy.optimizers
+    assert "alpha" in policy.optimizers

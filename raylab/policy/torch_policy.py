@@ -4,7 +4,6 @@ from abc import abstractmethod
 from typing import Dict
 from typing import List
 from typing import Tuple
-from typing import Union
 
 import numpy as np
 import torch
@@ -27,7 +26,7 @@ from raylab.pytorch.utils import convert_to_tensor
 from raylab.utils.dictionaries import deep_merge
 
 from .action_dist import WrapModuleDist
-from .torch_optimizer import OptimizerCollection
+from .optimizer_collection import OptimizerCollection
 
 
 class TorchPolicy(Policy):
@@ -38,16 +37,14 @@ class TorchPolicy(Policy):
             will be converted to tensors and moved to this device
         module: The policy's neural network module. Should be compilable to
             TorchScript
-        optimizer: The torch Optimizer/OptimizerCollection bound to the neural
-            network (or its submodules)
+        optimizers: The optimizers bound to the neural network (or submodules)
     """
 
     device: torch.device
     module: nn.Module
-    optimizer: Union[OptimizerCollection, Optimizer, None]
+    optimizers: OptimizerCollection
 
     def __init__(self, observation_space: Space, action_space: Space, config: dict):
-        self.framework = "torch"
         config = deep_merge(
             {**self.get_default_config(), "worker_index": None},
             config,
@@ -60,20 +57,31 @@ class TorchPolicy(Policy):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.module = self.make_module(observation_space, action_space, self.config)
         self.module.to(self.device)
-        self.optimizer = self.make_optimizer()
+
+        self.optimizers = OptimizerCollection()
+        for name, optimizer in self.make_optimizers().items():
+            self.optimizers[name] = optimizer
 
         # === Policy attributes ===
-        self.exploration = self._create_exploration()
         self.dist_class = WrapModuleDist
+        self.framework = "torch"  # Needed to create exploration
+        self.exploration = self._create_exploration()
 
     @staticmethod
     @abstractmethod
     def get_default_config() -> dict:
         """Return the default configuration for this policy class."""
 
-    @abstractmethod
-    def make_optimizer(self) -> Union[OptimizerCollection, Optimizer, None]:
-        """PyTorch optimizer to use."""
+    def make_optimizers(self) -> Dict[str, Optimizer]:
+        """PyTorch optimizers to use.
+
+        The result will be added to the policy's optimizer collection.
+
+        Returns:
+            A mapping from names to optimizer instances.
+        """
+        # pylint:disable=no-self-use
+        return {}
 
     @staticmethod
     def make_module(obs_space: Space, action_space: Space, config: dict) -> nn.Module:
@@ -238,25 +246,21 @@ class TorchPolicy(Policy):
 
     @override(Policy)
     def get_weights(self):
-        state = [self.module.state_dict()]
-        if self.optimizer:
-            state += [self.optimizer.state_dict()]
+        state = {
+            "module": self.module.state_dict(),
+            "optimizers": self.optimizers.state_dict(),
+        }
 
-        for state_dict in state:
-            _to_numpy_state_dict(state_dict)
-
+        _to_numpy_state_dict(state)
         return state
 
     @override(Policy)
     def set_weights(self, weights):
         state = weights
+        _from_numpy_state_dict(state)
 
-        for state_dict in state:
-            _from_numpy_state_dict(state_dict, self.device)
-
-        self.module.load_state_dict(state[0])
-        if self.optimizer:
-            self.optimizer.load_state_dict(state[1])
+        self.module.load_state_dict(state["module"])
+        self.optimizers.load_state_dict(state["optimizers"])
 
     def convert_to_tensor(self, arr) -> Tensor:
         """Convert an array to a PyTorch tensor in this policy's device.

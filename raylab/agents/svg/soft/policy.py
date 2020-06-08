@@ -9,7 +9,6 @@ from raylab.losses import ISSoftVIteration
 from raylab.losses import MaximumEntropyDual
 from raylab.losses import OneStepSoftSVG
 from raylab.policy import EnvFnMixin
-from raylab.policy import OptimizerCollection
 from raylab.pytorch.optim import build_optimizer
 
 
@@ -60,7 +59,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         return DEFAULT_CONFIG
 
     @override(SVGTorchPolicy)
-    def make_optimizer(self):
+    def make_optimizers(self):
         config = self.config["torch_optimizer"]
         components = {
             "model": self.module.model,
@@ -69,11 +68,10 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
             "alpha": self.module.alpha,
         }
 
-        optimizer = OptimizerCollection()
-        for name, module in components.items():
-            optimizer.add_optimizer(name, build_optimizer(module, config[name]))
-
-        return optimizer
+        return {
+            name: build_optimizer(module, config[name])
+            for name, module in components.items()
+        }
 
     @torch.no_grad()
     @override(SVGTorchPolicy)
@@ -114,7 +112,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         return info
 
     def _update_model(self, batch_tensors):
-        with self.optimizer.optimize("model"):
+        with self.optimizers.optimize("model"):
             model_loss, info = self.loss_model(batch_tensors)
             model_loss.backward()
 
@@ -122,7 +120,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         return info
 
     def _update_critic(self, batch_tensors):
-        with self.optimizer.optimize("critic"):
+        with self.optimizers.optimize("critic"):
             value_loss, info = self.loss_critic(batch_tensors)
             value_loss.backward()
 
@@ -130,7 +128,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         return info
 
     def _update_actor(self, batch_tensors):
-        with self.optimizer.optimize("actor"):
+        with self.optimizers.optimize("actor"):
             svg_loss, info = self.loss_actor(batch_tensors)
             svg_loss.backward()
 
@@ -138,7 +136,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         return info
 
     def _update_alpha(self, batch_tensors):
-        with self.optimizer.optimize("alpha"):
+        with self.optimizers.optimize("alpha"):
             alpha_loss, info = self.loss_alpha(batch_tensors)
             alpha_loss.backward()
 

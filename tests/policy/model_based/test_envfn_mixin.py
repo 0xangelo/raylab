@@ -17,9 +17,6 @@ class DummyPolicy(EnvFnMixin, TorchPolicy):
     def get_default_config():
         return {"module": {"type": "OnPolicyActorCritic"}}
 
-    def make_optimizer(self):
-        pass
-
 
 @pytest.fixture
 def reward_fn():

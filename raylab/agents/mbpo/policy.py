@@ -6,7 +6,6 @@ from raylab.losses import ModelEnsembleMLE
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelSamplingMixin
 from raylab.policy import ModelTrainingMixin
-from raylab.policy import OptimizerCollection
 from raylab.pytorch.optim import build_optimizer
 
 
@@ -33,14 +32,11 @@ class MBPOTorchPolicy(
         return DEFAULT_CONFIG
 
     @override(SACTorchPolicy)
-    def make_optimizer(self):
+    def make_optimizers(self):
         config = self.config["torch_optimizer"]
         components = "models actor critics alpha".split()
 
-        optimizer = OptimizerCollection()
-        for name in components:
-            optimizer.add_optimizer(
-                name, build_optimizer(self.module[name], config[name])
-            )
-
-        return optimizer
+        return {
+            name: build_optimizer(self.module[name], config[name])
+            for name in components
+        }

@@ -10,7 +10,6 @@ from raylab.agents.svg import SVGTorchPolicy
 from raylab.losses import TrajectorySVG
 from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
-from raylab.policy import OptimizerCollection
 from raylab.pytorch.optim import build_optimizer
 
 
@@ -46,7 +45,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
         return DEFAULT_CONFIG
 
     @override(SVGTorchPolicy)
-    def make_optimizer(self):
+    def make_optimizers(self):
         """PyTorch optimizers to use."""
         config = self.config["torch_optimizer"]
         component_map = {
@@ -54,11 +53,10 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             "off_policy": nn.ModuleList([self.module.model, self.module.critic]),
         }
 
-        optimizer = OptimizerCollection()
-        for name, module in component_map.items():
-            optimizer.add_optimizer(name, build_optimizer(module, config[name]))
-
-        return optimizer
+        return {
+            name: build_optimizer(module, config[name])
+            for name, module in component_map.items()
+        }
 
     @override(SVGTorchPolicy)
     def learn_on_batch(self, samples):
@@ -84,7 +82,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             batch_tensors
         )
 
-        with self.optimizer.optimize("off_policy"):
+        with self.optimizers.optimize("off_policy"):
             loss, _info = self.compute_joint_model_value_loss(batch_tensors)
             info.update(_info)
             loss.backward()
@@ -96,7 +94,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
         """Update on-policy components."""
         episodes = [self.lazy_tensor_dict(s) for s in samples.split_by_episode()]
 
-        with self.optimizer.optimize("on_policy"):
+        with self.optimizers.optimize("on_policy"):
             loss, info = self.loss_actor(episodes)
             kl_div = self._avg_kl_divergence(batch_tensors)
             loss = loss + kl_div * self.curr_kl_coeff

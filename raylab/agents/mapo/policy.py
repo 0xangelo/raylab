@@ -8,7 +8,6 @@ from raylab.losses import DPGAwareModelLearning
 from raylab.losses import MaximumLikelihood
 from raylab.losses import ModelAwareDPG
 from raylab.policy import EnvFnMixin
-from raylab.policy import OptimizerCollection
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
 from raylab.pytorch.optim import build_optimizer
@@ -86,19 +85,16 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
         return super().make_module(obs_space, action_space, config)
 
     @override(TorchPolicy)
-    def make_optimizer(self):
+    def make_optimizers(self):
         config = self.config["torch_optimizer"]
         components = "model actor critics".split()
         if self.config["true_model"]:
             components = components[1:]
 
-        optimizer = OptimizerCollection()
-        for name in components:
-            optimizer.add_optimizer(
-                name, build_optimizer(self.module[name], config[name])
-            )
-
-        return optimizer
+        return {
+            name: build_optimizer(self.module[name], config[name])
+            for name in components
+        }
 
     def set_transition_kernel(self, transition_kernel):
         """Use an external transition kernel to sample imaginary states."""
@@ -149,7 +145,7 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
         return info
 
     def _update_critic(self, batch_tensors):
-        with self.optimizer.optimize("critics"):
+        with self.optimizers.optimize("critics"):
             critic_loss, info = self.loss_critic(batch_tensors)
             critic_loss.backward()
 
@@ -157,7 +153,7 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
         return info
 
     def _update_model(self, batch_tensors):
-        with self.optimizer.optimize("model"):
+        with self.optimizers.optimize("model"):
             mle_loss, info = self.loss_mle(batch_tensors)
             info["loss(mle)"] = mle_loss.item()
 
@@ -178,7 +174,7 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
         return info
 
     def _update_actor(self, batch_tensors):
-        with self.optimizer.optimize("actor"):
+        with self.optimizers.optimize("actor"):
             policy_loss, info = self.loss_actor(batch_tensors)
             policy_loss.backward()
 

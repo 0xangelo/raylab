@@ -45,7 +45,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
         return super().make_module(obs_space, action_space, config)
 
     @override(SVGTorchPolicy)
-    def make_optimizer(self):
+    def make_optimizers(self):
         """PyTorch optimizer to use."""
         cls = get_optimizer_class(self.config["torch_optimizer"], wrap=True)
         options = self.config["torch_optimizer_options"]
@@ -58,7 +58,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             dict(params=mod.parameters(), **options[name])
             for name, mod in modules.items()
         ]
-        return cls(param_groups)
+        return {"all": cls(param_groups)}
 
     def update_old_policy(self):
         """Copy params of current policy into old one for future KL computation."""
@@ -71,7 +71,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             batch_tensors
         )
 
-        with self.optimizer.optimize():
+        with self.optimizers.optimize("all"):
             model_value_loss, stats = self.compute_joint_model_value_loss(batch_tensors)
             info.update(stats)
             model_value_loss.backward()
