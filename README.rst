@@ -111,20 +111,20 @@ For a high-level description of the available utilities, run `raylab --help`
 
 .. code:: bash
 
-          Usage: raylab [OPTIONS] COMMAND [ARGS]...
+	  Usage: raylab [OPTIONS] COMMAND [ARGS]...
 
-          RayLab: Reinforcement learning algorithms in RLlib.
+	  RayLab: Reinforcement learning algorithms in RLlib.
 
-          Options:
-            --help  Show this message and exit.
+	  Options:
+	  --help  Show this message and exit.
 
-            Commands:
-              dashboard    Launch the experiment dashboard to monitor training progress.
-              experiment   Launch a Tune experiment from a config file.
-              find-best    Find the best experiment checkpoint as measured by a metric.
-              plot         Draw lineplots of the relevant variables and display them on...
-              plot-export  Draw lineplots of the relevant variables and save them as...
-              rollout      Simulate an agent from a given checkpoint in the desired...
+	  Commands:
+	  dashboard    Launch the experiment dashboard to monitor training progress.
+	  episodes     Launch the episode dashboard to monitor state and action...
+	  experiment   Launch a Tune experiment from a config file.
+	  find-best    Find the best experiment checkpoint as measured by a metric.
+	  rollout      Wrap `rllib rollout` with customized options.
+	  test-module  Launch dashboard to test generative models from a checkpoint.
 
 
 Packages
@@ -136,14 +136,12 @@ The project is structured as follows
     raylab
     ├── agents            # Trainer and Policy classes
     ├── cli               # Command line utilities
-    ├── distributions     # Extendend and additional PyTorch distributions
-    ├── envs              # Gym environments
+    ├── envs              # Gym environment registry and utilities
+    ├── losses            # RL loss functions
     ├── logger            # Tune loggers
     ├── modules           # PyTorch neural network modules for algorithms
-        ├── basic         # Building blocks for neural networks
-        ├── flows         # Normalizing Flow modules
-        ├── distributions # TorchScript compatible distribution modules
     ├── policy            # Extensions and customizations of RLlib's policy API
+    ├── pytorch           # PyTorch extensions
     ├── utils             # miscellaneous utilities
 
 
