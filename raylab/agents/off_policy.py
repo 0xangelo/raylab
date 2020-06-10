@@ -1,5 +1,4 @@
 # pylint: disable=missing-module-docstring
-from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.utils import override
 
 from raylab.agents import Trainer
@@ -62,7 +61,7 @@ class OffPolicyTrainer(Trainer):
             self._before_replay_steps(policy)
             for _ in range(samples.count):
                 batch = self.replay.sample(self.config["train_batch_size"])
-                stats = get_learner_stats(policy.learn_on_batch(batch))
+                stats.update(policy.learn_on_batch(batch))
                 self.tracker.num_steps_trained += batch.count
 
         self.tracker.num_steps_sampled += start_samples

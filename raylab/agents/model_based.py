@@ -4,7 +4,6 @@ from typing import List
 from typing import Tuple
 
 from ray.rllib import SampleBatch
-from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.utils import override
 
 from raylab.agents.off_policy import OffPolicyTrainer
@@ -172,7 +171,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
             if model_batch_size:
                 samples += [self.virtual_replay.sample(model_batch_size)]
             batch = SampleBatch.concat_samples(samples)
-            stats = get_learner_stats(policy.learn_on_batch(batch))
+            stats.update(policy.learn_on_batch(batch))
             self.tracker.num_steps_trained += batch.count
 
         stats.update(policy.get_exploration_info())
