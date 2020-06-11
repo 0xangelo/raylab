@@ -8,9 +8,11 @@ def fake_space_samples(space, batch_size):
     """Create fake samples from a Gym space."""
     if isinstance(space, spaces.Box):
         shape = (batch_size,) + space.shape
-        return np.clip(np.random.randn(*shape), space.low, space.high)
+        randn = np.random.randn(*shape)
+        return np.clip(randn, space.low, space.high).astype(space.dtype)
     if isinstance(space, spaces.Discrete):
-        return np.random.randint(space.n, size=batch_size)
+        randint = np.random.randint(space.n, size=batch_size)
+        return randint.astype(space.dtype)
     raise ValueError(f"Unsupported space type {type(space)}")
 
 
@@ -19,7 +21,7 @@ def fake_batch(obs_space, action_space, batch_size=1):
     samples = {
         SampleBatch.CUR_OBS: fake_space_samples(obs_space, batch_size),
         SampleBatch.ACTIONS: fake_space_samples(action_space, batch_size),
-        SampleBatch.REWARDS: np.random.randn(batch_size),
+        SampleBatch.REWARDS: np.random.randn(batch_size).astype(np.float32),
         SampleBatch.NEXT_OBS: fake_space_samples(obs_space, batch_size),
         SampleBatch.DONES: np.random.randn(batch_size) > 0,
     }
