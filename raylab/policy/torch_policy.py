@@ -98,6 +98,14 @@ class TorchPolicy(Policy):
         """
         return get_module(obs_space, action_space, config["module"])
 
+    def compile(self):
+        """Optimize modules with TorchScript.
+
+        Warnings:
+            This action cannot be undone.
+        """
+        self.module = torch.jit.script(self.module)
+
     @torch.no_grad()
     @override(Policy)
     def compute_actions(

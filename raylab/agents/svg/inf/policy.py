@@ -24,10 +24,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
         self._off_policy_learning = False
 
         self.loss_actor = TrajectorySVG(
-            self.module.model,
-            self.module.actor,
-            self.module.critic,
-            torch_script=self.config["module"].get("torch_script", False),
+            self.module.model, self.module.actor, self.module.critic,
         )
 
     @override(EnvFnMixin)
@@ -57,6 +54,11 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             name: build_optimizer(module, config[name])
             for name, module in component_map.items()
         }
+
+    @override(SVGTorchPolicy)
+    def compile(self):
+        super().compile()
+        self.loss_actor.compile()
 
     @override(SVGTorchPolicy)
     def learn_on_batch(self, samples):

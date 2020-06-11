@@ -7,7 +7,9 @@ from typing import List
 from typing import Optional
 from typing import Union
 
+from ray.rllib.agents import with_common_config as with_rllib_config
 from ray.rllib.agents.trainer import Trainer as _Trainer
+from ray.rllib.agents.trainer import with_base_config
 from ray.rllib.evaluation.metrics import collect_episodes
 from ray.rllib.evaluation.metrics import summarize_episodes
 from ray.rllib.evaluation.worker_set import WorkerSet
@@ -16,6 +18,20 @@ from ray.rllib.utils import override
 
 _Trainer._allow_unknown_subkeys += ["module", "torch_optimizer"]
 _Trainer._override_all_subkeys_if_type_changes += ["module"]
+
+
+BASE_CONFIG = with_rllib_config(
+    {
+        # === Policy ===
+        # Whether to optimize the policy's backend
+        "compile_policy": False
+    }
+)
+
+
+def with_common_config(extra_config: dict) -> dict:
+    """Returns the given config dict merged with common agent confs."""
+    return with_base_config(BASE_CONFIG, extra_config)
 
 
 @dataclass
@@ -107,8 +123,8 @@ class Trainer(_Trainer, metaclass=ABCMeta):
     workers: Optional[WorkerSet]
     tracker: Union[StatsTracker, PolicyOptimizer]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def _setup(self, *args, **kwargs):
+        super()._setup(*args, **kwargs)
         if hasattr(self, "tracker"):
             pass
         elif hasattr(self, "optimizer"):
@@ -117,6 +133,18 @@ class Trainer(_Trainer, metaclass=ABCMeta):
             self.tracker = StatsTracker(self.workers)
         else:
             self.tracker = StatsTracker()
+
+        if self.config["compile_policy"]:
+            if hasattr(self, "workers"):
+                workers = self.workers
+            elif hasattr(self, "tracker") and hasattr(self.tracker, "workers"):
+                workers = self.tracker.workers
+            else:
+                raise RuntimeError(
+                    f"{type(self).__name__} has no worker set. "
+                    "Cannot access policies for compilation."
+                )
+            workers.foreach_policy(lambda p, _: p.compile())
 
     @override(_Trainer)
     def train(self):

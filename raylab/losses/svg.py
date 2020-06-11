@@ -117,29 +117,26 @@ class TrajectorySVG:
         model: model that reproduces state and its log density
         actor: policy that reproduces action and its log density
         critic: state-value function
-        torch_script (bool): whether to compile the rollout module to TorchScript
     """
 
     IS_RATIOS = "is_ratios"
 
     def __init__(
-        self,
-        model: StochasticModel,
-        actor: StochasticPolicy,
-        critic: StateValue,
-        torch_script: bool,
+        self, model: StochasticModel, actor: StochasticPolicy, critic: StateValue,
     ):
         self.model = model
         self.actor = actor
         self.critic = critic
-        self._torch_script = torch_script
 
         self._rollout = None
 
     def set_reward_fn(self, function: RewardFn):
         """Set reward function to provided callable."""
-        rollout = ReproduceRewards(self.actor, self.model, function)
-        self._rollout = torch.jit.script(rollout) if self._torch_script else rollout
+        self._rollout = ReproduceRewards(self.actor, self.model, function)
+
+    def compile(self):
+        """Compile the rollout module to TorchScript."""
+        self._rollout = torch.jit.script(self._rollout)
 
     def __call__(
         self, episodes: List[Dict[str, Tensor]]

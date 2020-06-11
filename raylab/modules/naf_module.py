@@ -15,9 +15,6 @@ from .mixins import DeterministicPolicy
 
 
 BASE_CONFIG = {
-    # === Module Optimization ===
-    # Whether to convert the module to a ScriptModule for faster inference
-    "torch_script": False,
     "double_q": False,
     "encoder": {
         "units": (32, 32),

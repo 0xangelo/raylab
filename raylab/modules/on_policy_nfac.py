@@ -6,7 +6,7 @@ from .mixins import NormalizingFlowActorMixin
 from .mixins import StateValueMixin
 
 
-BASE_CONFIG = {"torch_script": True, "actor": {}, "critic": {}}
+BASE_CONFIG = {"actor": {}, "critic": {}}
 
 
 class OnPolicyNFAC(NormalizingFlowActorMixin, StateValueMixin, AbstractActorCritic):

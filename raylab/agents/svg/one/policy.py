@@ -1,4 +1,6 @@
 """SVG(1) policy class using PyTorch."""
+import warnings
+
 import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
@@ -8,6 +10,7 @@ from raylab.agents.svg import SVGTorchPolicy
 from raylab.losses import OneStepSVG
 from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
+from raylab.policy import TorchPolicy
 from raylab.pytorch.optim import get_optimizer_class
 
 
@@ -59,6 +62,10 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             for name, mod in modules.items()
         ]
         return {"all": cls(param_groups)}
+
+    @override(TorchPolicy)
+    def compile(self):
+        warnings.warn(f"{type(self).__name__} is incompatible with TorchScript")
 
     def update_old_policy(self):
         """Copy params of current policy into old one for future KL computation."""

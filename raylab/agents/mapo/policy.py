@@ -19,9 +19,6 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
     # pylint: disable=abstract-method
 
     def __init__(self, observation_space, action_space, config):
-        assert (
-            config.get("module", {}).get("torch_script", False) is False
-        ), "MAPO uses operations incompatible with TorchScript."
         super().__init__(observation_space, action_space, config)
 
         self.loss_daml = DPGAwareModelLearning(
@@ -62,6 +59,11 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
         self.loss_daml.set_reward_fn(self.reward_fn)
         self.loss_actor.set_reward_fn(self.reward_fn)
 
+    @override(EnvFnMixin)
+    def set_dynamics_from_callable(self, function):
+        super().set_dynamics_from_callable(function)
+        self.setup_madpg(self.dynamics_fn)
+
     @staticmethod
     @override(TorchPolicy)
     def get_default_config():
@@ -96,17 +98,14 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
             for name in components
         }
 
-    def set_transition_kernel(self, transition_kernel):
-        """Use an external transition kernel to sample imaginary states."""
-        torch_script = self.config["module"]["torch_script"]
-        transition = EnvTransition(
-            self.observation_space,
-            self.action_space,
-            transition_kernel,
-            torch_script=torch_script,
-        )
-        transition = torch.jit.script(transition) if torch_script else transition
-        self.setup_madpg(transition)
+    @override(TorchPolicy)
+    def compile(self):
+        super().compile()
+        if self.dynamics_fn:
+            obs = torch.randn(self.observation_space.shape)[None]
+            act = torch.randn(self.action_space.shape)[None]
+            self.dynamics_fn = torch.jit.trace(self.dynamics_fn, (obs, act))
+            self.loss_actor.set_model(self.dynamics_fn)
 
     def setup_madpg(self, model):
         """Verify and use model for Model-Aware DPG."""
@@ -190,19 +189,3 @@ class MAPOTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
                 self.config["max_grad_norm"][component],
             ).item()
         }
-
-
-class EnvTransition(nn.Module):
-    """Wrapper module around existing env transition function."""
-
-    def __init__(self, obs_space, action_space, transition_kernel, torch_script=False):
-        super().__init__()
-        if torch_script:
-            obs = torch.as_tensor(obs_space.sample())[None]
-            action = torch.as_tensor(action_space.sample())[None]
-            transition_kernel = torch.jit.trace(transition_kernel, (obs, action))
-        self.transition_kernel = transition_kernel
-
-    @override(nn.Module)
-    def forward(self, obs, action):  # pylint:disable=arguments-differ
-        return self.transition_kernel(obs, action)

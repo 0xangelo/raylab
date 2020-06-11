@@ -8,6 +8,9 @@ from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 BASE_CONFIG = with_common_config(
     {
+        # === Policy ===
+        # Whether to optimize the policy's backend
+        "compile_policy": False,
         # === Replay buffer ===
         # Size of the replay buffer.
         "buffer_size": 500000,

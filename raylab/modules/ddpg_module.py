@@ -7,7 +7,6 @@ from .mixins import DeterministicActorMixin
 
 
 BASE_CONFIG = {
-    "torch_script": False,
     "actor": {
         # === Twin Delayed DDPG (TD3) tricks ===
         # Add gaussian noise to the action when calculating the target Q function

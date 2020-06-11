@@ -5,11 +5,11 @@ import functools
 import pytest
 import ray
 from ray.rllib import Policy
-from ray.rllib.agents import with_common_config
 from ray.rllib.optimizers import PolicyOptimizer
 
 from raylab.agents.trainer import StatsTracker
 from raylab.agents.trainer import Trainer
+from raylab.agents.trainer import with_common_config
 
 from ..mock_env import MockEnv
 

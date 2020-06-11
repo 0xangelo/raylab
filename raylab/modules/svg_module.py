@@ -8,7 +8,6 @@ from .mixins import SVGModelMixin
 
 
 BASE_CONFIG = {
-    "torch_script": False,
     "replay_kl": False,
     "actor": {
         "encoder": {

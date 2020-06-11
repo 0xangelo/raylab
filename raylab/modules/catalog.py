@@ -1,5 +1,4 @@
 """Registry of modules for PyTorch policies."""
-import torch
 
 from .ddpg_module import DDPGModule
 from .mapo_module import MAPOModule
@@ -37,6 +36,5 @@ MODULES = {
 def get_module(obs_space, action_space, config):
     """Retrieve and construct module of given name."""
     type_ = config.pop("type")
-    torch_script = config.get("torch_script")
     module = MODULES[type_](obs_space, action_space, config)
-    return torch.jit.script(module) if torch_script else module
+    return module
