@@ -16,12 +16,14 @@ from raylab.utils.annotations import RewardFn
 from raylab.utils.annotations import StateValue
 from raylab.utils.dictionaries import get_keys
 
+from .abstract import Loss
+
 
 StateRepr = Callable[[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor]]
 ActionRepr = Callable[[Tensor, Tensor], Tuple[Tensor, Tensor]]
 
 
-class OneStepSVG:
+class OneStepSVG(Loss):
     """Loss function for Stochastic Value Gradients with 1-step bootstrapping.
 
     Args:
@@ -40,6 +42,14 @@ class OneStepSVG:
         self.actor = actor
         self.critic = critic
         self.gamma = gamma
+
+        self.batch_keys = (
+            SampleBatch.CUR_OBS,
+            SampleBatch.ACTIONS,
+            SampleBatch.NEXT_OBS,
+            SampleBatch.DONES,
+            self.IS_RATIOS,
+        )
 
         self._reward_fn = None
 
@@ -87,11 +97,9 @@ class OneStepSoftSVG(OneStepSVG):
         gamma: discount factor
     """
 
-    # pylint:disable=too-few-public-methods
-
-    def __init__(self, *args, alpha: Callable[[], Tensor], **config):
+    def __init__(self, *args, alpha: Callable[[], Tensor], **kwargs):
         # pylint:disable=too-many-arguments
-        super().__init__(*args, **config)
+        super().__init__(*args, **kwargs)
         self.alpha = alpha
 
     @override(OneStepSVG)
@@ -110,7 +118,7 @@ class OneStepSoftSVG(OneStepSVG):
         )
 
 
-class TrajectorySVG:
+class TrajectorySVG(Loss):
     """Loss function for Stochastic Value Gradients on full trajectory.
 
     Args:
@@ -119,7 +127,11 @@ class TrajectorySVG:
         critic: state-value function
     """
 
-    IS_RATIOS = "is_ratios"
+    batch_keys = (
+        SampleBatch.CUR_OBS,
+        SampleBatch.ACTIONS,
+        SampleBatch.NEXT_OBS,
+    )
 
     def __init__(
         self, model: StochasticModel, actor: StochasticPolicy, critic: StateValue,

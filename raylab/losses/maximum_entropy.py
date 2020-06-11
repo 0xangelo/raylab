@@ -1,21 +1,34 @@
 """Loss functions for dual variables in maximum entropy RL."""
+from typing import Callable
+
 import torch
 from ray.rllib import SampleBatch
+from torch import Tensor
+
+from raylab.utils.annotations import StochasticPolicy
+
+from .abstract import Loss
 
 
-class MaximumEntropyDual:
+class MaximumEntropyDual(Loss):
     """Loss function for the entropy coefficient in maximum entropy RL.
 
     Args:
-        alpha (callable): entropy coefficient
-        actor (callable): stochastic policy
-        target_entropy (float): minimum entropy for policy
+        alpha: entropy coefficient
+        actor: stochastic policy
+        target_entropy: minimum entropy for policy
     """
 
     # pylint:disable=too-few-public-methods
     ENTROPY = "entropy"
+    batch_keys = ("entropy", SampleBatch.CUR_OBS)
 
-    def __init__(self, alpha, actor, target_entropy):
+    def __init__(
+        self,
+        alpha: Callable[[], Tensor],
+        actor: StochasticPolicy,
+        target_entropy: float,
+    ):
         self.alpha = alpha
         self.actor = actor
         self.target_entropy = target_entropy

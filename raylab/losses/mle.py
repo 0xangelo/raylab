@@ -10,15 +10,21 @@ from torch import Tensor
 from raylab.modules.mixins.stochastic_model_mixin import StochasticModel
 from raylab.utils.dictionaries import get_keys
 
+from .abstract import Loss
 
-class MaximumLikelihood:
+
+class MaximumLikelihood(Loss):
     """Loss function for model learning of single transitions.
 
     Args:
         model: parametric stochastic model
     """
 
-    batch_keys = (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, SampleBatch.NEXT_OBS)
+    batch_keys: Tuple[str, str, str] = (
+        SampleBatch.CUR_OBS,
+        SampleBatch.ACTIONS,
+        SampleBatch.NEXT_OBS,
+    )
 
     def __init__(self, model: StochasticModel):
         self.model = model
@@ -41,12 +47,14 @@ class MaximumLikelihood:
         return self.model.log_prob(obs, actions, next_obs)
 
 
-class ModelEnsembleMLE:
+class ModelEnsembleMLE(Loss):
     """MLE loss function for ensemble of models.
 
+    Args:
+        models: the list of models
     """
 
-    batch_keys = MaximumLikelihood.batch_keys
+    batch_keys: Tuple[str, str, str] = MaximumLikelihood.batch_keys
 
     def __init__(self, models: List[StochasticModel]):
         self.models = models

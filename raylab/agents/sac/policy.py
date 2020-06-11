@@ -24,7 +24,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         self.loss_critic = SoftCDQLearning(
             self.module.critics,
             self.module.target_critics,
-            self.module.actor,
+            self.module.actor.sample,
             gamma=self.config["gamma"],
             alpha=self.module.alpha,
         )
