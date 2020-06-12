@@ -5,6 +5,7 @@ from .cdq_learning import SoftCDQLearning
 from .daml import DPGAwareModelLearning
 from .isfv_iteration import ISFittedVIteration
 from .isfv_iteration import ISSoftVIteration
+from .mage import MAGE
 from .maximum_entropy import MaximumEntropyDual
 from .mle import MaximumLikelihood
 from .mle import ModelEnsembleMLE
@@ -23,6 +24,7 @@ __all__ = [
     "ISFittedVIteration",
     "ISSoftVIteration",
     "MaximumEntropyDual",
+    "MAGE",
     "MaximumLikelihood",
     "ModelAwareDPG",
     "ModelEnsembleMLE",
