@@ -69,6 +69,9 @@ class MAGE(Loss):
         self.gamma = 0.99
         self.lambda_ = 0.05
 
+    def compile(self):
+        self._modules = torch.jit.script(self._modules)
+
     def seed(self, seed: int):
         """Seeds the RNG for choosing a model from the ensemble."""
         self._rng = np.random.default_rng(seed)

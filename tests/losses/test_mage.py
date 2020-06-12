@@ -30,18 +30,11 @@ def policy(obs_space, action_space):
     )
 
 
-@pytest.fixture(
-    params=(True, False), ids=(f"ResidualModel({b})" for b in (True, False))
-)
-def residual(request):
-    return request.param
-
-
 @pytest.fixture(params=(1, 2, 4), ids=(f"Models({n})" for n in (1, 2, 4)))
-def models(request, residual, obs_space, action_space):
+def models(request, obs_space, action_space):
     config = {
         "encoder": {"units": (32,)},
-        "residual": residual,
+        "residual": True,
         "input_dependent_scale": True,
     }
 
@@ -111,7 +104,19 @@ def test_mage_init(modules, reward_fn, termination_fn):
     assert hasattr(loss_fn, "_rng")
 
 
-def test_mage_call(loss_fn, batch):
+@pytest.fixture(params=(False, True), ids=("Eager", "Script"))
+def script(request):
+    return request.param
+
+
+def test_compile(loss_fn):
+    loss_fn.compile()
+    assert isinstance(loss_fn._modules, torch.jit.ScriptModule)
+
+
+def test_mage_call(loss_fn, batch, script):
+    if script:
+        loss_fn.compile()
     loss, info = loss_fn(batch)
 
     assert torch.is_tensor(loss)
