@@ -8,6 +8,7 @@ from .policy import MAGETorchPolicy
 DEFAULT_CONFIG = with_base_config(
     {
         # === ModelBasedTrainer ===
+        "real_data_ratio": 1,
         "virtual_buffer_size": 0,
         "model_rollouts": 0,
         # === MAGETorchPolicy ===
