@@ -3,15 +3,12 @@ import contextlib
 import functools
 
 import pytest
-import ray
 from ray.rllib import Policy
 from ray.rllib.optimizers import PolicyOptimizer
 
 from raylab.agents.trainer import StatsTracker
 from raylab.agents.trainer import Trainer
 from raylab.agents.trainer import with_common_config
-
-from ..mock_env import MockEnv
 
 
 class DummyPolicy(Policy):
@@ -78,7 +75,7 @@ def optimizer(request):
 
 @pytest.fixture
 def trainer_cls():
-    return functools.partial(MinimalTrainer, env=MockEnv)
+    return functools.partial(MinimalTrainer, env="MockEnv")
 
 
 def test_trainer(trainer_cls, tracker, workers, optimizer):
@@ -87,7 +84,6 @@ def test_trainer(trainer_cls, tracker, workers, optimizer):
         contextlib.nullcontext() if should_have_workers else pytest.warns(UserWarning)
     )
     with context:
-        ray.init()
         trainer = trainer_cls(
             config=dict(
                 tracker=tracker, workers=workers, optimizer=optimizer, num_workers=0
@@ -105,13 +101,11 @@ def test_trainer(trainer_cls, tracker, workers, optimizer):
         assert isinstance(metrics, dict)
 
     trainer.stop()
-    ray.shutdown()
 
 
 @pytest.fixture
 def eval_trainer(trainer_cls):
-    ray.init()
-    yield trainer_cls(
+    return trainer_cls(
         config=dict(
             workers=True,
             num_workers=0,
@@ -121,7 +115,6 @@ def eval_trainer(trainer_cls):
             evaluation_num_workers=0,
         )
     )
-    ray.shutdown()
 
 
 def test_evaluate_first(eval_trainer):

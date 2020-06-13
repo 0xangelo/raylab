@@ -1,6 +1,5 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
-import ray
 
 
 @pytest.fixture
@@ -11,10 +10,8 @@ def trainer_cls():
 
 
 @pytest.fixture
-def trainer(trainer_cls, envs):  # pylint:disable=unused-argument
-    ray.init()
-    yield trainer_cls(env="CartPoleSwingUp-v1")
-    ray.shutdown()
+def trainer(trainer_cls):
+    return trainer_cls(env="CartPoleSwingUp-v1")
 
 
 def test_default_config(trainer_cls):

@@ -5,9 +5,6 @@ import gym
 import gym.spaces as spaces
 import pytest
 
-import raylab
-from raylab.agents.registry import AGENTS
-
 from .mock_env import MockEnv
 
 gym.logger.set_level(logging.ERROR)
@@ -32,6 +29,28 @@ def pytest_collection_modifyitems(config, items):
                 item.add_marker(skip_slow)
 
 
+@pytest.fixture(autouse=True, scope="session")
+def init_ray():
+    import ray
+
+    ray.init()
+    yield
+    ray.shutdown()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def register_envs():
+    # pylint:disable=import-outside-toplevel
+    import raylab
+    from raylab.envs.registry import ENVS
+
+    def _mock_env_maker(config):
+        return MockEnv(config)
+
+    ENVS["MockEnv"] = _mock_env_maker
+    raylab.register_all_environments()
+
+
 @pytest.fixture(scope="module", params=((1,), (4,)), ids=("Obs1Dim", "Obs4Dim"))
 def obs_space(request):
     return spaces.Box(-10, 10, shape=request.param)
@@ -46,22 +65,7 @@ def action_space(request):
 def envs():
     from raylab.envs.registry import ENVS  # pylint:disable=import-outside-toplevel
 
-    def _mock_env_maker(config):
-        return MockEnv(config)
-
-    ENVS["MockEnv"] = _mock_env_maker
-    raylab.register_all_environments()
     return ENVS.copy()
-
-
-@pytest.fixture(scope="module", params=list(AGENTS.values()))
-def trainer_cls(request):
-    return request.param()
-
-
-@pytest.fixture
-def policy_cls(trainer_cls):
-    return trainer_cls._policy
 
 
 ENV_IDS = ("MockEnv", "Navigation", "Reservoir", "HVAC", "MountainCarContinuous-v0")

@@ -22,8 +22,10 @@ def env_name(request):
 
 
 @pytest.fixture(scope="module")
-def policy_fn(envs, env_name):
-    env = envs[env_name]({})
+def policy_fn(env_name):
+    from raylab.envs import get_env_creator
+
+    env = get_env_creator(env_name)({})
 
     def make_policy(policy_cls, config):
         config["env"] = env_name

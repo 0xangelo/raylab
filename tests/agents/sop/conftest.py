@@ -1,22 +1,22 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 
-from raylab.agents.registry import AGENTS
-
 
 @pytest.fixture
-def sop_trainer():
+def trainer():
+    from raylab.agents.registry import AGENTS
+
     return AGENTS["SOP"]()
 
 
 @pytest.fixture
-def sop_policy(sop_trainer):
-    return sop_trainer._policy
+def policy_cls(trainer):
+    return trainer._policy
 
 
 @pytest.fixture
-def policy_and_batch_fn(policy_and_batch_, sop_policy):
+def policy_and_batch_fn(policy_and_batch_, policy_cls):
     def make_policy_and_batch(config):
-        return policy_and_batch_(sop_policy, config)
+        return policy_and_batch_(policy_cls, config)
 
     return make_policy_and_batch

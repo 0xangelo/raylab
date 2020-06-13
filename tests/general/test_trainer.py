@@ -1,8 +1,5 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
-import ray
-
-from ..mock_env import MockEnv
 
 
 @pytest.fixture(
@@ -16,9 +13,8 @@ def compile_policy(request):
 
 @pytest.fixture(scope="module")
 def trainer(trainer_cls, compile_policy):
-    ray.init()
-    yield trainer_cls(
-        env=MockEnv,
+    return trainer_cls(
+        env="MockEnv",
         config={
             "compile_policy": compile_policy,
             "num_workers": 0,
@@ -29,7 +25,6 @@ def trainer(trainer_cls, compile_policy):
             "evaluation_num_workers": 0,
         },
     )
-    ray.shutdown()
 
 
 @pytest.mark.slow

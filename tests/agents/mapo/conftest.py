@@ -1,14 +1,11 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
-from ray.rllib import SampleBatch
-
-from raylab.agents.registry import AGENTS
-
-from ...mock_env import MockReward
 
 
 @pytest.fixture(scope="module")
 def mapo_trainer():
+    from raylab.agents.registry import AGENTS
+
     return AGENTS["MAPO"]()
 
 
@@ -18,12 +15,14 @@ def mapo_policy(mapo_trainer):
 
 
 @pytest.fixture(scope="module")
-def policy_and_batch_fn(policy_and_batch_, mapo_policy, envs):
-    # pylint:disable=unused-argument
+def policy_and_batch_fn(policy_and_batch_, mapo_policy):
+    from ray.rllib import SampleBatch
+    from raylab.envs import get_reward_fn
+
     def make_policy_and_batch(config):
         config["env"] = "MockEnv"
         policy, batch = policy_and_batch_(mapo_policy, config)
-        reward_fn = MockReward({})
+        reward_fn = get_reward_fn("MockEnv")
         batch[SampleBatch.REWARDS] = reward_fn(
             batch[SampleBatch.CUR_OBS],
             batch[SampleBatch.ACTIONS],

@@ -11,13 +11,10 @@ def config():
 
 
 @pytest.fixture
-def navigation_env(envs):
-    return envs["Navigation"]
+def policy_and_env(mapo_policy, config):
+    from raylab.envs import get_env_creator
 
-
-@pytest.fixture
-def policy_and_env(mapo_policy, navigation_env, config):
-    env = navigation_env({})
+    env = get_env_creator(config["env"])({})
     policy = mapo_policy(env.observation_space, env.action_space, config)
     policy.set_reward_from_config(policy.config["env"], policy.config["env_config"])
     policy.set_dynamics_from_callable(env.transition_fn)

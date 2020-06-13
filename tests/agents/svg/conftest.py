@@ -4,8 +4,6 @@ from ray.rllib import SampleBatch
 
 from raylab.agents.registry import AGENTS
 
-from ...mock_env import MockReward
-
 
 @pytest.fixture(
     params=[AGENTS[k] for k in "SVG(1) SVG(inf)".split()], ids=("SVG(1)", "SVF(inf)")
@@ -40,12 +38,13 @@ def svg_inf_policy(svg_inf_trainer):
 
 
 @pytest.fixture
-def policy_and_batch_fn(policy_and_batch_, envs):
-    # pylint:disable=unused-argument
+def policy_and_batch_fn(policy_and_batch_):
+    from raylab.envs import get_reward_fn
+
     def make_policy_and_batch(policy_cls, config):
         config["env"] = "MockEnv"
         policy, batch = policy_and_batch_(policy_cls, config)
-        reward_fn = MockReward({})
+        reward_fn = get_reward_fn(config["env"])
         batch[SampleBatch.REWARDS] = reward_fn(
             batch[SampleBatch.CUR_OBS],
             batch[SampleBatch.ACTIONS],
