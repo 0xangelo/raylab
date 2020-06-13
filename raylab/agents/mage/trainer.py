@@ -1,6 +1,7 @@
 """Trainer and default config for MAGE."""
 from raylab.agents.model_based import ModelBasedTrainer
 from raylab.agents.model_based import with_base_config
+from raylab.policy.model_based.training_mixin import DataloaderSpec
 from raylab.policy.model_based.training_mixin import TrainingSpec
 
 from .policy import MAGETorchPolicy
@@ -23,7 +24,14 @@ DEFAULT_CONFIG = with_base_config(
         },
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
-        "model_training": TrainingSpec().to_dict(),
+        "model_training": TrainingSpec(
+            dataloader=DataloaderSpec(batch_size=256, replacement=True),
+            max_epochs=None,
+            max_grad_steps=120,
+            max_time=None,
+            patience_epochs=None,
+            improvement_threshold=float("-inf"),
+        ).to_dict(),
         "module": {"type": "MAPOModule", "model": {"ensemble_size": 1}},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
