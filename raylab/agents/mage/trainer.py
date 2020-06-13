@@ -7,10 +7,13 @@ from .policy import MAGETorchPolicy
 
 DEFAULT_CONFIG = with_base_config(
     {
+        # === ModelBasedTrainer ===
+        "virtual_buffer_size": 0,
+        "model_rollouts": 0,
+        # === MAGETorchPolicy ===
         # Clipped Double Q-Learning: use the minimun of two target Q functions
         # as the next action-value in the target for fitted Q iteration
         "clipped_double_q": True,
-        # === MAGETorchPolicy ===
         # PyTorch optimizers to use
         "torch_optimizer": {
             "models": {"type": "Adam"},
