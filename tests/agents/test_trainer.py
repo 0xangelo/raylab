@@ -61,14 +61,6 @@ class MinimalTrainer(Trainer):
         return self._log_metrics({}, 0)
 
 
-def setup_module():
-    ray.init()
-
-
-def teardown_module():
-    ray.shutdown()
-
-
 @pytest.fixture(params=(True, False), ids=(f"Tracker({b})" for b in (True, False)))
 def tracker(request):
     return request.param
@@ -95,6 +87,7 @@ def test_trainer(trainer_cls, tracker, workers, optimizer):
         contextlib.nullcontext() if should_have_workers else pytest.warns(UserWarning)
     )
     with context:
+        ray.init()
         trainer = trainer_cls(
             config=dict(
                 tracker=tracker, workers=workers, optimizer=optimizer, num_workers=0
@@ -112,10 +105,13 @@ def test_trainer(trainer_cls, tracker, workers, optimizer):
         assert isinstance(metrics, dict)
 
     trainer.stop()
+    ray.shutdown()
 
 
-def test_evaluate_first(trainer_cls):
-    trainer = trainer_cls(
+@pytest.fixture
+def eval_trainer(trainer_cls):
+    ray.init()
+    yield trainer_cls(
         config=dict(
             workers=True,
             num_workers=0,
@@ -125,6 +121,11 @@ def test_evaluate_first(trainer_cls):
             evaluation_num_workers=0,
         )
     )
+    ray.shutdown()
+
+
+def test_evaluate_first(eval_trainer):
+    trainer = eval_trainer
     assert hasattr(trainer, "evaluation_metrics")
     assert not trainer.evaluation_metrics
 

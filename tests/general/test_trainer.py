@@ -5,14 +5,6 @@ import ray
 from ..mock_env import MockEnv
 
 
-def setup_module():
-    ray.init()
-
-
-def teardown_module():
-    ray.shutdown()
-
-
 @pytest.fixture(
     scope="module",
     params=(True, False),
@@ -24,7 +16,8 @@ def compile_policy(request):
 
 @pytest.fixture(scope="module")
 def trainer(trainer_cls, compile_policy):
-    return trainer_cls(
+    ray.init()
+    yield trainer_cls(
         env=MockEnv,
         config={
             "compile_policy": compile_policy,
@@ -36,6 +29,7 @@ def trainer(trainer_cls, compile_policy):
             "evaluation_num_workers": 0,
         },
     )
+    ray.shutdown()
 
 
 @pytest.mark.slow
