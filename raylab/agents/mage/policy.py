@@ -2,6 +2,7 @@
 from raylab.agents.sop import SOPTorchPolicy
 from raylab.losses import MAGE
 from raylab.losses import ModelEnsembleMLE
+from raylab.losses.mage import MAGEModules
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelTrainingMixin
 from raylab.pytorch.optim import build_optimizer
@@ -23,9 +24,14 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
 
         module = self.module
         self.loss_model = ModelEnsembleMLE(module.models)
-        self.loss_critic = MAGE(
-            module.critics, module.target_critics, module.actor, module.models
+        mage_modules = MAGEModules(
+            critics=module.critics,
+            target_critics=module.target_critics,
+            policy=module.actor,
+            target_policy=module.target_actor,
+            models=module.models,
         )
+        self.loss_critic = MAGE(mage_modules)
 
     @staticmethod
     def get_default_config():
