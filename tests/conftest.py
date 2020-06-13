@@ -13,6 +13,25 @@ from .mock_env import MockEnv
 gym.logger.set_level(logging.ERROR)
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--skipslow", action="store_true", default=False, help="skip slow tests"
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "slow: mark test as slow to run")
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--skipslow"):
+        # --skipslow given in cli: skip slow tests
+        skip_slow = pytest.mark.skip(reason="--skipslow option passed")
+        for item in items:
+            if "slow" in item.keywords:
+                item.add_marker(skip_slow)
+
+
 @pytest.fixture(scope="module", params=((1,), (4,)), ids=("Obs1Dim", "Obs4Dim"))
 def obs_space(request):
     return spaces.Box(-10, 10, shape=request.param)
