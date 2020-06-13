@@ -41,7 +41,15 @@ def with_base_config(config):
 
 
 class ModelBasedTrainer(OffPolicyTrainer):
-    """Generic trainer for model-based agents."""
+    """Generic trainer for model-based agents.
+
+    Policies must implement `optimize_model` according to
+    `raylab.policy:ModelTrainingMixin`
+
+    If `model_rollouts` > 0, policies must also implement
+    `setup_sampling_models` and `generate_virtual_sample_batch` according to
+    `raylab.policy:ModelSamplingMixin`
+    """
 
     # pylint: disable=attribute-defined-outside-init
 
@@ -91,7 +99,6 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
         config = self.config
         worker = self.workers.local_worker()
-        policy = worker.get_policy()
         stats = {}
         while not self._iteration_done(init_timesteps):
             samples = worker.sample()
@@ -100,8 +107,9 @@ class ModelBasedTrainer(OffPolicyTrainer):
                 self.replay.add(row)
 
             eval_losses, model_train_info = self.train_dynamics_model()
-            policy.setup_sampling_models(eval_losses)
-            self.populate_virtual_buffer(config["model_rollouts"] * samples.count)
+            self.populate_virtual_buffer(
+                eval_losses, config["model_rollouts"] * samples.count
+            )
             policy_train_info = self.improve_policy(
                 config["policy_improvements"] * samples.count
             )
@@ -133,18 +141,22 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
         return eval_losses, stats
 
-    def populate_virtual_buffer(self, num_rollouts: int):
+    def populate_virtual_buffer(self, eval_losses: List[float], num_rollouts: int):
         """Add model rollouts branched from real data to the virtual pool.
 
         Args:
-            num_rollouts: Number of initial states to samples from the
+            eval_losses: the latest validation losses for each model in the
+                ensemble
+            num_rollouts: number of initial states to samples from the
                 environment replay buffer
         """
         if not (num_rollouts and self.config["real_data_ratio"] < 1.0):
             return
 
-        real_samples = self.replay.sample(num_rollouts)
         policy = self.get_policy()
+        policy.setup_sampling_models(eval_losses)
+
+        real_samples = self.replay.sample(num_rollouts)
         virtual_samples = policy.generate_virtual_sample_batch(real_samples)
         for row in virtual_samples.rows():
             self.virtual_replay.add(row)
@@ -153,7 +165,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
         """Call the policy to perform policy improvement using the augmented replay.
 
         Args:
-            num_improvements: Number of times to call `policy.learn_on_batch`
+            num_improvements: number of times to call `policy.learn_on_batch`
 
         Returns:
             A dictionary of training and exploration statistics
