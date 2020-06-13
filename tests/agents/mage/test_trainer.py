@@ -27,6 +27,8 @@ def test_default_config(trainer_cls):
     assert config["virtual_buffer_size"] == 0
     assert "model_rollouts" in config
     assert config["model_rollouts"] == 0
+    assert "real_data_ratio" in config
+    assert config["real_data_ratio"] >= 1
 
     assert trainer_cls._name == "MAGE"
 
