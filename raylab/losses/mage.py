@@ -10,7 +10,6 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.utils.annotations import DetPolicy
 from raylab.utils.annotations import RewardFn
 from raylab.utils.annotations import TerminationFn
 
@@ -30,14 +29,30 @@ class EnvFunctions:
         return self.reward is not None and self.termination is not None
 
 
+@dataclass
+class MAGEModules:
+    """Necessary modules for MAGE loss.
+
+    Attributes:
+        critics: Q-value estimators
+        target_critics: Q-value estimators for the next state
+        policy: deterministic policy for current state
+        target_policy: deterministic policy for next state
+        models: ensemble of stochastic models
+    """
+
+    critics: nn.ModuleList
+    target_critics: nn.ModuleList
+    policy: nn.Module
+    target_policy: nn.Module
+    models: nn.ModuleList
+
+
 class MAGE(Loss):
     """Loss function for Model-based Action-Gradient-Estimator.
 
     Args:
-        critics: Q-value estimators
-        target_critics: Q-value estimators for the next state
-        policy: deterministic policy for current and next state
-        models: ensemble of stochastic models
+        modules: necessary modules for MAGE loss
 
     Attributes:
         gamma: discount factor
@@ -48,19 +63,14 @@ class MAGE(Loss):
     gamma: float
     lambda_: float
 
-    def __init__(
-        self,
-        critics: nn.ModuleList,
-        target_critics: nn.ModuleList,
-        policy: DetPolicy,
-        models: nn.ModuleList,
-    ):
+    def __init__(self, modules: MAGEModules):
         self._modules = nn.ModuleDict(
             dict(
-                critics=critics,
-                target_critics=target_critics,
-                policy=policy,
-                models=models,
+                critics=modules.critics,
+                target_critics=modules.target_critics,
+                policy=modules.policy,
+                target_policy=modules.target_policy,
+                models=modules.models,
             )
         )
         self._env = EnvFunctions()

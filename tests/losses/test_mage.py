@@ -3,7 +3,8 @@ import pytest
 import torch
 import torch.nn as nn
 
-from raylab.losses import MAGE
+from raylab.losses.mage import MAGE
+from raylab.losses.mage import MAGEModules
 from raylab.modules.mixins.action_value_mixin import ActionValueFunction
 from raylab.modules.mixins.deterministic_actor_mixin import DeterministicPolicy
 from raylab.modules.mixins.stochastic_model_mixin import StochasticModelMixin
@@ -24,10 +25,12 @@ def critics(request, obs_space, action_space):
 
 
 @pytest.fixture
-def policy(obs_space, action_space):
-    return DeterministicPolicy.from_scratch(
+def policies(obs_space, action_space):
+    policy = DeterministicPolicy.from_scratch(
         obs_space, action_space, {"beta": 1.2, "encoder": {"units": (32,)}}
     )
+    target_policy = DeterministicPolicy.from_existing(policy, noise=0.3)
+    return policy, target_policy
 
 
 @pytest.fixture(params=(1, 2, 4), ids=(f"Models({n})" for n in (1, 2, 4)))
@@ -61,16 +64,21 @@ def termination_fn():
 
 
 @pytest.fixture
-def modules(critics, policy, models):
+def modules(critics, policies, models):
     critics, target_critics = critics
-    return critics, target_critics, policy, models
+    policy, target_policy = policies
+    return MAGEModules(
+        critics=critics,
+        target_critics=target_critics,
+        policy=policy,
+        target_policy=target_policy,
+        models=models,
+    )
 
 
 @pytest.fixture
 def loss_fn(modules, reward_fn, termination_fn):
-    critics, target_critics, policy, models = modules
-
-    loss_fn = MAGE(critics, target_critics, policy, models)
+    loss_fn = MAGE(modules)
     loss_fn.set_reward_fn(reward_fn)
     loss_fn.set_termination_fn(termination_fn)
     return loss_fn
@@ -83,9 +91,7 @@ def batch(obs_space, action_space):
 
 
 def test_mage_init(modules, reward_fn, termination_fn):
-    critics, target_critics, policy, models = modules
-
-    loss_fn = MAGE(critics, target_critics, policy, models)
+    loss_fn = MAGE(modules)
     assert not loss_fn.initialized
     assert hasattr(loss_fn, "gamma")
     assert hasattr(loss_fn, "lambda_")
@@ -93,6 +99,7 @@ def test_mage_init(modules, reward_fn, termination_fn):
     assert "critics" in loss_fn._modules
     assert "target_critics" in loss_fn._modules
     assert "policy" in loss_fn._modules
+    assert "target_policy" in loss_fn._modules
     assert "models" in loss_fn._modules
     assert hasattr(loss_fn, "_rng")
 
