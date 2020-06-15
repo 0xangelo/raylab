@@ -101,10 +101,10 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
     @override(TorchPolicy)
     def get_weights(self):
         weights = super().get_weights()
-        weights += [self._grad_step]
+        weights["grad_step"] = self._grad_step
         return weights
 
     @override(TorchPolicy)
     def set_weights(self, weights):
-        self._grad_step = weights[-1]
-        super().set_weights(weights[:-1])
+        self._grad_step = weights["grad_step"]
+        super().set_weights(weights)

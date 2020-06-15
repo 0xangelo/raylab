@@ -254,7 +254,7 @@ class TorchPolicy(Policy):
         return sample_batch
 
     @override(Policy)
-    def get_weights(self):
+    def get_weights(self) -> dict:
         state = {
             "module": self.module.state_dict(),
             "optimizers": copy.deepcopy(self.optimizers.state_dict()),
@@ -264,7 +264,7 @@ class TorchPolicy(Policy):
         return state
 
     @override(Policy)
-    def set_weights(self, weights):
+    def set_weights(self, weights: dict):
         state = weights
         _from_numpy_state_dict(state)
 
