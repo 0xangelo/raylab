@@ -16,6 +16,8 @@ DEFAULT_CONFIG = with_base_config(
         # Clipped Double Q-Learning: use the minimun of two target Q functions
         # as the next action-value in the target for fitted Q iteration
         "clipped_double_q": True,
+        # TD error regularization for MAGE loss
+        "lambda": 0.05,
         # PyTorch optimizers to use
         "torch_optimizer": {
             "models": {"type": "Adam"},

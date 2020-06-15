@@ -32,6 +32,8 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
             models=module.models,
         )
         self.loss_critic = MAGE(mage_modules)
+        self.loss_critic.gamma = self.config["gamma"]
+        self.loss_critic.lambda_ = self.config["lambda"]
 
     @staticmethod
     def get_default_config():
