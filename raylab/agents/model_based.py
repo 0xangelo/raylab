@@ -135,6 +135,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
             self.config["max_holdout"],
         )
         train_data, eval_data = samples.slice(holdout, None), samples.slice(0, holdout)
+        eval_data = None if eval_data.count == 0 else eval_data
 
         policy = self.get_policy()
         eval_losses, stats = policy.optimize_model(train_data, eval_data)
