@@ -9,9 +9,12 @@ from .policy import MAGETorchPolicy
 DEFAULT_CONFIG = with_base_config(
     {
         # === ModelBasedTrainer ===
-        "real_data_ratio": 1,
+        "holdout_ratio": 0,
+        "max_holdout": 0,
         "virtual_buffer_size": 0,
         "model_rollouts": 0,
+        "policy_improvements": 10,
+        "real_data_ratio": 1,
         # === MAGETorchPolicy ===
         # Clipped Double Q-Learning: use the minimun of two target Q functions
         # as the next action-value in the target for fitted Q iteration
