@@ -24,6 +24,8 @@ DEFAULT_CONFIG = with_base_config(
         },
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
+        # Update policy every this number of calls to `learn_on_batch`
+        "policy_delay": 1,
         "model_training": TrainingSpec(
             dataloader=DataloaderSpec(batch_size=256, replacement=True),
             max_epochs=None,
