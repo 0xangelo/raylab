@@ -140,7 +140,7 @@ class RAdam(Optimizer):
                             p_data_fp32, alpha=-group["weight_decay"] * group["lr"]
                         )
                     denom = exp_avg_sq.sqrt().add_(group["eps"])
-                    p_data_fp32.addcdiv_(exp_avg, denom, alpha=-step_size * group["lr"])
+                    p_data_fp32.addcdiv_(exp_avg, denom, value=-step_size * group["lr"])
                     p.data.copy_(p_data_fp32)
                 elif step_size > 0:
                     if group["weight_decay"] != 0:
