@@ -256,7 +256,7 @@ class TorchPolicy(Policy):
     @override(Policy)
     def get_weights(self) -> dict:
         state = {
-            "module": self.module.state_dict(),
+            "module": copy.deepcopy(self.module.state_dict()),
             "optimizers": copy.deepcopy(self.optimizers.state_dict()),
         }
 
@@ -329,4 +329,4 @@ def _from_numpy_state_dict(mapping, device=None):
         if isinstance(val, np.ndarray):
             mapping[key] = convert_to_tensor(val, device)
         elif isinstance(val, dict):
-            _from_numpy_state_dict(val)
+            _from_numpy_state_dict(val, device)
