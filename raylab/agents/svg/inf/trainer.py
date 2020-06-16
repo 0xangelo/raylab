@@ -97,6 +97,7 @@ class SVGInfTrainer(Trainer):
 
     @override(Trainer)
     def _train(self):
+        init_timesteps = self.optimizer.num_steps_sampled
         worker = self.workers.local_worker()
         policy = worker.get_policy()
 
@@ -115,4 +116,4 @@ class SVGInfTrainer(Trainer):
 
         stats.update(policy.learn_on_batch(samples))
 
-        return self._log_metrics(stats)
+        return self._log_metrics(stats, init_timesteps)

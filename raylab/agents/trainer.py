@@ -50,6 +50,7 @@ class StatsTracker:
 
     _episode_history: list = field(default_factory=list)
     _to_be_collected: list = field(default_factory=list)
+    _steps_this_iter: int = field(default=0)
 
     def __post_init__(self):
         if not self.workers:
@@ -57,6 +58,21 @@ class StatsTracker:
                 "No worker set provided to stats tracker. Episodes summary "
                 "will be unavailable."
             )
+
+    def init_iter(self):
+        """Prepare for next training iteration.
+
+        This should be called once every call to Trainer.train().
+        """
+        self._steps_this_iter = 0
+
+    def add_steps_sampled(self, timesteps: int):
+        """Update the number of timesteps collected in the environment.
+
+        This also tracks the number of timesteps in the current iteration.
+        """
+        self._steps_this_iter += timesteps
+        self.num_steps_sampled += timesteps
 
     def save(self) -> List[int]:
         """Returns a serializable object representing the optimizer state."""
@@ -184,25 +200,24 @@ class Trainer(_Trainer, metaclass=ABCMeta):
         self.global_vars = state["global_vars"]
 
         if self.tracker.workers:
-            self.tracker.workers.local_worker().set_global_vars(self.global_vars)
-            for worker in self.tracker.workers.remote_workers():
-                worker.set_global_vars.remote(self.global_vars)
+            self.tracker.workers.foreach_worker(
+                lambda w: w.set_global_vars(self.global_vars)
+            )
 
         if "optimizer" not in state:
             self.tracker.restore(state["tracker"])
 
         super().__setstate__(state)
 
-    def _iteration_done(self):
-        return self.tracker.num_steps_sampled - self.global_vars["timestep"] >= max(
+    def _iteration_done(self, init_timesteps):
+        return self.tracker.num_steps_sampled - init_timesteps >= max(
             self.config["timesteps_per_iteration"], 1
         )
 
-    def _log_metrics(self, learner_stats):
+    def _log_metrics(self, learner_stats, init_timesteps):
         res = self.collect_metrics()
-        timesteps = self.tracker.num_steps_sampled - self.global_vars["timestep"]
         res.update(
-            timesteps_this_iter=timesteps,
+            timesteps_this_iter=self.tracker.num_steps_sampled - init_timesteps,
             info=dict(learner=learner_stats, **res.get("info", {})),
         )
         if self._iteration == 0 and self.config["evaluation_interval"]:
