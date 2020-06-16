@@ -134,6 +134,10 @@ class Trainer(_Trainer, metaclass=ABCMeta):
         else:
             self.tracker = StatsTracker()
 
+        # Needed for train() to synchronize global_vars
+        if not hasattr(self, "optimizer"):
+            self.optimizer = self.tracker
+
         if self.config["compile_policy"]:
             if hasattr(self, "workers"):
                 workers = self.workers
