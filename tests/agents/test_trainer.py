@@ -111,6 +111,8 @@ def test_trainer(trainer_cls, tracker, workers, optimizer):
         metrics = trainer.collect_metrics()
         assert isinstance(metrics, dict)
 
+    trainer.stop()
+
 
 def test_evaluate_first(trainer_cls):
     trainer = trainer_cls(
