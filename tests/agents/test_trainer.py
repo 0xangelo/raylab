@@ -58,7 +58,7 @@ class MinimalTrainer(Trainer):
             self.workers = make_workers()
 
     def _train(self):
-        return self._log_metrics({})
+        return self._log_metrics({}, 0)
 
 
 def setup_module():
