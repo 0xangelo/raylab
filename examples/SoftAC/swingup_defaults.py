@@ -5,7 +5,7 @@ def get_config():
     return {
         # === Environment ===
         "env": "CartPoleSwingUp-v1",
-        "env_config": {"max_episode_steps": 200, "time_aware": False},
+        "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === Replay Buffer ===
         "buffer_size": int(1e5),
         # === Optimization ===
@@ -33,7 +33,7 @@ def get_config():
         # The evaluation stats will be reported under the "evaluation" metric key.
         "evaluation_interval": 5,
         "evaluation_config": {
-            "env_config": {"max_episode_steps": 500, "time_aware": False},
+            "env_config": {"max_episode_steps": 1000, "time_aware": False},
         },
     }
 
@@ -42,3 +42,7 @@ def get_config():
 def main():
     config = get_config()
     return "SoftAC", config, {"stop": {"timesteps_total": config["buffer_size"]}}
+
+
+if __name__ == "__main__":
+    main()
