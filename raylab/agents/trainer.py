@@ -50,7 +50,6 @@ class StatsTracker:
 
     _episode_history: list = field(default_factory=list)
     _to_be_collected: list = field(default_factory=list)
-    _steps_this_iter: int = field(default=0)
 
     def __post_init__(self):
         if not self.workers:
@@ -58,21 +57,6 @@ class StatsTracker:
                 "No worker set provided to stats tracker. Episodes summary "
                 "will be unavailable."
             )
-
-    def init_iter(self):
-        """Prepare for next training iteration.
-
-        This should be called once every call to Trainer.train().
-        """
-        self._steps_this_iter = 0
-
-    def add_steps_sampled(self, timesteps: int):
-        """Update the number of timesteps collected in the environment.
-
-        This also tracks the number of timesteps in the current iteration.
-        """
-        self._steps_this_iter += timesteps
-        self.num_steps_sampled += timesteps
 
     def save(self) -> List[int]:
         """Returns a serializable object representing the optimizer state."""
