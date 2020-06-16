@@ -106,6 +106,10 @@ class StatsTracker:
             res = summarize_episodes(episodes, orig_episodes)
         return res
 
+    @staticmethod
+    def stop():
+        """Placeholder to emulate PolicyOptimizer.save."""
+
 
 class Trainer(_Trainer, metaclass=ABCMeta):
     """Base Trainer for all agents.
