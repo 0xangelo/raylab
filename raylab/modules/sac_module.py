@@ -8,7 +8,6 @@ from .mixins import StochasticActorMixin
 
 
 BASE_CONFIG = {
-    "torch_script": False,
     "actor": {
         "encoder": {
             "units": (400, 300),

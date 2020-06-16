@@ -9,7 +9,6 @@ from raylab.modules.mixins import DeterministicActorMixin
 
 
 BASE_CONFIG = {
-    "torch_script": False,
     "actor": {
         "beta": 1.2,
         "smooth_target_policy": False,

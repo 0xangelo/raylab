@@ -37,7 +37,7 @@ DEFAULT_CONFIG = with_common_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy and value function. No layers means the component is
         # linear in states or actions.
-        "module": {"type": "OnPolicyActorCritic", "torch_script": True},
+        "module": {"type": "OnPolicyActorCritic"},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).
@@ -82,10 +82,12 @@ class TRPOTrainer(Trainer):
 
     @override(Trainer)
     def _train(self):
-        while not self._iteration_done():
+        init_timesteps = self.optimizer.num_steps_sampled
+
+        while not self._iteration_done(init_timesteps):
             _ = self.optimizer.step()
 
         res = self.collect_metrics()
-        timesteps = self.optimizer.num_steps_sampled - self.global_vars["timestep"]
+        timesteps = self.optimizer.num_steps_sampled - init_timesteps
         res.update(timesteps_this_iter=timesteps, info=res.get("info", {}))
         return res

@@ -1,4 +1,6 @@
 """ACKTR policy implemented in PyTorch."""
+import warnings
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -77,6 +79,10 @@ class ACKTRTorchPolicy(TorchPolicy):
             "actor": build_optimizer(self.module.actor, config["actor"]),
             "critic": build_optimizer(self.module.critic, config["critic"]),
         }
+
+    @override(TorchPolicy)
+    def compile(self):
+        warnings.warn(f"{type(self).__name__} is incompatible with TorchScript")
 
     @torch.no_grad()
     @override(TorchPolicy)

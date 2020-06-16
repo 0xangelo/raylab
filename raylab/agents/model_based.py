@@ -4,7 +4,6 @@ from typing import List
 from typing import Tuple
 
 from ray.rllib import SampleBatch
-from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.utils import override
 
 from raylab.agents.off_policy import OffPolicyTrainer
@@ -87,13 +86,14 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
     @override(OffPolicyTrainer)
     def _train(self):
-        start_samples = self.sample_until_learning_starts()
+        self.sample_until_learning_starts()
+        init_timesteps = self.tracker.num_steps_sampled
 
         config = self.config
         worker = self.workers.local_worker()
         policy = worker.get_policy()
         stats = {}
-        while not self._iteration_done():
+        while not self._iteration_done(init_timesteps):
             samples = worker.sample()
             self.tracker.num_steps_sampled += samples.count
             for row in samples.rows():
@@ -109,8 +109,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
             stats.update(model_train_info)
             stats.update(policy_train_info)
 
-        self.tracker.num_steps_sampled += start_samples
-        return self._log_metrics(stats)
+        return self._log_metrics(stats, init_timesteps)
 
     def train_dynamics_model(self) -> Tuple[List[float], Dict[str, float]]:
         """Implements the model training step.
@@ -172,7 +171,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
             if model_batch_size:
                 samples += [self.virtual_replay.sample(model_batch_size)]
             batch = SampleBatch.concat_samples(samples)
-            stats = get_learner_stats(policy.learn_on_batch(batch))
+            stats.update(policy.learn_on_batch(batch))
             self.tracker.num_steps_trained += batch.count
 
         stats.update(policy.get_exploration_info())

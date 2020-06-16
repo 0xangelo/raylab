@@ -10,8 +10,8 @@ def worker(envs, env_name, policy_cls):
         env_creator=envs[env_name],
         policy=policy_cls,
         policy_config={"env": env_name},
-        rollout_fragment_length=1,
-        batch_mode="complete_episodes",
+        rollout_fragment_length=200,
+        batch_mode="truncate_episodes",
     )
 
 

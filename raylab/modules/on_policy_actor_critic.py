@@ -7,7 +7,6 @@ from .mixins import StochasticActorMixin
 
 
 BASE_CONFIG = {
-    "torch_script": True,
     "actor": {
         "encoder": {"units": (32, 32), "activation": "Tanh"},
         "input_dependent_scale": False,

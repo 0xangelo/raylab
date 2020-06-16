@@ -39,7 +39,7 @@ DEFAULT_CONFIG = with_common_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy, value function and model. No layers means the component is
         # linear in states and/or actions.
-        "module": {"type": "SVGModule", "torch_script": True},
+        "module": {"type": "SVGModule"},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).
@@ -97,6 +97,7 @@ class SVGInfTrainer(Trainer):
 
     @override(Trainer)
     def _train(self):
+        init_timesteps = self.optimizer.num_steps_sampled
         worker = self.workers.local_worker()
         policy = worker.get_policy()
 
@@ -115,4 +116,4 @@ class SVGInfTrainer(Trainer):
 
         stats.update(policy.learn_on_batch(samples))
 
-        return self._log_metrics(stats)
+        return self._log_metrics(stats, init_timesteps)

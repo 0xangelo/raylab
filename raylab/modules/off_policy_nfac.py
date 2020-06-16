@@ -7,7 +7,7 @@ from .mixins import MaximumEntropyMixin
 from .mixins import NormalizingFlowActorMixin
 
 
-BASE_CONFIG = {"torch_script": True, "actor": {}, "critic": {}, "entropy": {}}
+BASE_CONFIG = {"actor": {}, "critic": {}, "entropy": {}}
 
 
 class OffPolicyNFAC(

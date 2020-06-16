@@ -1,4 +1,5 @@
 """Base for all PyTorch policies."""
+import copy
 import textwrap
 from abc import abstractmethod
 from typing import Dict
@@ -96,6 +97,14 @@ class TorchPolicy(Policy):
             A neural network module.
         """
         return get_module(obs_space, action_space, config["module"])
+
+    def compile(self):
+        """Optimize modules with TorchScript.
+
+        Warnings:
+            This action cannot be undone.
+        """
+        self.module = torch.jit.script(self.module)
 
     @torch.no_grad()
     @override(Policy)
@@ -248,7 +257,7 @@ class TorchPolicy(Policy):
     def get_weights(self):
         state = {
             "module": self.module.state_dict(),
-            "optimizers": self.optimizers.state_dict(),
+            "optimizers": copy.deepcopy(self.optimizers.state_dict()),
         }
 
         _to_numpy_state_dict(state)

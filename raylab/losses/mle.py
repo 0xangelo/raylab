@@ -10,15 +10,21 @@ from torch import Tensor
 from raylab.modules.mixins.stochastic_model_mixin import StochasticModel
 from raylab.utils.dictionaries import get_keys
 
+from .abstract import Loss
 
-class MaximumLikelihood:
+
+class MaximumLikelihood(Loss):
     """Loss function for model learning of single transitions.
 
     Args:
         model: parametric stochastic model
     """
 
-    batch_keys = (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, SampleBatch.NEXT_OBS)
+    batch_keys: Tuple[str, str, str] = (
+        SampleBatch.CUR_OBS,
+        SampleBatch.ACTIONS,
+        SampleBatch.NEXT_OBS,
+    )
 
     def __init__(self, model: StochasticModel):
         self.model = model
@@ -41,15 +47,17 @@ class MaximumLikelihood:
         return self.model.log_prob(obs, actions, next_obs)
 
 
-class ModelEnsembleMLE:
+class ModelEnsembleMLE(Loss):
     """MLE loss function for ensemble of models.
 
+    Args:
+        models: the list of models
     """
 
-    batch_keys = MaximumLikelihood.batch_keys
+    batch_keys: Tuple[str, str, str] = MaximumLikelihood.batch_keys
 
-    def __init__(self, model: List[StochasticModel]):
-        self.model = model
+    def __init__(self, models: List[StochasticModel]):
+        self.models = models
 
     def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
         """Compute Maximum Likelihood Estimation (MLE) loss for each model.
@@ -68,4 +76,4 @@ class ModelEnsembleMLE:
         self, obs: Tensor, actions: Tensor, next_obs: Tensor
     ) -> List[Tensor]:
         """Compute transition likelihood under each model."""
-        return [m.log_prob(obs, actions, next_obs).mean() for m in self.model]
+        return [m.log_prob(obs, actions, next_obs).mean() for m in self.models]

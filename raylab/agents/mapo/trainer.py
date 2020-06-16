@@ -58,7 +58,7 @@ DEFAULT_CONFIG = with_base_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
-        "module": {"type": "MAPOModule", "torch_script": False},
+        "module": {"type": "MAPOModule"},
         # === Rollout Worker ===
         "num_workers": 0,
         "rollout_fragment_length": 1,
@@ -108,12 +108,5 @@ class MAPOTrainer(OffPolicyTrainer):
         policy = self.get_policy()
         policy.set_reward_from_config(config["env"], config["env_config"])
         if config["true_model"]:
-            self.set_transition_kernel()
-
-    def set_transition_kernel(self):
-        """Make policies use the real transition kernel."""
-        self.workers.foreach_worker(
-            lambda w: w.foreach_trainable_policy(
-                lambda p, _: p.set_transition_kernel(w.env.transition_fn)
-            )
-        )
+            worker = self.workers.local_worker()
+            policy.set_dynamics_from_callable(worker.env.transition_fn)

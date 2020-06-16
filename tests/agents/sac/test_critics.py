@@ -23,7 +23,7 @@ def loss_maker(policy):
     return SoftCDQLearning(
         policy.module.critics,
         policy.module.target_critics,
-        actor=policy.module.actor,
+        actor=policy.module.actor.sample,
         gamma=policy.config["gamma"],
         alpha=policy.module.alpha,
     )

@@ -1,29 +1,33 @@
 """Losses for computing policy gradients."""
+from typing import Callable
 from typing import Dict
-from typing import List
 from typing import Tuple
 
 import torch
+import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.utils.annotations import ActionValue
+from raylab.modules.mixins.stochastic_actor_mixin import StochasticPolicy
 from raylab.utils.annotations import DetPolicy
 from raylab.utils.annotations import DynamicsFn
 from raylab.utils.annotations import RewardFn
 
+from .abstract import Loss
 from .utils import clipped_action_value
 
 
-class DeterministicPolicyGradient:
+class DeterministicPolicyGradient(Loss):
     """Loss function for Deterministic Policy Gradient.
 
     Args:
-        actor (callable): deterministic policy
-        critics (list): callables for action-values
+        actor: deterministic policy
+        critics: callables for action-values
     """
 
-    def __init__(self, actor, critics):
+    batch_keys = (SampleBatch.CUR_OBS,)
+
+    def __init__(self, actor: DetPolicy, critics: nn.ModuleList):
         self.actor = actor
         self.critics = critics
 
@@ -42,17 +46,24 @@ class DeterministicPolicyGradient:
         return clipped_action_value(obs, actions, self.critics)
 
 
-class ReparameterizedSoftPG:
+class ReparameterizedSoftPG(Loss):
     """Loss function for Soft Policy Iteration with reparameterized actor.
 
     Args:
-        actor (StochasticPolicy): stochastic reparameterized policy
-        critics (list): callables for action-values
-        alpha (callable): entropy coefficient schedule
-        rlogp (bool): whether to draw reparameterized log_probs from the actor
+        actor: stochastic reparameterized policy
+        critics: callables for action-values
+        alpha: entropy coefficient schedule
+        rlogp: whether to draw reparameterized log_probs from the actor
     """
 
-    def __init__(self, actor, critics, alpha):
+    batch_keys = (SampleBatch.CUR_OBS,)
+
+    def __init__(
+        self,
+        actor: StochasticPolicy,
+        critics: nn.ModuleList,
+        alpha: Callable[[], Tensor],
+    ):
         self.actor = actor
         self.critics = critics
         self.alpha = alpha
@@ -92,10 +103,22 @@ class ModelAwareDPG:
             and its log density
     """
 
-    def __init__(self, actor: DetPolicy, critics: List[ActionValue], **config):
+    batch_keys = (SampleBatch.CUR_OBS,)
+
+    def __init__(
+        self,
+        actor: DetPolicy,
+        critics: nn.ModuleList,
+        gamma: float,
+        num_model_samples: int,
+        grad_estimator: str,
+    ):
+        # pylint:disable=too-many-arguments
         self.actor = actor
         self.critics = critics
-        self.config = config
+        self.gamma = gamma
+        self.num_model_samples = num_model_samples
+        self.grad_estimator = grad_estimator
 
         self.reward_fn = None
         self.model = None
@@ -114,7 +137,7 @@ class ModelAwareDPG:
 
         actions = self.actor(obs)
         action_values = self.one_step_action_value_surrogate(
-            obs, actions, self.config["num_model_samples"]
+            obs, actions, self.num_model_samples
         )
         loss = -torch.mean(action_values)
 
@@ -131,11 +154,11 @@ class ModelAwareDPG:
         with torch.no_grad():
             next_acts = self.actor(next_obs)
         next_values = clipped_action_value(next_obs, next_acts, self.critics)
-        values = rewards + self.config["gamma"] * next_values
+        values = rewards + self.gamma * next_values
 
-        if self.config["grad_estimator"] == "SF":
+        if self.grad_estimator == "SF":
             surrogate = torch.mean(logp * values.detach(), dim=0)
-        elif self.config["grad_estimator"] == "PD":
+        elif self.grad_estimator == "PD":
             surrogate = torch.mean(values, dim=0)
         return surrogate
 

@@ -5,11 +5,11 @@ import functools
 import pytest
 import ray
 from ray.rllib import Policy
-from ray.rllib.agents import with_common_config
 from ray.rllib.optimizers import PolicyOptimizer
 
 from raylab.agents.trainer import StatsTracker
 from raylab.agents.trainer import Trainer
+from raylab.agents.trainer import with_common_config
 
 from ..mock_env import MockEnv
 
@@ -58,7 +58,7 @@ class MinimalTrainer(Trainer):
             self.workers = make_workers()
 
     def _train(self):
-        return self._log_metrics({})
+        return self._log_metrics({}, 0)
 
 
 def setup_module():

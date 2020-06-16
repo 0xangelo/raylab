@@ -25,7 +25,6 @@ from .mixins import StochasticPolicy
 
 # Defaults for Hopper-v1
 BASE_CONFIG = {
-    "torch_script": True,
     "actor": {"num_flows": 4, "hidden_size": 3},
     "critic": {
         "encoder": {

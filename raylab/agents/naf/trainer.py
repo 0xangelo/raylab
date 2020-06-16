@@ -14,7 +14,7 @@ DEFAULT_CONFIG = with_base_config(
         # Size and activation of the fully connected network computing the logits
         # for the normalized advantage function. No layers means the Q function is
         # linear in states and actions.
-        "module": {"torch_script": True},
+        "module": {},
         # === Optimization ===
         # PyTorch optimizer and options to use
         "torch_optimizer": {"type": "Adam", "lr": 3e-4},

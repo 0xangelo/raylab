@@ -13,10 +13,11 @@ from raylab.utils.annotations import DetPolicy
 from raylab.utils.annotations import DynamicsFn
 from raylab.utils.annotations import RewardFn
 
+from .abstract import Loss
 from .utils import clipped_action_value
 
 
-class DPGAwareModelLearning:
+class DPGAwareModelLearning(Loss):
     """Loss function for Deterministic Policy Gradient-Aware model learning.
 
     Args:
@@ -36,7 +37,7 @@ class DPGAwareModelLearning:
 
     model: Optional[DynamicsFn]
     reward_fn: Optional[RewardFn]
-    batch_keys = (SampleBatch.CUR_OBS,)
+    batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
 
     def __init__(
         self,

@@ -1,5 +1,4 @@
 # pylint: disable=missing-module-docstring
-from ray.rllib.evaluation.metrics import get_learner_stats
 from ray.rllib.utils import override
 
 from raylab.agents import Trainer
@@ -9,6 +8,9 @@ from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 BASE_CONFIG = with_common_config(
     {
+        # === Policy ===
+        # Whether to optimize the policy's backend
+        "compile_policy": False,
         # === Replay buffer ===
         # Size of the replay buffer.
         "buffer_size": 500000,
@@ -47,12 +49,13 @@ class OffPolicyTrainer(Trainer):
 
     @override(Trainer)
     def _train(self):
-        start_samples = self.sample_until_learning_starts()
+        self.sample_until_learning_starts()
+        init_timesteps = self.tracker.num_steps_sampled
 
         worker = self.workers.local_worker()
         policy = worker.get_policy()
         stats = {}
-        while not self._iteration_done():
+        while not self._iteration_done(init_timesteps):
             samples = worker.sample()
             self.tracker.num_steps_sampled += samples.count
             for row in samples.rows():
@@ -62,11 +65,10 @@ class OffPolicyTrainer(Trainer):
             self._before_replay_steps(policy)
             for _ in range(samples.count):
                 batch = self.replay.sample(self.config["train_batch_size"])
-                stats = get_learner_stats(policy.learn_on_batch(batch))
+                stats.update(policy.learn_on_batch(batch))
                 self.tracker.num_steps_trained += batch.count
 
-        self.tracker.num_steps_sampled += start_samples
-        return self._log_metrics(stats)
+        return self._log_metrics(stats, init_timesteps)
 
     def build_replay_buffer(self, config):
         """Construct replay buffer to hold samples."""
@@ -89,7 +91,11 @@ class OffPolicyTrainer(Trainer):
             sample_count += samples.count
             for row in samples.rows():
                 self.replay.add(row)
-        return sample_count
+
+        if sample_count:
+            self.tracker.num_steps_sampled += sample_count
+            self.global_vars["timestep"] = self.tracker.num_steps_sampled
+            self.workers.foreach_worker(lambda w: w.set_global_vars(self.global_vars))
 
     def _before_replay_steps(self, policy):  # pylint:disable=unused-argument
         pass

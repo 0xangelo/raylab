@@ -31,7 +31,7 @@ DEFAULT_CONFIG = with_base_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
-        "module": {"type": "SACModule", "torch_script": True},
+        "module": {"type": "SACModule"},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

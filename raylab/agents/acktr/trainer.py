@@ -34,7 +34,7 @@ DEFAULT_CONFIG = with_common_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy and value function. No layers means the component is
         # linear in states or actions.
-        "module": {"type": "OnPolicyActorCritic", "torch_script": False},
+        "module": {"type": "OnPolicyActorCritic"},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).
@@ -64,9 +64,3 @@ class ACKTRTrainer(TRPOTrainer):
     _name = "ACKTR"
     _default_config = DEFAULT_CONFIG
     _policy = ACKTRTorchPolicy
-
-    @staticmethod
-    def _validate_config(config):
-        assert (
-            config["module"].get("torch_script", False) is False
-        ), "KFAC incompatible with TorchScript."
