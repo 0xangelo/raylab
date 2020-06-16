@@ -9,6 +9,7 @@ def get_config():
         # === Replay Buffer ===
         "buffer_size": int(1e5),
         # === Optimization ===
+        "target_entropy": "auto",
         # PyTorch optimizers to use
         "torch_optimizer": {
             "actor": {"type": "Adam", "lr": 3e-4},
@@ -17,8 +18,9 @@ def get_config():
         },
         # === Network ===
         "module": {
-            "actor": {"encoder": {"units": (128, 128)}},
-            "critic": {"encoder": {"units": (128, 128)}},
+            "actor": {"encoder": {"units": (128, 128), "activation": "Swish"}},
+            "critic": {"encoder": {"units": (128, 128), "activation": "Swish"}},
+            "entropy": {"initial_alpha": 0.05},
         },
         "rollout_fragment_length": 200,
         "batch_mode": "truncate_episodes",
