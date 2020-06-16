@@ -49,7 +49,7 @@ class OffPolicyTrainer(Trainer):
 
     @override(Trainer)
     def _train(self):
-        self.sample_until_learning_starts()
+        pre_learning_steps = self.sample_until_learning_starts()
         init_timesteps = self.tracker.num_steps_sampled
 
         worker = self.workers.local_worker()
@@ -68,7 +68,7 @@ class OffPolicyTrainer(Trainer):
                 stats.update(policy.learn_on_batch(batch))
                 self.tracker.num_steps_trained += batch.count
 
-        return self._log_metrics(stats, init_timesteps)
+        return self._log_metrics(stats, init_timesteps - pre_learning_steps)
 
     def build_replay_buffer(self, config):
         """Construct replay buffer to hold samples."""
@@ -96,6 +96,8 @@ class OffPolicyTrainer(Trainer):
             self.tracker.num_steps_sampled += sample_count
             self.global_vars["timestep"] = self.tracker.num_steps_sampled
             self.workers.foreach_worker(lambda w: w.set_global_vars(self.global_vars))
+
+        return sample_count
 
     def _before_replay_steps(self, policy):  # pylint:disable=unused-argument
         pass

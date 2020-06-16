@@ -86,7 +86,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
     @override(OffPolicyTrainer)
     def _train(self):
-        self.sample_until_learning_starts()
+        pre_learning_steps = self.sample_until_learning_starts()
         init_timesteps = self.tracker.num_steps_sampled
 
         config = self.config
@@ -109,7 +109,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
             stats.update(model_train_info)
             stats.update(policy_train_info)
 
-        return self._log_metrics(stats, init_timesteps)
+        return self._log_metrics(stats, init_timesteps - pre_learning_steps)
 
     def train_dynamics_model(self) -> Tuple[List[float], Dict[str, float]]:
         """Implements the model training step.
