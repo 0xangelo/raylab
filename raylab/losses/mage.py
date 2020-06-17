@@ -138,7 +138,7 @@ class MAGE(Loss):
 
         reward = self._env.reward(obs, action, next_obs)
         done = self._env.termination(obs, action, next_obs)
-        next_action = self._modules["policy"](next_obs)
+        next_action = self._modules["target_policy"](next_obs)
         next_values, _ = torch.cat(
             [m(next_obs, next_action) for m in self._modules["target_critics"]], dim=-1
         ).min(dim=-1)
