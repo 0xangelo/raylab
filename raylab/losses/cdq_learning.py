@@ -39,7 +39,7 @@ class QLearningMixin:
             "q_mean": values.mean().item(),
             "q_max": values.max().item(),
             "q_min": values.min().item(),
-            "loss(critic)": critic_loss.item(),
+            "loss(critics)": critic_loss.item(),
         }
         return critic_loss, stats
 
