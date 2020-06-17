@@ -41,8 +41,7 @@ def get_config():
             "patience_epochs": 5,
         },
         # === ModelSamplingMixin ===
-        "num_elites": 5,
-        "model_rollout_length": 1,
+        "model_sampling": {"num_elites": 5, "rollout_length": 1},
         # === Policy ===
         "exploration_config": {"pure_exploration_steps": 5000},
         # === ModelBasedTrainer ===
