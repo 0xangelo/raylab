@@ -2,7 +2,7 @@
 
 __author__ = """Ângelo Gregório Lovatto"""
 __email__ = "angelolovatto@gmail.com"
-__version__ = "0.7.6"
+__version__ = "0.7.7"
 
 
 def register_all_agents():
