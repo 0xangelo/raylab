@@ -12,6 +12,7 @@ with open("HISTORY.rst") as history_file:
 REQUIREMENTS = [
     "Click>=7.0",
     "bokeh",
+    "dataclasses-json",
     "ray[rllib,dashboard]>=0.8.5",
     "streamlit",
     "torch",
