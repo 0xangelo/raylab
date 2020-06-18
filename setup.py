@@ -55,6 +55,6 @@ setup(
     test_suite="tests",
     tests_require=TEST_REQUIREMENTS,
     url="https://github.com/angelolovatto/raylab",
-    version="0.7.5",
+    version="0.7.6",
     zip_safe=False,
 )
