@@ -154,11 +154,15 @@ class TorchPolicy(Policy):
         )
 
         if logp is not None:
-            prob, logp = map(lambda x: x.numpy(), (logp.exp(), logp))
+            prob, logp = map(lambda x: x.cpu().numpy(), (logp.exp(), logp))
             extra_fetches[SampleBatch.ACTION_PROB] = prob
             extra_fetches[SampleBatch.ACTION_LOGP] = logp
 
-        return actions.numpy(), [s.numpy() for s in state_out], extra_fetches
+        return (
+            actions.cpu().numpy(),
+            [s.cpu().numpy() for s in state_out],
+            extra_fetches,
+        )
 
     def _unpack_observations(self, input_dict):
         restored = input_dict.copy()
