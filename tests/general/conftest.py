@@ -3,8 +3,10 @@ import pytest
 
 from raylab.agents.registry import AGENTS
 
+TRAINER_NAMES, TRAINER_IMPORTS = zip(*AGENTS.items())
 
-@pytest.fixture(scope="module", params=list(AGENTS.values()))
+
+@pytest.fixture(scope="module", params=TRAINER_IMPORTS, ids=TRAINER_NAMES)
 def trainer_cls(request):
     return request.param()
 
