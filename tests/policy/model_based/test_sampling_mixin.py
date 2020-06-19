@@ -12,7 +12,7 @@ from raylab.policy import TorchPolicy
 from raylab.utils.debug import fake_batch
 
 ENSEMBLE_SIZE = (1, 4)
-ROLLOUT_LEN = (1, 4)
+ROLLOUT_SCHEDULE = ([(0, 1), (200, 10)], [(7, 2)])
 
 
 class DummyPolicy(ModelSamplingMixin, TorchPolicy):
@@ -51,18 +51,20 @@ def ensemble_size(request):
 
 
 @pytest.fixture(
-    scope="module", params=ROLLOUT_LEN, ids=(f"Rollout({s})" for s in ROLLOUT_LEN)
+    scope="module",
+    params=ROLLOUT_SCHEDULE,
+    ids=(f"Rollout({s})" for s in ROLLOUT_SCHEDULE),
 )
-def rollout_len(request):
+def rollout_schedule(request):
     return request.param
 
 
 @pytest.fixture(scope="module")
-def config(ensemble_size, rollout_len):
+def config(ensemble_size, rollout_schedule):
     return {
         "model_sampling": {
             "num_elites": (ensemble_size + 1) // 2,
-            "rollout_length": rollout_len,
+            "rollout_schedule": rollout_schedule,
         },
         "module": {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}},
         "seed": 123,
@@ -85,24 +87,22 @@ def test_init(policy):
     assert all(e is m for e, m in zip(policy.elite_models, policy.module.models))
 
 
-def test_setup_sampling_models(policy):
-    losses = [random.random() for _ in policy.module.models]
+@pytest.fixture(
+    params=(lambda: float("nan"), lambda: random.random()),
+    ids="NaNLosses RandLosses".split(),
+)
+def losses(request, ensemble_size):
+    return [request.param() for _ in range(ensemble_size)]
 
+
+def test_setup_sampling_models(policy, losses):
     policy.setup_sampling_models(losses)
 
     expected_elites = [policy.module.models[i] for i in np.argsort(losses)]
     assert all(ee is em for ee, em in zip(expected_elites, policy.elite_models))
 
 
-def test_setup_sampling_models_with_no_losses(policy):
-    losses = [float("nan") for _ in policy.module.models]
-
-    policy.setup_sampling_models(losses)
-
-    assert all(e is m for e, m in zip(policy.elite_models, policy.module.models))
-
-
-def test_generate_virtual_sample_batch(policy):
+def test_generate_virtual_sample_batch(policy, rollout_schedule):
     obs_space, action_space = policy.observation_space, policy.action_space
     initial_states = 10
     samples = fake_batch(obs_space, action_space, batch_size=initial_states)
@@ -115,10 +115,16 @@ def test_generate_virtual_sample_batch(policy):
     assert SampleBatch.REWARDS in batch
     assert SampleBatch.DONES in batch
 
-    total_count = policy.model_sampling_spec.rollout_length * initial_states
-    assert batch.count == total_count
-    assert batch[SampleBatch.CUR_OBS].shape == (total_count,) + obs_space.shape
-    assert batch[SampleBatch.ACTIONS].shape == (total_count,) + action_space.shape
-    assert batch[SampleBatch.NEXT_OBS].shape == (total_count,) + obs_space.shape
-    assert batch[SampleBatch.REWARDS].shape == (total_count,)
-    assert batch[SampleBatch.REWARDS].shape == (total_count,)
+    policy.global_timestep = 10
+    for timestep, value in rollout_schedule:
+        if policy.global_timestep >= timestep:
+            break
+    min_length = value
+
+    min_count = min_length * initial_states
+    assert batch.count >= min_count
+    assert batch[SampleBatch.CUR_OBS].shape == (batch.count,) + obs_space.shape
+    assert batch[SampleBatch.ACTIONS].shape == (batch.count,) + action_space.shape
+    assert batch[SampleBatch.NEXT_OBS].shape == (batch.count,) + obs_space.shape
+    assert batch[SampleBatch.REWARDS].shape == (batch.count,)
+    assert batch[SampleBatch.REWARDS].shape == (batch.count,)

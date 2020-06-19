@@ -21,7 +21,7 @@ def config(ensemble_size):
             "improvement_threshold": 0.01,
             "patience_epochs": 5,
         },
-        "model_sampling": {"rollout_length": 10, "num_elites": 1},
+        "model_sampling": {"rollout_schedule": [(0, 10)], "num_elites": 1},
         "module": {"ensemble_size": ensemble_size},
     }
 

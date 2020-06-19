@@ -10,22 +10,22 @@ def get_config():
         "module": {
             "type": "ModelBasedSAC",
             "model": {
-                "encoder": {"units": (128, 128), "activation": "ReLU"},
+                "encoder": {"units": (128, 128), "activation": "Swish"},
                 "ensemble_size": 7,
                 "input_dependent_scale": True,
             },
             "actor": {
-                "encoder": {"units": (128, 128), "activation": "ReLU"},
+                "encoder": {"units": (128, 128), "activation": "Swish"},
                 "input_dependent_scale": True,
             },
-            "critic": {"encoder": {"units": (128, 128), "activation": "ReLU"}},
-            "entropy": {"initial_alpha": 0.01},
+            "critic": {"encoder": {"units": (128, 128), "activation": "Swish"}},
+            "entropy": {"initial_alpha": 0.05},
         },
         "torch_optimizer": {
-            "models": {"type": "Adam", "lr": 1e-3, "weight_decay": 0.0001},
-            "actor": {"type": "Adam", "lr": 1e-3},
-            "critics": {"type": "Adam", "lr": 1e-3},
-            "alpha": {"type": "Adam", "lr": 1e-3},
+            "models": {"type": "Adam", "lr": 3e-4, "weight_decay": 0.0001},
+            "actor": {"type": "Adam", "lr": 3e-4},
+            "critics": {"type": "Adam", "lr": 3e-4},
+            "alpha": {"type": "Adam", "lr": 3e-4},
         },
         # === SACTorchPolicy ===
         "target_entropy": "auto",
@@ -34,14 +34,17 @@ def get_config():
         # === ModelTrainingMixin ===
         "model_training": {
             "dataloader": {"batch_size": 256},
-            "max_epochs": None,
+            "max_epochs": 10,
             "max_grad_steps": 120,
             "max_time": 5,
             "improvement_threshold": 0.01,
             "patience_epochs": 5,
         },
         # === ModelSamplingMixin ===
-        "model_sampling": {"num_elites": 5, "rollout_length": 1},
+        "model_sampling": {
+            "num_elites": 5,
+            "rollout_schedule": [(0, 1), (20000, 1), (100000, 15)],
+        },
         # === Policy ===
         "exploration_config": {"pure_exploration_steps": 5000},
         # === ModelBasedTrainer ===
@@ -49,7 +52,7 @@ def get_config():
         "holdout_ratio": 0.2,
         "model_rollouts": 40,
         "max_holdout": 5000,
-        "policy_improvements": 10,
+        "policy_improvements": 20,
         "real_data_ratio": 0.1,
         # === OffPolicyTrainer ===
         "buffer_size": int(1e5),
