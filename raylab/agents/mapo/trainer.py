@@ -12,7 +12,7 @@ from .policy import MAPOTorchPolicy
 DEFAULT_CONFIG = with_base_config(
     {
         # === MAPOTorchPolicy ===
-        "module": {"type": "MAPOModule", "model": {"ensemble_size": 1}},
+        "module": {"type": "ModelBasedSAC", "model": {"ensemble_size": 1}},
         "losses": {
             # Gradient estimator for optimizing expectations. Possible types include
             # SF: score function
