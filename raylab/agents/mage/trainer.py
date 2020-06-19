@@ -37,9 +37,9 @@ DEFAULT_CONFIG = with_base_config(
             max_grad_steps=120,
             max_time=None,
             patience_epochs=None,
-            improvement_threshold=float("-inf"),
+            improvement_threshold=None,
         ).to_dict(),
-        "module": {"type": "MAPOModule", "model": {"ensemble_size": 1}},
+        "module": {"type": "ModelBasedDDPG", "model": {"ensemble_size": 1}},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

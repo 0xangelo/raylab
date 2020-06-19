@@ -1,4 +1,4 @@
-"""MAPO Architecture with disjoint model, actor, and critic."""
+"""NN Architecture with disjoint model, actor, and critic."""
 from raylab.utils.dictionaries import deep_merge
 
 from .abstract import AbstractModelActorCritic
@@ -42,13 +42,13 @@ BASE_CONFIG = {
 }
 
 
-class MAPOModule(
+class ModelBasedDDPG(
     StochasticModelMixin,
     DeterministicActorMixin,
     ActionValueMixin,
     AbstractModelActorCritic,
 ):
-    """Module architecture used in Model-Aware Policy Optimization."""
+    """Module architecture used in MAGE."""
 
     # pylint:disable=abstract-method
 

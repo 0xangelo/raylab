@@ -1,8 +1,8 @@
 """Registry of modules for PyTorch policies."""
 
 from .ddpg_module import DDPGModule
-from .mapo_module import MAPOModule
 from .maxent_model_based import MaxEntModelBased
+from .model_based_ddpg import ModelBasedDDPG
 from .model_based_sac import ModelBasedSAC
 from .naf_module import NAFModule
 from .nfmbrl import NFMBRL
@@ -21,8 +21,8 @@ MODULES = {
     "SACModule": SACModule,
     "SimpleModelBased": SimpleModelBased,
     "SVGModule": SVGModule,
-    "MAPOModule": MAPOModule,
     "MaxEntModelBased": MaxEntModelBased,
+    "ModelBasedDDPG": ModelBasedDDPG,
     "ModelBasedSAC": ModelBasedSAC,
     "NFMBRL": NFMBRL,
     "OnPolicyActorCritic": OnPolicyActorCritic,
