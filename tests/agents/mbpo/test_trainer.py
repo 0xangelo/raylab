@@ -19,8 +19,7 @@ def config(real_data_ratio):
     return {"real_data_ratio": real_data_ratio}
 
 
-def test_improve_policy(trainer_cls, envs, config):
-    # pylint:disable=unused-argument
+def test_improve_policy(trainer_cls, config):
     trainer = trainer_cls(env="MockEnv", config=config)
     env = trainer.workers.local_worker().env
 
