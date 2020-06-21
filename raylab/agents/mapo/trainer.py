@@ -54,8 +54,8 @@ DEFAULT_CONFIG = with_base_config(
         # === Trainer ===
         "evaluation_config": {"explore": False},
         # === Rollout Worker ===
-        "rollout_fragment_length": 1,
-        "batch_mode": "complete_episodes",
+        "rollout_fragment_length": 25,
+        "batch_mode": "truncate_episodes",
     }
 )
 
