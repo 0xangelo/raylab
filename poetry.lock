@@ -336,6 +336,14 @@ version = "1.3.0"
 
 [[package]]
 category = "main"
+description = "CMake is an open-source, cross-platform family of tools designed to build, test and package software"
+name = "cmake"
+optional = false
+python-versions = "*"
+version = "3.17.3"
+
+[[package]]
+category = "main"
 description = "Cross-platform colored terminal text."
 name = "colorama"
 optional = false
@@ -1919,7 +1927,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "14d0428ec8c71d16189c4f7c89aadd2b7ec4d3e95073ac66044f66941a8fe3d9"
+content-hash = "9430018c08b0198de6183729b4bcd2dfb540a503026f1a38495bf53b98659435"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -2058,6 +2066,19 @@ click = [
 cloudpickle = [
     {file = "cloudpickle-1.3.0-py2.py3-none-any.whl", hash = "sha256:8664761f810efc07dbb301459e413c99b68fcc6d8703912bd39d86618ac631e3"},
     {file = "cloudpickle-1.3.0.tar.gz", hash = "sha256:38af54d0e7705d87a287bdefe1df00f936aadb1f629dca383e825cca927fa753"},
+]
+cmake = [
+    {file = "cmake-3.17.3-py2-none-macosx_10_6_x86_64.whl", hash = "sha256:18e9066bdf183835f5a8b9a313fb978883dce69884359e79a499a06adeb45ea7"},
+    {file = "cmake-3.17.3-py2-none-manylinux1_i686.whl", hash = "sha256:1d5a24f036e80c3c1d582552ca5f2701473721b52dbed925c1b6a09351d0afbc"},
+    {file = "cmake-3.17.3-py2-none-manylinux1_x86_64.whl", hash = "sha256:6ac6bd55c1f9acd2e50618c23c3f555430b3bb222786897a17f71d4ef0215fe7"},
+    {file = "cmake-3.17.3-py2-none-win32.whl", hash = "sha256:cf1904c2c3ea1460fe51b9ea244da110450625d49535b1a0ddf19da21f1138a0"},
+    {file = "cmake-3.17.3-py2-none-win_amd64.whl", hash = "sha256:0f375ea2bca581b6b2bb5c7bfded6b1b26ab3f3e497f8107a997d4ee054ff0a5"},
+    {file = "cmake-3.17.3-py3-none-macosx_10_6_x86_64.whl", hash = "sha256:eed290f87c084e22427ddc7188bc06dba62d18f46f5bfbf6fe539799f8148260"},
+    {file = "cmake-3.17.3-py3-none-manylinux1_i686.whl", hash = "sha256:9c011ca190833d94485ccbbfbd39a53d0c796377a9ce3bf87f8aff33b5b5ee7c"},
+    {file = "cmake-3.17.3-py3-none-manylinux1_x86_64.whl", hash = "sha256:7f3b92402a7f9b30c0fd13683edacd525c1ee38d7c7ac118de6292a3255859d8"},
+    {file = "cmake-3.17.3-py3-none-win32.whl", hash = "sha256:11a9d091bde8f7ade551d6868955e1525951433e39828ad105bc2dd6a7d8f42c"},
+    {file = "cmake-3.17.3-py3-none-win_amd64.whl", hash = "sha256:9e3dee5a774d0df5bacb9f15e99d8fffe0010bd980fa9f5761de869ae1116da5"},
+    {file = "cmake-3.17.3.tar.gz", hash = "sha256:b46dbf4f11e2aa9933e90fa655f2e5f13c0a6b348af9aa586de67c14dd7fc731"},
 ]
 colorama = [
     {file = "colorama-0.4.3-py2.py3-none-any.whl", hash = "sha256:7d73d2a99753107a36ac6b455ee49046802e59d9d076ef8e47b61499fa29afff"},
