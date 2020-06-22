@@ -27,7 +27,6 @@ def test_init(loss_fn):
     assert "critics" in loss_fn._modules
 
     assert hasattr(loss_fn, "_env")
-    assert loss_fn._env.initialized
     assert loss_fn.initialized
 
 
