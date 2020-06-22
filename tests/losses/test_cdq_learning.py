@@ -6,42 +6,23 @@ from ray.rllib import SampleBatch
 
 import raylab.utils.dictionaries as dutil
 from raylab.losses import ClippedDoubleQLearning
-from raylab.modules.mixins.action_value_mixin import ActionValueFunction
-from raylab.modules.mixins.deterministic_actor_mixin import DeterministicPolicy
-from raylab.utils.debug import fake_batch
-
-
-@pytest.fixture(params=(1, 2), ids=(f"Critics({n})" for n in (1, 2)))
-def critics(request, obs_space, action_space):
-    def critic():
-        return ActionValueFunction.from_scratch(
-            obs_space.shape[0], action_space.shape[0], units=(32,)
-        )
-
-    critics = nn.ModuleList([critic() for _ in range(request.param)])
-    target_critics = nn.ModuleList([critic() for _ in range(request.param)])
-    target_critics.load_state_dict(critics.state_dict())
-    return critics, target_critics
 
 
 @pytest.fixture
-def target_policy(obs_space, action_space):
-    policy = DeterministicPolicy.from_scratch(
-        obs_space, action_space, {"beta": 1.2, "encoder": {"units": (32,)}}
-    )
-    return policy
+def critics(action_critics):
+    return action_critics
+
+
+@pytest.fixture
+def target_policy(deterministic_policies):
+    _, target_policy = deterministic_policies
+    return target_policy
 
 
 @pytest.fixture
 def loss_fn(critics, target_policy):
     critics, target_critics = critics
     return ClippedDoubleQLearning(critics, target_critics, target_policy, gamma=0.99)
-
-
-@pytest.fixture(scope="module")
-def batch(obs_space, action_space):
-    samples = fake_batch(obs_space, action_space, batch_size=256)
-    return {k: torch.from_numpy(v) for k, v in samples.items()}
 
 
 def test_init(loss_fn):
