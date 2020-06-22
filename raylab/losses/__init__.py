@@ -6,6 +6,7 @@ from .daml import DPGAwareModelLearning
 from .isfv_iteration import ISFittedVIteration
 from .isfv_iteration import ISSoftVIteration
 from .mage import MAGE
+from .mapo import MAPO
 from .maximum_entropy import MaximumEntropyDual
 from .mle import MaximumLikelihood
 from .mle import ModelEnsembleMLE
@@ -25,6 +26,7 @@ __all__ = [
     "ISSoftVIteration",
     "MaximumEntropyDual",
     "MAGE",
+    "MAPO",
     "MaximumLikelihood",
     "ModelAwareDPG",
     "ModelEnsembleMLE",
