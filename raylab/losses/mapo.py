@@ -8,15 +8,12 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.utils.annotations import RewardFn
-from raylab.utils.annotations import TerminationFn
-
 from .abstract import Loss
+from .mixins import EnvFunctionsMixin
 from .utils import clipped_action_value
-from .utils import EnvFunctions
 
 
-class MAPO(Loss):
+class MAPO(EnvFunctionsMixin, Loss):
     """Model-Aware Policy Optimization.
 
     Args:
@@ -40,13 +37,13 @@ class MAPO(Loss):
     def __init__(
         self, models: nn.ModuleList, actor: nn.Module, critics: nn.ModuleList,
     ):
+        super().__init__()
         modules = nn.ModuleDict()
         modules["models"] = models
         modules["policy"] = actor
         modules["critics"] = critics
         self._modules = modules
 
-        self._env = EnvFunctions()
         self._rng = np.random.default_rng()
 
         self.gamma = 0.99
@@ -60,14 +57,6 @@ class MAPO(Loss):
     def seed(self, seed: int):
         """Seeds the RNG for choosing a model from the ensemble."""
         self._rng = np.random.default_rng(seed)
-
-    def set_reward_fn(self, function: RewardFn):
-        """Set reward function to provided callable."""
-        self._env.reward = function
-
-    def set_termination_fn(self, function: TerminationFn):
-        """Set termination function to provided callable."""
-        self._env.termination = function
 
     @property
     def initialized(self) -> bool:
@@ -186,33 +175,3 @@ class MAPO(Loss):
                 act.grad is not None
             ), "Transition grad w.r.t. state and action must exist for PD estimator"
             assert not torch.allclose(act.grad, torch.zeros_like(act))
-
-
-class SPAML(Loss):
-    """Soft Policy-iteration-Aware Model Learning.
-
-    Computes the decision-aware loss for model ensembles used in Model-Aware
-    Policy Optimization.
-
-    Args:
-        models: The stochastic model ensemble
-        actor: The stochastic policy
-        critics: The action-value estimators
-
-    Attributes:
-        gamma: Discount factor
-        alpha: Entropy regularization coefficient
-        grad_estimator: Gradient estimator for expecations ('PD' or 'SF')
-        lambda_: Kullback Leibler regularization coefficient
-    """
-
-    gamma: float
-    alpha: float
-    grad_estimator: str
-    lambda_: float
-
-    def __init__(self, models, actor, critics):
-        pass
-
-    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
-        pass
