@@ -6,22 +6,6 @@ from raylab.losses.mage import MAGE
 from raylab.losses.mage import MAGEModules
 
 
-@pytest.fixture(scope="module")
-def reward_fn():
-    def func(obs, act, new_obs):
-        return new_obs[..., 0] - obs[..., 0] - act.norm(dim=-1)
-
-    return func
-
-
-@pytest.fixture(scope="module")
-def termination_fn():
-    def func(obs, *_):
-        return torch.randn_like(obs[..., 0]) > 0
-
-    return func
-
-
 @pytest.fixture
 def modules(action_critics, deterministic_policies, models):
     critics, target_critics = action_critics

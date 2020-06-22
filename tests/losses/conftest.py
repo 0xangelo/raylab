@@ -12,6 +12,22 @@ from raylab.modules.mixins.stochastic_model_mixin import StochasticModelMixin
 from raylab.utils.debug import fake_batch
 
 
+@pytest.fixture(scope="module")
+def reward_fn():
+    def func(obs, act, new_obs):
+        return new_obs[..., 0] - obs[..., 0] - act.norm(dim=-1)
+
+    return func
+
+
+@pytest.fixture(scope="module")
+def termination_fn():
+    def func(obs, *_):
+        return torch.randn_like(obs[..., 0]) > 0
+
+    return func
+
+
 @pytest.fixture
 def batch(obs_space, action_space):
     samples = fake_batch(obs_space, action_space, batch_size=256)
