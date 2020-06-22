@@ -1,7 +1,6 @@
 """Losses for model aware action gradient estimation."""
 from dataclasses import dataclass
 from typing import Dict
-from typing import Optional
 from typing import Tuple
 
 import numpy as np
@@ -14,19 +13,7 @@ from raylab.utils.annotations import RewardFn
 from raylab.utils.annotations import TerminationFn
 
 from .abstract import Loss
-
-
-@dataclass
-class EnvFunctions:
-    """Collection of environment emulating functions."""
-
-    reward: Optional[RewardFn] = None
-    termination: Optional[TerminationFn] = None
-
-    @property
-    def initialized(self):
-        """Whether or not all functions are set."""
-        return self.reward is not None and self.termination is not None
+from .utils import EnvFunctions
 
 
 @dataclass
