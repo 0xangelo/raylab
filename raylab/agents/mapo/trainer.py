@@ -31,7 +31,11 @@ DEFAULT_CONFIG = with_base_config(
             "models": {"type": "Adam", "lr": 1e-3},
             "actor": {"type": "Adam", "lr": 1e-3},
             "critics": {"type": "Adam", "lr": 1e-3},
+            "alpha": {"type": "Adam", "lr": 1e-3},
         },
+        # === SACTorchPolicy ===
+        "target_entropy": "auto",
+        "clipped_double_q": True,
         # === TargetNetworksMixin ===
         "polyak": 0.995,
         # === ModelTrainingMixin ===
@@ -69,6 +73,7 @@ class MAPOTrainer(ModelBasedTrainer):
     _default_config = DEFAULT_CONFIG
     _policy = MAPOTorchPolicy
 
+    @staticmethod
     def validate_config(config):
         constants = {
             "holdout_ratio": 0,
