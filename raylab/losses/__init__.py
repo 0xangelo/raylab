@@ -10,6 +10,7 @@ from .mapo import MAPO
 from .maximum_entropy import MaximumEntropyDual
 from .mle import MaximumLikelihood
 from .mle import ModelEnsembleMLE
+from .paml import SPAML
 from .policy_gradient import DeterministicPolicyGradient
 from .policy_gradient import ModelAwareDPG
 from .policy_gradient import ReparameterizedSoftPG
@@ -30,6 +31,7 @@ __all__ = [
     "MaximumLikelihood",
     "ModelAwareDPG",
     "ModelEnsembleMLE",
+    "PAML",
     "OneStepSVG",
     "OneStepSoftSVG",
     "ReparameterizedSoftPG",
