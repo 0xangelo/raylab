@@ -52,6 +52,11 @@ DEFAULT_CONFIG = with_base_config(
         "exploration_config": {"type": "raylab.utils.exploration.StochasticActor"},
         # === ModelBasedTrainer ===
         "policy_improvements": 10,
+        "holdout_ratio": 0,
+        "max_holdout": 0,
+        "virtual_buffer_size": 0,
+        "model_rollouts": 0,
+        "real_data_ratio": 1,
         # === OffPolicyTrainer ===
         "buffer_size": 500000,
         "learning_starts": 0,

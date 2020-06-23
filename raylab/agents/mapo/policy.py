@@ -87,6 +87,7 @@ class MAPOTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
     def compile(self):
         super().compile()
         self.loss_model.compile()
+        self.loss_actor.compile()
 
     @override(ModelTrainingMixin)
     def optimize_model(self, *args, **kwargs):
