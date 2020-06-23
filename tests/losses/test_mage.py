@@ -55,7 +55,7 @@ def script(request):
 
 def test_compile(loss_fn):
     loss_fn.compile()
-    assert isinstance(loss_fn._modules, torch.jit.ScriptModule)
+    assert all(isinstance(v, torch.jit.ScriptModule) for v in loss_fn._modules.values())
 
 
 def test_mage_call(loss_fn, batch, script):

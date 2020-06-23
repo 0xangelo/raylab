@@ -47,5 +47,4 @@ def test_call(loss_fn, batch):
 
 def test_compile(loss_fn, batch):
     loss_fn.compile()
-    assert isinstance(loss_fn._modules, torch.jit.ScriptModule)
     loss_fn(batch)
