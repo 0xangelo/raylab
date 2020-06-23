@@ -1,4 +1,6 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
+from unittest import mock
+
 import numpy as np
 import pytest
 import torch
@@ -84,7 +86,7 @@ def test_learn_on_batch(policy, samples):
 
 
 def test_compile(policy):
-    policy.compile()
-    assert isinstance(policy.module, torch.jit.ScriptModule)
-    loss_critic = policy.loss_critic
-    assert isinstance(loss_critic._modules, torch.jit.ScriptModule)
+    with mock.patch("raylab.losses.MAGE.compile") as mocked_method:
+        policy.compile()
+        assert isinstance(policy.module, torch.jit.ScriptModule)
+        assert mocked_method.called
