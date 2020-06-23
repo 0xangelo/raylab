@@ -64,7 +64,7 @@ class MAGE(EnvFunctionsMixin, Loss):
         self.lambda_ = 0.05
 
     def compile(self):
-        self._modules = torch.jit.script(self._modules)
+        self._modules.update({k: torch.jit.script(v) for k, v in self._modules.items()})
 
     def seed(self, seed: int):
         """Seeds the RNG for choosing a model from the ensemble."""
