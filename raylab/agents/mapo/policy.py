@@ -1,6 +1,4 @@
 """Policy for MAPO using PyTorch."""
-import torch
-import torch.nn as nn
 from ray.rllib.utils import override
 
 from raylab.agents.sac import SACTorchPolicy
@@ -77,3 +75,9 @@ class MAPOTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
     def compile(self):
         super().compile()
         self.loss_model.compile()
+
+    @override(ModelTrainingMixin)
+    def optimize_model(self, *args, **kwargs):
+        # pylint:disable=signature-differs
+        self.loss_model.alpha = self.module.alpha().item()
+        return super().optimize_model(*args, **kwargs)

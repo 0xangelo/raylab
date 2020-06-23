@@ -25,16 +25,14 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
             self.module.model.reproduce,
             self.module.actor.reproduce,
             self.module.critic,
-            alpha=self.module.alpha,
-            gamma=self.config["gamma"],
         )
+        self.loss_actor.gamma = self.config["gamma"]
+
         self.loss_critic = ISSoftVIteration(
-            self.module.critic,
-            self.module.target_critic,
-            self.module.actor.sample,
-            self.module.alpha,
-            gamma=self.config["gamma"],
+            self.module.critic, self.module.target_critic, self.module.actor.sample,
         )
+        self.loss_critic.gamma = self.config["gamma"]
+
         target_entropy = (
             -action_space.shape[0]
             if self.config["target_entropy"] == "auto"
@@ -101,6 +99,10 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         batch_tensors, info = self.add_truncated_importance_sampling_ratios(
             batch_tensors
         )
+
+        alpha = self.module.alpha().item()
+        self.loss_critic.alpha = alpha
+        self.loss_actor.alpha = alpha
 
         info.update(self._update_model(batch_tensors))
         info.update(self._update_critic(batch_tensors))

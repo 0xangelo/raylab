@@ -20,13 +20,14 @@ def policy_and_batch(policy_and_batch_fn, clipped_double_q):
 
 
 def loss_maker(policy):
-    return SoftCDQLearning(
+    loss_fn = SoftCDQLearning(
         policy.module.critics,
         policy.module.target_critics,
         actor=policy.module.actor.sample,
-        gamma=policy.config["gamma"],
-        alpha=policy.module.alpha,
     )
+    loss_fn.gamma = policy.config["gamma"]
+    loss_fn.alpha = policy.module.alpha().item()
+    return loss_fn
 
 
 def test_critic_targets(policy_and_batch):
@@ -45,7 +46,6 @@ def test_critic_targets(policy_and_batch):
     targets.mean().backward()
     target_params = set(policy.module.target_critics.parameters())
     target_params.update(set(policy.module.actor.parameters()))
-    target_params.update(set(policy.module.alpha.parameters()))
     assert all(p.grad is not None for p in target_params)
     assert all(p.grad is None for p in set(policy.module.parameters()) - target_params)
 

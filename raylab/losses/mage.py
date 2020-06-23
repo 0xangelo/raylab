@@ -44,8 +44,8 @@ class MAGE(EnvFunctionsMixin, Loss):
     """
 
     batch_keys = (SampleBatch.CUR_OBS,)
-    gamma: float
-    lambda_: float
+    gamma: float = 0.99
+    lambda_: float = 0.05
 
     def __init__(self, modules: MAGEModules):
         super().__init__()
@@ -59,9 +59,6 @@ class MAGE(EnvFunctionsMixin, Loss):
             )
         )
         self._rng = np.random.default_rng()
-
-        self.gamma = 0.99
-        self.lambda_ = 0.05
 
     def compile(self):
         self._modules.update({k: torch.jit.script(v) for k, v in self._modules.items()})

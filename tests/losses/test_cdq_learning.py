@@ -22,7 +22,7 @@ def target_policy(deterministic_policies):
 @pytest.fixture
 def loss_fn(critics, target_policy):
     critics, target_critics = critics
-    return ClippedDoubleQLearning(critics, target_critics, target_policy, gamma=0.99)
+    return ClippedDoubleQLearning(critics, target_critics, target_policy)
 
 
 def test_init(loss_fn):

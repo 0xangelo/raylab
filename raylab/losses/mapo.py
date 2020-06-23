@@ -31,10 +31,10 @@ class MAPO(EnvFunctionsMixin, Loss):
     """
 
     batch_keys = (SampleBatch.CUR_OBS,)
-    gamma: float
-    alpha: float
-    grad_estimator: str
-    model_samples: int
+    gamma: float = 0.99
+    alpha: float = 0.05
+    grad_estimator: str = "SF"
+    model_samples: int = 1
 
     def __init__(
         self, models: nn.ModuleList, actor: nn.Module, critics: nn.ModuleList,
@@ -47,11 +47,6 @@ class MAPO(EnvFunctionsMixin, Loss):
         self._modules = modules
 
         self._rng = np.random.default_rng()
-
-        self.gamma = 0.99
-        self.alpha = 0.05
-        self.grad_estimator = "SF"
-        self.model_samples = 1
 
     def seed(self, seed: int):
         """Seeds the RNG for choosing a model from the ensemble."""
@@ -193,6 +188,10 @@ class DAPO(EnvFunctionsMixin, Loss):
         grad_estimator: Gradient estimator for expecations ('PD' or 'SF')
     """
 
+    gamma: float = 0.99
+    alpha: float = 0.05
+    grad_estimator: str = "SF"
+
     def __init__(
         self, dynamics_fn: DynamicsFn, actor: nn.Module, critics: nn.ModuleList
     ):
@@ -202,10 +201,6 @@ class DAPO(EnvFunctionsMixin, Loss):
         modules["policy"] = actor
         modules["critics"] = critics
         self._modules = modules
-
-        self.gamma = 0.99
-        self.alpha = 0.05
-        self.grad_estimator = "SF"
 
     @property
     def initialized(self) -> bool:

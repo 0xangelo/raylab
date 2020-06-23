@@ -35,11 +35,15 @@ class SPAML(EnvFunctionsMixin, Loss):
         observation, and `A` the size of the action
     """
 
-    batch_keys = (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, SampleBatch.NEXT_OBS)
-    gamma: float
-    alpha: float
-    grad_estimator: str
-    lambda_: float
+    batch_keys: Tuple[str, str, str] = (
+        SampleBatch.CUR_OBS,
+        SampleBatch.ACTIONS,
+        SampleBatch.NEXT_OBS,
+    )
+    gamma: float = 0.99
+    alpha: float = 0.05
+    grad_estimator: str = "SF"
+    lambda_: float = 0.05
 
     def __init__(self, models, actor, critics):
         super().__init__()
@@ -48,12 +52,6 @@ class SPAML(EnvFunctionsMixin, Loss):
         modules["policy"] = actor
         modules["critics"] = critics
         self._modules = modules
-
-        self.gamma = 0.99
-        self.alpha = 0.05
-        self.grad_estimator = "SF"
-        self.lambda_ = 0.05
-
         self._loss_mle = ModelEnsembleMLE(models)
 
     @property
