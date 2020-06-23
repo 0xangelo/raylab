@@ -34,18 +34,23 @@ def batch(obs_space, action_space):
     return {k: torch.from_numpy(v) for k, v in samples.items()}
 
 
-@pytest.fixture(params=(1, 2, 4), ids=(f"Models({n})" for n in (1, 2, 4)))
-def models(request, obs_space, action_space):
+@pytest.fixture
+def make_model(obs_space, action_space):
     config = {
         "encoder": {"units": (32,)},
         "residual": True,
         "input_dependent_scale": True,
     }
 
-    def model():
+    def factory():
         return StochasticModelMixin.build_single_model(obs_space, action_space, config)
 
-    return nn.ModuleList([model() for _ in range(request.param)])
+    return factory
+
+
+@pytest.fixture(params=(1, 2, 4), ids=(f"Models({n})" for n in (1, 2, 4)))
+def models(request, make_model):
+    return nn.ModuleList([make_model() for _ in range(request.param)])
 
 
 @pytest.fixture(params=(1, 2), ids=(f"Critics({n})" for n in (1, 2)))
