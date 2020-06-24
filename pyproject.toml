@@ -25,7 +25,6 @@ dataclasses-json = "^0.5.1"
 cmake = "^3.17.3"
 
 [tool.poetry.dev-dependencies]
-bump2version = "^1.0.0"
 flake8 = "^3.8.3"
 pylint = "^2.5.3"
 watchdog = "^0.10.2"

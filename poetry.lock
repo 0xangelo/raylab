@@ -272,14 +272,6 @@ version = ">=1.20,<1.26"
 
 [[package]]
 category = "dev"
-description = "Version-bump your software with a single command!"
-name = "bump2version"
-optional = false
-python-versions = ">=3.5"
-version = "1.0.0"
-
-[[package]]
-category = "dev"
 description = "A decorator for caching properties in classes."
 name = "cached-property"
 optional = false
@@ -1946,7 +1938,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "f2dc9dafaccdade18e1132c63e20a35a8d76139652e5c1323285800e4c933296"
+content-hash = "91013fd69cd4036dcc401698846845643eba0d667adc89d337d2713d18229519"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -2053,10 +2045,6 @@ boto3 = [
 botocore = [
     {file = "botocore-1.17.7-py2.py3-none-any.whl", hash = "sha256:e582e3ba61d812e8dd0939c0455c6f68cf41587506a3a30deafc54825087de01"},
     {file = "botocore-1.17.7.tar.gz", hash = "sha256:cce790e65368d28dfd715558daea6890922716efa69d3a4c76d80348a71ad460"},
-]
-bump2version = [
-    {file = "bump2version-1.0.0-py2.py3-none-any.whl", hash = "sha256:477f0e18a0d58e50bb3dbc9af7fcda464fd0ebfc7a6151d8888602d7153171a0"},
-    {file = "bump2version-1.0.0.tar.gz", hash = "sha256:cd4f3a231305e405ed8944d8ff35bd742d9bc740ad62f483bd0ca21ce7131984"},
 ]
 cached-property = [
     {file = "cached-property-1.5.1.tar.gz", hash = "sha256:9217a59f14a5682da7c4b8829deadbfc194ac22e9908ccf7c8820234e80a1504"},
