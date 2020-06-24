@@ -16,14 +16,12 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install
-      uses: abatilo/actions-poetry@v1.8.0
+      uses: abatilo/actions-poetry
       with:
         python_version: ${{ matrix.python-version }}
-        poetry_version: 1.0.9
         args: install
     - name: Run pytest
-      uses: abatilo/actions-poetry@v1.8.0
+      uses: abatilo/actions-poetry
       with:
         python_version: ${{ matrix.python-version }}
-        poetry_version: 1.0.9
         args: run pytest
