@@ -4,8 +4,7 @@
 name: Poetry publish
 
 on:
-  push: 
-    branches: master
+  push:
     tags:
       - 'v*.*.*'
 
