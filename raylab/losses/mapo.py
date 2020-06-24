@@ -69,7 +69,8 @@ class MAPO(EnvFunctionsMixin, Loss):
             obs, action, next_obs, obs_logp
         )
         entropy = -action_logp.mean()
-        loss = -torch.mean(action_value) + self.alpha * entropy
+        # Important to minimize the negative entropy
+        loss = -torch.mean(action_value) - self.alpha * entropy
 
         stats = {"loss(actor)": loss.item(), "entropy": entropy.item()}
         return loss, stats
@@ -219,7 +220,8 @@ class DAPO(EnvFunctionsMixin, Loss):
             obs, action, next_obs, obs_logp
         )
         entropy = -action_logp.mean()
-        loss = -torch.mean(action_value) + self.alpha * entropy
+        # Important to minimize the negative entropy
+        loss = -torch.mean(action_value) - self.alpha * entropy
 
         stats = {"loss(actor)": loss.item(), "entropy": entropy.item()}
         return loss, stats
