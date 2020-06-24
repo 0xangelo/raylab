@@ -92,6 +92,8 @@ Algorithms
 +--------------------------------------------------------+-------------------------+
 | `Streamlined Off-Policy`_ (DDPG)                       | SOP                     |
 +--------------------------------------------------------+-------------------------+
+| `Model-based Action-Gradient-Estimator`_               | MAGE                    |
++--------------------------------------------------------+-------------------------+
 
 
 .. _`Actor Critic using Kronecker-factored Trust Region`: https://arxiv.org/abs/1708.05144
@@ -101,6 +103,7 @@ Algorithms
 .. _`Soft Actor-Critic`: http://proceedings.mlr.press/v80/haarnoja18b.html
 .. _`Model-Based Policy Optimization`: http://arxiv.org/abs/1906.08253
 .. _`Streamlined Off-Policy`: https://arxiv.org/abs/1910.02208
+.. _`Model-based Action-Gradient-Estimator`: https://arxiv.org/abs/2004.14309
 
 
 Command-line interface
