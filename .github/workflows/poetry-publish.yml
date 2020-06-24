@@ -3,8 +3,10 @@
 
 name: Poetry publish
 
-on: release
-
+on:
+  push: 
+    tags:
+      - 'v*.*.*'
 
 jobs:
   deploy:
