@@ -83,7 +83,12 @@ class NoTermination(TerminationFn):
         return torch.zeros(next_state.shape[:-1]).bool()
 
 
-@register("CartPoleSwingUp-v0", "CartPoleSwingUp-v1")
+@register(
+    "CartPoleSwingUp-v0",
+    "CartPoleSwingUp-v1",
+    "TorchCartPoleSwingUp-v0",
+    "TorchCartPoleSwingUp-v1",
+)
 class CartPoleSwingUpTermination(TerminationFn):
     """CartPoleSwingUp's termination function."""
 
