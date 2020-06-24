@@ -7,10 +7,10 @@ from .policy import SOPTorchPolicy
 
 DEFAULT_CONFIG = with_base_config(
     {
+        # === SOPTorchPolicy ===
         # Clipped Double Q-Learning: use the minimun of two target Q functions
         # as the next action-value in the target for fitted Q iteration
         "clipped_double_q": True,
-        # === Optimization ===
         # PyTorch optimizers to use
         "torch_optimizer": {
             "actor": {"type": "Adam", "lr": 1e-3},
@@ -18,10 +18,8 @@ DEFAULT_CONFIG = with_base_config(
         },
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
-        # === Network ===
-        # Size and activation of the fully connected networks computing the logits
-        # for the policy and action-value function. No layers means the component is
-        # linear in states and/or actions.
+        # Update policy every this number of calls to `learn_on_batch`
+        "policy_delay": 1,
         "module": {"type": "DDPGModule"},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into

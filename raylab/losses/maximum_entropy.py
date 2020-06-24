@@ -19,7 +19,6 @@ class MaximumEntropyDual(Loss):
         target_entropy: minimum entropy for policy
     """
 
-    # pylint:disable=too-few-public-methods
     ENTROPY = "entropy"
     batch_keys = ("entropy", SampleBatch.CUR_OBS)
 

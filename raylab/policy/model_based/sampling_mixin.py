@@ -1,12 +1,15 @@
 """Environment model handling mixins for TorchPolicy."""
 from dataclasses import dataclass
+from dataclasses import field
 from typing import List
+from typing import Tuple
 
 import numpy as np
 import torch
 from dataclasses_json import DataClassJsonMixin
 from numpy.random import Generator
 from ray.rllib import SampleBatch
+from ray.rllib.utils import PiecewiseSchedule
 from torch.nn import Module
 
 
@@ -17,18 +20,21 @@ class SamplingSpec(DataClassJsonMixin):
     Attributes:
         num_elites: Use this number of best performing models to sample
             transitions
-        rollout_length: Lenght of model-based rollouts from each initial
-            state extracted from input sample batch
+        rollout_schedule: A list of tuples `(endpoint, value)`. The rollout
+            length for timestep `t` is a linear interpolation between the two
+            values corresponding to the nearest endpoints. Must be passed in
+            increasing order of endpoints.
     """
 
     num_elites: int = 1
-    rollout_length: int = 1
+    rollout_schedule: List[Tuple[int, float]] = field(default_factory=lambda: [(0, 1)])
 
     def __post_init__(self):
         assert self.num_elites > 0, "Must have at least one elite model to sample from"
-        assert (
-            self.rollout_length > 0
-        ), "Length of model-based rollouts must be positive"
+        assert all(
+            a[0] <= b[0]
+            for a, b in zip(self.rollout_schedule[:-1], self.rollout_schedule[1:])
+        ), "Rollout schedule endpoints must be in increasing order"
 
 
 class ModelSamplingMixin:
@@ -53,19 +59,28 @@ class ModelSamplingMixin:
     """
 
     model_sampling_spec: SamplingSpec
+    rollout_schedule: PiecewiseSchedule
     elite_models: List[Module]
     rng: Generator
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.model_sampling_spec = SamplingSpec.from_dict(self.config["model_sampling"])
+        self.model_sampling_spec = spec = SamplingSpec.from_dict(
+            self.config["model_sampling"]
+        )
+
+        self.rollout_schedule = PiecewiseSchedule(
+            spec.rollout_schedule,
+            framework="torch",
+            outside_value=spec.rollout_schedule[-1][-1],
+        )
 
         models = self.module.models
         num_elites = self.model_sampling_spec.num_elites
         assert num_elites <= len(models), "Cannot have more elites than models"
-
         self.elite_models = list(models[:num_elites])
+
         self.rng = np.random.default_rng(self.config["seed"])
 
     def setup_sampling_models(self, losses: List[float]):
@@ -96,7 +111,8 @@ class ModelSamplingMixin:
         virtual_samples = []
         obs = init_obs = self.convert_to_tensor(samples[SampleBatch.CUR_OBS])
 
-        for _ in range(self.model_sampling_spec.rollout_length):
+        rollout_length = round(self.rollout_schedule(self.global_timestep))
+        for _ in range(rollout_length):
             model = self.rng.choice(self.elite_models)
 
             action, _ = self.module.actor.sample(obs)
@@ -112,7 +128,7 @@ class ModelSamplingMixin:
                 SampleBatch.DONES: done,
             }
             virtual_samples += [
-                SampleBatch({k: v.numpy() for k, v in transition.items()})
+                SampleBatch({k: v.cpu().numpy() for k, v in transition.items()})
             ]
             obs = torch.where(done.unsqueeze(-1), init_obs, next_obs)
 

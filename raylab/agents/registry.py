@@ -61,6 +61,12 @@ def _import_mbpo():
     return MBPOTrainer
 
 
+def _import_mage():
+    from raylab.agents.mage import MAGETrainer
+
+    return MAGETrainer
+
+
 AGENTS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
@@ -72,4 +78,5 @@ AGENTS = {
     "SoftSVG": _import_soft_svg,
     "ACKTR": _import_acktr,
     "MBPO": _import_mbpo,
+    "MAGE": _import_mage,
 }

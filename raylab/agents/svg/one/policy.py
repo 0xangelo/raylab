@@ -25,8 +25,8 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             self.module.model.reproduce,
             self.module.actor.reproduce,
             self.module.critic,
-            gamma=self.config["gamma"],
         )
+        self.loss_actor.gamma = self.config["gamma"]
 
     @override(EnvFnMixin)
     def set_reward_from_config(self, env_name: str, env_config: dict):

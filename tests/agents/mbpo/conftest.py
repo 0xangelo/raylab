@@ -1,11 +1,11 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 
-from raylab.agents.registry import AGENTS
-
 
 @pytest.fixture(scope="module")
 def trainer_cls():
+    from raylab.agents.registry import AGENTS
+
     return AGENTS["MBPO"]()
 
 

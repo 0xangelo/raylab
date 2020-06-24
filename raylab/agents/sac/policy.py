@@ -18,16 +18,12 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self.loss_actor = ReparameterizedSoftPG(
-            self.module.actor, self.module.critics, self.module.alpha
-        )
+        self.loss_actor = ReparameterizedSoftPG(self.module.actor, self.module.critics)
         self.loss_critic = SoftCDQLearning(
-            self.module.critics,
-            self.module.target_critics,
-            self.module.actor.sample,
-            gamma=self.config["gamma"],
-            alpha=self.module.alpha,
+            self.module.critics, self.module.target_critics, self.module.actor.sample
         )
+        self.loss_critic.gamma = self.config["gamma"]
+
         target_entropy = (
             -action_space.shape[0]
             if self.config["target_entropy"] == "auto"
@@ -67,6 +63,10 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
     def learn_on_batch(self, samples):
         batch_tensors = self.lazy_tensor_dict(samples)
         info = {}
+
+        alpha = self.module.alpha().item()
+        self.loss_critic.alpha = alpha
+        self.loss_actor.alpha = alpha
 
         info.update(self._update_critic(batch_tensors))
         info.update(self._update_actor(batch_tensors))

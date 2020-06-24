@@ -13,15 +13,15 @@ from typing import Tuple
 
 import numpy as np
 import torch
+import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from ray.rllib import SampleBatch
+from torch import Tensor
 from torch.utils.data import DataLoader
 from torch.utils.data import RandomSampler
 
+from raylab.losses.abstract import Loss
 from raylab.pytorch.utils import TensorDictDataset
-
-
-ModelSnapshot = collections.namedtuple("ModelSnapshot", "epoch loss state_dict")
 
 
 @dataclass(frozen=True)
@@ -61,7 +61,7 @@ class TrainingSpec(DataClassJsonMixin):
     max_grad_steps: Optional[int] = 120
     max_time: Optional[float] = 20
     patience_epochs: Optional[int] = 5
-    improvement_threshold: float = 0.01
+    improvement_threshold: Optional[float] = 0.01
 
     def __post_init__(self):
         assert (
@@ -78,6 +78,86 @@ class TrainingSpec(DataClassJsonMixin):
         assert (
             self.max_epochs or self.max_grad_steps or self.patience_epochs
         ), "Need at least one stopping criterion"
+
+
+ModelSnapshot = collections.namedtuple("ModelSnapshot", "epoch loss state_dict")
+
+
+@dataclass
+class Evaluator:
+    """Evaluates models and saves snapshots.
+
+    Args:
+        models: the model ensemble
+        loss_fn: the loss function for model ensemble
+        improvement_threshold: Minimum expected relative improvement in model
+            validation loss
+        patience_epochs: Number of epochs to wait for any of the models to
+            improve on the validation dataset before early stopping
+    """
+
+    models: nn.ModuleList
+    loss_fn: Loss
+    eval_tensors: Dict[str, Tensor]
+    improvement_threshold: float
+    patience_epochs: Optional[int]
+
+    def __post_init__(self):
+        self._snapshots = [
+            ModelSnapshot(epoch=0, loss=None, state_dict=copy.deepcopy(m.state_dict()))
+            for m in self.models
+        ]
+
+    @torch.no_grad()
+    def validate(self, epoch: int) -> Tuple[bool, Dict[str, float]]:
+        """Evaluate models on holdout data and update snapshots.
+
+        Args:
+            epoch: the epoch number
+
+        Returns:
+            A tuple with two values: whether or not to early stop training based
+            on validation loss improvement and a dict with validation loss info
+        """
+        eval_losses, eval_info = self.loss_fn(self.eval_tensors)
+        eval_losses = eval_losses.tolist()
+        eval_info = {"eval_" + k: v for k, v in eval_info.items()}
+
+        self._update_snapshots(epoch, eval_losses)
+
+        patience_epochs = self.patience_epochs or float("inf")
+        early_stop = epoch - max(s.epoch for s in self._snapshots) >= patience_epochs
+        return early_stop, eval_info
+
+    def _update_snapshots(self, epoch: int, eval_losses: List[float]):
+        snapshots = self._snapshots
+        threshold = self.improvement_threshold
+
+        def updated_snapshot(model, snap, cur_loss):
+            if snap.loss is None or (snap.loss - cur_loss) / snap.loss > threshold:
+                return ModelSnapshot(
+                    epoch=epoch,
+                    loss=cur_loss,
+                    state_dict=copy.deepcopy(model.state_dict()),
+                )
+            return snap
+
+        self._snapshots = [
+            updated_snapshot(model=m, snap=s, cur_loss=l)
+            for m, s, l in zip(self.models, snapshots, eval_losses)
+        ]
+
+    def restore_models(self) -> List[float]:
+        """Restore models to the best performing parameters.
+
+        Returns:
+            A list with the validation performances of each model
+        """
+        losses = []
+        for idx, snap in enumerate(self._snapshots):
+            self.models[idx].load_state_dict(snap.state_dict)
+            losses += [snap.loss]
+        return losses
 
 
 class ModelTrainingMixin:
@@ -105,6 +185,24 @@ class ModelTrainingMixin:
     ) -> Tuple[List[float], Dict[str, float]]:
         """Update models with samples.
 
+        If `spec.max_epochs` is set, training will be cut off after this many
+        epochs.
+
+        If `spec.max_grad_steps` is set, training will be cut off after this
+        many model gradient steps.
+
+        If `spec.max_time` is set, it will cut off training after this many
+        seconds have elapsed.
+
+        If `spec.improvement_threshold` is set, it will save snapshots based on
+        model performance on validation data and restore models to the
+        best performing parameters after training. Otherwise, it will return the
+        latest models.
+
+        If `spec.patience_epochs` is set, it will wait for at most this many
+        epochs for any model to improve on the validation dataset, otherwise it
+        will stop training.
+
         Args:
             train_samples: training data
             eval_samples: holdout data
@@ -113,34 +211,22 @@ class ModelTrainingMixin:
             A tuple with a list of each model's evaluation loss and a dictionary
             with training statistics
         """
-        spec = self.model_training_spec
-        snapshots = self._build_snapshots()
-        dataloader = self._build_dataloader(train_samples, spec.dataloader)
-        eval_tensors = None
-        if eval_samples:
-            eval_tensors = {
-                k: self.convert_to_tensor(eval_samples[k])
-                for k in self.loss_model.batch_keys
-            }
+        dataloader = self._build_dataloader(train_samples)
+        evaluator = self._setup_evaluator(eval_samples)
 
-        info, snapshots = self._train_model_epochs(
-            dataloader, snapshots, eval_tensors, spec
-        )
+        info = self._train_model_epochs(dataloader, evaluator)
 
-        info.update(self._restore_models(snapshots))
+        if evaluator:
+            eval_losses = evaluator.restore_models()
+            info.update({f"loss(models[{i}])": l for i, l in enumerate(eval_losses)})
+        else:
+            eval_losses = [np.nan for _ in self.module.models]
+
         info.update(self.model_grad_info())
-        eval_losses = [s.loss if s.loss else np.nan for s in snapshots]
         return eval_losses, info
 
-    def _build_snapshots(self) -> List[ModelSnapshot]:
-        return [
-            ModelSnapshot(epoch=0, loss=None, state_dict=copy.deepcopy(m.state_dict()))
-            for m in self.module.models
-        ]
-
-    def _build_dataloader(
-        self, train_samples: SampleBatch, spec: DataloaderSpec
-    ) -> DataLoader:
+    def _build_dataloader(self, train_samples: SampleBatch) -> DataLoader:
+        spec = self.model_training_spec.dataloader
         train_tensors = {
             k: self.convert_to_tensor(train_samples[k])
             for k in self.loss_model.batch_keys
@@ -149,17 +235,34 @@ class ModelTrainingMixin:
         sampler = RandomSampler(dataset, replacement=spec.replacement)
         return DataLoader(dataset, sampler=sampler, batch_size=spec.batch_size)
 
-    def _train_model_epochs(
-        self,
-        dataloader: DataLoader,
-        snapshots: List[ModelSnapshot],
-        eval_tensors: Dict[str, torch.Tensor],
-        spec: TrainingSpec,
-    ) -> Tuple[Dict[str, float], List[ModelSnapshot]]:
+    def _setup_evaluator(
+        self, eval_samples: Optional[SampleBatch]
+    ) -> Optional[Evaluator]:
+        spec = self.model_training_spec
+        if not (eval_samples and spec.improvement_threshold):
+            return None
 
+        eval_tensors = {
+            k: self.convert_to_tensor(eval_samples[k])
+            for k in self.loss_model.batch_keys
+        }
+        return Evaluator(
+            self.module.models,
+            self.loss_model,
+            eval_tensors,
+            spec.improvement_threshold,
+            spec.patience_epochs,
+        )
+
+    def _train_model_epochs(
+        self, dataloader: DataLoader, evaluator: Optional[Evaluator],
+    ) -> Dict[str, float]:
+
+        spec = self.model_training_spec
         info = {}
         grad_steps = 0
         start = time.time()
+        early_stop = False
         epoch = -1
         for epoch in self._model_epochs(spec):
             for minibatch in dataloader:
@@ -172,71 +275,28 @@ class ModelTrainingMixin:
                 if spec.max_grad_steps and grad_steps >= spec.max_grad_steps:
                     break
 
-            if eval_tensors:
-                with torch.no_grad():
-                    eval_losses, eval_info = self.loss_model(eval_tensors)
-                    eval_losses = eval_losses.tolist()
+            if evaluator:
+                early_stop, eval_info = evaluator.validate(epoch)
+                info.update(eval_info)
 
-                snapshots = self._updated_snapshots(snapshots, epoch, eval_losses, spec)
-                info.update({"eval_" + k: v for k, v in eval_info.items()})
-
-            if self._terminate_epoch(epoch, snapshots, start, grad_steps, spec):
+            if early_stop or self._terminate_epoch(start, grad_steps, spec):
                 break
 
         info["model_epochs"] = epoch + 1
-        return info, snapshots
+        return info
 
     @staticmethod
     def _model_epochs(spec: TrainingSpec) -> Iterator[int]:
         return iter(range(spec.max_epochs)) if spec.max_epochs else itertools.count()
 
-    def _updated_snapshots(
-        self,
-        snapshots: List[ModelSnapshot],
-        epoch: int,
-        losses: List[float],
-        spec: TrainingSpec,
-    ) -> List[ModelSnapshot]:
-        threshold = spec.improvement_threshold
-
-        def updated_snapshot(model, snap, cur_loss):
-            if snap.loss is None or (snap.loss - cur_loss) / snap.loss > threshold:
-                return ModelSnapshot(
-                    epoch=epoch,
-                    loss=cur_loss,
-                    state_dict=copy.deepcopy(model.state_dict()),
-                )
-            return snap
-
-        return [
-            updated_snapshot(model=m, snap=s, cur_loss=l)
-            for m, s, l in zip(self.module.models, snapshots, losses)
-        ]
-
     @staticmethod
     def _terminate_epoch(
-        epoch: int,
-        snapshots: List[ModelSnapshot],
-        start_time: float,
-        model_steps: int,
-        spec: TrainingSpec,
+        start_time: float, model_steps: int, spec: TrainingSpec,
     ) -> bool:
-        patience_epochs = spec.patience_epochs or float("inf")
         max_time = spec.max_time or float("inf")
         max_grad_steps = spec.max_grad_steps or float("inf")
 
-        return (
-            time.time() - start_time >= max_time
-            or epoch - max(s.epoch for s in snapshots) >= patience_epochs
-            or model_steps >= max_grad_steps
-        )
-
-    def _restore_models(self, snapshots: List[ModelSnapshot]) -> Dict[str, float]:
-        info = {}
-        for idx, snap in enumerate(snapshots):
-            self.module.models[idx].load_state_dict(snap.state_dict)
-            info[f"loss(models[{idx}])"] = snap.loss
-        return info
+        return time.time() - start_time >= max_time or model_steps >= max_grad_steps
 
     @torch.no_grad()
     def model_grad_info(self) -> Dict[str, float]:

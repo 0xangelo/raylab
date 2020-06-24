@@ -1,15 +1,14 @@
+from raylab.cli.utils import tune_experiment
+
+
 def get_config():
     return {
         # === Environment ===
         "env": "CartPoleSwingUp-v1",
         "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === Twin Delayed DDPG (TD3) tricks ===
-        # Clipped Double Q-Learning: use the minimun of two target Q functions
-        # as the next action-value in the target for fitted Q iteration
         "clipped_double_q": True,
         # === Replay buffer ===
-        # Size of the replay buffer. Note that if async_updates is set, then
-        # each worker will have a replay buffer of this size.
         "buffer_size": int(1e5),
         # === Optimization ===
         # PyTorch optimizers to use
@@ -17,31 +16,25 @@ def get_config():
             "actor": {"type": "Adam", "lr": 3e-4},
             "critics": {"type": "Adam", "lr": 3e-4},
         },
-        # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
         # === Network ===
-        # Size and activation of the fully connected networks computing the logits
-        # for the policy and action-value function. No layers means the component is
-        # linear in states and/or actions.
         "module": {
             "type": "DDPGModule",
             "actor": {
                 "smooth_target_policy": True,
-                "target_gaussian_sigma": 0.2,
+                "target_gaussian_sigma": 0.3,
                 "beta": 1.2,
                 "encoder": {
                     "units": (128, 128),
-                    "activation": "ReLU",
-                    "initializer_options": {"name": "xavier_uniform"},
+                    "activation": "Swish",
                     "layer_norm": False,
                 },
             },
             "critic": {
-                "double_q": False,
+                "double_q": True,
                 "encoder": {
                     "units": (128, 128),
-                    "activation": "ReLU",
-                    "initializer_options": {"name": "xavier_uniform"},
+                    "activation": "Swish",
                     "delay_action": True,
                 },
             },
@@ -53,13 +46,25 @@ def get_config():
             "noise_stddev": 0.3,
             "pure_exploration_steps": 5000,
         },
+        "learning_starts": 5000,
         # === Trainer ===
+        "rollout_fragment_length": 200,
+        "batch_mode": "truncate_episodes",
         "train_batch_size": 128,
         "timesteps_per_iteration": 1000,
         # === Evaluation ===
-        # Evaluate with every `evaluation_interval` training iterations.
-        # The evaluation stats will be reported under the "evaluation" metric key.
         "evaluation_interval": 5,
-        # Number of episodes to run per evaluation period.
-        "evaluation_num_episodes": 5,
+        "evaluation_config": {
+            "env_config": {"max_episode_steps": 1000, "time_aware": False},
+        },
     }
+
+
+@tune_experiment
+def main():
+    config = get_config()
+    return "SOP", config, {"stop": {"timesteps_total": config["buffer_size"]}}
+
+
+if __name__ == "__main__":
+    main()

@@ -21,11 +21,10 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
             self.module.actor, self.module.critics,
         )
         self.loss_critic = ClippedDoubleQLearning(
-            self.module.critics,
-            self.module.target_critics,
-            self.module.target_actor,
-            gamma=self.config["gamma"],
+            self.module.critics, self.module.target_critics, self.module.target_actor,
         )
+        self.loss_critic.gamma = self.config["gamma"]
+        self._grad_step = 0
 
     @staticmethod
     @override(TorchPolicy)
@@ -64,8 +63,10 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
         batch_tensors = self.lazy_tensor_dict(samples)
 
         info = {}
+        self._grad_step += 1
         info.update(self._update_critic(batch_tensors))
-        info.update(self._update_policy(batch_tensors))
+        if self._grad_step % self.config["policy_delay"] == 0:
+            info.update(self._update_policy(batch_tensors))
 
         self.update_targets("critics", "target_critics")
         return info
@@ -94,3 +95,14 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
                 self.module[component].parameters(), float("inf")
             ).item()
         }
+
+    @override(TorchPolicy)
+    def get_weights(self):
+        weights = super().get_weights()
+        weights["grad_step"] = self._grad_step
+        return weights
+
+    @override(TorchPolicy)
+    def set_weights(self, weights):
+        self._grad_step = weights["grad_step"]
+        super().set_weights(weights)

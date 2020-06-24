@@ -40,14 +40,16 @@ def tune_experiment(func):
         "By default, this is capped at 20GB but can be set higher.",
     )
     @initialize_raylab
+    @click.pass_context
     @functools.wraps(func)
-    def wrapped(*args, object_store_memory, tune_kwargs, **kwargs):
+    def wrapped(ctx, *args, object_store_memory, tune_kwargs, **kwargs):
         import ray
         from ray import tune
         from ray.rllib.utils import merge_dicts
 
         trainable, config, tune_overrides = func(*args, **kwargs)
         tune_kwargs = merge_dicts(tune_kwargs, tune_overrides)
+        process_tune_kwargs(ctx, **tune_kwargs)
 
         ray.init(object_store_memory=object_store_memory)
         tune.run(trainable, config=config, **tune_kwargs)
@@ -124,10 +126,8 @@ def tune_options(func):
         show_default=True,
         help="Path to checkpoint. Only makes sense to set if running 1 trial.",
     )
-    @click.pass_context
     @functools.wraps(func)
     def wrapped(
-        ctx,
         *args,
         name,
         local_dir,
@@ -143,6 +143,7 @@ def tune_options(func):
         # pylint:disable=too-many-arguments
         from raylab.logger import DEFAULT_LOGGERS as CUSTOM_LOGGERS
 
+        setup_tune_logger(tune_log_level)
         tune_kwargs = dict(
             name=name,
             local_dir=local_dir,
@@ -154,13 +155,15 @@ def tune_options(func):
         tune_kwargs["loggers"] = CUSTOM_LOGGERS if custom_loggers else None
         tune_kwargs["stop"] = dict(stop)
 
-        setup_tune_logger(tune_log_level)
-        create_if_necessary(ctx, local_dir)
-        delete_if_necessary(ctx, osp.join(local_dir, name))
-
         return func(*args, tune_kwargs=tune_kwargs, **kwargs)
 
     return wrapped
+
+
+def process_tune_kwargs(ctx, local_dir, name, **_):
+    """Check missing/existing directories and prompt user if necessary."""
+    create_if_necessary(ctx, local_dir)
+    delete_if_necessary(ctx, osp.join(local_dir, name))
 
 
 def setup_tune_logger(tune_log_level):

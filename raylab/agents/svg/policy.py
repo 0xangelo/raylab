@@ -17,8 +17,9 @@ class SVGTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
         super().__init__(observation_space, action_space, config)
         self.loss_model = MaximumLikelihood(self.module.model)
         self.loss_critic = ISFittedVIteration(
-            self.module.critic, self.module.target_critic, gamma=self.config["gamma"]
+            self.module.critic, self.module.target_critic
         )
+        self.loss_critic.gamma = self.config["gamma"]
 
     @torch.no_grad()
     def add_truncated_importance_sampling_ratios(self, batch_tensors):

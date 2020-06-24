@@ -52,7 +52,7 @@ class OptimizerCollection(MutableMapping):
             raise KeyError(f"'{key}' optimizer not in collection")
         del self._optimizers[key]
 
-    def __iter__(self) -> Iterator[Optimizer]:
+    def __iter__(self) -> Iterator[str]:
         """Returns an iterator over the optimizer names in the collection."""
         return iter(self._optimizers.keys())
 

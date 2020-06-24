@@ -3,15 +3,12 @@ import contextlib
 import functools
 
 import pytest
-import ray
 from ray.rllib import Policy
 from ray.rllib.optimizers import PolicyOptimizer
 
 from raylab.agents.trainer import StatsTracker
 from raylab.agents.trainer import Trainer
 from raylab.agents.trainer import with_common_config
-
-from ..mock_env import MockEnv
 
 
 class DummyPolicy(Policy):
@@ -61,14 +58,6 @@ class MinimalTrainer(Trainer):
         return self._log_metrics({}, 0)
 
 
-def setup_module():
-    ray.init()
-
-
-def teardown_module():
-    ray.shutdown()
-
-
 @pytest.fixture(params=(True, False), ids=(f"Tracker({b})" for b in (True, False)))
 def tracker(request):
     return request.param
@@ -86,7 +75,7 @@ def optimizer(request):
 
 @pytest.fixture
 def trainer_cls():
-    return functools.partial(MinimalTrainer, env=MockEnv)
+    return functools.partial(MinimalTrainer, env="MockEnv")
 
 
 def test_trainer(trainer_cls, tracker, workers, optimizer):
@@ -114,8 +103,9 @@ def test_trainer(trainer_cls, tracker, workers, optimizer):
     trainer.stop()
 
 
-def test_evaluate_first(trainer_cls):
-    trainer = trainer_cls(
+@pytest.fixture
+def eval_trainer(trainer_cls):
+    return trainer_cls(
         config=dict(
             workers=True,
             num_workers=0,
@@ -125,6 +115,10 @@ def test_evaluate_first(trainer_cls):
             evaluation_num_workers=0,
         )
     )
+
+
+def test_evaluate_first(eval_trainer):
+    trainer = eval_trainer
     assert hasattr(trainer, "evaluation_metrics")
     assert not trainer.evaluation_metrics
 

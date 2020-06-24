@@ -48,6 +48,9 @@ def is_increasing(arr):
         return False
 
     arr = arr[~np.isnan(arr)]
+    if len(arr) == 0:
+        return False
+
     return np.all(np.less_equal(arr[:-1], arr[1:])) and np.max(arr) >= np.min(arr)
 
 

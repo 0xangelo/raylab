@@ -4,6 +4,7 @@ from typing import List
 from typing import Tuple
 
 import torch
+import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
@@ -56,8 +57,8 @@ class ModelEnsembleMLE(Loss):
 
     batch_keys: Tuple[str, str, str] = MaximumLikelihood.batch_keys
 
-    def __init__(self, models: List[StochasticModel]):
-        self.models = models
+    def __init__(self, models: nn.ModuleList):
+        self.loss = NLLLoss(models)
 
     def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
         """Compute Maximum Likelihood Estimation (MLE) loss for each model.
@@ -67,13 +68,31 @@ class ModelEnsembleMLE(Loss):
             dictionary of loss statistics
         """
         obs, actions, next_obs = get_keys(batch, *self.batch_keys)
-        logps = self.model_likelihoods(obs, actions, next_obs)
-        loss = -torch.stack(logps)
-        info = {f"loss(models[{i}])": -l.item() for i, l in enumerate(logps)}
+        losses = self.loss(obs, actions, next_obs)
+        loss = torch.stack(losses)
+        info = {f"loss(models[{i}])": l.item() for i, l in enumerate(losses)}
         return loss, info
 
-    def model_likelihoods(
-        self, obs: Tensor, actions: Tensor, next_obs: Tensor
-    ) -> List[Tensor]:
-        """Compute transition likelihood under each model."""
-        return [m.log_prob(obs, actions, next_obs).mean() for m in self.models]
+    def compile(self):
+        self.loss = torch.jit.script(self.loss)
+
+
+class NLLLoss(nn.Module):
+    """Negative log-likelihood loss for a model ensemble.
+
+    Computes transition likelihood under each model.
+
+    Args:
+        models: the model ensemble
+
+    Attributes:
+        models: the model ensemble
+    """
+
+    def __init__(self, models: nn.ModuleList):
+        super().__init__()
+        self.models = models
+
+    def forward(self, obs: Tensor, act: Tensor, new_obs: Tensor) -> List[Tensor]:
+        # pylint:disable=arguments-differ
+        return [-m.log_prob(obs, act, new_obs).mean() for m in self.models]
