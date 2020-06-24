@@ -2,7 +2,7 @@
 raylab
 ======
 
-|PyPI| |Travis| |PyUp| |License| |CodeStyle|
+|PyPI| |Tests| |Dependabot| |License| |CodeStyle|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/raylab?logo=PyPi&logoColor=white&color=blue
 	  :alt: PyPI
