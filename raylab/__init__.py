@@ -1,8 +1,9 @@
 """RAYLAB: Extensions and custom algorithms in RLlib."""
+import poetry_version
 
 __author__ = """Ângelo Gregório Lovatto"""
 __email__ = "angelolovatto@gmail.com"
-__version__ = "0.8.0"
+__version__ = poetry_version.extract(source_file=__file__)
 
 
 def register_all_agents():
