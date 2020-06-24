@@ -7,7 +7,7 @@ raylab
 .. |PyPI| image:: https://img.shields.io/pypi/v/raylab?logo=PyPi&logoColor=white&color=blue
 	  :alt: PyPI
 
-.. |Tests| image:: https://img.shields.io/github/workflow/status/angelolovatto/raylab/Poetry package?label=tests&logo=GitHub
+.. |Tests| image:: https://img.shields.io/github/workflow/status/angelolovatto/raylab/Poetry%20package?label=tests&logo=GitHub
 	   :alt: GitHub Workflow Status
 
 .. |Dependabot| image:: https://api.dependabot.com/badges/status?host=github&repo=angelolovatto/raylab

@@ -3,9 +3,8 @@
 
 name: Poetry publish
 
-on:
-  release:
-    types: [created]
+on: release
+
 
 jobs:
   deploy:
