@@ -5,20 +5,19 @@ raylab
 |PyPI| |Travis| |PyUp| |License| |CodeStyle|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/raylab?logo=PyPi&logoColor=white&color=blue
-        :alt: PyPI
+	  :alt: PyPI
 
-.. |Travis| image:: https://img.shields.io/travis/com/angelolovatto/raylab?logo=travis-ci&logoColor=important
-        :alt: Travis (.com)
+.. |Tests| image:: https://img.shields.io/github/workflow/status/angelolovatto/raylab/Poetry package?label=tests&logo=GitHub
+	   :alt: GitHub Workflow Status
 
-.. |PyUp| image:: https://pyup.io/repos/github/angelolovatto/raylab/shield.svg
-        :target: https://pyup.io/repos/github/angelolovatto/raylab/
-        :alt: Updates
+.. |Dependabot| image:: https://api.dependabot.com/badges/status?host=github&repo=angelolovatto/raylab
+		:target: https://dependabot.com
 
 .. |License| image:: https://img.shields.io/github/license/angelolovatto/raylab?color=blueviolet&logo=github
-        :alt: GitHub
+	     :alt: GitHub
 
 .. |CodeStyle| image:: https://img.shields.io/badge/code%20style-black-000000.svg
-        :target: https://github.com/psf/black
+	       :target: https://github.com/psf/black
 
 
 Reinforcement learning algorithms in `RLlib <https://github.com/ray-project/ray/tree/master/rllib>`_ and `PyTorch <https://pytorch.org>`_.
