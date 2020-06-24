@@ -1,4 +1,0 @@
-click==7.1.2
-dataclasses-json==0.5.1
-ray[rllib,dashboard]==0.8.5
-torch==1.5.1

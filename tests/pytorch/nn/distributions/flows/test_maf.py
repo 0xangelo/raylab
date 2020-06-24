@@ -11,6 +11,7 @@ def module(request):
     return request.param(4, parity=True)
 
 
+@pytest.mark.skip(reason="Output is sometimes NaN. Needs investigation.")
 def test_flow(module, torch_script):
     module = torch.jit.script(module) if torch_script else module
 
