@@ -1,6 +1,6 @@
 """Losses for computing policy gradients."""
-from typing import Callable
 from typing import Dict
+from typing import Optional
 from typing import Tuple
 
 import torch
@@ -25,7 +25,7 @@ class DeterministicPolicyGradient(Loss):
         critics: callables for action-values
     """
 
-    batch_keys = (SampleBatch.CUR_OBS,)
+    batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
 
     def __init__(self, actor: DetPolicy, critics: nn.ModuleList):
         self.actor = actor
@@ -52,27 +52,25 @@ class ReparameterizedSoftPG(Loss):
     Args:
         actor: stochastic reparameterized policy
         critics: callables for action-values
+
+    Attributes:
         alpha: entropy coefficient schedule
-        rlogp: whether to draw reparameterized log_probs from the actor
     """
 
-    batch_keys = (SampleBatch.CUR_OBS,)
+    batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
+    alpha: float = 0.05
 
     def __init__(
-        self,
-        actor: StochasticPolicy,
-        critics: nn.ModuleList,
-        alpha: Callable[[], Tensor],
+        self, actor: StochasticPolicy, critics: nn.ModuleList,
     ):
         self.actor = actor
         self.critics = critics
-        self.alpha = alpha
 
     def __call__(self, batch):
         obs = batch[SampleBatch.CUR_OBS]
 
         action_values, entropy = self.action_value_entropy(obs)
-        loss = -torch.mean(action_values + self.alpha() * entropy)
+        loss = -torch.mean(action_values + self.alpha * entropy)
 
         stats = {"loss(actor)": loss.item(), "entropy": entropy.mean().item()}
         return loss, stats
@@ -92,36 +90,29 @@ class ModelAwareDPG:
     Args:
         actor: deterministic policy
         critics: callables for action-values
-        gamma (float): discount factor
-        num_model_samples (int): number of next states to draw from the model
-        grad_estimator (str): gradient estimator for expecations ('PD' or 'SF')
 
     Attributes:
-        reward_fn (Optional[RewardFn]): reward function for state, action, and
+        gamma: discount factor
+        num_model_samples: number of next states to draw from the model
+        grad_estimator: gradient estimator for expecations ('PD' or 'SF')
+        reward_fn: reward function for state, action, and
             next state tuples
-        model (Optional[DynamicsFn]): stochastic model that returns next state
+        model: stochastic model that returns next state
             and its log density
     """
 
-    batch_keys = (SampleBatch.CUR_OBS,)
+    batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
+    gamma: float = 0.99
+    num_model_samples: int = 1
+    grad_estimator: str = "SF"
+    reward_fn: Optional[RewardFn] = None
+    model: Optional[DynamicsFn] = None
 
     def __init__(
-        self,
-        actor: DetPolicy,
-        critics: nn.ModuleList,
-        gamma: float,
-        num_model_samples: int,
-        grad_estimator: str,
+        self, actor: DetPolicy, critics: nn.ModuleList,
     ):
-        # pylint:disable=too-many-arguments
         self.actor = actor
         self.critics = critics
-        self.gamma = gamma
-        self.num_model_samples = num_model_samples
-        self.grad_estimator = grad_estimator
-
-        self.reward_fn = None
-        self.model = None
 
     def set_reward_fn(self, function: RewardFn):
         """Set reward function to provided callable."""

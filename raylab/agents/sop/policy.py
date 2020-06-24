@@ -21,11 +21,9 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
             self.module.actor, self.module.critics,
         )
         self.loss_critic = ClippedDoubleQLearning(
-            self.module.critics,
-            self.module.target_critics,
-            self.module.target_actor,
-            gamma=self.config["gamma"],
+            self.module.critics, self.module.target_critics, self.module.target_actor,
         )
+        self.loss_critic.gamma = self.config["gamma"]
         self._grad_step = 0
 
     @staticmethod

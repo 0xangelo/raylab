@@ -18,11 +18,9 @@ class NAFTorchPolicy(TargetNetworksMixin, TorchPolicy):
         super().__init__(*args, **kwargs)
         target_critics = [lambda s, _, v=v: v(s) for v in self.module.target_vcritics]
         self.loss_fn = ClippedDoubleQLearning(
-            self.module.critics,
-            target_critics,
-            actor=lambda _: None,
-            gamma=self.config["gamma"],
+            self.module.critics, target_critics, actor=lambda _: None,
         )
+        self.loss_fn.gamma = self.config["gamma"]
 
     @staticmethod
     @override(TorchPolicy)

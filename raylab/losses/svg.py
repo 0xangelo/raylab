@@ -30,18 +30,19 @@ class OneStepSVG(Loss):
         model: stochastic model that reproduces state and its log density
         actor: stochastic policy that reproduces action and its log density
         critic: state-value function
+
+    Attributes:
         gamma: discount factor
     """
 
     IS_RATIOS = "is_ratios"
+    gamma: float = 0.99
+    batch_keys: Tuple[str, str, str, str, str]
 
-    def __init__(
-        self, model: StateRepr, actor: ActionRepr, critic: StateValue, gamma: float
-    ):
+    def __init__(self, model: StateRepr, actor: ActionRepr, critic: StateValue):
         self.model = model
         self.actor = actor
         self.critic = critic
-        self.gamma = gamma
 
         self.batch_keys = (
             SampleBatch.CUR_OBS,
@@ -50,7 +51,6 @@ class OneStepSVG(Loss):
             SampleBatch.DONES,
             self.IS_RATIOS,
         )
-
         self._reward_fn = None
 
     def set_reward_fn(self, function: RewardFn):
@@ -93,14 +93,14 @@ class OneStepSoftSVG(OneStepSVG):
         model: stochastic model that reproduces state and its log density
         actor: stochastic policy that reproduces action and its log density
         critic: state-value function
-        alpha: entropy coefficient schedule
+
+    Attributes:
         gamma: discount factor
+        alpha: entropy coefficient
     """
 
-    def __init__(self, *args, alpha: Callable[[], Tensor], **kwargs):
-        # pylint:disable=too-many-arguments
-        super().__init__(*args, **kwargs)
-        self.alpha = alpha
+    gamma: float = 0.99
+    alpha: float = 0.05
 
     @override(OneStepSVG)
     def one_step_reproduced_state_value(
@@ -110,7 +110,7 @@ class OneStepSoftSVG(OneStepSVG):
         _next_obs, _ = self.model(obs, _actions, next_obs)
         _rewards = self._reward_fn(obs, _actions, _next_obs)
         _entropy = -_logp
-        _augmented_rewards = _rewards + _entropy * self.alpha()
+        _augmented_rewards = _rewards + _entropy * self.alpha
         _next_vals = self.critic(_next_obs).squeeze(-1)
 
         return torch.where(

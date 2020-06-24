@@ -23,33 +23,25 @@ class DPGAwareModelLearning(Loss):
     Args:
         actor: deterministic policy
         critics: callables for action-values
-        gamma: discount factor
-        grad_estimator: gradient estimator for expectations. One of 'PD' or 'SF'
 
     Atributes:
-        actor: deterministic policy
-        critics: callables for action-values
         gamma: discount factor
         grad_estimator: gradient estimator for expectations. One of 'PD' or 'SF'
         model: stochastic model that returns next state and its log density
         reward_fn: callable that computes rewards for transitions
     """
 
+    gamma: float = 0.99
+    grad_estimator: str = "SF"
     model: Optional[DynamicsFn]
     reward_fn: Optional[RewardFn]
     batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
 
     def __init__(
-        self,
-        actor: DetPolicy,
-        critics: List[ActionValue],
-        gamma: float = 0.99,
-        grad_estimator: str = "SF",
+        self, actor: DetPolicy, critics: List[ActionValue],
     ):
         self.actor = actor
         self.critics = critics
-        self.gamma = gamma
-        self.grad_estimator = grad_estimator
 
         self.model = None
         self.reward_fn = None

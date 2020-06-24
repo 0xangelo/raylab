@@ -22,7 +22,6 @@ def test_actor_loss(policy_and_batch_fn, clipped_double_q, input_dependent_scale
 
     loss.backward()
     assert all(p.grad is not None for p in policy.module.actor.parameters())
-    assert all(p.grad is not None for p in policy.module.alpha.parameters())
     assert all(p.grad is not None for p in policy.module.critics.parameters())
 
     assert "loss(actor)" in info

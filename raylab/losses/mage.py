@@ -1,7 +1,6 @@
 """Losses for model aware action gradient estimation."""
 from dataclasses import dataclass
 from typing import Dict
-from typing import Optional
 from typing import Tuple
 
 import numpy as np
@@ -10,23 +9,8 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.utils.annotations import RewardFn
-from raylab.utils.annotations import TerminationFn
-
 from .abstract import Loss
-
-
-@dataclass
-class EnvFunctions:
-    """Collection of environment emulating functions."""
-
-    reward: Optional[RewardFn] = None
-    termination: Optional[TerminationFn] = None
-
-    @property
-    def initialized(self):
-        """Whether or not all functions are set."""
-        return self.reward is not None and self.termination is not None
+from .mixins import EnvFunctionsMixin
 
 
 @dataclass
@@ -48,7 +32,7 @@ class MAGEModules:
     models: nn.ModuleList
 
 
-class MAGE(Loss):
+class MAGE(EnvFunctionsMixin, Loss):
     """Loss function for Model-based Action-Gradient-Estimator.
 
     Args:
@@ -60,10 +44,11 @@ class MAGE(Loss):
     """
 
     batch_keys = (SampleBatch.CUR_OBS,)
-    gamma: float
-    lambda_: float
+    gamma: float = 0.99
+    lambda_: float = 0.05
 
     def __init__(self, modules: MAGEModules):
+        super().__init__()
         self._modules = nn.ModuleDict(
             dict(
                 critics=modules.critics,
@@ -73,26 +58,14 @@ class MAGE(Loss):
                 models=modules.models,
             )
         )
-        self._env = EnvFunctions()
         self._rng = np.random.default_rng()
 
-        self.gamma = 0.99
-        self.lambda_ = 0.05
-
     def compile(self):
-        self._modules = torch.jit.script(self._modules)
+        self._modules.update({k: torch.jit.script(v) for k, v in self._modules.items()})
 
     def seed(self, seed: int):
         """Seeds the RNG for choosing a model from the ensemble."""
         self._rng = np.random.default_rng(seed)
-
-    def set_reward_fn(self, function: RewardFn):
-        """Set reward function to provided callable."""
-        self._env.reward = function
-
-    def set_termination_fn(self, function: TerminationFn):
-        """Set termination function to provided callable."""
-        self._env.termination = function
 
     @property
     def initialized(self) -> bool:

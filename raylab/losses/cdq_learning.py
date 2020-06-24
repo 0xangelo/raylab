@@ -1,10 +1,7 @@
 """Modularized Q-Learning procedures."""
-from typing import Callable
-
 import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
-from torch import Tensor
 
 import raylab.utils.dictionaries as dutil
 from raylab.utils.annotations import DetPolicy
@@ -54,20 +51,19 @@ class ClippedDoubleQLearning(QLearningMixin, Loss):
         critics: callables for main action-values
         target_critics: callables for target action-values
         actor: deterministic policy for the next state
+
+    Attributes:
         gamma: discount factor
     """
 
+    gamma: float = 0.99
+
     def __init__(
-        self,
-        critics: nn.ModuleList,
-        target_critics: nn.ModuleList,
-        actor: DetPolicy,
-        gamma: float,
+        self, critics: nn.ModuleList, target_critics: nn.ModuleList, actor: DetPolicy,
     ):
         self.critics = critics
         self.target_critics = target_critics
         self.actor = actor
-        self.gamma = gamma
 
     def critic_targets(self, rewards, next_obs, dones):
         """
@@ -87,24 +83,24 @@ class SoftCDQLearning(QLearningMixin, Loss):
         critics: callables for main action-values
         target_critics: callables for target action-values
         actor: stochastic policy for the next state
+
+    Attributes:
         gamma: discount factor
-        alpha: entropy coefficient schedule
+        alpha: entropy coefficient
     """
+
+    gamma: float = 0.99
+    alpha: float = 0.05
 
     def __init__(
         self,
         critics: nn.ModuleList,
         target_critics: nn.ModuleList,
         actor: StochasticPolicy,
-        gamma: float,
-        alpha: Callable[[], Tensor],
     ):
-        # pylint:disable=too-many-arguments
         self.critics = critics
         self.target_critics = target_critics
         self.actor = actor
-        self.gamma = gamma
-        self.alpha = alpha
 
     def critic_targets(self, rewards, next_obs, dones):
         """
@@ -116,4 +112,4 @@ class SoftCDQLearning(QLearningMixin, Loss):
 
         next_values = torch.where(dones, torch.zeros_like(target_values), target_values)
         next_entropy = torch.where(dones, torch.zeros_like(next_logp), -next_logp)
-        return rewards + self.gamma * (next_values + self.alpha() * next_entropy)
+        return rewards + self.gamma * (next_values + self.alpha * next_entropy)
