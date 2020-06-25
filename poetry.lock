@@ -141,6 +141,20 @@ tests = ["coverage", "hypothesis", "pympler", "pytest (>=4.3.0)", "six", "zope.i
 
 [[package]]
 category = "dev"
+description = "Simple tool to generate nice, formatted changelogs from vcs"
+name = "auto-changelog"
+optional = false
+python-versions = ">=3.5"
+version = "0.5.1"
+
+[package.dependencies]
+Click = ">=7.0,<8.0"
+docopt = ">=0.6.2,<0.7.0"
+gitpython = ">=2.1"
+jinja2 = ">=2.10,<3.0"
+
+[[package]]
+category = "dev"
 description = "Internationalization utilities"
 name = "babel"
 optional = false
@@ -398,6 +412,14 @@ version = "0.1.5"
 six = ">=1.12.0"
 
 [[package]]
+category = "dev"
+description = "Pythonic argument parser, that will make you smile"
+name = "docopt"
+optional = false
+python-versions = "*"
+version = "0.6.2"
+
+[[package]]
 category = "main"
 description = "Docutils -- Python Documentation Utilities"
 name = "docutils"
@@ -453,6 +475,28 @@ name = "future"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 version = "0.18.2"
+
+[[package]]
+category = "dev"
+description = "Git Object Database"
+name = "gitdb"
+optional = false
+python-versions = ">=3.4"
+version = "4.0.5"
+
+[package.dependencies]
+smmap = ">=3.0.1,<4"
+
+[[package]]
+category = "dev"
+description = "Python Git Library"
+name = "gitpython"
+optional = false
+python-versions = ">=3.4"
+version = "3.1.3"
+
+[package.dependencies]
+gitdb = ">=4.0.1,<5"
 
 [[package]]
 category = "main"
@@ -1513,6 +1557,14 @@ version = "1.15.0"
 
 [[package]]
 category = "dev"
+description = "A pure Python implementation of a sliding window memory map manager"
+name = "smmap"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+version = "3.0.4"
+
+[[package]]
+category = "dev"
 description = "This package provides 26 stemmers for 25 languages generated from Snowball algorithms."
 name = "snowballstemmer"
 optional = false
@@ -1976,7 +2028,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "fc7494e83094adab3b6626b5eadeb6072c0dd2704f75d2fa42a069333612d01a"
+content-hash = "07c41546f29a2277543366994ebd8a11e660438d3c515a08863b3af5bb90769e"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -2044,6 +2096,10 @@ atomicwrites = [
 attrs = [
     {file = "attrs-19.3.0-py2.py3-none-any.whl", hash = "sha256:08a96c641c3a74e44eb59afb61a24f2cb9f4d7188748e76ba4bb5edfa3cb7d1c"},
     {file = "attrs-19.3.0.tar.gz", hash = "sha256:f7b7ce16570fe9965acd6d30101a28f62fb4a7f9e926b3bbc9b61f8b04247e72"},
+]
+auto-changelog = [
+    {file = "auto-changelog-0.5.1.tar.gz", hash = "sha256:8608dd3cb3314120159e065a218ace05b42097db78bf1ac6cfaf0e00d32e8eae"},
+    {file = "auto_changelog-0.5.1-py3-none-any.whl", hash = "sha256:39f9f79f757a570b13c161084edf301e348b953264842339fe735f3ff8685b15"},
 ]
 babel = [
     {file = "Babel-2.8.0-py2.py3-none-any.whl", hash = "sha256:d670ea0b10f8b723672d3a6abeb87b565b244da220d76b4dba1b66269ec152d4"},
@@ -2182,6 +2238,9 @@ dm-tree = [
     {file = "dm_tree-0.1.5-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:134b58263e09a6e552c05c85c630f424446b75600bd38ff1838329eb0cbe0e50"},
     {file = "dm_tree-0.1.5-cp38-cp38-win_amd64.whl", hash = "sha256:3ed4a2c3328603fa06c2104921b31faf3e831e9828ed625bb0e0813dc2c8a17f"},
 ]
+docopt = [
+    {file = "docopt-0.6.2.tar.gz", hash = "sha256:49b3a825280bd66b3aa83585ef59c4a8c82f2c8a522dbe754a8bc8d08c85c491"},
+]
 docutils = [
     {file = "docutils-0.15.2-py2-none-any.whl", hash = "sha256:9e4d7ecfc600058e07ba661411a2b7de2fd0fafa17d1a7f7361cd47b1175c827"},
     {file = "docutils-0.15.2-py3-none-any.whl", hash = "sha256:6c4f696463b79f1fb8ba0c594b63840ebd41f059e92b31957c46b74a4599b6d0"},
@@ -2205,6 +2264,14 @@ flake8 = [
 ]
 future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
+]
+gitdb = [
+    {file = "gitdb-4.0.5-py3-none-any.whl", hash = "sha256:91f36bfb1ab7949b3b40e23736db18231bf7593edada2ba5c3a174a7b23657ac"},
+    {file = "gitdb-4.0.5.tar.gz", hash = "sha256:c9e1f2d0db7ddb9a704c2a0217be31214e91a4fe1dea1efad19ae42ba0c285c9"},
+]
+gitpython = [
+    {file = "GitPython-3.1.3-py3-none-any.whl", hash = "sha256:ef1d60b01b5ce0040ad3ec20bc64f783362d41fa0822a2742d3586e1f49bb8ac"},
+    {file = "GitPython-3.1.3.tar.gz", hash = "sha256:e107af4d873daed64648b4f4beb89f89f0cfbe3ef558fc7821ed2331c2f8da1a"},
 ]
 google = [
     {file = "google-2.0.3-py2.py3-none-any.whl", hash = "sha256:c03517e6f9eec7a03c07b864f9a64384fd4bc1efce9034d42e3f90addc9fe4ee"},
@@ -2888,6 +2955,10 @@ send2trash = [
 six = [
     {file = "six-1.15.0-py2.py3-none-any.whl", hash = "sha256:8b74bedcbbbaca38ff6d7491d76f2b06b3592611af620f8426e82dddb04a5ced"},
     {file = "six-1.15.0.tar.gz", hash = "sha256:30639c035cdb23534cd4aa2dd52c3bf48f06e5f4a941509c8bafd8ce11080259"},
+]
+smmap = [
+    {file = "smmap-3.0.4-py2.py3-none-any.whl", hash = "sha256:54c44c197c819d5ef1991799a7e30b662d1e520f2ac75c9efbeb54a742214cf4"},
+    {file = "smmap-3.0.4.tar.gz", hash = "sha256:9c98bbd1f9786d22f14b3d4126894d56befb835ec90cef151af566c7e19b5d24"},
 ]
 snowballstemmer = [
     {file = "snowballstemmer-2.0.0-py2.py3-none-any.whl", hash = "sha256:209f257d7533fdb3cb73bdbd24f436239ca3b2fa67d56f6ff88e86be08cc5ef0"},
