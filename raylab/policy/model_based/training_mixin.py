@@ -228,7 +228,9 @@ class ModelTrainingMixin:
 
         if evaluator:
             eval_losses = evaluator.restore_models()
-            info.update({f"loss(models[{i}])": l for i, l in enumerate(eval_losses)})
+            info.update(
+                {f"eval_loss(models[{i}])": l for i, l in enumerate(eval_losses)}
+            )
         else:
             eval_losses = [np.nan for _ in self.module.models]
 
