@@ -33,32 +33,17 @@ class MAPOTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
         self.loss_actor.grad_estimator = self.config["losses"]["grad_estimator"]
 
     @override(EnvFnMixin)
-    def set_reward_from_config(self, *args, **kwargs):
-        super().set_reward_from_config(*args, **kwargs)
+    def _set_reward_hook(self):
         self.loss_model.set_reward_fn(self.reward_fn)
         self.loss_actor.set_reward_fn(self.reward_fn)
 
     @override(EnvFnMixin)
-    def set_termination_from_config(self, *args, **kwargs):
-        super().set_termination_from_config(*args, **kwargs)
+    def _set_termination_hook(self):
         self.loss_model.set_termination_fn(self.termination_fn)
         self.loss_actor.set_termination_fn(self.termination_fn)
 
     @override(EnvFnMixin)
-    def set_reward_from_callable(self, *args, **kwargs):
-        super().set_reward_from_callable(*args, **kwargs)
-        self.loss_model.set_reward_fn(self.reward_fn)
-        self.loss_actor.set_reward_fn(self.reward_fn)
-
-    @override(EnvFnMixin)
-    def set_termination_from_callable(self, *args, **kwargs):
-        super().set_termination_from_callable(*args, **kwargs)
-        self.loss_model.set_termination_fn(self.termination_fn)
-        self.loss_actor.set_termination_fn(self.termination_fn)
-
-    @override(EnvFnMixin)
-    def set_dynamics_from_callable(self, *args, **kwargs):
-        super().set_dynamics_from_callable(*args, **kwargs)
+    def _set_dynamics_hook(self):
         self.loss_actor = DAPO(self.dynamics_fn, self.module.actor, self.module.critics)
         self.loss_actor.gamma = self.config["gamma"]
         self.loss_actor.dynamics_samples = self.config["losses"]["model_samples"]
