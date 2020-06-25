@@ -41,20 +41,10 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
 
         return DEFAULT_CONFIG
 
-    def set_reward_from_config(self, *args, **kwargs):
-        super().set_reward_from_config(*args, **kwargs)
+    def _set_reward_hook(self):
         self.loss_critic.set_reward_fn(self.reward_fn)
 
-    def set_reward_from_callable(self, *args, **kwargs):
-        super().set_reward_from_callable(*args, **kwargs)
-        self.loss_critic.set_reward_fn(self.reward_fn)
-
-    def set_termination_from_config(self, *args, **kwargs):
-        super().set_termination_from_config(*args, **kwargs)
-        self.loss_critic.set_termination_fn(self.termination_fn)
-
-    def set_termination_from_callable(self, *args, **kwargs):
-        super().set_termination_from_callable(*args, **kwargs)
+    def _set_termination_hook(self):
         self.loss_critic.set_termination_fn(self.termination_fn)
 
     def make_optimizers(self):

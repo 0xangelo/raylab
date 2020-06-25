@@ -43,8 +43,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         )
 
     @override(EnvFnMixin)
-    def set_reward_from_config(self, env_name: str, env_config: dict):
-        super().set_reward_from_config(env_name, env_config)
+    def _set_reward_hook(self):
         self.loss_actor.set_reward_fn(self.reward_fn)
 
     @staticmethod
