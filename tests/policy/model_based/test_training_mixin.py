@@ -43,6 +43,16 @@ class DummyPolicy(ModelTrainingMixin, TorchPolicy):
         return {"models": build_optimizer(self.module.models, {"type": "Adam"})}
 
 
+@pytest.fixture
+def train_samples(obs_space, action_space):
+    return fake_batch(obs_space, action_space, batch_size=80)
+
+
+@pytest.fixture
+def eval_samples(obs_space, action_space):
+    return fake_batch(obs_space, action_space, batch_size=20)
+
+
 @pytest.fixture(scope="module")
 def policy_cls(obs_space, action_space):
     return functools.partial(DummyPolicy, obs_space, action_space)
@@ -53,7 +63,7 @@ def ensemble_size(request):
     return request.param
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def config(ensemble_size):
     return {
         "model_training": {
@@ -67,16 +77,12 @@ def config(ensemble_size):
     }
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def policy(policy_cls, config):
     return policy_cls(config)
 
 
-def test_optimize_model(policy, mocker):
-    obs_space, action_space = policy.observation_space, policy.action_space
-    train_samples = fake_batch(obs_space, action_space, batch_size=80)
-    eval_samples = fake_batch(obs_space, action_space, batch_size=20)
-
+def test_optimize_model(policy, mocker, train_samples, eval_samples):
     init = mocker.spy(Evaluator, "__init__")
     losses, info = policy.optimize_model(train_samples, eval_samples)
     assert init.called
@@ -92,10 +98,7 @@ def test_optimize_model(policy, mocker):
     assert "grad_norm(models)" in info
 
 
-def test_optimize_with_no_eval(policy, mocker):
-    obs_space, action_space = policy.observation_space, policy.action_space
-    train_samples = fake_batch(obs_space, action_space, batch_size=80)
-
+def test_optimize_with_no_eval(policy, mocker, train_samples):
     init = mocker.spy(Evaluator, "__init__")
     losses, info = policy.optimize_model(train_samples)
     assert not init.called
@@ -109,3 +112,37 @@ def test_optimize_with_no_eval(policy, mocker):
     assert "train_loss(models)" in info
     assert "eval_loss(models)" not in info
     assert "grad_norm(models)" in info
+
+
+@pytest.fixture(
+    params=(pytest.param(0, marks=pytest.mark.xfail), 1, 4),
+    ids=lambda x: f"Patience({x})",
+)
+def patience_epochs(request):
+    return request.param
+
+
+@pytest.fixture
+def patient_policy(patience_epochs, policy_cls, config):
+    model_training = {
+        "max_epochs": patience_epochs + 1,
+        "max_grad_steps": None,
+        "max_time": None,
+        "improvement_threshold": 0,
+        "patience_epochs": patience_epochs,
+    }
+    config["model_training"].update(model_training)
+    return policy_cls(config)
+
+
+def test_early_stop(
+    patient_policy, patience_epochs, ensemble_size, mocker, train_samples, eval_samples
+):
+    mock = mocker.patch.object(DummyLoss, "__call__")
+    mock.side_effect = lambda _: (torch.ones(ensemble_size).requires_grad_(), {})
+
+    _, info = patient_policy.optimize_model(train_samples, eval_samples)
+
+    assert mock.called
+
+    assert info["model_epochs"] == patience_epochs
