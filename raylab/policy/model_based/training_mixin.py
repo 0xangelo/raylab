@@ -69,14 +69,18 @@ class TrainingSpec(DataClassJsonMixin):
         ), "Cannot train model for a negative number of epochs"
         assert not self.max_grad_steps or self.max_grad_steps > 0
         assert (
+            not self.max_time or self.max_time > 0
+        ), "Maximum training time must be positive"
+        assert (
             not self.patience_epochs or self.patience_epochs > 0
         ), "Must wait a positive number of epochs for any model to improve"
         assert (
-            not self.max_time or self.max_time > 0
-        ), "Maximum training time must be positive"
-
+            self.improvement_threshold >= 0
+        ), "Improvement threshold must be nonnegative"
         assert (
-            self.max_epochs or self.max_grad_steps or self.patience_epochs
+            self.max_epochs
+            or self.max_grad_steps
+            or (self.improvement_threshold is not None and self.patience_epochs)
         ), "Need at least one stopping criterion"
 
 
@@ -251,7 +255,7 @@ class ModelTrainingMixin:
         self, eval_samples: Optional[SampleBatch]
     ) -> Optional[Evaluator]:
         spec = self.model_training_spec
-        if not (eval_samples and spec.improvement_threshold):
+        if not (eval_samples and spec.improvement_threshold is not None):
             return None
 
         eval_tensors = {
