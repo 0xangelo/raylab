@@ -75,7 +75,7 @@ class TrainingSpec(DataClassJsonMixin):
             not self.patience_epochs or self.patience_epochs > 0
         ), "Must wait a positive number of epochs for any model to improve"
         assert (
-            self.improvement_threshold >= 0
+            self.improvement_threshold is None or self.improvement_threshold >= 0
         ), "Improvement threshold must be nonnegative"
         assert (
             self.max_epochs
