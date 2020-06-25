@@ -284,7 +284,7 @@ class ModelTrainingMixin:
             for minibatch in dataloader:
                 with self.optimizers.optimize("models"):
                     losses, train_info = self.loss_model(minibatch)
-                    losses.mean().backward()
+                    losses.sum().backward()
 
                 info.update({"train_" + k: v for k, v in train_info.items()})
                 grad_steps += 1
