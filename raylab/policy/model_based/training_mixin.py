@@ -114,7 +114,7 @@ class Evaluator:
         eval_losses, _ = self.loss_fn(self.eval_tensors)
         eval_losses = eval_losses.tolist()
         self._snapshots = [
-            ModelSnapshot(epoch=0, loss=loss, state_dict=copy.deepcopy(m.state_dict()))
+            ModelSnapshot(epoch=-1, loss=loss, state_dict=copy.deepcopy(m.state_dict()))
             for m, loss in zip(self.models, eval_losses)
         ]
 
