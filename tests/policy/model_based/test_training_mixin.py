@@ -9,22 +9,18 @@ from ray.rllib import SampleBatch
 from raylab.policy import ModelTrainingMixin
 from raylab.policy import OptimizerCollection
 from raylab.policy import TorchPolicy
+from raylab.policy.model_based.training_mixin import Evaluator
 from raylab.pytorch.optim import build_optimizer
 from raylab.utils.debug import fake_batch
-
-ENSEMBLE_SIZE = (1, 4)
 
 
 class DummyLoss:
     # pylint:disable=all
     batch_keys = (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, SampleBatch.NEXT_OBS)
+    ensemble_size: int = 1
 
-    def __init__(self, models):
-        self.models = models
-
-    def __call__(self, batch):
-        inputs = tuple(batch[k] for k in self.batch_keys)
-        losses = torch.stack([-m.log_prob(*inputs).mean() for m in self.models])
+    def __call__(self, _):
+        losses = torch.randn(self.ensemble_size).requires_grad_(True)
         return losses, {"loss(models)": losses.mean().item()}
 
 
@@ -32,7 +28,9 @@ class DummyPolicy(ModelTrainingMixin, TorchPolicy):
     # pylint:disable=abstract-method
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self.loss_model = DummyLoss(self.module.models)
+        loss = DummyLoss()
+        loss.ensemble_size = len(self.module.models)
+        self.loss_model = loss
 
     @staticmethod
     def get_default_config():
@@ -50,9 +48,7 @@ def policy_cls(obs_space, action_space):
     return functools.partial(DummyPolicy, obs_space, action_space)
 
 
-@pytest.fixture(
-    scope="module", params=ENSEMBLE_SIZE, ids=(f"Ensemble({s})" for s in ENSEMBLE_SIZE)
-)
+@pytest.fixture(scope="module", params=(1, 4), ids=lambda s: f"Ensemble({s})")
 def ensemble_size(request):
     return request.param
 
@@ -76,12 +72,14 @@ def policy(policy_cls, config):
     return policy_cls(config)
 
 
-def test_optimize_model(policy):
+def test_optimize_model(policy, mocker):
     obs_space, action_space = policy.observation_space, policy.action_space
     train_samples = fake_batch(obs_space, action_space, batch_size=80)
     eval_samples = fake_batch(obs_space, action_space, batch_size=20)
 
+    init = mocker.spy(Evaluator, "__init__")
     losses, info = policy.optimize_model(train_samples, eval_samples)
+    assert init.called
 
     assert isinstance(losses, list)
     assert all(isinstance(loss, float) for loss in losses)
@@ -94,13 +92,14 @@ def test_optimize_model(policy):
     assert "grad_norm(models)" in info
 
 
-def test_optimize_with_no_eval(policy):
+def test_optimize_with_no_eval(policy, mocker):
     obs_space, action_space = policy.observation_space, policy.action_space
     train_samples = fake_batch(obs_space, action_space, batch_size=80)
 
+    init = mocker.spy(Evaluator, "__init__")
     losses, info = policy.optimize_model(train_samples)
+    assert not init.called
 
-    print(losses)
     assert isinstance(losses, list)
     assert all(math.isnan(loss) for loss in losses)
 
