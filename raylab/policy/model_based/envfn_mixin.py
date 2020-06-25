@@ -32,6 +32,32 @@ class EnvFnMixin:
         self.termination_fn = None
         self.dynamics_fn = None
 
+    def _set_reward_hook(self):
+        """Procedure to run upon setting the reward function.
+
+        Subclasses should override this to do extra processing whenever
+        `set_reward_from_callable` or `set_reward_from_config` is called.
+        For example, the subclass may set up losses which assume access to
+        environment functions.
+        """
+
+    def _set_termination_hook(self):
+        """Procedure to run upon setting the termination function.
+
+        Subclasses should override this to do extra processing whenever
+        `set_termination_from_callable` or `set_termination_from_config` is
+        called. For example, the subclass may set up losses which assume access
+        to environment functions.
+        """
+
+    def _set_dynamics_hook(self):
+        """Procedure to run upon setting the dynamics function.
+
+        Subclasses should override this to do extra processing whenever
+        `set_dynamics_from_callable` is called. For example, the subclass may
+        set up losses which assume access to environment functions.
+        """
+
     def set_reward_from_config(self, env_name: str, env_config: dict):
         """Build and set the reward function from environment configurations.
 
@@ -40,6 +66,7 @@ class EnvFnMixin:
             env_config: the environment's configuration
         """
         self.reward_fn = get_reward_fn(env_name, env_config)
+        self._set_reward_hook()
 
     def set_reward_from_callable(self, function: RewardFn):
         """Set the reward function from an external callable.
@@ -49,6 +76,7 @@ class EnvFnMixin:
                 function
         """
         self.reward_fn = function
+        self._set_reward_hook()
 
     def set_termination_from_config(self, env_name: str, env_config: dict):
         """Build and set the termination function from environment configurations.
@@ -58,6 +86,7 @@ class EnvFnMixin:
             env_config: the environment's configuration
         """
         self.termination_fn = get_termination_fn(env_name, env_config)
+        self._set_termination_hook()
 
     def set_termination_from_callable(self, function: TerminationFn):
         """Set the termination function from an external callable.
@@ -67,6 +96,7 @@ class EnvFnMixin:
                 function
         """
         self.termination_fn = function
+        self._set_termination_hook()
 
     def set_dynamics_from_callable(self, function: DynamicsFn):
         """Set the dynamics function from an external callable.
@@ -76,3 +106,4 @@ class EnvFnMixin:
                 function
         """
         self.dynamics_fn = function
+        self._set_dynamics_hook()

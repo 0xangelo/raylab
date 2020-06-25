@@ -28,7 +28,7 @@ def get_config():
             # model-aware deterministic policy gradient
             "model_samples": 1,
             # Whether to use the environment's true model to sample states
-            "true_model": True,
+            "true_model": False,
         },
         # PyTorch optimizers to use
         "torch_optimizer": {
