@@ -1,6 +1,5 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import copy
-from unittest import mock
 
 import numpy as np
 import pytest
@@ -79,11 +78,11 @@ def test_learn_on_batch(policy, sample_batch):
     assert all(not torch.allclose(o, n) for o, n in zip(old_params, new_params))
 
 
-def test_compile(policy):
-    with mock.patch("raylab.losses.MAPO.compile") as mapo, mock.patch(
-        "raylab.losses.SPAML.compile"
-    ) as spaml:
-        policy.compile()
-        assert isinstance(policy.module, torch.jit.ScriptModule)
-        assert mapo.called
-        assert spaml.called
+def test_compile(policy, mocker):
+    mapo = mocker.patch("raylab.losses.MAPO.compile")
+    spaml = mocker.patch("raylab.losses.SPAML.compile")
+
+    policy.compile()
+    assert isinstance(policy.module, torch.jit.ScriptModule)
+    assert mapo.called
+    assert spaml.called
