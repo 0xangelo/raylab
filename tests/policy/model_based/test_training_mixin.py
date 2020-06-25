@@ -69,9 +69,10 @@ def config(ensemble_size):
         "model_training": {
             "dataloader": {"batch_size": 32, "replacement": False},
             "max_epochs": 10,
-            "max_time": 4,
-            "improvement_threshold": 0.01,
-            "patience_epochs": 5,
+            "max_grad_steps": None,
+            "max_time": None,
+            "improvement_threshold": 0,
+            "patience_epochs": None,
         },
         "module": {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}},
     }
@@ -92,7 +93,7 @@ def test_optimize_model(policy, mocker, train_samples, eval_samples):
 
     assert isinstance(info, dict)
     assert "model_epochs" in info
-    assert info["model_epochs"] >= 0
+    assert info["model_epochs"] == 10
     assert "train_loss(models)" in info
     assert "eval_loss(models)" in info
     assert "grad_norm(models)" in info
@@ -108,7 +109,7 @@ def test_optimize_with_no_eval(policy, mocker, train_samples):
 
     assert isinstance(info, dict)
     assert "model_epochs" in info
-    assert info["model_epochs"] >= 0
+    assert info["model_epochs"] == 10
     assert "train_loss(models)" in info
     assert "eval_loss(models)" not in info
     assert "grad_norm(models)" in info
