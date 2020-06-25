@@ -20,6 +20,7 @@ CONFIG["MBPO"].update(
     {"model_rollouts": 1, "policy_improvements": 1, "model_training": {"max_epochs": 1}}
 )
 CONFIG["MAGE"].update({"policy_improvements": 1, "model_training": {"max_epochs": 1}})
+CONFIG["MAPO"].update({"policy_improvements": 1, "model_training": {"max_epochs": 1}})
 
 
 @pytest.fixture(

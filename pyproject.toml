@@ -39,6 +39,8 @@ mypy = "^0.782"
 coverage = "^5.1"
 ipython = "^7.15.0"
 poetry-version = "^0.1.5"
+pytest-mock = "^3.1.1"
+pytest-sugar = "^0.9.3"
 
 [tool.poetry.scripts]
 raylab = "raylab.cli:raylab"

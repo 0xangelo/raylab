@@ -69,14 +69,18 @@ class TrainingSpec(DataClassJsonMixin):
         ), "Cannot train model for a negative number of epochs"
         assert not self.max_grad_steps or self.max_grad_steps > 0
         assert (
+            not self.max_time or self.max_time > 0
+        ), "Maximum training time must be positive"
+        assert (
             not self.patience_epochs or self.patience_epochs > 0
         ), "Must wait a positive number of epochs for any model to improve"
         assert (
-            not self.max_time or self.max_time > 0
-        ), "Maximum training time must be positive"
-
+            self.improvement_threshold is None or self.improvement_threshold >= 0
+        ), "Improvement threshold must be nonnegative"
         assert (
-            self.max_epochs or self.max_grad_steps or self.patience_epochs
+            self.max_epochs
+            or self.max_grad_steps
+            or (self.improvement_threshold is not None and self.patience_epochs)
         ), "Need at least one stopping criterion"
 
 
@@ -87,13 +91,21 @@ ModelSnapshot = collections.namedtuple("ModelSnapshot", "epoch loss state_dict")
 class Evaluator:
     """Evaluates models and saves snapshots.
 
+    Holds snapshots for each model. A snapshot contains the epoch in which the
+    model was evaluated, its validation loss, and its state dict.
+
+    Note:
+        Upon creation, evaluates models on validation data to set initial
+        snapshots.
+
     Args:
         models: the model ensemble
         loss_fn: the loss function for model ensemble
         improvement_threshold: Minimum expected relative improvement in model
             validation loss
         patience_epochs: Number of epochs to wait for any of the models to
-            improve on the validation dataset before early stopping
+            improve on the validation dataset before early stopping. If None,
+            disables eary stopping.
     """
 
     models: nn.ModuleList
@@ -103,9 +115,11 @@ class Evaluator:
     patience_epochs: Optional[int]
 
     def __post_init__(self):
+        eval_losses, _ = self.loss_fn(self.eval_tensors)
+        eval_losses = eval_losses.tolist()
         self._snapshots = [
-            ModelSnapshot(epoch=0, loss=None, state_dict=copy.deepcopy(m.state_dict()))
-            for m in self.models
+            ModelSnapshot(epoch=-1, loss=loss, state_dict=copy.deepcopy(m.state_dict()))
+            for m, loss in zip(self.models, eval_losses)
         ]
 
     @torch.no_grad()
@@ -134,7 +148,7 @@ class Evaluator:
         threshold = self.improvement_threshold
 
         def updated_snapshot(model, snap, cur_loss):
-            if snap.loss is None or (snap.loss - cur_loss) / snap.loss > threshold:
+            if (snap.loss - cur_loss) / snap.loss > threshold:
                 return ModelSnapshot(
                     epoch=epoch,
                     loss=cur_loss,
@@ -218,7 +232,9 @@ class ModelTrainingMixin:
 
         if evaluator:
             eval_losses = evaluator.restore_models()
-            info.update({f"loss(models[{i}])": l for i, l in enumerate(eval_losses)})
+            info.update(
+                {f"eval_loss(models[{i}])": l for i, l in enumerate(eval_losses)}
+            )
         else:
             eval_losses = [np.nan for _ in self.module.models]
 
@@ -239,7 +255,7 @@ class ModelTrainingMixin:
         self, eval_samples: Optional[SampleBatch]
     ) -> Optional[Evaluator]:
         spec = self.model_training_spec
-        if not (eval_samples and spec.improvement_threshold):
+        if not (eval_samples and spec.improvement_threshold is not None):
             return None
 
         eval_tensors = {
@@ -268,7 +284,7 @@ class ModelTrainingMixin:
             for minibatch in dataloader:
                 with self.optimizers.optimize("models"):
                     losses, train_info = self.loss_model(minibatch)
-                    losses.mean().backward()
+                    losses.sum().backward()
 
                 info.update({"train_" + k: v for k, v in train_info.items()})
                 grad_steps += 1
