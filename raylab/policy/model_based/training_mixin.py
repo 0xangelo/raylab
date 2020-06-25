@@ -87,13 +87,21 @@ ModelSnapshot = collections.namedtuple("ModelSnapshot", "epoch loss state_dict")
 class Evaluator:
     """Evaluates models and saves snapshots.
 
+    Holds snapshots for each model. A snapshot contains the epoch in which the
+    model was evaluated, its validation loss, and its state dict.
+
+    Note:
+        Upon creation, evaluates models on validation data to set initial
+        snapshots.
+
     Args:
         models: the model ensemble
         loss_fn: the loss function for model ensemble
         improvement_threshold: Minimum expected relative improvement in model
             validation loss
         patience_epochs: Number of epochs to wait for any of the models to
-            improve on the validation dataset before early stopping
+            improve on the validation dataset before early stopping. If None,
+            disables eary stopping.
     """
 
     models: nn.ModuleList
@@ -103,9 +111,11 @@ class Evaluator:
     patience_epochs: Optional[int]
 
     def __post_init__(self):
+        eval_losses, _ = self.loss_fn(self.eval_tensors)
+        eval_losses = eval_losses.tolist()
         self._snapshots = [
-            ModelSnapshot(epoch=0, loss=None, state_dict=copy.deepcopy(m.state_dict()))
-            for m in self.models
+            ModelSnapshot(epoch=0, loss=loss, state_dict=copy.deepcopy(m.state_dict()))
+            for m, loss in zip(self.models, eval_losses)
         ]
 
     @torch.no_grad()
@@ -134,7 +144,7 @@ class Evaluator:
         threshold = self.improvement_threshold
 
         def updated_snapshot(model, snap, cur_loss):
-            if snap.loss is None or (snap.loss - cur_loss) / snap.loss > threshold:
+            if (snap.loss - cur_loss) / snap.loss > threshold:
                 return ModelSnapshot(
                     epoch=epoch,
                     loss=cur_loss,
