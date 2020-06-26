@@ -31,7 +31,7 @@ def initialize_(name, activation=None, **options):
     """Return a callable to apply an initializer with the given name and options.
 
     If `gain` is part of the initializer's argspec and is not specified in options,
-    the recommended value from `nn.init.calculate_gain` is used.
+    the recommended value from `torch.nn.init.calculate_gain` is used.
 
     Arguments:
         name (str): name of initializer function
