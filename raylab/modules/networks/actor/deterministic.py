@@ -79,7 +79,7 @@ class DeterministicActor(nn.Module):
 
         def make_policy():
             return MLPDeterministicPolicy(
-                obs_space, action_space, spec.actor.encoder, spec.actor.norm_beta
+                obs_space, action_space, spec.encoder, spec.norm_beta
             )
 
         policy = make_policy()
