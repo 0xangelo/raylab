@@ -4,7 +4,7 @@ from functools import partial
 import pytest
 import torch
 
-from raylab.modules.naf_module import NAFModule
+from raylab.modules.v0.naf_module import NAFModule
 
 
 @pytest.fixture(params=(True, False), ids=("Double Q", "Single Q"))

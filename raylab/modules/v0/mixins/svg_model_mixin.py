@@ -54,7 +54,7 @@ class SVGDynamicsParams(nn.Module):
             kwargs = dict(event_size=1, input_dependent_scale=False)
             return nnx.NormalParams(in_features, **kwargs)
 
-        self.params = nn.ModuleList([make_param(l.out_features) for l in self.logits])
+        self.params = nn.ModuleList([make_param(m.out_features) for m in self.logits])
 
     @override(nn.Module)
     def forward(self, obs, act):  # pylint: disable=arguments-differ

@@ -7,7 +7,7 @@ import torch.nn as nn
 from gym.spaces import Box
 from ray.rllib import SampleBatch
 
-from raylab.modules.mixins import NormalizingFlowModelMixin
+from raylab.modules.v0.mixins import NormalizingFlowModelMixin
 
 from .utils import make_batch
 from .utils import make_module

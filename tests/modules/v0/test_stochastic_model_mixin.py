@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
 
-from raylab.modules.mixins import StochasticModelMixin
+from raylab.modules.v0.mixins import StochasticModelMixin
 
 
 class DummyModule(StochasticModelMixin, nn.ModuleDict):
