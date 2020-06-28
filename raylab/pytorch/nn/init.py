@@ -1,16 +1,23 @@
 """Utilities for module initialization."""
 import functools
 import inspect
+from typing import Callable
+from typing import Optional
+from typing import Union
 
 import torch.nn as nn
+from torch import Tensor
 
 
-def get_initializer(name):
+def get_initializer(name: Optional[str]) -> Callable[[Tensor], None]:
     """Return initializer function given its name.
 
     Arguments:
-        name (str): the initializer function's name
+        name: The initializer function's name. If None, returns a no-op callable
     """
+    if name is None:
+        return lambda _: None
+
     name_ = name + "_"
     if name in dir(nn.init) and name_ in dir(nn.init):
         func = getattr(nn.init, name_)
@@ -27,16 +34,19 @@ NONLINEARITY_MAP = {
 }
 
 
-def initialize_(name, activation=None, **options):
+def initialize_(
+    name: Optional[str] = None, activation: Union[str, dict] = None, **options
+) -> Callable[[nn.Module], None]:
     """Return a callable to apply an initializer with the given name and options.
 
     If `gain` is part of the initializer's argspec and is not specified in options,
     the recommended value from `torch.nn.init.calculate_gain` is used.
 
     Arguments:
-        name (str): name of initializer function
-        activation (str, dict): activation function following linear layer, optional
-        **options: keyword arguments to be passed to the initializer
+        name: Initializer function name
+        activation: Optional specification of the activation function that
+            follows linear layers
+        **options: Keyword arguments to pass to the initializer
 
     Returns:
         A callable to be used with `nn.Module.apply`.
