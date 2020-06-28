@@ -1,5 +1,6 @@
 """Parameterized action-value estimators."""
 from dataclasses import dataclass
+from dataclasses import field
 from typing import List
 from typing import Optional
 
@@ -49,9 +50,9 @@ class StateActionMLPSpec(DataClassJsonMixin):
             observation before concatenating the action to the input.
     """
 
-    units: List[int]
-    activation: Optional[str]
-    delay_action: bool
+    units: List[int] = field(default_factory=list)
+    activation: Optional[str] = None
+    delay_action: bool = False
 
 
 class MLPQValue(QValue):

@@ -1,6 +1,7 @@
 """Parameterized deterministic policies."""
 import warnings
 from dataclasses import dataclass
+from dataclasses import field
 from typing import List
 from typing import Optional
 
@@ -91,9 +92,9 @@ class StateMLPSpec:
         and following activation
     """
 
-    units: List[int]
-    activation: Optional[str]
-    layer_norm: bool
+    units: List[int] = field(default_factory=list)
+    activation: Optional[str] = None
+    layer_norm: bool = False
 
 
 class MLPDeterministicPolicy(DeterministicPolicy):
