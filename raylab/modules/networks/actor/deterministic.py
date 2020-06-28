@@ -7,6 +7,7 @@ import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
 
+from .policy.deterministic import DeterministicPolicy
 from .policy.deterministic import MLPDeterministicPolicy
 
 MLPSpec = MLPDeterministicPolicy.spec_cls
@@ -100,7 +101,7 @@ class DeterministicActor(nn.Module):
             target_policy = make_policy()
             target_policy.load_state_dict(policy.state_dict())
         if spec.smooth_target_policy:
-            target_policy = MLPDeterministicPolicy.add_gaussian_noise(
+            target_policy = DeterministicPolicy.add_gaussian_noise(
                 target_policy, noise_stddev=spec.target_gaussian_sigma
             )
 
