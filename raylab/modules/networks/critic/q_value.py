@@ -63,6 +63,8 @@ class MLPQValue(QValue):
         mlp_spec: Multilayer perceptron specifications
     """
 
+    spec_cls = StateActionMLPSpec
+
     def __init__(self, obs_space: Box, action_space: Box, mlp_spec: StateActionMLPSpec):
         obs_size = obs_space.shape[0]
         action_size = action_space.shape[0]
@@ -75,7 +77,7 @@ class MLPQValue(QValue):
             delay_action=mlp_spec.delay_action,
         )
         super().__init__(encoder)
-        self.mlp_spec = mlp_spec.activation
+        self.spec = mlp_spec.activation
 
     def initialize_parameters(self, initializer_spec: dict):
         """Initialize all Linear models in the encoder.
@@ -88,9 +90,7 @@ class MLPQValue(QValue):
                 to the initializer function name in `torch.nn.init` and optional
                 keyword arguments.
         """
-        initializer = initialize_(
-            activation=self.mlp_spec.activation, **initializer_spec
-        )
+        initializer = initialize_(activation=self.spec.activation, **initializer_spec)
         self.encoder.apply(initializer)
 
 

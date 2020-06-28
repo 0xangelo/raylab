@@ -1,7 +1,6 @@
 """Parameterized deterministic policies."""
 import warnings
 from dataclasses import dataclass
-from typing import Callable
 from typing import List
 from typing import Optional
 
@@ -60,10 +59,6 @@ class DeterministicPolicy(nn.Module):
         """Returns the unconstrained action which generated the given action."""
         return self.squashing(action, reverse=True)
 
-    def initialize_(self, initializer: Callable[[nn.Module], None]):
-        """Apply initializer to encoder layers."""
-        self.encoder.apply(initializer)
-
     @classmethod
     def add_gaussian_noise(cls, policy, noise_stddev: float):
         """Adds a zero-mean Gaussian noise module to a DeterministicPolicy.
@@ -113,7 +108,12 @@ class MLPDeterministicPolicy(DeterministicPolicy):
         mlp_spec: Multilayer perceptron specifications
         norm_beta: Maximum l1 norm of the unconstrained actions. If None, won't
             normalize actions before squashing function.
+
+    Attributes:
+        spec_cls: Expected class of `spec` init argument
     """
+
+    spec_cls = StateMLPSpec
 
     def __init__(
         self,
