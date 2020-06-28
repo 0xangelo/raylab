@@ -51,7 +51,7 @@ class DeterministicPolicy(nn.Module):
         """Forward pass with no squashing at the end"""
         features = self.encoder(obs)
         unconstrained_action = self.action_linear(features)
-        if self.noise:
+        if self.noise is not None:
             unconstrained_action = self.noise(unconstrained_action)
         return unconstrained_action
 

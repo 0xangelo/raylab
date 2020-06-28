@@ -61,13 +61,13 @@ class ActionValueCritic(nn.Module):
         super().__init__()
 
         def make_q_value():
-            return MLPQValue(obs_space, action_space, spec.q_value.encoder)
+            return MLPQValue(obs_space, action_space, spec.encoder)
 
         def make_q_value_ensemble():
-            n_q_values = 2 if spec.q_value.double_q else 1
+            n_q_values = 2 if spec.double_q else 1
             q_values = [make_q_value() for _ in range(n_q_values)]
 
-            if spec.q_value.parallelize:
+            if spec.parallelize:
                 return ForkedQValueEnsemble(q_values)
             return QValueEnsemble(q_values)
 
@@ -75,7 +75,7 @@ class ActionValueCritic(nn.Module):
         q_values.initialize_parameters(spec.initializer)
 
         target_q_values = make_q_value_ensemble()
-        target_q_values.load_state_dict(q_values)
+        target_q_values.load_state_dict(q_values.state_dict())
 
         self.q_values = q_values
         self.target_q_values = target_q_values

@@ -7,9 +7,7 @@ from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
 
 from .networks.actor.deterministic import DeterministicActor
-from .networks.actor.policy.deterministic import DeterministicPolicy
 from .networks.critic.action_value import ActionValueCritic
-from .networks.critic.q_value import QValueEnsemble
 
 ActorSpec = DeterministicActor.spec_cls
 CriticSpec = ActionValueCritic.spec_cls
@@ -41,21 +39,17 @@ class DDPG(nn.Module):
         spec: Specifications for DDPG modules
 
     Attributes:
-        actor: The deterministic policy to be learned
-        behavior: The policy for exploration
-        target_actor: The policy used for estimating the arg max in Q-Learning
-        critics: The action-value estimators to be learned
-        target_critics: The action-value estimators used for bootstrapping in
-            Q-Learning
+        actor (DeterministicPolicy): The deterministic policy to be learned
+        behavior (DeterministicPolicy): The policy for exploration
+        target_actor (DeterministicPolicy): The policy used for estimating the
+            arg max in Q-Learning
+        critics (QValueEnsemble): The action-value estimators to be learned
+        target_critics (QValueEnsemble): The action-value estimators used for
+            bootstrapping in Q-Learning
         spec_cls: Expected class of `spec` init argument
     """
 
     # pylint:disable=abstract-method
-    actor: DeterministicPolicy
-    behavior: DeterministicPolicy
-    target_actor: DeterministicPolicy
-    critics: QValueEnsemble
-    target_critics: QValueEnsemble
     spec_cls = DDPGSpec
 
     def __init__(self, obs_space: Box, action_space: Box, spec: DDPGSpec):

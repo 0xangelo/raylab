@@ -66,19 +66,19 @@ class MLPQValue(QValue):
 
     spec_cls = StateActionMLPSpec
 
-    def __init__(self, obs_space: Box, action_space: Box, mlp_spec: StateActionMLPSpec):
+    def __init__(self, obs_space: Box, action_space: Box, spec: StateActionMLPSpec):
         obs_size = obs_space.shape[0]
         action_size = action_space.shape[0]
 
         encoder = nnx.StateActionEncoder(
             obs_size,
             action_size,
-            units=mlp_spec.units,
-            activation=mlp_spec.activation,
-            delay_action=mlp_spec.delay_action,
+            units=spec.units,
+            activation=spec.activation,
+            delay_action=spec.delay_action,
         )
         super().__init__(encoder)
-        self.spec = mlp_spec.activation
+        self.spec = spec
 
     def initialize_parameters(self, initializer_spec: dict):
         """Initialize all Linear models in the encoder.
@@ -125,6 +125,17 @@ class QValueEnsemble(nn.ModuleList):
         if clip:
             action_values, _ = action_values.min(keepdim=True, dim=-1)
         return action_values
+
+    def initialize_parameters(self, initializer_spec: dict):
+        """Initialize each Q estimator in the ensemble.
+
+        Args:
+            initializer_spec: Dictionary with mandatory `type` key corresponding
+                to the initializer function name in `torch.nn.init` and optional
+                keyword arguments.
+        """
+        for q_value in self:
+            q_value.initialize_parameters(initializer_spec)
 
 
 class ForkedQValueEnsemble(QValueEnsemble):
