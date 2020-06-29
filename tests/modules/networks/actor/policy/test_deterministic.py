@@ -24,6 +24,11 @@ def spec(module_cls):
 
 
 @pytest.fixture
+def action_space(cont_space):
+    return cont_space
+
+
+@pytest.fixture
 def module(module_cls, obs_space, action_space, spec, norm_beta):
     return module_cls(obs_space, action_space, spec, norm_beta)
 

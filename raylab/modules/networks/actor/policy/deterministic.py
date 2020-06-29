@@ -1,8 +1,5 @@
 """Parameterized deterministic policies."""
 import warnings
-from dataclasses import dataclass
-from dataclasses import field
-from typing import List
 from typing import Optional
 
 import torch
@@ -12,6 +9,8 @@ from torch import Tensor
 
 import raylab.pytorch.nn as nnx
 from raylab.pytorch.nn.init import initialize_
+
+from .state_mlp import StateMLP
 
 
 class DeterministicPolicy(nn.Module):
@@ -81,22 +80,6 @@ class DeterministicPolicy(nn.Module):
         return cls(policy.encoder, policy.action_linear, policy.squashing, noise=noise)
 
 
-@dataclass
-class StateMLPSpec:
-    """Specifications for creating a multilayer perceptron.
-
-    Args:
-    units: Number of units in each hidden layer
-    activation: Nonlinearity following each linear layer
-    layer_norm: Whether to apply layer normalization between each linear layer
-        and following activation
-    """
-
-    units: List[int] = field(default_factory=list)
-    activation: Optional[str] = None
-    layer_norm: bool = False
-
-
 class MLPDeterministicPolicy(DeterministicPolicy):
     """DeterministicPolicy with multilayer perceptron encoder.
 
@@ -114,28 +97,18 @@ class MLPDeterministicPolicy(DeterministicPolicy):
         spec_cls: Expected class of `spec` init argument
     """
 
-    spec_cls = StateMLPSpec
+    spec_cls = StateMLP.spec_cls
 
     def __init__(
         self,
         obs_space: Box,
         action_space: Box,
-        mlp_spec: StateMLPSpec,
+        mlp_spec: StateMLP.spec_cls,
         norm_beta: float,
     ):
-        obs_size = obs_space.shape[0]
+        encoder = StateMLP(obs_space, mlp_spec).encoder
+
         action_size = action_space.shape[0]
-        action_low, action_high = map(
-            torch.as_tensor, (action_space.low, action_space.high)
-        )
-
-        encoder = nnx.FullyConnected(
-            obs_size,
-            mlp_spec.units,
-            mlp_spec.activation,
-            layer_norm=mlp_spec.layer_norm,
-        )
-
         if norm_beta:
             action_linear = nnx.NormalizedLinear(
                 encoder.out_features, action_size, beta=norm_beta
@@ -143,6 +116,9 @@ class MLPDeterministicPolicy(DeterministicPolicy):
         else:
             action_linear = nn.Linear(encoder.out_features, action_size)
 
+        action_low, action_high = map(
+            torch.as_tensor, (action_space.low, action_space.high)
+        )
         squash = nnx.TanhSquash(action_low, action_high)
 
         super().__init__(encoder, action_linear, squash)

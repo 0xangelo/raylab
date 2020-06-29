@@ -4,6 +4,16 @@ import torch
 from ray.rllib import SampleBatch
 
 
+@pytest.fixture
+def action_space(cont_space):
+    return cont_space
+
+
+@pytest.fixture
+def batch(cont_batch):
+    return cont_batch
+
+
 @pytest.fixture(scope="module")
 def module_cls():
     from raylab.modules.networks.actor.deterministic import DeterministicActor
