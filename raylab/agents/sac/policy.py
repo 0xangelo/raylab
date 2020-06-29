@@ -55,7 +55,7 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         components = "actor critics alpha".split()
 
         return {
-            name: build_optimizer(self.module[name], config[name])
+            name: build_optimizer(getattr(self.module, name), config[name])
             for name in components
         }
 
@@ -105,6 +105,6 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         """Return statistics right after components are updated."""
         return {
             f"grad_norm({component})": nn.utils.clip_grad_norm_(
-                self.module[component].parameters(), float("inf")
+                getattr(self.module, component).parameters(), float("inf")
             ).item()
         }
