@@ -9,6 +9,7 @@ from gym.spaces import Discrete
 
 import raylab.pytorch.nn as nnx
 import raylab.pytorch.nn.distributions as ptd
+from raylab.pytorch.nn.init import initialize_
 
 from .state_mlp import StateMLP
 
@@ -103,6 +104,10 @@ class MLPStochasticPolicy(StochasticPolicy):
         params_fn: Callable that builds a module for computing distribution
             parameters given the number of state features
         dist: Conditional distribution module
+
+    Attributes:
+        encoder: Multilayer perceptron state encoder
+        spec: MLP spec instance
     """
 
     spec_cls = StateMLP.spec_cls
@@ -118,6 +123,23 @@ class MLPStochasticPolicy(StochasticPolicy):
         params = params_fn(encoder.out_features)
         params_module = nn.Sequential(encoder, params)
         super().__init__(params_module, dist)
+
+        self.encoder = encoder
+        self.spec = spec
+
+    def initialize_parameters(self, initializer_spec: dict):
+        """Initialize all Linear models in the encoder.
+
+        Uses `raylab.pytorch.nn.init.initialize_` to create an initializer
+        function.
+
+        Args:
+            initializer_spec: Dictionary with mandatory `type` key corresponding
+                to the initializer function name in `torch.nn.init` and optional
+                keyword arguments.
+        """
+        initializer = initialize_(activation=self.spec.activation, **initializer_spec)
+        self.encoder.apply(initializer)
 
 
 class MLPContinuousPolicy(MLPStochasticPolicy):

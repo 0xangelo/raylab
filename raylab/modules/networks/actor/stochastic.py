@@ -19,7 +19,7 @@ MLPSpec = MLPStochasticPolicy.spec_cls
 
 @dataclass
 class StochasticActorSpec(DataClassJsonMixin):
-    """Specifications for stochastic policy.
+    """Specifications for stochastic policy and entropy coefficient.
 
     Args:
         encoder: Specifications for building the multilayer perceptron state
@@ -28,11 +28,15 @@ class StochasticActorSpec(DataClassJsonMixin):
             deviation as a function of the state
         initial_entropy_coeff: Optional initial value of the entropy bonus term.
             The actor creates an `alpha` attribute with this initial value.
+        initializer: Optional dictionary with mandatory `type` key corresponding
+            to the initializer function name in `torch.nn.init` and optional
+            keyword arguments.
     """
 
     encoder: MLPSpec = field(default_factory=MLPSpec)
     input_dependent_scale: bool = False
     initial_entropy_coeff: float = 0.0
+    initializer: dict = field(default_factory=dict)
 
     def __post_init__(self):
         cls_name = type(self).__name__
@@ -73,6 +77,7 @@ class StochasticActor(nn.Module):
             policy = MLPDiscretePolicy(obs_space, action_space, spec.encoder)
         else:
             raise ValueError(f"Unsopported action space type {type(action_space)}")
+        policy.initialize_parameters(spec.initializer)
 
         self.policy = policy
         self.alpha = Alpha(spec.initial_entropy_coeff)
