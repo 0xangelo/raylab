@@ -8,9 +8,7 @@ from gym.spaces import Box
 from torch import Tensor
 
 import raylab.pytorch.nn as nnx
-from raylab.pytorch.nn.init import initialize_
-
-from .state_mlp import StateMLP
+from raylab.modules.networks.mlp import StateMLP
 
 
 class DeterministicPolicy(nn.Module):
@@ -106,7 +104,7 @@ class MLPDeterministicPolicy(DeterministicPolicy):
         mlp_spec: StateMLP.spec_cls,
         norm_beta: float,
     ):
-        encoder = StateMLP(obs_space, mlp_spec).encoder
+        encoder = StateMLP(obs_space, mlp_spec)
 
         action_size = action_space.shape[0]
         if norm_beta:
@@ -122,7 +120,6 @@ class MLPDeterministicPolicy(DeterministicPolicy):
         squash = nnx.TanhSquash(action_low, action_high)
 
         super().__init__(encoder, action_linear, squash)
-        self.mlp_spec = mlp_spec
 
     def initialize_parameters(self, initializer_spec: dict):
         """Initialize all Linear models in the encoder.
@@ -135,7 +132,4 @@ class MLPDeterministicPolicy(DeterministicPolicy):
                 to the initializer function name in `torch.nn.init` and optional
                 keyword arguments.
         """
-        initializer = initialize_(
-            activation=self.mlp_spec.activation, **initializer_spec
-        )
-        self.encoder.apply(initializer)
+        self.encoder.initialize_parameters(initializer_spec)

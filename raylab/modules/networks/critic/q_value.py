@@ -1,17 +1,13 @@
 """Parameterized action-value estimators."""
-from dataclasses import dataclass
-from dataclasses import field
-from typing import List
-from typing import Optional
-
 import torch
 import torch.nn as nn
-from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
 from torch import Tensor
 
-import raylab.pytorch.nn as nnx
-from raylab.pytorch.nn.init import initialize_
+from raylab.modules.networks.mlp import StateActionMLP
+
+
+MLPSpec = StateActionMLP.spec_cls
 
 
 class QValue(nn.Module):
@@ -39,22 +35,6 @@ class QValue(nn.Module):
         return self.value_linear(features)
 
 
-@dataclass
-class StateActionMLPSpec(DataClassJsonMixin):
-    """Specifications for building an MLP with state and action inputs.
-
-    Args:
-        units: Number of units in each hidden layer
-        activation: Nonlinearity following each linear layer
-        delay_action: Whether to apply an initial preprocessing layer on the
-            observation before concatenating the action to the input.
-    """
-
-    units: List[int] = field(default_factory=list)
-    activation: Optional[str] = None
-    delay_action: bool = False
-
-
 class MLPQValue(QValue):
     """Q-value function with a multilayer perceptron encoder.
 
@@ -64,21 +44,11 @@ class MLPQValue(QValue):
         mlp_spec: Multilayer perceptron specifications
     """
 
-    spec_cls = StateActionMLPSpec
+    spec_cls = MLPSpec
 
-    def __init__(self, obs_space: Box, action_space: Box, spec: StateActionMLPSpec):
-        obs_size = obs_space.shape[0]
-        action_size = action_space.shape[0]
-
-        encoder = nnx.StateActionEncoder(
-            obs_size,
-            action_size,
-            units=spec.units,
-            activation=spec.activation,
-            delay_action=spec.delay_action,
-        )
+    def __init__(self, obs_space: Box, action_space: Box, spec: MLPSpec):
+        encoder = StateActionMLP(obs_space, action_space, spec)
         super().__init__(encoder)
-        self.spec = spec
 
     def initialize_parameters(self, initializer_spec: dict):
         """Initialize all Linear models in the encoder.
@@ -91,8 +61,7 @@ class MLPQValue(QValue):
                 to the initializer function name in `torch.nn.init` and optional
                 keyword arguments.
         """
-        initializer = initialize_(activation=self.spec.activation, **initializer_spec)
-        self.encoder.apply(initializer)
+        self.encoder.initialize_parameters(initializer_spec)
 
 
 class QValueEnsemble(nn.ModuleList):

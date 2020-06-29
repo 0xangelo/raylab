@@ -9,9 +9,7 @@ from gym.spaces import Discrete
 
 import raylab.pytorch.nn as nnx
 import raylab.pytorch.nn.distributions as ptd
-from raylab.pytorch.nn.init import initialize_
-
-from .state_mlp import StateMLP
+from raylab.modules.networks.mlp import StateMLP
 
 
 class StochasticPolicy(nn.Module):
@@ -119,7 +117,7 @@ class MLPStochasticPolicy(StochasticPolicy):
         params_fn: Callable[[int], nn.Module],
         dist: ptd.ConditionalDistribution,
     ):
-        encoder = StateMLP(obs_space, spec).encoder
+        encoder = StateMLP(obs_space, spec)
         params = params_fn(encoder.out_features)
         params_module = nn.Sequential(encoder, params)
         super().__init__(params_module, dist)
@@ -138,8 +136,7 @@ class MLPStochasticPolicy(StochasticPolicy):
                 to the initializer function name in `torch.nn.init` and optional
                 keyword arguments.
         """
-        initializer = initialize_(activation=self.spec.activation, **initializer_spec)
-        self.encoder.apply(initializer)
+        self.encoder.initialize_parameters(initializer_spec)
 
 
 class MLPContinuousPolicy(MLPStochasticPolicy):
