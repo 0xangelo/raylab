@@ -72,9 +72,10 @@ class QValueEnsemble(nn.ModuleList):
     """
 
     def __init__(self, q_values):
+        cls_name = type(self).__name__
         assert all(
             isinstance(q, QValue) for q in q_values
-        ), """All modules in QValueEnsemble must be instances of QValue."""
+        ), f"All modules in {cls_name} must be instances of QValue."
         super().__init__(q_values)
 
     def forward(self, obs: Tensor, action: Tensor, clip: bool = False) -> Tensor:
