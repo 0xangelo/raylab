@@ -5,10 +5,10 @@ import torch.nn as nn
 
 import raylab.pytorch.nn as nnx
 import raylab.pytorch.nn.distributions as ptd
-from raylab.modules.mixins.action_value_mixin import ActionValueFunction
-from raylab.modules.mixins.deterministic_actor_mixin import DeterministicPolicy
-from raylab.modules.mixins.stochastic_actor_mixin import StochasticPolicy
-from raylab.modules.mixins.stochastic_model_mixin import StochasticModelMixin
+from raylab.modules.v0.mixins.action_value_mixin import ActionValueFunction
+from raylab.modules.v0.mixins.deterministic_actor_mixin import DeterministicPolicy
+from raylab.modules.v0.mixins.stochastic_actor_mixin import StochasticPolicy
+from raylab.modules.v0.mixins.stochastic_model_mixin import StochasticModelMixin
 from raylab.utils.debug import fake_batch
 
 

@@ -7,6 +7,7 @@ import torch.nn as nn
 from ray.rllib.utils import merge_dicts
 from ray.rllib.utils import override
 
+import raylab.modules.networks as networks
 from raylab.pytorch.nn import FullyConnected
 from raylab.pytorch.nn.distributions import flows
 from raylab.pytorch.nn.distributions import Independent
@@ -16,7 +17,6 @@ from raylab.pytorch.nn.distributions.flows import CompositeTransform
 from raylab.pytorch.nn.distributions.flows import TanhSquashTransform
 from raylab.pytorch.nn.init import initialize_
 
-from . import networks
 from .abstract import AbstractActorCritic
 from .mixins import StateValueMixin
 from .mixins import StochasticActorMixin

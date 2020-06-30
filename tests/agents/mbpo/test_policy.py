@@ -22,7 +22,7 @@ def config(ensemble_size):
             "patience_epochs": 5,
         },
         "model_sampling": {"rollout_schedule": [(0, 10)], "num_elites": 1},
-        "module": {"ensemble_size": ensemble_size},
+        "module": {"model": {"ensemble_size": ensemble_size}},
     }
 
 
@@ -32,10 +32,8 @@ def policy(policy_cls, config):
 
 
 def test_policy_creation(policy):
-    assert "models" in policy.module
-    assert "actor" in policy.module
-    assert "critics" in policy.module
-    assert "alpha" in policy.module
+    for attr in "models actor alpha critics".split():
+        assert hasattr(policy.module, attr)
 
     assert "models" in policy.optimizers
     assert "actor" in policy.optimizers

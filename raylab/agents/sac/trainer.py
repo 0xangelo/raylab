@@ -28,10 +28,7 @@ DEFAULT_CONFIG = with_base_config(
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
         # === Network ===
-        # Size and activation of the fully connected networks computing the logits
-        # for the policy and action-value function. No layers means the component is
-        # linear in states and/or actions.
-        "module": {"type": "SACModule"},
+        "module": {"type": "SAC"},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

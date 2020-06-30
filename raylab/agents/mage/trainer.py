@@ -39,7 +39,7 @@ DEFAULT_CONFIG = with_base_config(
             patience_epochs=None,
             improvement_threshold=None,
         ).to_dict(),
-        "module": {"type": "ModelBasedDDPG", "model": {"ensemble_size": 1}},
+        "module": {"type": "MBDDPG"},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

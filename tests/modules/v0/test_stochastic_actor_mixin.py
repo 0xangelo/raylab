@@ -7,7 +7,7 @@ from gym.spaces import Box
 from gym.spaces import Discrete
 from ray.rllib import SampleBatch
 
-from raylab.modules.mixins import StochasticActorMixin
+from raylab.modules.v0.mixins import StochasticActorMixin
 
 from .utils import make_batch
 from .utils import make_module

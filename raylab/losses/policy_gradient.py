@@ -8,7 +8,7 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.modules.mixins.stochastic_actor_mixin import StochasticPolicy
+from raylab.modules.v0.mixins.stochastic_actor_mixin import StochasticPolicy
 from raylab.utils.annotations import DetPolicy
 from raylab.utils.annotations import DynamicsFn
 from raylab.utils.annotations import RewardFn

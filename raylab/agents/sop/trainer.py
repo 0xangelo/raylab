@@ -20,7 +20,7 @@ DEFAULT_CONFIG = with_base_config(
         "polyak": 0.995,
         # Update policy every this number of calls to `learn_on_batch`
         "policy_delay": 1,
-        "module": {"type": "DDPGModule"},
+        "module": {"type": "DDPG"},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

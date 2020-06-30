@@ -3,7 +3,7 @@ import pytest
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.modules.svg_module import SVGModule
+from raylab.modules.v0.svg_module import SVGModule
 
 
 @pytest.fixture

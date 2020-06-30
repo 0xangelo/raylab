@@ -16,5 +16,7 @@ class TargetNetworksMixin:
             target_module (str): name of target module in the policy's module dict
         """
         update_polyak(
-            self.module[module], self.module[target_module], self.config["polyak"]
+            getattr(self.module, module),
+            getattr(self.module, target_module),
+            self.config["polyak"],
         )

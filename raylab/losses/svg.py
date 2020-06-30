@@ -10,8 +10,8 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 from torch import Tensor
 
-from raylab.modules.mixins.stochastic_actor_mixin import StochasticPolicy
-from raylab.modules.mixins.stochastic_model_mixin import StochasticModel
+from raylab.modules.v0.mixins.stochastic_actor_mixin import StochasticPolicy
+from raylab.modules.v0.mixins.stochastic_model_mixin import StochasticModel
 from raylab.utils.annotations import RewardFn
 from raylab.utils.annotations import StateValue
 from raylab.utils.dictionaries import get_keys
