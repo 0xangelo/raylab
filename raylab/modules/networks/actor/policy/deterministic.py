@@ -125,7 +125,7 @@ class MLPDeterministicPolicy(DeterministicPolicy):
         """Initialize all Linear models in the encoder.
 
         Args:
-            initializer_spec: Dictionary with mandatory `type` key corresponding
+            initializer_spec: Dictionary with mandatory `name` key corresponding
                 to the initializer function name in `torch.nn.init` and optional
                 keyword arguments.
         """

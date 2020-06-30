@@ -57,7 +57,7 @@ class MLPQValue(QValue):
         function.
 
         Args:
-            initializer_spec: Dictionary with mandatory `type` key corresponding
+            initializer_spec: Dictionary with mandatory `name` key corresponding
                 to the initializer function name in `torch.nn.init` and optional
                 keyword arguments.
         """
@@ -100,7 +100,7 @@ class QValueEnsemble(nn.ModuleList):
         """Initialize each Q estimator in the ensemble.
 
         Args:
-            initializer_spec: Dictionary with mandatory `type` key corresponding
+            initializer_spec: Dictionary with mandatory `name` key corresponding
                 to the initializer function name in `torch.nn.init` and optional
                 keyword arguments.
         """
