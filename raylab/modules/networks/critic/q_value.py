@@ -113,7 +113,7 @@ class ForkedQValueEnsemble(QValueEnsemble):
 
     def forward(self, obs: Tensor, action: Tensor, clip: bool = False) -> Tensor:
         # pylint:disable=protected-access
-        futures = [torch.jit._fork(m, (obs, action)) for m in self]
+        futures = [torch.jit._fork(m, obs, action) for m in self]
         action_values = torch.cat([torch.jit._wait(f) for f in futures], dim=-1)
         if clip:
             action_values, _ = action_values.min(keepdim=True, dim=-1)

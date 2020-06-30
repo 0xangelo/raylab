@@ -4,7 +4,6 @@ from typing import List
 import torch
 import torch.nn as nn
 
-
 from .single import StochasticModel
 
 
@@ -53,7 +52,7 @@ class ForkedStochasticModelEnsemble(StochasticModelEnsemble):
 
     @torch.jit.export
     def sample(self, obs, action, sample_shape: List[int] = ()):
-        futures = [torch.jit._fork(m.sample, (obs, action, sample_shape)) for m in self]
+        futures = [torch.jit._fork(m.sample, obs, action, sample_shape) for m in self]
         outputs = [torch.jit._wait(f) for f in futures]
         sample = torch.stack([s for s, _ in outputs])
         logp = torch.stack([p for _, p in outputs])
@@ -61,9 +60,7 @@ class ForkedStochasticModelEnsemble(StochasticModelEnsemble):
 
     @torch.jit.export
     def rsample(self, obs, action, sample_shape: List[int] = ()):
-        futures = [
-            torch.jit._fork(m.rsample, (obs, action, sample_shape)) for m in self
-        ]
+        futures = [torch.jit._fork(m.rsample, obs, action, sample_shape) for m in self]
         outputs = [torch.jit._wait(f) for f in futures]
         sample = torch.stack([s for s, _ in outputs])
         logp = torch.stack([p for _, p in outputs])
@@ -71,5 +68,5 @@ class ForkedStochasticModelEnsemble(StochasticModelEnsemble):
 
     @torch.jit.export
     def log_prob(self, obs, action, next_obs):
-        futures = [torch.jit._fork(m.log_prob, (obs, action, next_obs)) for m in self]
+        futures = [torch.jit._fork(m.log_prob, obs, action, next_obs) for m in self]
         return torch.stack([torch.jit._wait(f) for f in futures])

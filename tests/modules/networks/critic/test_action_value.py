@@ -16,9 +16,14 @@ def double_q(request):
     return request.param
 
 
+@pytest.fixture(params=(True, False), ids=lambda x: "Parallelize({x})")
+def parallelize(request):
+    return request.param
+
+
 @pytest.fixture
-def spec(module_cls, double_q):
-    return module_cls.spec_cls(double_q=double_q)
+def spec(module_cls, double_q, parallelize):
+    return module_cls.spec_cls(double_q=double_q, parallelize=parallelize)
 
 
 @pytest.fixture
@@ -48,3 +53,7 @@ def test_module_creation(module, batch, spec):
         torch.allclose(p, t)
         for p, t in zip(q_values.parameters(), targets.parameters())
     )
+
+
+def test_script(module):
+    torch.jit.script(module)

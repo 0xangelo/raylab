@@ -154,7 +154,7 @@ class MLPModel(StochasticModel):
         spec: MLPSpec,
         input_dependent_scale: bool,
     ):
-        encoder = StateActionMLP(obs_space, action_space, spec.mlp)
+        encoder = StateActionMLP(obs_space, action_space, spec)
         params = nnx.NormalParams(
             encoder.out_features,
             obs_space.shape[0],
