@@ -8,7 +8,7 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.modules.v0.mixins.stochastic_model_mixin import StochasticModel
+from raylab.policy.modules.v0.mixins.stochastic_model_mixin import StochasticModel
 from raylab.utils.dictionaries import get_keys
 
 from .abstract import Loss

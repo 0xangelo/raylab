@@ -2,8 +2,8 @@
 import pytest
 import torch
 
-from raylab.modules.networks import MLP
-from raylab.modules.networks import ResidualNet
+from raylab.policy.modules.networks import MLP
+from raylab.policy.modules.networks import ResidualNet
 from raylab.pytorch.nn.distributions.flows.coupling import AdditiveCouplingTransform
 from raylab.pytorch.nn.distributions.flows.coupling import AffineCouplingTransform
 from raylab.pytorch.nn.distributions.flows.coupling import PiecewiseRQSCouplingTransform

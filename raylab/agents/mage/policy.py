@@ -37,6 +37,7 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
 
     @staticmethod
     def get_default_config():
+        # pylint:disable=cyclic-import
         from raylab.agents.mage import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
