@@ -128,9 +128,6 @@ class MLPStochasticPolicy(StochasticPolicy):
     def initialize_parameters(self, initializer_spec: dict):
         """Initialize all Linear models in the encoder.
 
-        Uses `raylab.pytorch.nn.init.initialize_` to create an initializer
-        function.
-
         Args:
             initializer_spec: Dictionary with mandatory `type` key corresponding
                 to the initializer function name in `torch.nn.init` and optional

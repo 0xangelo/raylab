@@ -8,7 +8,7 @@ import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
 
-import rayalb.pytorch.nn as nnx
+import raylab.pytorch.nn as nnx
 import raylab.pytorch.nn.distributions as ptd
 from raylab.modules.networks.mlp import StateActionMLP
 
@@ -87,6 +87,8 @@ class StochasticModel(nn.Module):
 
 class ResidualMixin:
     """Overrides StochasticModel interface to model state transition residuals."""
+
+    # pylint:disable=missing-function-docstring,not-callable
 
     @torch.jit.export
     def sample(self, obs, action, sample_shape: List[int] = ()):
@@ -174,6 +176,17 @@ class MLPModel(StochasticModel):
         params = DynamicsParams(encoder, params)
         dist = ptd.Independent(ptd.Normal(), reinterpreted_batch_ndims=1)
         super().__init__(params, dist)
+        self.encoder = encoder
+
+    def initialize_parameters(self, initializer_spec: dict):
+        """Initialize all encoder parameters.
+
+        Args:
+            initializer_spec: Dictionary with mandatory `type` key corresponding
+                to the initializer function name in `torch.nn.init` and optional
+                keyword arguments.
+        """
+        self.encoder.initialize_parameters(initializer_spec)
 
 
 class ResidualMLPModel(ResidualMixin, MLPModel):

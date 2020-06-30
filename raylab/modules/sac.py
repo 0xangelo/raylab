@@ -22,12 +22,20 @@ class SACSpec(DataClassJsonMixin):
         critic: Specifications for action-value estimators
         initializer: Optional dictionary with mandatory `type` key corresponding
             to the initializer function name in `torch.nn.init` and optional
-            keyword arguments.
+            keyword arguments. Overrides actor and critic initializer
+            specifications.
     """
 
     actor: ActorSpec = field(default_factory=ActorSpec)
     critic: CriticSpec = field(default_factory=CriticSpec)
     initializer: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        # Top-level initializer options take precedence over individual
+        # component's options
+        if self.initializer:
+            self.actor.initializer = self.initializer
+            self.critic.initializer = self.initializer
 
 
 class SAC(nn.Module):
@@ -52,12 +60,6 @@ class SAC(nn.Module):
 
     def __init__(self, obs_space: Box, action_space: Box, spec: SACSpec):
         super().__init__()
-        # Top-level initializer options take precedence over individual
-        # component's options
-        if spec.initializer:
-            spec.actor.initializer = spec.initializer
-            spec.critic.initializer = spec.initializer
-
         actor = StochasticActor(obs_space, action_space, spec.actor)
         self.actor = actor.policy
         self.alpha = actor.alpha

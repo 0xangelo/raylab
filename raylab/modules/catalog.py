@@ -3,6 +3,8 @@ import torch.nn as nn
 from gym.spaces import Space
 
 from .ddpg import DDPG
+from .mbddpg import MBDDPG
+from .mbsac import MBSAC
 from .sac import SAC
 from .v0.ddpg_module import DDPGModule
 from .v0.maxent_model_based import MaxEntModelBased
@@ -39,7 +41,7 @@ MODULESv0 = {
     )
 }
 
-MODULESv1 = {cls.__name__: cls for cls in (DDPG, SAC)}
+MODULESv1 = {cls.__name__: cls for cls in (DDPG, MBDDPG, MBSAC, SAC)}
 
 
 def get_module(obs_space: Space, action_space: Space, config: dict) -> nn.Module:
