@@ -5,7 +5,7 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 
 import raylab.utils.dictionaries as dutil
-from raylab.losses import SoftCDQLearning
+from raylab.policy.losses import SoftCDQLearning
 
 
 @pytest.fixture(params=(True, False))

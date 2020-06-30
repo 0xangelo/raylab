@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from raylab.losses import ModelEnsembleMLE
+from raylab.policy.losses import ModelEnsembleMLE
 
 
 @pytest.fixture

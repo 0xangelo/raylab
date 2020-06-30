@@ -2,11 +2,11 @@
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.losses import ISFittedVIteration
-from raylab.losses import MaximumLikelihood
 from raylab.policy import EnvFnMixin
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
+from raylab.policy.losses import ISFittedVIteration
+from raylab.policy.losses import MaximumLikelihood
 
 
 class SVGTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):

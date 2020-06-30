@@ -2,10 +2,10 @@
 from ray.rllib.utils import override
 
 from raylab.agents.sac import SACTorchPolicy
-from raylab.losses import ModelEnsembleMLE
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelSamplingMixin
 from raylab.policy import ModelTrainingMixin
+from raylab.policy.losses import ModelEnsembleMLE
 from raylab.pytorch.optim import build_optimizer
 
 

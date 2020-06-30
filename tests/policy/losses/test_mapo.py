@@ -2,10 +2,10 @@
 import pytest
 import torch
 
-from raylab.losses import DAPO
-from raylab.losses import MAPO
-from raylab.losses.abstract import Loss
-from raylab.losses.mixins import EnvFunctionsMixin
+from raylab.policy.losses import DAPO
+from raylab.policy.losses import MAPO
+from raylab.policy.losses.abstract import Loss
+from raylab.policy.losses.mixins import EnvFunctionsMixin
 
 
 @pytest.fixture

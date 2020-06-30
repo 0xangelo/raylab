@@ -6,9 +6,9 @@ import pytest
 import torch
 
 from raylab.agents.mage import MAGETorchPolicy
-from raylab.losses import DeterministicPolicyGradient
-from raylab.losses import MAGE
-from raylab.losses import ModelEnsembleMLE
+from raylab.policy.losses import DeterministicPolicyGradient
+from raylab.policy.losses import MAGE
+from raylab.policy.losses import ModelEnsembleMLE
 from raylab.utils.debug import fake_batch
 
 
@@ -86,7 +86,7 @@ def test_learn_on_batch(policy, samples):
 
 
 def test_compile(policy):
-    with mock.patch("raylab.losses.MAGE.compile") as mocked_method:
+    with mock.patch("raylab.policy.losses.MAGE.compile") as mocked_method:
         policy.compile()
         assert isinstance(policy.module, torch.jit.ScriptModule)
         assert mocked_method.called

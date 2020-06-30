@@ -3,11 +3,11 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.losses import MaximumEntropyDual
-from raylab.losses import ReparameterizedSoftPG
-from raylab.losses import SoftCDQLearning
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
+from raylab.policy.losses import MaximumEntropyDual
+from raylab.policy.losses import ReparameterizedSoftPG
+from raylab.policy.losses import SoftCDQLearning
 from raylab.pytorch.optim import build_optimizer
 
 

@@ -3,9 +3,9 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.losses import ClippedDoubleQLearning
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
+from raylab.policy.losses import ClippedDoubleQLearning
 from raylab.pytorch.optim import build_optimizer
 
 

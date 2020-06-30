@@ -2,11 +2,11 @@
 from ray.rllib.utils import override
 
 from raylab.agents.sac import SACTorchPolicy
-from raylab.losses import DAPO
-from raylab.losses import MAPO
-from raylab.losses import SPAML
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelTrainingMixin
+from raylab.policy.losses import DAPO
+from raylab.policy.losses import MAPO
+from raylab.policy.losses import SPAML
 from raylab.pytorch.optim import build_optimizer
 
 

@@ -8,11 +8,11 @@ import torch.nn as nn
 
 from raylab.agents.mapo import MAPOTorchPolicy
 from raylab.agents.sac import SACTorchPolicy
-from raylab.losses import MAPO
-from raylab.losses import SoftCDQLearning
-from raylab.losses import SPAML
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelTrainingMixin
+from raylab.policy.losses import MAPO
+from raylab.policy.losses import SoftCDQLearning
+from raylab.policy.losses import SPAML
 from raylab.utils.debug import fake_batch
 
 
@@ -79,8 +79,8 @@ def test_learn_on_batch(policy, sample_batch):
 
 
 def test_compile(policy, mocker):
-    mapo = mocker.patch("raylab.losses.MAPO.compile")
-    spaml = mocker.patch("raylab.losses.SPAML.compile")
+    mapo = mocker.patch("raylab.policy.losses.MAPO.compile")
+    spaml = mocker.patch("raylab.policy.losses.SPAML.compile")
 
     policy.compile()
     assert isinstance(policy.module, torch.jit.ScriptModule)

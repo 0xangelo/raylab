@@ -2,8 +2,8 @@
 import pytest
 import torch
 
-from raylab.losses.mage import MAGE
-from raylab.losses.mage import MAGEModules
+from raylab.policy.losses.mage import MAGE
+from raylab.policy.losses.mage import MAGEModules
 
 
 @pytest.fixture

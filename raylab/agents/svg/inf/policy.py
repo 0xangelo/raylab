@@ -7,9 +7,9 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
 from raylab.agents.svg import SVGTorchPolicy
-from raylab.losses import TrajectorySVG
 from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
+from raylab.policy.losses import TrajectorySVG
 from raylab.pytorch.optim import build_optimizer
 
 

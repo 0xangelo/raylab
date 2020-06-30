@@ -3,9 +3,9 @@ import pytest
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.losses import ModelEnsembleMLE
-from raylab.losses import SPAML
-from raylab.losses.abstract import Loss
+from raylab.policy.losses import ModelEnsembleMLE
+from raylab.policy.losses import SPAML
+from raylab.policy.losses.abstract import Loss
 
 
 @pytest.fixture
