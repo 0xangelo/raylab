@@ -37,6 +37,6 @@ class MBPOTorchPolicy(
         components = "models actor critics alpha".split()
 
         return {
-            name: build_optimizer(self.module[name], config[name])
+            name: build_optimizer(getattr(self.module, name), config[name])
             for name in components
         }
