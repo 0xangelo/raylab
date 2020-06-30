@@ -1,6 +1,5 @@
 # pylint:disable=missing-docstring,redefined-outer-name,protected-access
 import math
-from unittest import mock
 
 import pytest
 import torch
@@ -61,7 +60,8 @@ def test_init(policy):
     assert hasattr(policy, "dynamics_fn")
 
 
-def test_set_reward_from_config(policy, envs):  # pylint:disable=unused-argument
+def test_set_reward_from_config(policy, mocker):
+
     obs_space, action_space = policy.observation_space, policy.action_space
     batch_size = 10
     obs = fake_space_samples(obs_space, batch_size=batch_size)
@@ -69,9 +69,9 @@ def test_set_reward_from_config(policy, envs):  # pylint:disable=unused-argument
     new_obs = fake_space_samples(obs_space, batch_size=batch_size)
     obs, act, new_obs = map(policy.convert_to_tensor, (obs, act, new_obs))
 
-    with mock.patch("raylab.policy.EnvFnMixin._set_reward_hook") as hook:
-        policy.set_reward_from_config("MockEnv", {})
-        assert hook.called
+    hook = mocker.spy(EnvFnMixin, "_set_reward_hook")
+    policy.set_reward_from_config("MockEnv", {})
+    assert hook.called
 
     original_fn = get_reward_fn("MockEnv", {})
     expected_rew = original_fn(obs, act, new_obs)
@@ -80,7 +80,7 @@ def test_set_reward_from_config(policy, envs):  # pylint:disable=unused-argument
     assert torch.allclose(rew, expected_rew)
 
 
-def test_set_termination_from_config(policy, envs):  # pylint:disable=unused-argument
+def test_set_termination_from_config(policy, mocker):
     obs_space, action_space = policy.observation_space, policy.action_space
     batch_size = 10
     obs = fake_space_samples(obs_space, batch_size=batch_size)
@@ -88,9 +88,9 @@ def test_set_termination_from_config(policy, envs):  # pylint:disable=unused-arg
     new_obs = fake_space_samples(obs_space, batch_size=batch_size)
     obs, act, new_obs = map(policy.convert_to_tensor, (obs, act, new_obs))
 
-    with mock.patch("raylab.policy.EnvFnMixin._set_termination_hook") as hook:
-        policy.set_termination_from_config("MockEnv", {})
-        assert hook.called
+    hook = mocker.spy(EnvFnMixin, "_set_termination_hook")
+    policy.set_termination_from_config("MockEnv", {})
+    assert hook.called
 
     done = policy.termination_fn(obs, act, new_obs)
     assert torch.is_tensor(done)
@@ -98,28 +98,28 @@ def test_set_termination_from_config(policy, envs):  # pylint:disable=unused-arg
     assert done.shape == obs.shape[:-1]
 
 
-def test_set_reward_from_callable(policy, reward_fn):
-    with mock.patch("raylab.policy.EnvFnMixin._set_reward_hook") as hook:
-        policy.set_reward_from_callable(reward_fn)
-        assert hook.called
+def test_set_reward_from_callable(policy, reward_fn, mocker):
+    hook = mocker.spy(EnvFnMixin, "_set_reward_hook")
+    policy.set_reward_from_callable(reward_fn)
+    assert hook.called
 
     assert hasattr(policy, "reward_fn")
     assert policy.reward_fn is reward_fn
 
 
-def test_set_termination_from_callable(policy, termination_fn):
-    with mock.patch("raylab.policy.EnvFnMixin._set_termination_hook") as hook:
-        policy.set_termination_from_callable(termination_fn)
-        assert hook.called
+def test_set_termination_from_callable(policy, termination_fn, mocker):
+    hook = mocker.spy(EnvFnMixin, "_set_termination_hook")
+    policy.set_termination_from_callable(termination_fn)
+    assert hook.called
 
     assert hasattr(policy, "termination_fn")
     assert policy.termination_fn is termination_fn
 
 
-def test_set_dynamics_from_callable(policy, dynamics_fn):
-    with mock.patch("raylab.policy.EnvFnMixin._set_dynamics_hook") as hook:
-        policy.set_dynamics_from_callable(dynamics_fn)
-        assert hook.called
+def test_set_dynamics_from_callable(policy, dynamics_fn, mocker):
+    hook = mocker.spy(EnvFnMixin, "_set_dynamics_hook")
+    policy.set_dynamics_from_callable(dynamics_fn)
+    assert hook.called
 
     assert hasattr(policy, "dynamics_fn")
     assert policy.dynamics_fn is dynamics_fn
