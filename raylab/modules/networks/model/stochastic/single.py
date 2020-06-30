@@ -1,11 +1,8 @@
 """NN modules for stochastic dynamics estimation."""
-from dataclasses import dataclass
-from dataclasses import field
 from typing import List
 
 import torch
 import torch.nn as nn
-from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
 
 import raylab.pytorch.nn as nnx
@@ -145,33 +142,23 @@ class DynamicsParams(nn.Module):
 MLPSpec = StateActionMLP.spec_cls
 
 
-@dataclass
-class MLPModelSpec(DataClassJsonMixin):
-    """Specifications for stochastic model networks.
-
-    Args:
-        mlp: Specifications for building an MLP with state and action inputs
-        input_dependent_scale: Whether to parameterize the Gaussian standard
-            deviation as a function of the state and action
-    """
-
-    mlp: MLPSpec = field(default_factory=MLPSpec)
-    input_dependent_scale: bool = True
-
-
 class MLPModel(StochasticModel):
     """Stochastic model with multilayer perceptron state-action encoder."""
 
-    spec_cls = MLPModelSpec
+    spec_cls = MLPSpec
 
     def __init__(
-        self, obs_space: Box, action_space: Box, spec: MLPModelSpec,
+        self,
+        obs_space: Box,
+        action_space: Box,
+        spec: MLPSpec,
+        input_dependent_scale: bool,
     ):
         encoder = StateActionMLP(obs_space, action_space, spec.mlp)
         params = nnx.NormalParams(
             encoder.out_features,
             obs_space.shape[0],
-            input_dependent_scale=spec.input_dependent_scale,
+            input_dependent_scale=input_dependent_scale,
         )
         params = DynamicsParams(encoder, params)
         dist = ptd.Independent(ptd.Normal(), reinterpreted_batch_ndims=1)
