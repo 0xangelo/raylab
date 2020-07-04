@@ -7,8 +7,6 @@ from .random_uniform import RandomUniform
 class GaussianNoise(RandomUniform):
     """Adds fixed additive gaussian exploration noise to actions.
 
-
-
     Args:
         noise_stddev (float): Standard deviation of the Gaussian samples.
     """

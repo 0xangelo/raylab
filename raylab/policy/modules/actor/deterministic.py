@@ -22,8 +22,9 @@ class DeterministicActorSpec(DataClassJsonMixin):
             states to pre-action linear features
         norm_beta: Maximum l1 norm of the unconstrained actions. If None, won't
             normalize actions before squashing function
-        behavior: Type of behavior policy. Either 'gaussian', 'parameter_noise',
-            or 'deterministic'
+        parameter_noise: Whether to create a separate behavior policy for
+            parameter noise exploration. It is recommended to enable
+            encoder.layer_norm alongside this option.
         smooth_target_policy: Whether to use a noisy target policy for
             Q-Learning
         target_gaussian_sigma: Gaussian standard deviation for noisy target
@@ -37,7 +38,7 @@ class DeterministicActorSpec(DataClassJsonMixin):
 
     encoder: MLPSpec = field(default_factory=MLPSpec)
     norm_beta: float = 1.2
-    behavior: str = "gaussian"
+    parameter_noise: bool = False
     smooth_target_policy: bool = True
     target_gaussian_sigma: float = 0.3
     separate_target_policy: bool = False
@@ -46,10 +47,6 @@ class DeterministicActorSpec(DataClassJsonMixin):
     def __post_init__(self):
         cls_name = type(self).__name__
         assert self.norm_beta > 0, f"{cls_name}.norm_beta must be positive"
-        valid_behaviors = {"gaussian", "parameter_noise", "deterministic"}
-        assert (
-            self.behavior in valid_behaviors
-        ), f"{cls_name}.behavior must be one of {valid_behaviors}"
         assert (
             self.target_gaussian_sigma > 0
         ), f"{cls_name}.target_gaussian_sigma must be positive"
@@ -65,7 +62,8 @@ class DeterministicActor(nn.Module):
 
     Attributes:
         policy: The deterministic policy to be learned
-        behavior: The policy for exploration
+        behavior: The policy for exploration. `utils.exploration.GaussianNoise`
+            handles Gaussian action noise exploration separatedly.
         target_policy: The policy used for estimating the arg max in Q-Learning
         spec_cls: Expected class of `spec` init argument
     """
@@ -87,11 +85,12 @@ class DeterministicActor(nn.Module):
         policy.initialize_parameters(spec.initializer)
 
         behavior = policy
-        if spec.behavior == "parameter_noise":
+        if spec.parameter_noise:
             if not spec.encoder.layer_norm:
                 warnings.warn(
-                    f"Behavior is set to {spec.behavior} but layer normalization is "
-                    "deactivated. Use layer normalization for better stability."
+                    "Behavior policy for parameter noise exploration requested"
+                    " but layer normalization is deactivated. Use layer"
+                    " normalization for better stability."
                 )
             behavior = make_policy()
             behavior.load_state_dict(policy.state_dict())

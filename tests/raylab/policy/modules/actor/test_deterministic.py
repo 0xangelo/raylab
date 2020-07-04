@@ -26,15 +26,15 @@ def separate_target_policy(request):
     return request.param
 
 
-@pytest.fixture(params="gaussian deterministic parameter_noise".split())
-def behavior(request):
+@pytest.fixture(params=(True, False), ids=lambda x: f"ParameterNoise({x})")
+def parameter_noise(request):
     return request.param
 
 
 @pytest.fixture
-def spec(module_cls, behavior, separate_target_policy):
+def spec(module_cls, parameter_noise, separate_target_policy):
     return module_cls.spec_cls(
-        behavior=behavior, separate_target_policy=separate_target_policy
+        parameter_noise=parameter_noise, separate_target_policy=separate_target_policy
     )
 
 
@@ -54,6 +54,16 @@ def test_module_creation(module):
     )
 
 
+def test_parameter_noise(module_cls, obs_space, action_space):
+    spec = module_cls.spec_cls(parameter_noise=True)
+    module = module_cls(obs_space, action_space, spec)
+
+    assert all(
+        torch.allclose(p, n)
+        for p, n in zip(module.policy.parameters(), module.behavior.parameters())
+    )
+
+
 def test_separate_target_policy(module, spec):
     policy, target = module.policy, module.target_policy
 
@@ -63,11 +73,11 @@ def test_separate_target_policy(module, spec):
         assert all(p is t for p, t in zip(policy.parameters(), target.parameters()))
 
 
-def test_behavior(module, batch, spec):
+def test_behavior(module, batch):
     action = batch[SampleBatch.ACTIONS]
 
     samples = module.behavior(batch[SampleBatch.CUR_OBS])
     samples_ = module.behavior(batch[SampleBatch.CUR_OBS])
     assert samples.shape == action.shape
     assert samples.dtype == torch.float32
-    assert spec.behavior == "gaussian" or torch.allclose(samples, samples_)
+    assert torch.allclose(samples, samples_)

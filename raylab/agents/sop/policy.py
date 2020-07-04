@@ -44,10 +44,11 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
         module_config.setdefault("critic", {})
         module_config["critic"]["double_q"] = config["clipped_double_q"]
         module_config.setdefault("actor", {})
-        module_config["actor"]["perturbed_policy"] = (
+        if (
             config["exploration_config"]["type"]
             == "raylab.utils.exploration.ParameterNoise"
-        )
+        ):
+            module_config["actor"]["parameter_noise"] = True
         # pylint:disable=no-member
         return super().make_module(obs_space, action_space, config)
 
