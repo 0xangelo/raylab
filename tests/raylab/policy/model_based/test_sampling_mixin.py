@@ -15,32 +15,32 @@ ENSEMBLE_SIZE = (1, 4)
 ROLLOUT_SCHEDULE = ([(0, 1), (200, 10)], [(7, 2)])
 
 
-class DummyPolicy(ModelSamplingMixin, TorchPolicy):
-    # pylint:disable=all
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        def reward_fn(obs, act, new_obs):
-            return act.norm(p=1, dim=-1)
-
-        def termination_fn(obs, act, new_obs):
-            return torch.randn(obs.shape[:-1]) > 0
-
-        self.reward_fn = reward_fn
-        self.termination_fn = termination_fn
-
-    @staticmethod
-    def get_default_config():
-        return {
-            "model_sampling": ModelSamplingMixin.model_sampling_defaults(),
-            "module": {"type": "ModelBasedSAC"},
-            "seed": None,
-        }
-
-
 @pytest.fixture(scope="module")
-def policy_cls(obs_space, action_space):
-    return functools.partial(DummyPolicy, obs_space, action_space)
+def policy_cls(base_policy_cls):
+    class Policy(ModelSamplingMixin, base_policy_cls):
+        # pylint:disable=all
+
+        def __init__(self, config):
+            super().__init__(config)
+
+            def reward_fn(obs, act, new_obs):
+                return act.norm(p=1, dim=-1)
+
+            def termination_fn(obs, act, new_obs):
+                return torch.randn(obs.shape[:-1]) > 0
+
+            self.reward_fn = reward_fn
+            self.termination_fn = termination_fn
+
+        @staticmethod
+        def get_default_config():
+            return {
+                "model_sampling": ModelSamplingMixin.model_sampling_defaults(),
+                "module": {"type": "ModelBasedSAC"},
+                "seed": None,
+            }
+
+    return Policy
 
 
 @pytest.fixture(

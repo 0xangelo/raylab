@@ -5,22 +5,24 @@ import pytest
 import torch
 
 from raylab.envs import get_reward_fn
-from raylab.envs import get_termination_fn
 from raylab.policy import EnvFnMixin
-from raylab.policy import TorchPolicy
 from raylab.utils.debug import fake_space_samples
 
 
-class DummyPolicy(EnvFnMixin, TorchPolicy):
-    # pylint:disable=all
-    @staticmethod
-    def get_default_config():
-        return {"module": {"type": "OnPolicyActorCritic"}}
+@pytest.fixture
+def policy_cls(base_policy_cls):
+    class Policy(EnvFnMixin, base_policy_cls):
+        @staticmethod
+        def get_default_config():
+            return {"module": {"type": "OnPolicyActorCritic"}}
+
+    return Policy
 
 
 @pytest.fixture
 def reward_fn():
-    def func(obs, act, new_obs):
+    def func(*args):
+        act = args[1]
         return act.norm(p=1, dim=-1)
 
     return func
@@ -28,7 +30,7 @@ def reward_fn():
 
 @pytest.fixture
 def termination_fn():
-    def func(obs, act, new_obs):
+    def func(obs, *_):
         return torch.randn(obs.shape[:-1]) > 0
 
     return func
@@ -36,7 +38,7 @@ def termination_fn():
 
 @pytest.fixture
 def dynamics_fn():
-    def func(obs, act):
+    def func(obs, _):
         sample = torch.randn_like(obs)
         log_prob = torch.sum(
             -(sample ** 2) / 2
@@ -50,8 +52,8 @@ def dynamics_fn():
 
 
 @pytest.fixture
-def policy(obs_space, action_space):
-    return DummyPolicy(obs_space, action_space, {})
+def policy(policy_cls):
+    return policy_cls({})
 
 
 def test_init(policy):
