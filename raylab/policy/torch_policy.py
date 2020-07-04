@@ -22,11 +22,10 @@ from torch import Tensor
 from torch.optim import Optimizer
 
 from raylab.agents import Trainer
-from raylab.modules.catalog import get_module
 from raylab.pytorch.utils import convert_to_tensor
 from raylab.utils.dictionaries import deep_merge
 
-from .action_dist import WrapModuleDist
+from .modules.catalog import get_module
 from .optimizer_collection import OptimizerCollection
 
 
@@ -34,6 +33,8 @@ class TorchPolicy(Policy):
     """A Policy that uses PyTorch as a backend.
 
     Attributes:
+        dist_class: Action distribution class for computing actions. Must be set
+            by subclasses before calling `__init__`.
         device: Device in which the parameter tensors reside. All input samples
             will be converted to tensors and moved to this device
         module: The policy's neural network module. Should be compilable to
@@ -53,6 +54,8 @@ class TorchPolicy(Policy):
             whitelist=Trainer._allow_unknown_subkeys,
             override_all_if_type_changes=Trainer._override_all_subkeys_if_type_changes,
         )
+        # Allow subclasses to set `dist_class` before calling init
+        action_dist = getattr(self, "dist_class", None)
         super().__init__(observation_space, action_space, config)
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -64,9 +67,18 @@ class TorchPolicy(Policy):
             self.optimizers[name] = optimizer
 
         # === Policy attributes ===
-        self.dist_class = WrapModuleDist
+        self.dist_class = action_dist
+        self.dist_class.check_model_compat(self.module)
         self.framework = "torch"  # Needed to create exploration
         self.exploration = self._create_exploration()
+
+    @property
+    def model(self):
+        """The policy's NN module.
+
+        Mostly for compatibility with RLlib's API.
+        """
+        return self.module
 
     @staticmethod
     @abstractmethod
@@ -142,7 +154,9 @@ class TorchPolicy(Policy):
             self.convert_to_tensor([1]),
         )
 
+        # pylint:disable=not-callable
         action_dist = self.dist_class(dist_inputs, self.module)
+        # pylint:enable=not-callable
         actions, logp = self.exploration.get_exploration_action(
             action_distribution=action_dist, timestep=timestep, explore=explore
         )
@@ -243,7 +257,9 @@ class TorchPolicy(Policy):
             state_batches,
             self.convert_to_tensor([1]),
         )
+        # pylint:disable=not-callable
         action_dist = self.dist_class(dist_inputs, self.module)
+        # pylint:enable=not-callable
         log_likelihoods = action_dist.logp(input_dict[SampleBatch.ACTIONS])
         return log_likelihoods
 

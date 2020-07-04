@@ -5,10 +5,10 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
 from raylab.agents.svg import SVGTorchPolicy
-from raylab.losses import ISSoftVIteration
-from raylab.losses import MaximumEntropyDual
-from raylab.losses import OneStepSoftSVG
 from raylab.policy import EnvFnMixin
+from raylab.policy.losses import ISSoftVIteration
+from raylab.policy.losses import MaximumEntropyDual
+from raylab.policy.losses import OneStepSoftSVG
 from raylab.pytorch.optim import build_optimizer
 
 
@@ -109,7 +109,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         if self.config["target_entropy"] is not None:
             info.update(self._update_alpha(batch_tensors))
 
-        self.update_targets("critic", "target_critic")
+        self._update_polyak()
         return info
 
     def _update_model(self, batch_tensors):

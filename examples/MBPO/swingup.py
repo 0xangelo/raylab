@@ -8,18 +8,24 @@ def get_config():
         "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === MBPOTorchPolicy ===
         "module": {
-            "type": "ModelBasedSAC",
+            "type": "MBSAC",
             "model": {
-                "encoder": {"units": (128, 128), "activation": "Swish"},
                 "ensemble_size": 7,
+                "parallelize": True,
+                "residual": True,
                 "input_dependent_scale": True,
+                "network": {"units": (128, 128), "activation": "Swish"},
             },
             "actor": {
                 "encoder": {"units": (128, 128), "activation": "Swish"},
                 "input_dependent_scale": True,
+                "initial_entropy_coeff": 0.05,
             },
-            "critic": {"encoder": {"units": (128, 128), "activation": "Swish"}},
-            "entropy": {"initial_alpha": 0.05},
+            "critic": {
+                "encoder": {"units": (128, 128), "activation": "Swish"},
+                "double_q": True,
+            },
+            "initializer": {"name": "xavier_uniform"},
         },
         "torch_optimizer": {
             "models": {"type": "Adam", "lr": 3e-4, "weight_decay": 0.0001},
@@ -63,6 +69,7 @@ def get_config():
         "evaluation_num_episodes": 10,
         "timesteps_per_iteration": 1000,
         "num_cpus_for_driver": 4,
+        "compile_policy": True,
         # === RolloutWorker ===
         "rollout_fragment_length": 25,
         "batch_mode": "truncate_episodes",

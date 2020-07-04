@@ -15,9 +15,6 @@ DEFAULT_CONFIG = with_base_config(
         # If "auto", will use the heuristic provided in the SAC paper:
         # H = -dim(A), where A is the action space
         "target_entropy": None,
-        # === Twin Delayed DDPG (TD3) tricks ===
-        # Clipped Double Q-Learning
-        "clipped_double_q": True,
         # === Optimization ===
         # PyTorch optimizers to use
         "torch_optimizer": {
@@ -28,10 +25,7 @@ DEFAULT_CONFIG = with_base_config(
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
         # === Network ===
-        # Size and activation of the fully connected networks computing the logits
-        # for the policy and action-value function. No layers means the component is
-        # linear in states and/or actions.
-        "module": {"type": "SACModule"},
+        "module": {"type": "SAC", "critic": {"double_q": True}},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

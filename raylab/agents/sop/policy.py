@@ -3,17 +3,19 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.losses import ClippedDoubleQLearning
-from raylab.losses import DeterministicPolicyGradient
-from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
+from raylab.policy.action_dist import WrapDeterministicPolicy
+from raylab.policy.losses import ClippedDoubleQLearning
+from raylab.policy.losses import DeterministicPolicyGradient
+from raylab.pytorch.nn.utils import update_polyak
 from raylab.pytorch.optim import build_optimizer
 
 
-class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
+class SOPTorchPolicy(TorchPolicy):
     """Streamlined Off-Policy policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
+    dist_class = WrapDeterministicPolicy
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -36,25 +38,12 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return DEFAULT_CONFIG
 
     @override(TorchPolicy)
-    def make_module(self, obs_space, action_space, config):
-        module_config = config["module"]
-        module_config.setdefault("critic", {})
-        module_config["critic"]["double_q"] = config["clipped_double_q"]
-        module_config.setdefault("actor", {})
-        module_config["actor"]["perturbed_policy"] = (
-            config["exploration_config"]["type"]
-            == "raylab.utils.exploration.ParameterNoise"
-        )
-        # pylint:disable=no-member
-        return super().make_module(obs_space, action_space, config)
-
-    @override(TorchPolicy)
     def make_optimizers(self):
         config = self.config["torch_optimizer"]
         components = "actor critics".split()
 
         return {
-            name: build_optimizer(self.module[name], config[name])
+            name: build_optimizer(getattr(self.module, name), config[name])
             for name in components
         }
 
@@ -68,7 +57,9 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
         if self._grad_step % self.config["policy_delay"] == 0:
             info.update(self._update_policy(batch_tensors))
 
-        self.update_targets("critics", "target_critics")
+        update_polyak(
+            self.module.critics, self.module.target_critics, self.config["polyak"]
+        )
         return info
 
     def _update_critic(self, batch_tensors):
@@ -92,7 +83,7 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
         """Return statistics right after components are updated."""
         return {
             f"grad_norm({component})": nn.utils.clip_grad_norm_(
-                self.module[component].parameters(), float("inf")
+                getattr(self.module, component).parameters(), float("inf")
             ).item()
         }
 

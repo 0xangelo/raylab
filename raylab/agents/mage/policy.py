@@ -1,10 +1,11 @@
 """Policy for MAGE using PyTorch."""
 from raylab.agents.sop import SOPTorchPolicy
-from raylab.losses import MAGE
-from raylab.losses import ModelEnsembleMLE
-from raylab.losses.mage import MAGEModules
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelTrainingMixin
+from raylab.policy.action_dist import WrapDeterministicPolicy
+from raylab.policy.losses import MAGE
+from raylab.policy.losses import ModelEnsembleMLE
+from raylab.policy.losses.mage import MAGEModules
 from raylab.pytorch.optim import build_optimizer
 
 
@@ -18,6 +19,7 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
     """
 
     # pylint: disable=abstract-method
+    dist_class = WrapDeterministicPolicy
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
@@ -37,6 +39,7 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
 
     @staticmethod
     def get_default_config():
+        # pylint:disable=cyclic-import
         from raylab.agents.mage import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG

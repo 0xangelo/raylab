@@ -8,9 +8,6 @@ from .policy import SOPTorchPolicy
 DEFAULT_CONFIG = with_base_config(
     {
         # === SOPTorchPolicy ===
-        # Clipped Double Q-Learning: use the minimun of two target Q functions
-        # as the next action-value in the target for fitted Q iteration
-        "clipped_double_q": True,
         # PyTorch optimizers to use
         "torch_optimizer": {
             "actor": {"type": "Adam", "lr": 1e-3},
@@ -20,7 +17,11 @@ DEFAULT_CONFIG = with_base_config(
         "polyak": 0.995,
         # Update policy every this number of calls to `learn_on_batch`
         "policy_delay": 1,
-        "module": {"type": "DDPGModule"},
+        "module": {
+            "type": "DDPG",
+            "actor": {"separate_behavior": True},
+            "critic": {"double_q": True},
+        },
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

@@ -25,15 +25,16 @@ def get_config():
         # for the policy and action-value function. No layers means the component is
         # linear in states and/or actions.
         "module": {
-            "type": "DDPGModule",
+            "type": "DDPG",
+            "initializer": {"name": "orthogonal"},
             "actor": {
+                "parameter_noise": True,
                 "smooth_target_policy": True,
                 "target_gaussian_sigma": 0.3,
                 "beta": 1.2,
                 "encoder": {
                     "units": (256, 256),
                     "activation": "ELU",
-                    "initializer_options": {"name": "Orthogonal"},
                     "layer_norm": True,
                 },
             },
@@ -41,7 +42,6 @@ def get_config():
                 "encoder": {
                     "units": (256, 256),
                     "activation": "ELU",
-                    "initializer_options": {"name": "Orthogonal"},
                     "delay_action": True,
                 },
             },

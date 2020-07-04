@@ -2,10 +2,11 @@
 from ray.rllib.utils import override
 
 from raylab.agents.sac import SACTorchPolicy
-from raylab.losses import ModelEnsembleMLE
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelSamplingMixin
 from raylab.policy import ModelTrainingMixin
+from raylab.policy.action_dist import WrapStochasticPolicy
+from raylab.policy.losses import ModelEnsembleMLE
 from raylab.pytorch.optim import build_optimizer
 
 
@@ -15,10 +16,10 @@ class MBPOTorchPolicy(
     """Model-Based Policy Optimization policy in PyTorch to use with RLlib."""
 
     # pylint:disable=abstract-method,too-many-ancestors
+    dist_class = WrapStochasticPolicy
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-
         models = self.module.models
         self.loss_model = ModelEnsembleMLE(models)
 
@@ -37,6 +38,6 @@ class MBPOTorchPolicy(
         components = "models actor critics alpha".split()
 
         return {
-            name: build_optimizer(self.module[name], config[name])
+            name: build_optimizer(getattr(self.module, name), config[name])
             for name in components
         }

@@ -7,9 +7,9 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
 from raylab.agents.svg import SVGTorchPolicy
-from raylab.losses import TrajectorySVG
 from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
+from raylab.policy.losses import TrajectorySVG
 from raylab.pytorch.optim import build_optimizer
 
 
@@ -88,7 +88,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             info.update(_info)
             loss.backward()
 
-        self.update_targets("critic", "target_critic")
+        self._update_polyak()
         return info
 
     def _learn_on_policy(self, batch_tensors, samples):

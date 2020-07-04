@@ -1,13 +1,7 @@
-# pylint: disable=missing-docstring,redefined-outer-name,protected-access
-import logging
-
-import gym
-import gym.spaces as spaces
+# pylint:disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 
 from .mock_env import MockEnv
-
-gym.logger.set_level(logging.ERROR)
 
 
 # Test setup from:
@@ -41,8 +35,15 @@ def init_ray():
 
 
 @pytest.fixture(autouse=True, scope="session")
+def disable_gym_logger_warnings():
+    import logging
+    import gym
+
+    gym.logger.set_level(logging.ERROR)
+
+
+@pytest.fixture(autouse=True, scope="session")
 def register_envs():
-    # pylint:disable=import-outside-toplevel
     import raylab
     from raylab.envs.registry import ENVS
 
@@ -51,33 +52,3 @@ def register_envs():
 
     ENVS["MockEnv"] = _mock_env_maker
     raylab.register_all_environments()
-
-
-@pytest.fixture(scope="module", params=((1,), (4,)), ids=("Obs1Dim", "Obs4Dim"))
-def obs_space(request):
-    return spaces.Box(-10, 10, shape=request.param)
-
-
-@pytest.fixture(scope="module", params=((1,), (4,)), ids=("Act1Dim", "Act4Dim"))
-def action_space(request):
-    return spaces.Box(-1, 1, shape=request.param)
-
-
-@pytest.fixture(scope="module")
-def envs():
-    from raylab.envs.registry import ENVS  # pylint:disable=import-outside-toplevel
-
-    return ENVS.copy()
-
-
-ENV_IDS = ("MockEnv", "Navigation", "Reservoir", "HVAC", "MountainCarContinuous-v0")
-
-
-@pytest.fixture(params=ENV_IDS)
-def env_name(request):
-    return request.param
-
-
-@pytest.fixture
-def env_creator(envs, env_name):
-    return envs[env_name]

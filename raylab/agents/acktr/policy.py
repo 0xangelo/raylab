@@ -12,6 +12,7 @@ from ray.rllib.utils import override
 
 import raylab.utils.dictionaries as dutil
 from raylab.policy import TorchPolicy
+from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.pytorch.nn.distributions import Normal
 from raylab.pytorch.optim import build_optimizer
 from raylab.pytorch.optim.hessian_free import line_search
@@ -51,6 +52,7 @@ class ACKTRTorchPolicy(TorchPolicy):
     """Policy class for Actor-Critic with Kronecker factored Trust Region."""
 
     # pylint:disable=abstract-method
+    dist_class = WrapStochasticPolicy
 
     @staticmethod
     @override(TorchPolicy)

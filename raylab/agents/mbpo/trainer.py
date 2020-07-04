@@ -10,17 +10,22 @@ DEFAULT_CONFIG = with_base_config(
     {
         # === MBPOTorchPolicy ===
         "module": {
-            "type": "ModelBasedSAC",
+            "type": "MBSAC",
             "model": {
-                "encoder": {"units": (128, 128), "activation": "Swish"},
+                "network": {"units": (128, 128), "activation": "Swish"},
                 "ensemble_size": 7,
                 "input_dependent_scale": True,
+                "parallelize": True,
+                "residual": True,
             },
             "actor": {
                 "encoder": {"units": (128, 128), "activation": "Swish"},
                 "input_dependent_scale": True,
             },
-            "critic": {"encoder": {"units": (128, 128), "activation": "Swish"}},
+            "critic": {
+                "double_q": True,
+                "encoder": {"units": (128, 128), "activation": "Swish"},
+            },
             "entropy": {"initial_alpha": 0.05},
         },
         "torch_optimizer": {
@@ -31,7 +36,6 @@ DEFAULT_CONFIG = with_base_config(
         },
         # === SACTorchPolicy ===
         "target_entropy": "auto",
-        "clipped_double_q": True,
         "polyak": 0.995,
         # === ModelTrainingMixin ===
         "model_training": TrainingSpec().to_dict(),
@@ -48,6 +52,8 @@ DEFAULT_CONFIG = with_base_config(
         "learning_starts": 5000,
         # === OffPolicyTrainer ===
         "train_batch_size": 512,
+        # === Trainer ===
+        "compile_policy": True,
     }
 )
 

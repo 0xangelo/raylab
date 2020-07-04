@@ -8,14 +8,23 @@ def get_config():
         "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === MAPOTorchPolicy ===
         "module": {
-            "type": "ModelBasedSAC",
+            "type": "MBSAC",
             "model": {
                 "ensemble_size": 1,
-                "encoder": {"units": (128, 128), "activation": "Swish"},
+                "residual": True,
+                "input_dependent_scale": True,
+                "network": {"units": (128, 128), "activation": "Swish"},
             },
-            "actor": {"encoder": {"units": (128, 128), "activation": "Swish"}},
-            "critic": {"encoder": {"units": (128, 128), "activation": "Swish"}},
-            "entropy": {"initial_alpha": 0.05},
+            "actor": {
+                "encoder": {"units": (128, 128), "activation": "Swish"},
+                "input_dependent_scale": True,
+                "initial_entropy_coeff": 0.05,
+            },
+            "critic": {
+                "encoder": {"units": (128, 128), "activation": "Swish"},
+                "double_q": True,
+            },
+            "initializer": {"name": "xavier_uniform"},
         },
         "losses": {
             # Gradient estimator for optimizing expectations. Possible types include

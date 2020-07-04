@@ -3,18 +3,20 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.losses import MaximumEntropyDual
-from raylab.losses import ReparameterizedSoftPG
-from raylab.losses import SoftCDQLearning
-from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
+from raylab.policy.action_dist import WrapStochasticPolicy
+from raylab.policy.losses import MaximumEntropyDual
+from raylab.policy.losses import ReparameterizedSoftPG
+from raylab.policy.losses import SoftCDQLearning
+from raylab.pytorch.nn.utils import update_polyak
 from raylab.pytorch.optim import build_optimizer
 
 
-class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
+class SACTorchPolicy(TorchPolicy):
     """Soft Actor-Critic policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
+    dist_class = WrapStochasticPolicy
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
@@ -43,19 +45,12 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         return DEFAULT_CONFIG
 
     @override(TorchPolicy)
-    def make_module(self, obs_space, action_space, config):
-        module_config = config["module"]
-        module_config.setdefault("critic", {})
-        module_config["critic"]["double_q"] = config["clipped_double_q"]
-        return super().make_module(obs_space, action_space, config)
-
-    @override(TorchPolicy)
     def make_optimizers(self):
         config = self.config["torch_optimizer"]
         components = "actor critics alpha".split()
 
         return {
-            name: build_optimizer(self.module[name], config[name])
+            name: build_optimizer(getattr(self.module, name), config[name])
             for name in components
         }
 
@@ -73,7 +68,9 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         if self.config["target_entropy"] is not None:
             info.update(self._update_alpha(batch_tensors))
 
-        self.update_targets("critics", "target_critics")
+        update_polyak(
+            self.module.critics, self.module.target_critics, self.config["polyak"]
+        )
         return info
 
     def _update_critic(self, batch_tensors):
@@ -105,6 +102,6 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         """Return statistics right after components are updated."""
         return {
             f"grad_norm({component})": nn.utils.clip_grad_norm_(
-                self.module[component].parameters(), float("inf")
+                getattr(self.module, component).parameters(), float("inf")
             ).item()
         }

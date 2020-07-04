@@ -16,9 +16,6 @@ DEFAULT_CONFIG = with_base_config(
         "policy_improvements": 10,
         "real_data_ratio": 1,
         # === MAGETorchPolicy ===
-        # Clipped Double Q-Learning: use the minimun of two target Q functions
-        # as the next action-value in the target for fitted Q iteration
-        "clipped_double_q": True,
         # TD error regularization for MAGE loss
         "lambda": 0.05,
         # PyTorch optimizers to use
@@ -39,7 +36,7 @@ DEFAULT_CONFIG = with_base_config(
             patience_epochs=None,
             improvement_threshold=None,
         ).to_dict(),
-        "module": {"type": "ModelBasedDDPG", "model": {"ensemble_size": 1}},
+        "module": {"type": "MBDDPG", "critic": {"double_q": True}},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

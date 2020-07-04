@@ -7,10 +7,10 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
 from raylab.agents.svg import SVGTorchPolicy
-from raylab.losses import OneStepSVG
 from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
 from raylab.policy import TorchPolicy
+from raylab.policy.losses import OneStepSVG
 from raylab.pytorch.optim import get_optimizer_class
 
 
@@ -95,7 +95,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
 
         info.update(self.extra_grad_info(batch_tensors))
         info.update(self.update_kl_coeff(samples))
-        self.update_targets("critic", "target_critic")
+        self._update_polyak()
         return info
 
     @torch.no_grad()
