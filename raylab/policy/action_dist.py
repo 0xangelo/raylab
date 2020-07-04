@@ -1,7 +1,10 @@
 """Action distribution for compatibility with RLlib's interface."""
+from abc import ABCMeta
+from abc import abstractmethod
+
 import torch
+import torch.nn as nn
 from ray.rllib.models.action_dist import ActionDistribution
-from ray.rllib.utils import override
 from torch import Tensor
 
 from .modules.actor.policy.deterministic import DeterministicPolicy
@@ -9,61 +12,100 @@ from .modules.actor.policy.stochastic import StochasticPolicy
 from .modules.v0.mixins.stochastic_actor_mixin import StochasticPolicy as V0StochasticPi
 
 
-class WrapStochasticPolicy(ActionDistribution):
+class IncompatibleDistClsError(Exception):
+    """Exception raised for incompatible action distribution and NN module.
+
+    Args:
+        dist_cls: Action distribution class
+        module: NN module
+        err: AssertionError explaining the reason why distribution and
+            module are incompatible
+
+    Attributes:
+        message: Human-readable text explaining what caused the incompatibility
+    """
+
+    def __init__(self, dist_cls: type, module: nn.Module, err: Exception):
+        # pylint:disable=unused-argument
+        msg = (
+            f"Action distribution type {dist_cls} is incompatible"
+            " with NN module of type {type(module)}. Reason:\n"
+            "    {err}"
+        )
+        super().__init__(msg)
+        self.message = msg
+
+
+class BaseActionDist(ActionDistribution, metaclass=ABCMeta):
+    """Base class for TorchPolicy action distributions."""
+
+    @classmethod
+    def check_model_compat(cls, model: nn.Module):
+        """Assert the given NN module is compatible with the distribution.
+
+        Raises:
+            IncompatibleDistClsError: If `model` is incompatible with the
+                distribution class
+        """
+        try:
+            cls._check_model_compat(model)
+        except AssertionError as err:
+            raise IncompatibleDistClsError(cls, model, err)
+
+    @classmethod
+    @abstractmethod
+    def _check_model_compat(cls, model: nn.Module):
+        pass
+
+
+class WrapStochasticPolicy(BaseActionDist):
     """Wraps an nn.Module with a stochastic actor and its inputs.
 
-    Expects actor to be a StochasticPolicy instance.
+    Expects actor to be an instance of StochasticPolicy.
     """
 
     # pylint:disable=abstract-method
+    valid_actor_cls = (V0StochasticPi, StochasticPolicy)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        assert hasattr(self.model, "actor")
-        assert isinstance(self.model.actor, (V0StochasticPi, StochasticPolicy))
         self._sampled_logp = None
 
-    @override(ActionDistribution)
     def sample(self):
         action, logp = self.model.actor.sample(**self.inputs)
         self._sampled_logp = logp
         return action, logp
 
-    @override(ActionDistribution)
     def deterministic_sample(self):
         return self.model.actor.deterministic(**self.inputs)
 
-    @override(ActionDistribution)
     def sampled_action_logp(self):
         return self._sampled_logp
 
-    @override(ActionDistribution)
     def logp(self, x):
         return self.model.actor.log_prob(value=x, **self.inputs)
 
-    @override(ActionDistribution)
     def entropy(self):
         return self.model.actor.entropy(**self.inputs)
 
+    @classmethod
+    def _check_model_compat(cls, model):
+        assert hasattr(model, "actor"), "NN has no actor attribute."
+        assert isinstance(model.actor, cls.valid_actor_cls), (
+            f"Expected actor to be an instance of {cls.valid_actor_cls};"
+            " found {type(model.actor)} instead."
+        )
 
-class WrapDeterministicPolicy(ActionDistribution):
+
+class WrapDeterministicPolicy(BaseActionDist):
     """Wraps an nn.Module with a deterministic actor and its inputs.
 
-    Expects actor to be a DeterministicPolicy instance.
+    Expects actor to be an instance of DeterministicPolicy.
     """
 
     # pylint:disable=abstract-method
+    valid_actor_cls = valid_behavior_cls = DeterministicPolicy
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        assert hasattr(self.model, "actor") and isinstance(
-            self.model.actor, DeterministicPolicy
-        )
-        assert hasattr(self.model, "behavior") and isinstance(
-            self.model.behavior, DeterministicPolicy
-        )
-
-    @override(ActionDistribution)
     def sample(self):
         action = self.model.behavior(**self.inputs)
         return action, None
@@ -74,14 +116,25 @@ class WrapDeterministicPolicy(ActionDistribution):
         unconstrained_action += torch.randn_like(unconstrained_action) * noise_stddev
         return self.model.behavior.squash_action(unconstrained_action), None
 
-    @override(ActionDistribution)
     def deterministic_sample(self):
         return self.model.actor(**self.inputs), None
 
-    @override(ActionDistribution)
     def sampled_action_logp(self):
         return None
 
-    @override(ActionDistribution)
     def logp(self, x):
         return None
+
+    @classmethod
+    def _check_model_compat(cls, model: nn.Module):
+        assert hasattr(model, "actor"), "NN has no actor attribute"
+        assert isinstance(model.actor, cls.valid_actor_cls), (
+            f"Expected actor to be an instance of {cls.valid_actor_cls};"
+            " found {type(model.actor)} instead."
+        )
+
+        assert hasattr(model, "behavior"), "NN has no behavior attribute"
+        assert isinstance(model.actor, cls.valid_behavior_cls), (
+            f"Expected behavior to be an instance of {cls.valid_behavior_cls};"
+            " found {type(model.behavior)} instead."
+        )

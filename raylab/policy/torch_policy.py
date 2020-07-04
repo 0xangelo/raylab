@@ -34,7 +34,7 @@ class TorchPolicy(Policy):
 
     Attributes:
         dist_class: Action distribution class for computing actions. Must be set
-            by subclasses.
+            by subclasses before calling `__init__`.
         device: Device in which the parameter tensors reside. All input samples
             will be converted to tensors and moved to this device
         module: The policy's neural network module. Should be compilable to
@@ -65,6 +65,7 @@ class TorchPolicy(Policy):
             self.optimizers[name] = optimizer
 
         # === Policy attributes ===
+        self.dist_class.check_model_compat(self.module)
         self.framework = "torch"  # Needed to create exploration
         self.exploration = self._create_exploration()
 
