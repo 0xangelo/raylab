@@ -22,9 +22,9 @@ class DeterministicActorSpec(DataClassJsonMixin):
             states to pre-action linear features
         norm_beta: Maximum l1 norm of the unconstrained actions. If None, won't
             normalize actions before squashing function
-        parameter_noise: Whether to create a separate behavior policy for
-            parameter noise exploration. It is recommended to enable
-            encoder.layer_norm alongside this option.
+        separate_behavior: Whether to create a separate behavior policy. Usually
+            for parameter noise exploration, in which case it is recommended to
+            enable encoder.layer_norm alongside this option.
         smooth_target_policy: Whether to use a noisy target policy for
             Q-Learning
         target_gaussian_sigma: Gaussian standard deviation for noisy target
@@ -38,7 +38,7 @@ class DeterministicActorSpec(DataClassJsonMixin):
 
     encoder: MLPSpec = field(default_factory=MLPSpec)
     norm_beta: float = 1.2
-    parameter_noise: bool = False
+    separate_behavior: bool = False
     smooth_target_policy: bool = True
     target_gaussian_sigma: float = 0.3
     separate_target_policy: bool = False
@@ -85,12 +85,12 @@ class DeterministicActor(nn.Module):
         policy.initialize_parameters(spec.initializer)
 
         behavior = policy
-        if spec.parameter_noise:
+        if spec.separate_behavior:
             if not spec.encoder.layer_norm:
                 warnings.warn(
-                    "Behavior policy for parameter noise exploration requested"
-                    " but layer normalization is deactivated. Use layer"
-                    " normalization for better stability."
+                    "Separate behavior policy requested and layer normalization"
+                    " deactivated. If using parameter noise exploration, enable"
+                    " layer normalization for better stability."
                 )
             behavior = make_policy()
             behavior.load_state_dict(policy.state_dict())
