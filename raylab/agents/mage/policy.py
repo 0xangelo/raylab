@@ -19,10 +19,10 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
     """
 
     # pylint: disable=abstract-method
+    dist_class = WrapDeterministicPolicy
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self.dist_class = WrapDeterministicPolicy
 
         module = self.module
         self.loss_model = ModelEnsembleMLE(module.models)

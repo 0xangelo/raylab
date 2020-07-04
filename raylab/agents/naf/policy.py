@@ -3,22 +3,21 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import ClippedDoubleQLearning
+from raylab.pytorch.nn.utils import update_polyak
 from raylab.pytorch.optim import build_optimizer
 
 
-class NAFTorchPolicy(TargetNetworksMixin, TorchPolicy):
+class NAFTorchPolicy(TorchPolicy):
     """Normalized Advantage Function policy in Pytorch to use with RLlib."""
 
     # pylint: disable=abstract-method
+    dist_class = WrapDeterministicPolicy
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dist_class = WrapDeterministicPolicy
-
         target_critics = [lambda s, _, v=v: v(s) for v in self.module.target_vcritics]
         self.loss_fn = ClippedDoubleQLearning(
             self.module.critics, target_critics, actor=lambda _: None,
@@ -60,7 +59,9 @@ class NAFTorchPolicy(TargetNetworksMixin, TorchPolicy):
             loss.backward()
 
         info.update(self.extra_grad_info())
-        self.update_targets("vcritics", "target_vcritics")
+        update_polyak(
+            self.module.vcritics, self.module.target_vcritics, self.config["polyak"]
+        )
         return info
 
     @torch.no_grad()

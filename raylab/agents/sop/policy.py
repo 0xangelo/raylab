@@ -3,23 +3,22 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import ClippedDoubleQLearning
 from raylab.policy.losses import DeterministicPolicyGradient
+from raylab.pytorch.nn.utils import update_polyak
 from raylab.pytorch.optim import build_optimizer
 
 
-class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
+class SOPTorchPolicy(TorchPolicy):
     """Streamlined Off-Policy policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
+    dist_class = WrapDeterministicPolicy
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dist_class = WrapDeterministicPolicy
-
         self.loss_actor = DeterministicPolicyGradient(
             self.module.actor, self.module.critics,
         )
@@ -37,20 +36,6 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
         from raylab.agents.sop import DEFAULT_CONFIG
 
         return DEFAULT_CONFIG
-
-    @override(TorchPolicy)
-    def make_module(self, obs_space, action_space, config):
-        module_config = config["module"]
-        module_config.setdefault("critic", {})
-        module_config["critic"]["double_q"] = config["clipped_double_q"]
-        module_config.setdefault("actor", {})
-        if (
-            config["exploration_config"]["type"]
-            == "raylab.utils.exploration.ParameterNoise"
-        ):
-            module_config["actor"]["parameter_noise"] = True
-        # pylint:disable=no-member
-        return super().make_module(obs_space, action_space, config)
 
     @override(TorchPolicy)
     def make_optimizers(self):
@@ -72,7 +57,9 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
         if self._grad_step % self.config["policy_delay"] == 0:
             info.update(self._update_policy(batch_tensors))
 
-        self.update_targets("critics", "target_critics")
+        update_polyak(
+            self.module.critics, self.module.target_critics, self.config["polyak"]
+        )
         return info
 
     def _update_critic(self, batch_tensors):

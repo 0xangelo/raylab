@@ -88,7 +88,7 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             info.update(_info)
             loss.backward()
 
-        self.update_targets("critic", "target_critic")
+        self._update_polyak()
         return info
 
     def _learn_on_policy(self, batch_tensors, samples):

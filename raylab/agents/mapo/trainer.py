@@ -21,6 +21,7 @@ DEFAULT_CONFIG = with_base_config(
                 "parallelize": False,
                 "residual": True,
             },
+            "critic": {"double_q": True},
         },
         "losses": {
             # Gradient estimator for optimizing expectations. Possible types include
@@ -44,7 +45,6 @@ DEFAULT_CONFIG = with_base_config(
         },
         # === SACTorchPolicy ===
         "target_entropy": "auto",
-        "clipped_double_q": True,
         # === TargetNetworksMixin ===
         "polyak": 0.995,
         # === ModelTrainingMixin ===

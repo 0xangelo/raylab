@@ -15,11 +15,10 @@ class MAPOTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
     """Model-Aware Policy Optimization policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
+    dist_class = WrapStochasticPolicy
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self.dist_class = WrapStochasticPolicy
-
         self.loss_model = SPAML(
             self.module.models, self.module.actor, self.module.critics
         )

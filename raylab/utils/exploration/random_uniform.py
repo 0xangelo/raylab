@@ -1,12 +1,13 @@
 # pylint:disable=missing-module-docstring
 import numpy as np
-from ray.rllib.utils import override
-from ray.rllib.utils.exploration import Exploration
 
 import raylab.pytorch.utils as ptu
 
+from .base import BaseExploration
+from .base import Model
 
-class RandomUniform(Exploration):
+
+class RandomUniform(BaseExploration):
     """Samples actions from the Gym action space
 
     Args:
@@ -28,7 +29,6 @@ class RandomUniform(Exploration):
             )
         self._pure_exploration_steps = pure_exploration_steps
 
-    @override(Exploration)
     def get_exploration_action(self, *, action_distribution, timestep, explore=True):
         # pylint:disable=unused-argument
         if explore:
@@ -43,3 +43,7 @@ class RandomUniform(Exploration):
             )
             return acts, logp
         return action_distribution.deterministic_sample()
+
+    @classmethod
+    def check_model_compat(cls, model: Model):
+        pass

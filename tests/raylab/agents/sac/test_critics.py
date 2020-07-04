@@ -9,13 +9,13 @@ from raylab.policy.losses import SoftCDQLearning
 
 
 @pytest.fixture(params=(True, False))
-def clipped_double_q(request):
+def double_q(request):
     return request.param
 
 
 @pytest.fixture
-def policy_and_batch(policy_and_batch_fn, clipped_double_q):
-    config = {"clipped_double_q": clipped_double_q, "polyak": 0.5}
+def policy_and_batch(policy_and_batch_fn, double_q):
+    config = {"module": {"critic": {"double_q": double_q}}, "polyak": 0.5}
     return policy_and_batch_fn(config)
 
 
@@ -75,14 +75,8 @@ def test_critic_loss(policy_and_batch):
     )
 
 
-def test_target_params_update(policy_and_batch):
+def test_target_net_init(policy_and_batch):
     policy, _ = policy_and_batch
     params = list(policy.module.critics.parameters())
     target_params = list(policy.module.target_critics.parameters())
     assert all(torch.allclose(p, q) for p, q in zip(params, target_params))
-
-    old_params = [p.clone() for p in target_params]
-    for param in params:
-        param.data.add_(torch.ones_like(param))
-    policy.update_targets("critics", "target_critics")
-    assert all(not torch.allclose(p, q) for p, q in zip(target_params, old_params))

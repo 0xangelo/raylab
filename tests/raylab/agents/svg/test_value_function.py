@@ -40,16 +40,3 @@ def test_importance_sampling_weighted_loss(policy_and_batch):
     assert all(p.grad is None for p in other_params)
 
     assert "loss(critic)" in info
-
-
-def test_target_params_update(policy_and_batch):
-    policy, _ = policy_and_batch
-
-    old_params = [p.clone() for p in policy.module.target_critic.parameters()]
-    for param in policy.module.critic.parameters():
-        param.data.add_(torch.ones_like(param))
-    policy.update_targets("critic", "target_critic")
-    assert all(
-        not torch.allclose(p, p_)
-        for p, p_ in zip(policy.module.target_critic.parameters(), old_params)
-    )

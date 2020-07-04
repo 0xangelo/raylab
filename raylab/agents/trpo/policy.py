@@ -25,10 +25,7 @@ class TRPOTorchPolicy(TorchPolicy):
     """Policy class for Trust Region Policy Optimization."""
 
     # pylint:disable=abstract-method
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.dist_class = WrapStochasticPolicy
+    dist_class = WrapStochasticPolicy
 
     @staticmethod
     @override(TorchPolicy)

@@ -22,7 +22,10 @@ DEFAULT_CONFIG = with_base_config(
                 "encoder": {"units": (128, 128), "activation": "Swish"},
                 "input_dependent_scale": True,
             },
-            "critic": {"encoder": {"units": (128, 128), "activation": "Swish"}},
+            "critic": {
+                "double_q": True,
+                "encoder": {"units": (128, 128), "activation": "Swish"},
+            },
             "entropy": {"initial_alpha": 0.05},
         },
         "torch_optimizer": {
@@ -33,7 +36,6 @@ DEFAULT_CONFIG = with_base_config(
         },
         # === SACTorchPolicy ===
         "target_entropy": "auto",
-        "clipped_double_q": True,
         "polyak": 0.995,
         # === ModelTrainingMixin ===
         "model_training": TrainingSpec().to_dict(),

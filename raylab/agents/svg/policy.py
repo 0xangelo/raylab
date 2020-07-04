@@ -3,21 +3,21 @@ import torch
 from ray.rllib import SampleBatch
 
 from raylab.policy import EnvFnMixin
-from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import ISFittedVIteration
 from raylab.policy.losses import MaximumLikelihood
+from raylab.pytorch.nn.utils import update_polyak
 
 
-class SVGTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
+class SVGTorchPolicy(EnvFnMixin, TorchPolicy):
     """Stochastic Value Gradients policy using PyTorch."""
 
     # pylint: disable=abstract-method
+    dist_class = WrapStochasticPolicy
+
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        self.dist_class = WrapStochasticPolicy
-
         self.loss_model = MaximumLikelihood(self.module.model)
         self.loss_critic = ISFittedVIteration(
             self.module.critic, self.module.target_critic
@@ -47,3 +47,8 @@ class SVGTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
 
         loss = mle_loss + self.config["vf_loss_coeff"] * isfv_loss
         return loss, {**mle_info, **isfv_info}
+
+    def _update_polyak(self):
+        update_polyak(
+            self.module.critic, self.module.target_critic, self.config["polyak"]
+        )

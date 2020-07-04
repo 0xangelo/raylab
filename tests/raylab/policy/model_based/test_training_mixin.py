@@ -8,7 +8,6 @@ from ray.rllib import SampleBatch
 
 from raylab.policy import ModelTrainingMixin
 from raylab.policy import OptimizerCollection
-from raylab.policy import TorchPolicy
 from raylab.policy.model_based.training_mixin import Evaluator
 from raylab.pytorch.optim import build_optimizer
 from raylab.utils.debug import fake_batch
@@ -24,25 +23,6 @@ class DummyLoss:
         return losses, {"loss(models)": losses.mean().item()}
 
 
-class DummyPolicy(ModelTrainingMixin, TorchPolicy):
-    # pylint:disable=abstract-method
-    def __init__(self, observation_space, action_space, config):
-        super().__init__(observation_space, action_space, config)
-        loss = DummyLoss()
-        loss.ensemble_size = len(self.module.models)
-        self.loss_model = loss
-
-    @staticmethod
-    def get_default_config():
-        return {
-            "model_training": ModelTrainingMixin.model_training_defaults(),
-            "module": {"type": "ModelBasedSAC"},
-        }
-
-    def make_optimizers(self):
-        return {"models": build_optimizer(self.module.models, {"type": "Adam"})}
-
-
 @pytest.fixture
 def train_samples(obs_space, action_space):
     return fake_batch(obs_space, action_space, batch_size=80)
@@ -54,8 +34,26 @@ def eval_samples(obs_space, action_space):
 
 
 @pytest.fixture(scope="module")
-def policy_cls(obs_space, action_space):
-    return functools.partial(DummyPolicy, obs_space, action_space)
+def policy_cls(base_policy_cls):
+    class Policy(ModelTrainingMixin, base_policy_cls):
+        # pylint:disable=abstract-method
+        def __init__(self, config):
+            super().__init__(config)
+            loss = DummyLoss()
+            loss.ensemble_size = len(self.module.models)
+            self.loss_model = loss
+
+        @staticmethod
+        def get_default_config():
+            return {
+                "model_training": ModelTrainingMixin.model_training_defaults(),
+                "module": {"type": "ModelBasedSAC"},
+            }
+
+        def make_optimizers(self):
+            return {"models": build_optimizer(self.module.models, {"type": "Adam"})}
+
+    return Policy
 
 
 @pytest.fixture(scope="module", params=(1, 4), ids=lambda s: f"Ensemble({s})")

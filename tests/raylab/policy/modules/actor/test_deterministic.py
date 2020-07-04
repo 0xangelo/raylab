@@ -26,15 +26,16 @@ def separate_target_policy(request):
     return request.param
 
 
-@pytest.fixture(params=(True, False), ids=lambda x: f"ParameterNoise({x})")
-def parameter_noise(request):
+@pytest.fixture(params=(True, False), ids=lambda x: f"SeparateBehavior({x})")
+def separate_behavior(request):
     return request.param
 
 
 @pytest.fixture
-def spec(module_cls, parameter_noise, separate_target_policy):
+def spec(module_cls, separate_behavior, separate_target_policy):
     return module_cls.spec_cls(
-        parameter_noise=parameter_noise, separate_target_policy=separate_target_policy
+        separate_behavior=separate_behavior,
+        separate_target_policy=separate_target_policy,
     )
 
 
@@ -54,8 +55,8 @@ def test_module_creation(module):
     )
 
 
-def test_parameter_noise(module_cls, obs_space, action_space):
-    spec = module_cls.spec_cls(parameter_noise=True)
+def test_separate_behavior(module_cls, obs_space, action_space):
+    spec = module_cls.spec_cls(separate_behavior=True)
     module = module_cls(obs_space, action_space, spec)
 
     assert all(
