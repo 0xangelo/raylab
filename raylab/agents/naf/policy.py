@@ -14,11 +14,10 @@ class NAFTorchPolicy(TargetNetworksMixin, TorchPolicy):
     """Normalized Advantage Function policy in Pytorch to use with RLlib."""
 
     # pylint: disable=abstract-method
+    dist_class = WrapDeterministicPolicy
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dist_class = WrapDeterministicPolicy
-
         target_critics = [lambda s, _, v=v: v(s) for v in self.module.target_vcritics]
         self.loss_fn = ClippedDoubleQLearning(
             self.module.critics, target_critics, actor=lambda _: None,

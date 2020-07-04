@@ -15,11 +15,10 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
     """Streamlined Off-Policy policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
+    dist_class = WrapDeterministicPolicy
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.dist_class = WrapDeterministicPolicy
-
         self.loss_actor = DeterministicPolicyGradient(
             self.module.actor, self.module.critics,
         )
