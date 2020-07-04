@@ -2,6 +2,7 @@
 from raylab.agents.sop import SOPTorchPolicy
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelTrainingMixin
+from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import MAGE
 from raylab.policy.losses import ModelEnsembleMLE
 from raylab.policy.losses.mage import MAGEModules
@@ -21,6 +22,7 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
+        self.dist_class = WrapDeterministicPolicy
 
         module = self.module
         self.loss_model = ModelEnsembleMLE(module.models)

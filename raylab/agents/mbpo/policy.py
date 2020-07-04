@@ -5,6 +5,7 @@ from raylab.agents.sac import SACTorchPolicy
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelSamplingMixin
 from raylab.policy import ModelTrainingMixin
+from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import ModelEnsembleMLE
 from raylab.pytorch.optim import build_optimizer
 
@@ -18,6 +19,7 @@ class MBPOTorchPolicy(
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
+        self.dist_class = WrapStochasticPolicy
 
         models = self.module.models
         self.loss_model = ModelEnsembleMLE(models)

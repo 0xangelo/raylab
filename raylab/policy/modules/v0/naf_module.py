@@ -5,13 +5,12 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
+from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
 from raylab.pytorch.nn import FullyConnected
 from raylab.pytorch.nn import NormalizedLinear
 from raylab.pytorch.nn import TanhSquash
 from raylab.pytorch.nn import TrilMatrix
 from raylab.utils.dictionaries import deep_merge
-
-from .mixins import DeterministicPolicy
 
 
 BASE_CONFIG = {
@@ -68,8 +67,7 @@ class NAFModule(nn.ModuleDict):
     def _make_actor(self, obs_space, action_space, config):
         naf = self.critics[0]
 
-        mods = nn.ModuleList([naf.logits, naf.pre_act, naf.squash])
-        actor = DeterministicPolicy(mods)
+        actor = DeterministicPolicy(naf.logits, naf.pre_act, naf.squash)
         behavior = actor
         if config["perturbed_policy"]:
             if not config["encoder"].get("layer_norm"):
@@ -77,7 +75,9 @@ class NAFModule(nn.ModuleDict):
                     "'layer_norm' is deactivated even though a perturbed policy was "
                     "requested. For optimal stability, set 'layer_norm': True."
                 )
-            behavior = DeterministicPolicy.from_scratch(obs_space, action_space, config)
+            logits = self._make_encoder(obs_space, config)
+            _naf = NAF(logits, action_space, config)
+            behavior = DeterministicPolicy(_naf.logits, _naf.pre_act, _naf.squash)
 
         return {"actor": actor, "behavior": behavior}
 

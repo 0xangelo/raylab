@@ -5,6 +5,7 @@ from ray.rllib.utils import override
 
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
+from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import MaximumEntropyDual
 from raylab.policy.losses import ReparameterizedSoftPG
 from raylab.policy.losses import SoftCDQLearning
@@ -18,6 +19,8 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
+        self.dist_class = WrapStochasticPolicy
+
         self.loss_actor = ReparameterizedSoftPG(self.module.actor, self.module.critics)
         self.loss_critic = SoftCDQLearning(
             self.module.critics, self.module.target_critics, self.module.actor.sample

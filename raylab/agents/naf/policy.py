@@ -5,6 +5,7 @@ from ray.rllib.utils import override
 
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
+from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import ClippedDoubleQLearning
 from raylab.pytorch.optim import build_optimizer
 
@@ -16,6 +17,8 @@ class NAFTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.dist_class = WrapDeterministicPolicy
+
         target_critics = [lambda s, _, v=v: v(s) for v in self.module.target_vcritics]
         self.loss_fn = ClippedDoubleQLearning(
             self.module.critics, target_critics, actor=lambda _: None,

@@ -8,10 +8,8 @@ from ray.rllib import SampleBatch
 from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.utils import override
 from ray.rllib.utils.exploration import Exploration
-from ray.rllib.utils.torch_ops import convert_to_non_torch_type
 
 from raylab.policy import TorchPolicy
-from raylab.pytorch.nn.distributions.flows import TanhSquashTransform
 from raylab.pytorch.nn.utils import perturb_params
 from raylab.utils.param_noise import AdaptiveParamNoiseSpec
 from raylab.utils.param_noise import ddpg_distance_metric
@@ -22,18 +20,26 @@ from .random_uniform import RandomUniform
 class ParameterNoise(RandomUniform):
     """Adds adaptive parameter noise exploration schedule to a Policy.
 
+    Expects `actor` attribute of `policy.module` to be an instance of
+    `raylab.policy.modules.actor.policy.deterministic.DeterministicPolicy`.
+
     Args:
         param_noise_spec: Arguments for `AdaptiveParamNoiseSpec`.
     """
 
     def __init__(self, *args, param_noise_spec: dict = None, **kwargs):
         super().__init__(*args, **kwargs)
+        assert (
+            self.model is not None
+        ), f"Need to pass the model to {type(self).__name__} to check compatibility."
+        actor, behavior = self.model.actor, self.model.behavior
+        assert set(actor.parameters()).isdisjoint(set(behavior.parameters())), (
+            "Target and behavior policy cannot share parameters in parameter "
+            "noise exploration."
+        )
+
         param_noise_spec = param_noise_spec or {}
         self._param_noise_spec = AdaptiveParamNoiseSpec(**param_noise_spec)
-        self._squash = TanhSquashTransform(
-            low=torch.as_tensor(self.action_space.low),
-            high=torch.as_tensor(self.action_space.high),
-        )
 
     @override(RandomUniform)
     def get_exploration_action(
@@ -41,7 +47,7 @@ class ParameterNoise(RandomUniform):
         *,
         action_distribution: ActionDistribution,
         timestep: int,
-        explore: bool = True
+        explore: bool = True,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         model, inputs = action_distribution.model, action_distribution.inputs
         if explore:
@@ -61,7 +67,7 @@ class ParameterNoise(RandomUniform):
         *,
         environment: Any = None,
         episode: Any = None,
-        tf_sess: Any = None
+        tf_sess: Any = None,
     ):
         # pylint:disable=unused-argument
         perturb_params(
@@ -87,12 +93,10 @@ class ParameterNoise(RandomUniform):
         module = policy.module
         cur_obs = policy.convert_to_tensor(sample_batch[SampleBatch.CUR_OBS])
         actions = policy.convert_to_tensor(sample_batch[SampleBatch.ACTIONS])
-        target_actions = module.actor(cur_obs)
-        unsquashed_acts, _ = self._squash(actions, reverse=True)
-        unsquashed_targs, _ = self._squash(target_actions, reverse=True)
 
-        noisy, target = map(
-            convert_to_non_torch_type, (unsquashed_acts, unsquashed_targs)
-        )
+        noisy = module.actor.unsquash_action(actions)
+        target = module.actor.unconstrained_action(cur_obs)
+        noisy, target = map(lambda x: x.cpu().detach().numpy(), (noisy, target))
+
         distance = ddpg_distance_metric(noisy, target)
         self._param_noise_spec.adapt(distance)

@@ -5,6 +5,7 @@ from ray.rllib.utils import override
 
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
+from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import ClippedDoubleQLearning
 from raylab.policy.losses import DeterministicPolicyGradient
 from raylab.pytorch.optim import build_optimizer
@@ -17,6 +18,8 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.dist_class = WrapDeterministicPolicy
+
         self.loss_actor = DeterministicPolicyGradient(
             self.module.actor, self.module.critics,
         )
@@ -41,10 +44,11 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
         module_config.setdefault("critic", {})
         module_config["critic"]["double_q"] = config["clipped_double_q"]
         module_config.setdefault("actor", {})
-        module_config["actor"]["perturbed_policy"] = (
+        if (
             config["exploration_config"]["type"]
             == "raylab.utils.exploration.ParameterNoise"
-        )
+        ):
+            module_config["actor"]["parameter_noise"] = True
         # pylint:disable=no-member
         return super().make_module(obs_space, action_space, config)
 

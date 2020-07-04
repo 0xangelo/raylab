@@ -19,8 +19,9 @@ def get_config():
         "polyak": 0.995,
         # === Network ===
         "module": {
-            "type": "DDPGModule",
+            "type": "DDPG",
             "actor": {
+                "parameter_noise": True,
                 "smooth_target_policy": True,
                 "target_gaussian_sigma": 0.3,
                 "beta": 1.2,
