@@ -25,7 +25,6 @@ from raylab.agents import Trainer
 from raylab.pytorch.utils import convert_to_tensor
 from raylab.utils.dictionaries import deep_merge
 
-from .action_dist import WrapModuleDist
 from .modules.catalog import get_module
 from .optimizer_collection import OptimizerCollection
 
@@ -34,6 +33,8 @@ class TorchPolicy(Policy):
     """A Policy that uses PyTorch as a backend.
 
     Attributes:
+        dist_class: Action distribution class for computing actions. Must be set
+            by subclasses.
         device: Device in which the parameter tensors reside. All input samples
             will be converted to tensors and moved to this device
         module: The policy's neural network module. Should be compilable to
@@ -64,7 +65,6 @@ class TorchPolicy(Policy):
             self.optimizers[name] = optimizer
 
         # === Policy attributes ===
-        self.dist_class = WrapModuleDist
         self.framework = "torch"  # Needed to create exploration
         self.exploration = self._create_exploration()
 
@@ -142,7 +142,9 @@ class TorchPolicy(Policy):
             self.convert_to_tensor([1]),
         )
 
+        # pylint:disable=not-callable
         action_dist = self.dist_class(dist_inputs, self.module)
+        # pylint:enable=not-callable
         actions, logp = self.exploration.get_exploration_action(
             action_distribution=action_dist, timestep=timestep, explore=explore
         )
@@ -243,7 +245,9 @@ class TorchPolicy(Policy):
             state_batches,
             self.convert_to_tensor([1]),
         )
+        # pylint:disable=not-callable
         action_dist = self.dist_class(dist_inputs, self.module)
+        # pylint:enable=not-callable
         log_likelihoods = action_dist.logp(input_dict[SampleBatch.ACTIONS])
         return log_likelihoods
 

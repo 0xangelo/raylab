@@ -4,6 +4,7 @@ from ray.rllib.utils import override
 from raylab.agents.sac import SACTorchPolicy
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelTrainingMixin
+from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import DAPO
 from raylab.policy.losses import MAPO
 from raylab.policy.losses import SPAML
@@ -17,6 +18,7 @@ class MAPOTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
+        self.dist_class = WrapStochasticPolicy
 
         self.loss_model = SPAML(
             self.module.models, self.module.actor, self.module.critics

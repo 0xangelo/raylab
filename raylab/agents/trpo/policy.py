@@ -11,6 +11,7 @@ from torch.nn.utils import parameters_to_vector
 from torch.nn.utils import vector_to_parameters
 
 from raylab.policy import TorchPolicy
+from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.pytorch.optim import build_optimizer
 from raylab.pytorch.optim.hessian_free import conjugate_gradient
 from raylab.pytorch.optim.hessian_free import hessian_vector_product
@@ -24,6 +25,10 @@ class TRPOTorchPolicy(TorchPolicy):
     """Policy class for Trust Region Policy Optimization."""
 
     # pylint:disable=abstract-method
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dist_class = WrapStochasticPolicy
 
     @staticmethod
     @override(TorchPolicy)

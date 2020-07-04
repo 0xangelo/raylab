@@ -5,6 +5,7 @@ from ray.rllib import SampleBatch
 from raylab.policy import EnvFnMixin
 from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
+from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import ISFittedVIteration
 from raylab.policy.losses import MaximumLikelihood
 
@@ -15,6 +16,8 @@ class SVGTorchPolicy(EnvFnMixin, TargetNetworksMixin, TorchPolicy):
     # pylint: disable=abstract-method
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
+        self.dist_class = WrapStochasticPolicy
+
         self.loss_model = MaximumLikelihood(self.module.model)
         self.loss_critic = ISFittedVIteration(
             self.module.critic, self.module.target_critic

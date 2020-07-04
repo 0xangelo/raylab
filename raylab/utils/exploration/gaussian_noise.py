@@ -1,14 +1,13 @@
 # pylint:disable=missing-module-docstring
-import torch
 from ray.rllib.utils import override
-
-from raylab.pytorch.nn.distributions.flows import TanhSquashTransform
 
 from .random_uniform import RandomUniform
 
 
 class GaussianNoise(RandomUniform):
-    """Adds fixed additive gaussian exploration noise to actions before squashing.
+    """Adds fixed additive gaussian exploration noise to actions.
+
+
 
     Args:
         noise_stddev (float): Standard deviation of the Gaussian samples.
@@ -17,10 +16,6 @@ class GaussianNoise(RandomUniform):
     def __init__(self, *args, noise_stddev=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._noise_stddev = noise_stddev
-        self._squash = TanhSquashTransform(
-            low=torch.as_tensor(self.action_space.low),
-            high=torch.as_tensor(self.action_space.high),
-        )
 
     @override(RandomUniform)
     def get_exploration_action(self, *, action_distribution, timestep, explore=True):
@@ -31,12 +26,5 @@ class GaussianNoise(RandomUniform):
                     timestep=timestep,
                     explore=explore,
                 )
-            return self._get_gaussian_perturbed_actions(action_distribution)
+            return action_distribution.sample_inject_noise(self._noise_stddev)
         return action_distribution.deterministic_sample()
-
-    def _get_gaussian_perturbed_actions(self, action_distribution):
-        module, inputs = action_distribution.model, action_distribution.inputs
-        actions = module.actor(**inputs)
-        pre_squash, _ = self._squash(actions, reverse=True)
-        noise = torch.randn_like(pre_squash) * self._noise_stddev
-        return self._squash(pre_squash + noise)[0], None
