@@ -38,20 +38,6 @@ class SOPTorchPolicy(TorchPolicy):
         return DEFAULT_CONFIG
 
     @override(TorchPolicy)
-    def make_module(self, obs_space, action_space, config):
-        module_config = config["module"]
-        module_config.setdefault("critic", {})
-        module_config["critic"]["double_q"] = config["clipped_double_q"]
-        module_config.setdefault("actor", {})
-        if (
-            config["exploration_config"]["type"]
-            == "raylab.utils.exploration.ParameterNoise"
-        ):
-            module_config["actor"]["parameter_noise"] = True
-        # pylint:disable=no-member
-        return super().make_module(obs_space, action_space, config)
-
-    @override(TorchPolicy)
     def make_optimizers(self):
         config = self.config["torch_optimizer"]
         components = "actor critics".split()

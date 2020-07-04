@@ -45,13 +45,6 @@ class SACTorchPolicy(TorchPolicy):
         return DEFAULT_CONFIG
 
     @override(TorchPolicy)
-    def make_module(self, obs_space, action_space, config):
-        module_config = config["module"]
-        module_config.setdefault("critic", {})
-        module_config["critic"]["double_q"] = config["clipped_double_q"]
-        return super().make_module(obs_space, action_space, config)
-
-    @override(TorchPolicy)
     def make_optimizers(self):
         config = self.config["torch_optimizer"]
         components = "actor critics alpha".split()

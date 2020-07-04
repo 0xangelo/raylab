@@ -7,13 +7,13 @@ from raylab.utils.debug import fake_batch
 
 
 @pytest.fixture(params=(True, False))
-def clipped_double_q(request):
+def double_q(request):
     return request.param
 
 
 @pytest.fixture
-def config(clipped_double_q):
-    return {"clipped_double_q": clipped_double_q, "policy_delay": 2}
+def config(double_q):
+    return {"module": {"critic": {"double_q": double_q}}, "policy_delay": 2}
 
 
 @pytest.fixture

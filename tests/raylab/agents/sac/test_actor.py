@@ -5,16 +5,23 @@ import torch
 
 @pytest.fixture(params=(True, False))
 def input_dependent_scale(request):
-    return {"module": {"actor": {"input_dependent_scale": request.param}}}
+    return request.param
 
 
 @pytest.fixture(params=(True, False))
-def clipped_double_q(request):
-    return {"clipped_double_q": request.param}
+def double_q(request):
+    return request.param
 
 
-def test_actor_loss(policy_and_batch_fn, clipped_double_q, input_dependent_scale):
-    policy, batch = policy_and_batch_fn({**clipped_double_q, **input_dependent_scale})
+def test_actor_loss(policy_and_batch_fn, double_q, input_dependent_scale):
+    policy, batch = policy_and_batch_fn(
+        {
+            "module": {
+                "actor": {"input_dependent_scale": input_dependent_scale},
+                "critic": {"double_q": double_q},
+            }
+        }
+    )
     loss, info = policy.loss_actor(batch)
 
     assert loss.shape == ()

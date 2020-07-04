@@ -9,13 +9,13 @@ from raylab.policy.losses import SoftCDQLearning
 
 
 @pytest.fixture(params=(True, False))
-def clipped_double_q(request):
+def double_q(request):
     return request.param
 
 
 @pytest.fixture
-def policy_and_batch(policy_and_batch_fn, clipped_double_q):
-    config = {"clipped_double_q": clipped_double_q, "polyak": 0.5}
+def policy_and_batch(policy_and_batch_fn, double_q):
+    config = {"module": {"critic": {"double_q": double_q}}, "polyak": 0.5}
     return policy_and_batch_fn(config)
 
 
