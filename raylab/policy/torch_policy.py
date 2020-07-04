@@ -68,6 +68,14 @@ class TorchPolicy(Policy):
         self.framework = "torch"  # Needed to create exploration
         self.exploration = self._create_exploration()
 
+    @property
+    def model(self):
+        """The policy's NN module.
+
+        Mostly for compatibility with RLlib's API.
+        """
+        return self.module
+
     @staticmethod
     @abstractmethod
     def get_default_config() -> dict:
