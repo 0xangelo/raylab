@@ -2,10 +2,8 @@
 from abc import ABCMeta
 from abc import abstractmethod
 
-import torch
 import torch.nn as nn
 from ray.rllib.models.action_dist import ActionDistribution
-from torch import Tensor
 
 from .modules.actor.policy.deterministic import DeterministicPolicy
 from .modules.actor.policy.stochastic import StochasticPolicy
@@ -90,7 +88,7 @@ class WrapStochasticPolicy(BaseActionDist):
 
     @classmethod
     def _check_model_compat(cls, model):
-        assert hasattr(model, "actor"), "NN has no actor attribute."
+        assert hasattr(model, "actor"), f"NN model {type(model)} has no actor attribute"
         assert isinstance(model.actor, cls.valid_actor_cls), (
             f"Expected actor to be an instance of {cls.valid_actor_cls};"
             " found {type(model.actor)} instead."
@@ -110,12 +108,6 @@ class WrapDeterministicPolicy(BaseActionDist):
         action = self.model.behavior(**self.inputs)
         return action, None
 
-    def sample_inject_noise(self, noise_stddev: float) -> Tensor:
-        """Add zero-mean Gaussian noise to the actions prior to normalizing them."""
-        unconstrained_action = self.model.behavior.unconstrained_action(**self.inputs)
-        unconstrained_action += torch.randn_like(unconstrained_action) * noise_stddev
-        return self.model.behavior.squash_action(unconstrained_action), None
-
     def deterministic_sample(self):
         return self.model.actor(**self.inputs), None
 
@@ -127,7 +119,7 @@ class WrapDeterministicPolicy(BaseActionDist):
 
     @classmethod
     def _check_model_compat(cls, model: nn.Module):
-        assert hasattr(model, "actor"), "NN has no actor attribute"
+        assert hasattr(model, "actor"), f"NN model {type(model)} has no actor attribute"
         assert isinstance(model.actor, cls.valid_actor_cls), (
             f"Expected actor to be an instance of {cls.valid_actor_cls};"
             " found {type(model.actor)} instead."
