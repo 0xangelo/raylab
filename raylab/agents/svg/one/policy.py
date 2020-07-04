@@ -95,7 +95,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
 
         info.update(self.extra_grad_info(batch_tensors))
         info.update(self.update_kl_coeff(samples))
-        self.update_targets("critic", "target_critic")
+        self._update_polyak()
         return info
 
     @torch.no_grad()

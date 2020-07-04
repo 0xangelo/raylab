@@ -3,15 +3,15 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import ClippedDoubleQLearning
 from raylab.policy.losses import DeterministicPolicyGradient
+from raylab.pytorch.nn.utils import update_polyak
 from raylab.pytorch.optim import build_optimizer
 
 
-class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
+class SOPTorchPolicy(TorchPolicy):
     """Streamlined Off-Policy policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
@@ -71,7 +71,9 @@ class SOPTorchPolicy(TargetNetworksMixin, TorchPolicy):
         if self._grad_step % self.config["policy_delay"] == 0:
             info.update(self._update_policy(batch_tensors))
 
-        self.update_targets("critics", "target_critics")
+        update_polyak(
+            self.module.critics, self.module.target_critics, self.config["polyak"]
+        )
         return info
 
     def _update_critic(self, batch_tensors):

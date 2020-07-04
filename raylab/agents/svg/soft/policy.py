@@ -109,7 +109,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         if self.config["target_entropy"] is not None:
             info.update(self._update_alpha(batch_tensors))
 
-        self.update_targets("critic", "target_critic")
+        self._update_polyak()
         return info
 
     def _update_model(self, batch_tensors):

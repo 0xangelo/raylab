@@ -3,16 +3,16 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.policy import TargetNetworksMixin
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import MaximumEntropyDual
 from raylab.policy.losses import ReparameterizedSoftPG
 from raylab.policy.losses import SoftCDQLearning
+from raylab.pytorch.nn.utils import update_polyak
 from raylab.pytorch.optim import build_optimizer
 
 
-class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
+class SACTorchPolicy(TorchPolicy):
     """Soft Actor-Critic policy in PyTorch to use with RLlib."""
 
     # pylint: disable=abstract-method
@@ -75,7 +75,9 @@ class SACTorchPolicy(TargetNetworksMixin, TorchPolicy):
         if self.config["target_entropy"] is not None:
             info.update(self._update_alpha(batch_tensors))
 
-        self.update_targets("critics", "target_critics")
+        update_polyak(
+            self.module.critics, self.module.target_critics, self.config["polyak"]
+        )
         return info
 
     def _update_critic(self, batch_tensors):
