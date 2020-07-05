@@ -8,7 +8,7 @@ REAL_RATIO = (0.0, 0.5, 1.0)
 
 
 @pytest.fixture(
-    scope="module", params=REAL_RATIO, ids=(f"ReadData%({r})" for r in REAL_RATIO)
+    scope="module", params=REAL_RATIO, ids=(f"RealData%({r})" for r in REAL_RATIO)
 )
 def real_data_ratio(request):
     return request.param
