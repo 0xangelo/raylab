@@ -25,7 +25,7 @@ from raylab.agents import Trainer
 from raylab.pytorch.utils import convert_to_tensor
 from raylab.utils.dictionaries import deep_merge
 
-from .modules.catalog import get_module
+from .modules import get_module
 from .optimizer_collection import OptimizerCollection
 
 

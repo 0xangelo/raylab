@@ -13,7 +13,7 @@ DEFAULT_CONFIG = with_base_config(
     {
         # === MAPOTorchPolicy ===
         "module": {
-            "type": "MBSAC",
+            "type": "ModelBasedSAC",
             "model": {
                 "network": {"units": (128, 128), "activation": "Swish"},
                 "ensemble_size": 1,
