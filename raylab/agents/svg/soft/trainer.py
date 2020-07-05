@@ -34,7 +34,7 @@ DEFAULT_CONFIG = with_base_config(
         # Size and activation of the fully connected networks computing the logits
         # for the policy, value function and model. No layers means the component is
         # linear in states and/or actions.
-        "module": {"type": "MaxEntModelBased", "critic": {"target_vf": True}},
+        "module": {"type": "MaxEntModelBased-v0", "critic": {"target_vf": True}},
         # === Exploration Settings ===
         # Default exploration behavior, iff `explore`=None is passed into
         # compute_action(s).

@@ -18,7 +18,7 @@ from .svg_realnvp_actor import SVGRealNVPActor
 from .trpo_tang2018 import TRPOTang2018
 
 MODULES = {
-    cls.__name__: cls
+    cls.__name__ + "-v0": cls
     for cls in (
         NAFModule,
         DDPGModule,

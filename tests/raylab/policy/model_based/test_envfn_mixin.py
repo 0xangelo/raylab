@@ -14,7 +14,7 @@ def policy_cls(base_policy_cls):
     class Policy(EnvFnMixin, base_policy_cls):
         @staticmethod
         def get_default_config():
-            return {"module": {"type": "OnPolicyActorCritic"}}
+            return {"module": {"type": "SimpleModelBased-v0"}}
 
     return Policy
 
