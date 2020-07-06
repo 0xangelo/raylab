@@ -6,40 +6,39 @@ from typing import Tuple
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
+from raylab.agents import trainer
 from raylab.agents.off_policy import OffPolicyTrainer
-from raylab.agents.off_policy import with_base_config as with_off_policy_config
-from raylab.utils.dictionaries import deep_merge
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
-BASE_CONFIG = with_off_policy_config(
-    {
-        # === ModelBasedTrainer ===
-        # === Model Data ===
-        # Fraction of replay buffer to use as validation dataset
-        # (hence not for training)
-        "holdout_ratio": 0.2,
-        # Maximum number of samples to use as validation dataset
-        "max_holdout": 5000,
-        # === Virtual Replay ===
-        # Size of the buffer for virtual samples
-        "virtual_buffer_size": int(1e6),
-        # number of model rollouts to add to augmented replay per real environment step
-        "model_rollouts": 40,
-        # === Policy Training ===
-        # Number of policy improvement steps per real environment step
-        "policy_improvements": 10,
-        # Fraction of each policy minibatch to sample from environment replay pool
-        "real_data_ratio": 0.1,
-    }
+@trainer.config(
+    "virtual_buffer_size", int(1e6), info="Size of the buffer for virtual samples"
 )
-
-
-def with_base_config(config):
-    """Returns the given config dict merged with the base model-based configuration."""
-    return deep_merge(BASE_CONFIG, config, True)
-
-
+@trainer.config(
+    "model_rollouts",
+    40,
+    info="Populate virtual replay with this many model rollouts per environment step",
+)
+@trainer.config(
+    "policy_improvements",
+    10,
+    info="Number of policy improvement steps per real environment step",
+)
+@trainer.config(
+    "real_data_ratio",
+    0.1,
+    info="Fraction of each policy minibatch to sample from environment replay pool",
+)
+@trainer.config(
+    "holdout_ratio",
+    0.2,
+    info="Fraction of replay buffer to use as validation dataset"
+    " (hence not for training)",
+)
+@trainer.config(
+    "max_holdout", 5000, info="Maximum number of samples to use as validation dataset"
+)
+@OffPolicyTrainer.with_base_specs
 class ModelBasedTrainer(OffPolicyTrainer):
     """Generic trainer for model-based agents.
 
@@ -51,7 +50,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
     `raylab.policy:ModelSamplingMixin`
     """
 
-    # pylint: disable=attribute-defined-outside-init
+    # pylint:disable=attribute-defined-outside-init
 
     @override(OffPolicyTrainer)
     def _init(self, config, env_creator):

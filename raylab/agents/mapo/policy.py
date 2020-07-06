@@ -58,10 +58,10 @@ class MAPOTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
     @staticmethod
     def get_default_config():
         """Return the default configuration for MAPO."""
-        # pylint: disable=cyclic-import
-        from raylab.agents.mapo import DEFAULT_CONFIG
+        # pylint: disable=cyclic-import,protected-access
+        from raylab.agents.mapo import MAPOTrainer
 
-        return DEFAULT_CONFIG
+        return MAPOTrainer._default_config
 
     @override(SACTorchPolicy)
     def make_optimizers(self):

@@ -1,62 +1,43 @@
 """Trainer and configuration for SOP."""
+from raylab.agents import trainer
 from raylab.agents.off_policy import OffPolicyTrainer
-from raylab.agents.off_policy import with_base_config
 
 from .policy import SOPTorchPolicy
 
 
-DEFAULT_CONFIG = with_base_config(
-    {
-        # === SOPTorchPolicy ===
-        # PyTorch optimizers to use
-        "torch_optimizer": {
-            "actor": {"type": "Adam", "lr": 1e-3},
-            "critics": {"type": "Adam", "lr": 1e-3},
-        },
-        # Interpolation factor in polyak averaging for target networks.
-        "polyak": 0.995,
-        # Update policy every this number of calls to `learn_on_batch`
-        "policy_delay": 1,
-        "module": {
-            "type": "DDPG",
-            "actor": {"separate_behavior": True},
-            "critic": {"double_q": True},
-        },
-        # === Exploration Settings ===
-        # Default exploration behavior, iff `explore`=None is passed into
-        # compute_action(s).
-        # Set to False for no exploration behavior (e.g., for evaluation).
-        "explore": True,
-        # Provide a dict specifying the Exploration object's config.
-        "exploration_config": {
-            # The Exploration class to use. In the simplest case, this is the name
-            # (str) of any class present in the `rllib.utils.exploration` package.
-            # You can also provide the python class directly or the full location
-            # of your class (e.g. "ray.rllib.utils.exploration.epsilon_greedy.
-            # EpsilonGreedy").
-            "type": "raylab.utils.exploration.ParameterNoise",
-            # Options for parameter noise exploration
-            "param_noise_spec": {
-                "initial_stddev": 0.1,
-                "desired_action_stddev": 0.2,
-                "adaptation_coeff": 1.01,
-            },
-            "pure_exploration_steps": 1000,
-        },
-        # === Evaluation ===
-        # Extra arguments to pass to evaluation workers.
-        # Typical usage is to pass extra args to evaluation env creator
-        # and to disable exploration by computing deterministic actions
-        "evaluation_config": {"explore": False},
-    }
+DEFAULT_MODULE = {
+    "type": "DDPG",
+    "actor": {"separate_behavior": True},
+    "critic": {"double_q": True},
+}
+
+
+@trainer.config("torch_optimizer/actor", {"type": "Adam", "lr": 1e-3})
+@trainer.config("torch_optimizer/critics", {"type": "Adam", "lr": 1e-3})
+@trainer.config(
+    "polyak",
+    0.995,
+    info="Interpolation factor in polyak averaging for target networks.",
 )
-
-
+@trainer.config(
+    "policy_delay",
+    1,
+    info="Update policy every this number of calls to `learn_on_batch`",
+)
+@trainer.config("module", DEFAULT_MODULE, override=True)
+@trainer.config(
+    "exploration_config/type", "raylab.utils.exploration.ParameterNoise", override=True
+)
+@trainer.config(
+    "exploration_config/param_noise_spec",
+    {"initial_stddev": 0.1, "desired_action_stddev": 0.2, "adaptation_coeff": 1.01},
+    info="Options for parameter noise exploration",
+)
+@trainer.config("exploration_config/pure_exploration_steps", 1000)
+@trainer.config("evaluation_config/explore", False, override=True)
+@OffPolicyTrainer.with_base_specs
 class SOPTrainer(OffPolicyTrainer):
     """Single agent trainer for Streamlined Off-Policy Algorithm."""
 
-    # pylint: disable=attribute-defined-outside-init
-
     _name = "SOP"
-    _default_config = DEFAULT_CONFIG
     _policy = SOPTorchPolicy

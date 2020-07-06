@@ -1,42 +1,25 @@
 # pylint: disable=missing-module-docstring
 from ray.rllib.utils import override
 
-from raylab.agents import Trainer
-from raylab.agents import with_common_config
-from raylab.utils.dictionaries import deep_merge
+from raylab.agents import trainer
+from raylab.agents.trainer import Trainer
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 
-BASE_CONFIG = with_common_config(
-    {
-        # === Policy ===
-        # Whether to optimize the policy's backend
-        "compile_policy": False,
-        # === Replay buffer ===
-        # Size of the replay buffer.
-        "buffer_size": 500000,
-        # === Optimization ===
-        # Wait until this many steps have been sampled before starting optimization.
-        "learning_starts": 0,
-        # === Common config defaults ===
-        "num_workers": 0,
-        "rollout_fragment_length": 1,
-        "batch_mode": "complete_episodes",
-        "train_batch_size": 128,
-    }
+
+@trainer.config("train_batch_size", 128, override=True)
+@trainer.config("batch_mode", "complete_episodes", override=True)
+@trainer.config("rollout_fragment_length", 1, override=True)
+@trainer.config("num_workers", 0, override=True)
+@trainer.config(
+    "learning_starts", 0, info="Sample this many steps before starting optimization."
 )
-
-
-def with_base_config(config):
-    """Returns the given config dict merged with the base off-policy configuration."""
-    return deep_merge(BASE_CONFIG, config, True)
-
-
+@trainer.config("buffer_size", 500000, info="Size of the replay buffer")
+@Trainer.with_base_specs
 class OffPolicyTrainer(Trainer):
     """Generic trainer for off-policy agents."""
 
-    # pylint: disable=attribute-defined-outside-init
+    # pylint:disable=attribute-defined-outside-init
     _name = ""
-    _default_config = None
     _policy = None
 
     @override(Trainer)
