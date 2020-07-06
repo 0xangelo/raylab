@@ -2,4 +2,3 @@
 
 from .policy import ACKTRTorchPolicy
 from .trainer import ACKTRTrainer
-from .trainer import DEFAULT_CONFIG

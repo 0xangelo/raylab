@@ -32,10 +32,10 @@ class SOPTorchPolicy(TorchPolicy):
     @override(TorchPolicy)
     def get_default_config():
         """Return the default configuration for SOP."""
-        # pylint: disable=cyclic-import
-        from raylab.agents.sop import DEFAULT_CONFIG
+        # pylint:disable=cyclic-import,protected-access
+        from raylab.agents.sop import SOPTrainer
 
-        return DEFAULT_CONFIG
+        return SOPTrainer._default_config
 
     @override(TorchPolicy)
     def make_optimizers(self):

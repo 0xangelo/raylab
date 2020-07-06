@@ -58,10 +58,10 @@ class ACKTRTorchPolicy(TorchPolicy):
     @override(TorchPolicy)
     def get_default_config():
         """Return the default configuration for ACKTR."""
-        # pylint:disable=cyclic-import
-        from raylab.agents.acktr import DEFAULT_CONFIG
+        # pylint:disable=cyclic-import,protected-access
+        from raylab.agents.acktr import ACKTRTrainer
 
-        return DEFAULT_CONFIG
+        return ACKTRTrainer._default_config
 
     @override(TorchPolicy)
     def make_optimizers(self):
@@ -134,7 +134,7 @@ class ACKTRTorchPolicy(TorchPolicy):
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
         # Compute whitening matrices
-        n_samples = self.config["logp_samples"]
+        n_samples = self.config["fvp_samples"]
         with self.optimizers["actor"].record_stats():
             _, log_prob = self.module.actor.sample(cur_obs, (n_samples,))
             log_prob.mean().backward()
@@ -212,7 +212,7 @@ class ACKTRTorchPolicy(TorchPolicy):
         fake_dist = Normal()
         fake_scale = torch.ones_like(value_targets)
 
-        for _ in range(self.config["vf_iters"]):
+        for _ in range(self.config["val_iters"]):
             if isinstance(self.optimizers["critic"], KFACMixin):
                 # Compute whitening matrices
                 with self.optimizers["critic"].record_stats():

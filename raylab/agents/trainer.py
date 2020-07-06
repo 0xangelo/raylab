@@ -1,160 +1,129 @@
 """Primitives for all Trainers."""
+import copy
+import textwrap
 import warnings
 from abc import ABCMeta
-from dataclasses import dataclass
-from dataclasses import field
+from typing import Callable
 from typing import List
 from typing import Optional
-from typing import Union
 
 from ray.rllib.agents import with_common_config as with_rllib_config
 from ray.rllib.agents.trainer import Trainer as _Trainer
-from ray.rllib.agents.trainer import with_base_config
-from ray.rllib.evaluation.metrics import collect_episodes
-from ray.rllib.evaluation.metrics import summarize_episodes
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.optimizers import PolicyOptimizer
-from ray.rllib.utils import override
+from ray.rllib.utils import override as overrd
 
-_Trainer._allow_unknown_subkeys += ["module", "torch_optimizer"]
-_Trainer._override_all_subkeys_if_type_changes += ["module"]
-
-
-BASE_CONFIG = with_rllib_config(
-    {
-        # === Policy ===
-        # Whether to optimize the policy's backend
-        "compile_policy": False
-    }
-)
+from .config import Config
+from .config import Info
+from .config import Json
+from .config import with_rllib_info
 
 
-def with_common_config(extra_config: dict) -> dict:
-    """Returns the given config dict merged with common agent confs."""
-    return with_base_config(BASE_CONFIG, extra_config)
+def config(
+    key: str,
+    default: Json,
+    *,
+    info: Optional[str] = None,
+    override: bool = False,
+    allow_unknown_subkeys: bool = False,
+    override_all_if_type_changes: bool = False,
+    separator: str = "/",
+) -> Callable[[type], type]:
+    """Returns a decorator for adding/overriding a Trainer class config.
 
+    Args:
+        key: Name of the config paremeter which the use can tune
+        default: Default Jsonable value to set for the parameter
+        info: Parameter help text explaining what the parameter does
+        override: Whether to override an existing parameter
+        allow_unknown_subkeys: Whether to allow new keys for dict parameters.
+            This is only at the top level
+        override_all_if_type_changes: Whether to override the entire value
+            (dict) iff the 'type' key in this value dict changes. This is only
+            at the top level
+        separator: String token separating nested keys
 
-@dataclass
-class StatsTracker:
-    """Emulates the metric logging behavior of RLlib's PolicyOptimizer.
-
-    Attributes:
-        workers: The set of rollout workers to track.
-        num_steps_trained: Number of timesteps trained on so far.
-        num_steps_sampled: Number of timesteps sampled so far.
+    Raises:
+        RuntimeError: If attempting to set an existing parameter with `override`
+            set to `False`.
+        RuntimeError: If attempting to override an existing parameter with its
+            same default value.
+        RuntimeError: If attempting to enable `allow_unknown_subkeys` or
+            `override_all_if_type_changes` options for non-toplevel keys
     """
+    # pylint:disable=protected-access,too-many-arguments
+    if (allow_unknown_subkeys or override_all_if_type_changes) and separator in key:
+        raise RuntimeError(
+            "Cannot use 'allow_unknown_subkeys' or 'override_all_if_type_changes'"
+            f" for non-toplevel key: '{key}'"
+        )
+    key_seq = key.split(separator)
+    help_txt = info
 
-    workers: Optional[WorkerSet] = None
-    num_steps_trained: int = field(default=0, init=False)
-    num_steps_sampled: int = field(default=0, init=False)
+    def add_config(cls):
+        nonlocal key
 
-    _episode_history: list = field(default_factory=list)
-    _to_be_collected: list = field(default_factory=list)
+        if allow_unknown_subkeys and not override:
+            cls._allow_unknown_subkeys += [key]
+        if override_all_if_type_changes and not override:
+            cls._override_all_subkeys_if_type_changes += [key]
 
-    def __post_init__(self):
-        if not self.workers:
-            warnings.warn(
-                "No worker set provided to stats tracker. Episodes summary "
-                "will be unavailable."
+        config_, info_ = cls._default_config, cls._config_info
+        for key in key_seq[:-1]:
+            config_ = config_[key]
+            if not isinstance(info_[key], dict):
+                info_[key] = {"__help__": info_[key]}
+            info_ = info_[key]
+        key = key_seq[-1]
+
+        if key in config_ and not override:
+            raise RuntimeError(
+                f"Attempted to override config key '{key}' but override=False."
             )
-
-    def save(self) -> List[int]:
-        """Returns a serializable object representing the optimizer state."""
-
-        return [self.num_steps_trained, self.num_steps_sampled]
-
-    def restore(self, data: List[int]):
-        """Restores optimizer state from the given data object."""
-
-        self.num_steps_trained = data[0]
-        self.num_steps_sampled = data[1]
-
-    def collect_metrics(
-        self,
-        timeout_seconds: int,
-        min_history: int = 100,
-        selected_workers: Optional[list] = None,
-    ) -> dict:
-        """Returns worker stats.
-
-        Args:
-            timeout_seconds: Max wait time for a worker before
-                dropping its results. This usually indicates a hung worker.
-            min_history: Min history length to smooth results over.
-            selected_workers: Override the list of remote workers
-                to collect metrics from.
-
-        Returns:
-            res: A training result dict from worker metrics with
-                `info` replaced with stats from self.
-        """
-        res = {}
-        if self.workers:
-            episodes, self._to_be_collected = collect_episodes(
-                self.workers.local_worker(),
-                selected_workers or self.workers.remote_workers(),
-                self._to_be_collected,
-                timeout_seconds=timeout_seconds,
+        if key in config_ and default == config_[key]:
+            raise RuntimeError(
+                f"Attempted to override config key {key} with the same value: {default}"
             )
-            orig_episodes = list(episodes)
-            missing = min_history - len(episodes)
-            if missing > 0:
-                episodes.extend(self._episode_history[-missing:])
-                assert len(episodes) <= min_history
-            self._episode_history.extend(orig_episodes)
-            self._episode_history = self._episode_history[-min_history:]
-            res = summarize_episodes(episodes, orig_episodes)
-        return res
+        config_[key] = default
 
-    @staticmethod
-    def stop():
-        """Placeholder to emulate PolicyOptimizer.save."""
+        if help_txt is not None:
+            if key in info_ and not isinstance(info_[key], dict):
+                info_[key] = {"__help__": info_[key]}
+            info_[key] = textwrap.dedent(help_txt).rstrip()
+
+        return cls
+
+    return add_config
 
 
+@config("compile_policy", False, info="Whether to optimize the policy's backend")
+@config(
+    "module", {}, info="Type and config of the PyTorch NN module.",
+)
+@config("torch_optimizer", {}, info="Config dict for PyTorch optimizers.")
 class Trainer(_Trainer, metaclass=ABCMeta):
     """Base Trainer for all agents.
 
-    Either a StatsTracker, PolicyOptimizer, or WorkerSet must be set (as
-    `tracker`, `optimizer`, or `workers` attributes respectively) to collect
-    episode statistics.
+    Either a PolicyOptimizer or WorkerSet must be set (as `optimizer` or
+    `workers` attributes respectively) to collect episode statistics.
 
-    If a PolicyOptimizer is set, adds a `tracker` attribute pointing to it
-    so that logging code is standardized.
+    Always creates a PolicyOptimizer instance as the `optimizer` attribute to
+    log episode metrics (to be removed in the future).
+
+    Accessing `metrics` returns the optimizer so as to avoid confusion when
+    updating metrics (e.g., `optimizer.num_steps_sampled`) even though a policy
+    optimizer isn't being used by the algorithm.
     """
 
     evaluation_metrics: Optional[dict]
     optimizer: Optional[PolicyOptimizer]
     workers: Optional[WorkerSet]
-    tracker: Union[StatsTracker, PolicyOptimizer]
+    _allow_unknown_subkeys: List[str] = []
+    _override_all_subkeys_if_type_changes: List[str] = []
+    _config_info: Info = with_rllib_info({})
+    _default_config: Config = with_rllib_config({})
 
-    def _setup(self, *args, **kwargs):
-        super()._setup(*args, **kwargs)
-        if hasattr(self, "tracker"):
-            pass
-        elif hasattr(self, "optimizer"):
-            self.tracker = self.optimizer
-        elif hasattr(self, "workers"):
-            self.tracker = StatsTracker(self.workers)
-        else:
-            self.tracker = StatsTracker()
-
-        # Needed for train() to synchronize global_vars
-        if not hasattr(self, "optimizer"):
-            self.optimizer = self.tracker
-
-        if self.config["compile_policy"]:
-            if hasattr(self, "workers"):
-                workers = self.workers
-            elif hasattr(self, "tracker") and hasattr(self.tracker, "workers"):
-                workers = self.tracker.workers
-            else:
-                raise RuntimeError(
-                    f"{type(self).__name__} has no worker set. "
-                    "Cannot access policies for compilation."
-                )
-            workers.foreach_policy(lambda p, _: p.compile())
-
-    @override(_Trainer)
+    @overrd(_Trainer)
     def train(self):
         # Evaluate first, before any optimization is done
         if self._iteration == 0 and self.config["evaluation_interval"]:
@@ -163,49 +132,77 @@ class Trainer(_Trainer, metaclass=ABCMeta):
         result = super().train()
 
         # Update global_vars after training so that they're saved if checkpointing
-        self.global_vars["timestep"] = self.tracker.num_steps_sampled
+        self.global_vars["timestep"] = self.metrics.num_steps_sampled
         return result
 
-    @override(_Trainer)
-    def collect_metrics(self, selected_workers=None):
-        return self.tracker.collect_metrics(
-            self.config["collect_metrics_timeout"],
-            min_history=self.config["metrics_smoothing_episodes"],
-            selected_workers=selected_workers,
-        )
+    @classmethod
+    def with_base_specs(cls, trainer_cls: type) -> type:
+        """Decorator for using this class' config and info in the given trainer."""
+        # pylint:disable=protected-access
+        trainer_cls._default_config = copy.deepcopy(cls._default_config)
+        trainer_cls._config_info = copy.deepcopy(cls._config_info)
 
-    @override(_Trainer)
+        return trainer_cls
+
+    def _setup(self, *args, **kwargs):
+        for key in self._allow_unknown_subkeys:
+            _Trainer._allow_unknown_subkeys += [key]
+        for key in self._override_all_subkeys_if_type_changes:
+            _Trainer._override_all_subkeys_if_type_changes += [key]
+        try:
+            super()._setup(*args, **kwargs)
+        finally:
+            for key in self._allow_unknown_subkeys:
+                _Trainer._allow_unknown_subkeys.remove(key)
+            for key in self._override_all_subkeys_if_type_changes:
+                _Trainer._override_all_subkeys_if_type_changes.remove(key)
+
+        # Always have a PolicyOptimizer to collect metrics
+        if not hasattr(self, "optimizer"):
+            if hasattr(self, "workers"):
+                self.optimizer = PolicyOptimizer(self.workers)
+            else:
+                warnings.warn(
+                    "No worker set initialized; episodes summary will be unavailable."
+                )
+
+        if self.config["compile_policy"]:
+            if not hasattr(self, "workers"):
+                raise RuntimeError(
+                    f"{type(self).__name__} has no worker set. "
+                    "Cannot access policies for compilation."
+                )
+            self.workers.foreach_policy(lambda p, _: p.compile())
+
+    def __getattr__(self, attr):
+        if attr == "metrics":
+            return self.optimizer
+
+        raise AttributeError(f"{type(self)} has not {attr} attribute")
+
+    @overrd(_Trainer)
     def __getstate__(self):
         state = super().__getstate__()
         state["global_vars"] = self.global_vars
-
-        if not hasattr(self, "optimizer"):
-            state["tracker"] = self.tracker.save()
         return state
 
-    @override(_Trainer)
+    @overrd(_Trainer)
     def __setstate__(self, state):
         self.global_vars = state["global_vars"]
-
-        if self.tracker.workers:
-            self.tracker.workers.foreach_worker(
-                lambda w: w.set_global_vars(self.global_vars)
-            )
-
-        if "optimizer" not in state:
-            self.tracker.restore(state["tracker"])
+        if hasattr(self, "workers"):
+            self.workers.foreach_worker(lambda w: w.set_global_vars(self.global_vars))
 
         super().__setstate__(state)
 
     def _iteration_done(self, init_timesteps):
-        return self.tracker.num_steps_sampled - init_timesteps >= max(
+        return self.metrics.num_steps_sampled - init_timesteps >= max(
             self.config["timesteps_per_iteration"], 1
         )
 
     def _log_metrics(self, learner_stats, init_timesteps):
         res = self.collect_metrics()
         res.update(
-            timesteps_this_iter=self.tracker.num_steps_sampled - init_timesteps,
+            timesteps_this_iter=self.metrics.num_steps_sampled - init_timesteps,
             info=dict(learner=learner_stats, **res.get("info", {})),
         )
         if self._iteration == 0 and self.config["evaluation_interval"]:

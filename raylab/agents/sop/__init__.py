@@ -6,5 +6,4 @@ https://arxiv.org/abs/1910.02208.
 """
 
 from .policy import SOPTorchPolicy
-from .trainer import DEFAULT_CONFIG
 from .trainer import SOPTrainer
