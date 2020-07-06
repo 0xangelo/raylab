@@ -16,22 +16,6 @@ from .config import Info
 from .config import Json
 from .config import with_rllib_info
 
-_Trainer._allow_unknown_subkeys += ["module", "torch_optimizer"]
-_Trainer._override_all_subkeys_if_type_changes += ["module"]
-
-
-BASE_CONFIG = with_rllib_config(
-    {"compile_policy": False, "module": {}, "torch_optimizer": {}}
-)
-
-BASE_INFO = with_rllib_info(
-    {
-        "compile_policy": "Whether to optimize the policy's backend",
-        "module": "Type and config of the PyTorch NN module.",
-        "torch_optimizer": "Config dict for PyTorch optimizers.",
-    }
-)
-
 
 def config(
     key: str,
@@ -88,6 +72,13 @@ def config(
     return add_config
 
 
+_Trainer._allow_unknown_subkeys += ["module", "torch_optimizer"]
+_Trainer._override_all_subkeys_if_type_changes += ["module"]
+
+
+@config("compile_policy", False, info="Whether to optimize the policy's backend")
+@config("module", {}, info="Type and config of the PyTorch NN module.")
+@config("torch_optimizer", {}, info="Config dict for PyTorch optimizers.")
 class Trainer(_Trainer, metaclass=ABCMeta):
     """Base Trainer for all agents.
 
@@ -105,8 +96,8 @@ class Trainer(_Trainer, metaclass=ABCMeta):
     evaluation_metrics: Optional[dict]
     optimizer: Optional[PolicyOptimizer]
     workers: Optional[WorkerSet]
-    _config_info: Info = BASE_INFO
-    _default_config: Config = BASE_CONFIG
+    _config_info: Info = with_rllib_info({})
+    _default_config: Config = with_rllib_config({})
 
     @overrd(_Trainer)
     def train(self):
