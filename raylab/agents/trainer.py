@@ -1,5 +1,6 @@
 """Primitives for all Trainers."""
 import copy
+import textwrap
 import warnings
 from abc import ABCMeta
 from typing import Callable
@@ -57,35 +58,38 @@ def config(
             f" for non-toplevel key: '{key}'"
         )
     key_seq = key.split(separator)
+    help_txt = info
 
     def add_config(cls):
-        nonlocal info, key
+        nonlocal key
 
         if allow_unknown_subkeys and not override:
             cls._allow_unknown_subkeys += [key]
         if override_all_if_type_changes and not override:
             cls._override_all_subkeys_if_type_changes += [key]
 
-        conf_, info_ = cls._default_config, cls._config_info
+        config_, info_ = cls._default_config, cls._config_info
         for key in key_seq[:-1]:
-            conf_ = conf_[key]
+            config_ = config_[key]
             if not isinstance(info_[key], dict):
                 info_[key] = {"__help__": info_[key]}
             info_ = info_[key]
-
         key = key_seq[-1]
-        if key in conf_ and not override:
+
+        if key in config_ and not override:
             raise RuntimeError(
                 f"Attempted to override config key '{key}' but override=False."
             )
-        if key in conf_ and default == conf_[key]:
+        if key in config_ and default == config_[key]:
             raise RuntimeError(
                 f"Attempted to override config key {key} with the same value: {default}"
             )
+        config_[key] = default
 
-        conf_[key] = default
-        if info is not None:
-            info_[key] = info
+        if help_txt is not None:
+            if key in info_ and not isinstance(info_[key], dict):
+                info_[key] = {"__help__": info_[key]}
+            info_[key] = textwrap.dedent(help_txt).rstrip()
 
         return cls
 
