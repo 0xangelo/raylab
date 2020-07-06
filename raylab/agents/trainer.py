@@ -72,10 +72,6 @@ def config(
     return add_config
 
 
-_Trainer._allow_unknown_subkeys += ["module", "torch_optimizer"]
-_Trainer._override_all_subkeys_if_type_changes += ["module"]
-
-
 @config("compile_policy", False, info="Whether to optimize the policy's backend")
 @config("module", {}, info="Type and config of the PyTorch NN module.")
 @config("torch_optimizer", {}, info="Config dict for PyTorch optimizers.")
@@ -121,7 +117,15 @@ class Trainer(_Trainer, metaclass=ABCMeta):
         return trainer_cls
 
     def _setup(self, *args, **kwargs):
-        super()._setup(*args, **kwargs)
+        _Trainer._allow_unknown_subkeys += ["module", "torch_optimizer"]
+        _Trainer._override_all_subkeys_if_type_changes += ["module"]
+        try:
+            super()._setup(*args, **kwargs)
+        finally:
+            _Trainer._allow_unknown_subkeys.remove("module")
+            _Trainer._allow_unknown_subkeys.remove("torch_optimizer")
+            _Trainer._override_all_subkeys_if_type_changes.remove("module")
+
         # Have a PolicyOptimizer by default to collect metrics
         if not hasattr(self, "optimizer"):
             if hasattr(self, "workers"):
