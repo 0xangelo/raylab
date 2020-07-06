@@ -153,7 +153,7 @@ class Trainer(_Trainer, metaclass=ABCMeta):
             for key in self._override_all_subkeys_if_type_changes:
                 _Trainer._override_all_subkeys_if_type_changes.remove(key)
 
-        # Have a PolicyOptimizer by default to collect metrics
+        # Always have a PolicyOptimizer to collect metrics
         if not hasattr(self, "optimizer"):
             if hasattr(self, "workers"):
                 self.optimizer = PolicyOptimizer(self.workers)
@@ -163,18 +163,17 @@ class Trainer(_Trainer, metaclass=ABCMeta):
                 )
 
         if self.config["compile_policy"]:
-            if hasattr(self, "workers"):
-                workers = self.workers
-            else:
+            if not hasattr(self, "workers"):
                 raise RuntimeError(
                     f"{type(self).__name__} has no worker set. "
                     "Cannot access policies for compilation."
                 )
-            workers.foreach_policy(lambda p, _: p.compile())
+            self.workers.foreach_policy(lambda p, _: p.compile())
 
     def __getattr__(self, attr):
         if attr == "metrics":
             return self.optimizer
+
         raise AttributeError(f"{type(self)} has not {attr} attribute")
 
     @overrd(_Trainer)
