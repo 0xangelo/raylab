@@ -6,53 +6,60 @@ import pytest
 from ray.rllib import Policy
 from ray.rllib.optimizers import PolicyOptimizer
 
+from raylab.agents.trainer import config
 from raylab.agents.trainer import Trainer
-from raylab.agents.trainer import with_common_config
 
 
-class DummyPolicy(Policy):
-    # pylint:disable=abstract-method,too-many-arguments
-    def compute_actions(
-        self,
-        obs_batch,
-        state_batches=None,
-        prev_action_batch=None,
-        prev_reward_batch=None,
-        info_batch=None,
-        episodes=None,
-        explore=None,
-        timestep=None,
-        **kwargs,
-    ):
-        return [self.action_space.sample() for _ in obs_batch], [], {}
+@pytest.fixture(scope="module")
+def _policy():
+    class DummyPolicy(Policy):
+        # pylint:disable=abstract-method,too-many-arguments
+        def compute_actions(
+            self,
+            obs_batch,
+            state_batches=None,
+            prev_action_batch=None,
+            prev_reward_batch=None,
+            info_batch=None,
+            episodes=None,
+            explore=None,
+            timestep=None,
+            **kwargs,
+        ):
+            return [self.action_space.sample() for _ in obs_batch], [], {}
 
-    def get_weights(self):
-        return []
+        def get_weights(self):
+            return []
 
-    def set_weights(self, weights):
-        pass
+        def set_weights(self, weights):
+            pass
+
+    return DummyPolicy
 
 
-class MinimalTrainer(Trainer):
-    _name = "MinimalTrainer"
-    _default_config = with_common_config(
-        {"workers": False, "optimizer": False, "tracker": False}
-    )
-    _policy = DummyPolicy
+@pytest.fixture(scope="module")
+def trainer_cls(_policy):
+    @config("workers", False)
+    @config("optim", False)
+    class MinimalTrainer(Trainer):
+        _name = "MinimalTrainer"
+        _policy = _policy
 
-    def _init(self, config, env_creator):
-        def make_workers():
-            return self._make_workers(
-                env_creator, self._policy, config, num_workers=config["num_workers"]
-            )
+        def _init(self, config, env_creator):
+            def make_workers():
+                return self._make_workers(
+                    env_creator, self._policy, config, num_workers=config["num_workers"]
+                )
 
-        if config["optimizer"]:
-            self.optimizer = PolicyOptimizer(make_workers())
-        elif config["workers"]:
-            self.workers = make_workers()
+            if config["optim"]:
+                self.optimizer = PolicyOptimizer(make_workers())
+            elif config["workers"]:
+                self.workers = make_workers()
 
-    def _train(self):
-        return self._log_metrics({}, 0)
+        def _train(self):
+            return self._log_metrics({}, 0)
+
+    return functools.partial(MinimalTrainer, env="MockEnv")
 
 
 @pytest.fixture(params=(True, False), ids=(f"Workers({b})" for b in (True, False)))
@@ -61,24 +68,17 @@ def workers(request):
 
 
 @pytest.fixture(params=(True, False), ids=(f"Optimizer({b})" for b in (True, False)))
-def optimizer(request):
+def optim(request):
     return request.param
 
 
-@pytest.fixture
-def trainer_cls():
-    return functools.partial(MinimalTrainer, env="MockEnv")
-
-
-def test_trainer(trainer_cls, workers, optimizer):
-    should_have_workers = any((workers, optimizer))
+def test_trainer(trainer_cls, workers, optim):
+    should_have_workers = any((workers, optim))
     context = (
         contextlib.nullcontext() if should_have_workers else pytest.warns(UserWarning)
     )
     with context:
-        trainer = trainer_cls(
-            config=dict(workers=workers, optimizer=optimizer, num_workers=0)
-        )
+        trainer = trainer_cls(config=dict(workers=workers, optim=optim, num_workers=0))
 
     assert not should_have_workers or hasattr(trainer, "metrics")
 
