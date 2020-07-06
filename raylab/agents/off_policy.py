@@ -33,14 +33,14 @@ class OffPolicyTrainer(Trainer):
     @override(Trainer)
     def _train(self):
         pre_learning_steps = self.sample_until_learning_starts()
-        init_timesteps = self.tracker.num_steps_sampled
+        init_timesteps = self.metrics.num_steps_sampled
 
         worker = self.workers.local_worker()
         policy = worker.get_policy()
         stats = {}
         while not self._iteration_done(init_timesteps):
             samples = worker.sample()
-            self.tracker.num_steps_sampled += samples.count
+            self.metrics.num_steps_sampled += samples.count
             for row in samples.rows():
                 self.replay.add(row)
             stats.update(policy.get_exploration_info())
@@ -49,7 +49,7 @@ class OffPolicyTrainer(Trainer):
             for _ in range(samples.count):
                 batch = self.replay.sample(self.config["train_batch_size"])
                 stats.update(policy.learn_on_batch(batch))
-                self.tracker.num_steps_trained += batch.count
+                self.metrics.num_steps_trained += batch.count
 
         return self._log_metrics(stats, init_timesteps - pre_learning_steps)
 
@@ -69,15 +69,15 @@ class OffPolicyTrainer(Trainer):
         learning_starts = self.config["learning_starts"]
         worker = self.workers.local_worker()
         sample_count = 0
-        while self.tracker.num_steps_sampled + sample_count < learning_starts:
+        while self.metrics.num_steps_sampled + sample_count < learning_starts:
             samples = worker.sample()
             sample_count += samples.count
             for row in samples.rows():
                 self.replay.add(row)
 
         if sample_count:
-            self.tracker.num_steps_sampled += sample_count
-            self.global_vars["timestep"] = self.tracker.num_steps_sampled
+            self.metrics.num_steps_sampled += sample_count
+            self.global_vars["timestep"] = self.metrics.num_steps_sampled
             self.workers.foreach_worker(lambda w: w.set_global_vars(self.global_vars))
 
         return sample_count

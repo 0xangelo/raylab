@@ -94,14 +94,14 @@ class ModelBasedTrainer(OffPolicyTrainer):
     @override(OffPolicyTrainer)
     def _train(self):
         pre_learning_steps = self.sample_until_learning_starts()
-        init_timesteps = self.tracker.num_steps_sampled
+        init_timesteps = self.metrics.num_steps_sampled
 
         config = self.config
         worker = self.workers.local_worker()
         stats = {}
         while not self._iteration_done(init_timesteps):
             samples = worker.sample()
-            self.tracker.num_steps_sampled += samples.count
+            self.metrics.num_steps_sampled += samples.count
             for row in samples.rows():
                 self.replay.add(row)
 
@@ -184,7 +184,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
                 samples += [self.virtual_replay.sample(model_batch_size)]
             batch = SampleBatch.concat_samples(samples)
             stats.update(policy.learn_on_batch(batch))
-            self.tracker.num_steps_trained += batch.count
+            self.metrics.num_steps_trained += batch.count
 
         stats.update(policy.get_exploration_info())
         return stats

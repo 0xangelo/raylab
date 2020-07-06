@@ -1,6 +1,5 @@
 """Trainer and configuration for SVG(inf)."""
 from ray.rllib import SampleBatch
-from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils import override
 
 from raylab.agents import Trainer
@@ -62,9 +61,6 @@ class SVGInfTrainer(Trainer):
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=config["num_workers"]
         )
-        # Dummy optimizer to log stats since Trainer.collect_metrics is coupled with it
-        self.optimizer = PolicyOptimizer(self.workers)
-
         policy = self.get_policy()
         policy.set_reward_from_config(config["env"], config["env_config"])
 
@@ -76,12 +72,12 @@ class SVGInfTrainer(Trainer):
 
     @override(Trainer)
     def _train(self):
-        init_timesteps = self.optimizer.num_steps_sampled
+        init_timesteps = self.metrics.num_steps_sampled
         worker = self.workers.local_worker()
         policy = worker.get_policy()
 
         samples = worker.sample()
-        self.optimizer.num_steps_sampled += samples.count
+        self.metrics.num_steps_sampled += samples.count
         for row in samples.rows():
             self.replay.add(row)
         stats = policy.get_exploration_info()
@@ -90,7 +86,7 @@ class SVGInfTrainer(Trainer):
             for _ in range(int(samples.count * self.config["updates_per_step"])):
                 batch = self.replay.sample(self.config["train_batch_size"])
                 off_policy_stats = policy.learn_on_batch(batch)
-                self.optimizer.num_steps_trained += batch.count
+                self.metrics.num_steps_trained += batch.count
         stats.update(off_policy_stats)
 
         stats.update(policy.learn_on_batch(samples))

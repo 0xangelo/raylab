@@ -6,7 +6,6 @@ import pytest
 from ray.rllib import Policy
 from ray.rllib.optimizers import PolicyOptimizer
 
-from raylab.agents.trainer import StatsTracker
 from raylab.agents.trainer import Trainer
 from raylab.agents.trainer import with_common_config
 
@@ -47,20 +46,13 @@ class MinimalTrainer(Trainer):
                 env_creator, self._policy, config, num_workers=config["num_workers"]
             )
 
-        if config["tracker"]:
-            self.tracker = StatsTracker(make_workers())
-        elif config["optimizer"]:
+        if config["optimizer"]:
             self.optimizer = PolicyOptimizer(make_workers())
         elif config["workers"]:
             self.workers = make_workers()
 
     def _train(self):
         return self._log_metrics({}, 0)
-
-
-@pytest.fixture(params=(True, False), ids=(f"Tracker({b})" for b in (True, False)))
-def tracker(request):
-    return request.param
 
 
 @pytest.fixture(params=(True, False), ids=(f"Workers({b})" for b in (True, False)))
@@ -78,27 +70,29 @@ def trainer_cls():
     return functools.partial(MinimalTrainer, env="MockEnv")
 
 
-def test_trainer(trainer_cls, tracker, workers, optimizer):
-    should_have_workers = any((tracker, workers, optimizer))
+def test_trainer(trainer_cls, workers, optimizer):
+    should_have_workers = any((workers, optimizer))
     context = (
         contextlib.nullcontext() if should_have_workers else pytest.warns(UserWarning)
     )
     with context:
         trainer = trainer_cls(
-            config=dict(
-                tracker=tracker, workers=workers, optimizer=optimizer, num_workers=0
-            )
+            config=dict(workers=workers, optimizer=optimizer, num_workers=0)
         )
 
-    assert hasattr(trainer, "tracker")
+    assert not should_have_workers or hasattr(trainer, "metrics")
 
     if should_have_workers:
-        assert trainer.tracker.workers
-        worker = trainer.tracker.workers.local_worker()
+        assert trainer.metrics.workers
+        worker = trainer.metrics.workers.local_worker()
         _ = worker.sample()
 
         metrics = trainer.collect_metrics()
         assert isinstance(metrics, dict)
+        assert "episode_reward_mean" in metrics
+        assert "episode_reward_min" in metrics
+        assert "episode_reward_max" in metrics
+        assert "episode_len_mean" in metrics
 
     trainer.stop()
 
