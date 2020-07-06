@@ -128,14 +128,6 @@ COMMON_INFO = {
     Log system resource metrics to results. This requires `psutil` to be
     installed for sys stats, and `gputil` for GPU metrics.
     """,
-    "fake_sampler": """\
-    Use fake (infinite speed) sampler. For testing only.
-    """,
-    "framework": """\
-    tf: TensorFlow
-    tfe: TensorFlow eager
-    torch: PyTorch
-    """,
     "eager_tracing": """\
     Enable tracing in eager mode. This greatly improves performance, but
     makes it slightly harder to debug since Python code won't be evaluated
@@ -151,7 +143,7 @@ COMMON_INFO = {
     Set to False for no exploration behavior (e.g., for evaluation).
     """,
     "exploration_config": {
-        "__info__": """\
+        "__help__": """\
         Provide a dict specifying the Exploration object's config.
         """,
         "type": """\
@@ -200,6 +192,10 @@ COMMON_INFO = {
     trainer guarantees all eval workers have the latest policy state before
     this function is called.
     """,
+    "use_exec_api": """\
+    EXPERIMENTAL: use the execution plan based API impl of the algo. Can also
+    be enabled by setting RLLIB_EXEC_API=1.
+    """,
     "sample_async": """\
     Use a background thread for sampling (slightly off-policy, usually not
     advisable to turn on unless your env specifically requires it).
@@ -211,7 +207,7 @@ COMMON_INFO = {
     Whether to synchronize the statistics of remote filters.
     """,
     "tf_session_args": {
-        "__info__": """\
+        "__help__": """\
         Configures TF for single-process operation by default.
         """,
         "intra_op_parallelism_threads": """\
@@ -226,7 +222,7 @@ COMMON_INFO = {
         """,
     },
     "local_tf_session_args": {
-        "__info__": """\
+        "__help__": """\
         Override the following tf session args on the local worker
 
         Allow a higher level of parallelism by default, but not unlimited
@@ -252,10 +248,10 @@ COMMON_INFO = {
     (e.g., for StarCraft). Use this cautiously; overheads are significant.
     """,
     "remote_env_batch_wait_ms": """\
-    # Timeout that remote workers are waiting when polling environments.
-    # 0 (continue when at least one env is ready) is a reasonable default,
-    # but optimal value could be obtained by measuring your environment
-    # step / reset and model inference perf.
+    Timeout that remote workers are waiting when polling environments.
+    0 (continue when at least one env is ready) is a reasonable default,
+    but optimal value could be obtained by measuring your environment
+    step / reset and model inference perf.
     """,
     "min_iter_time_s": """\
     Minimum time per train iteration (frequency of metrics reporting).
@@ -357,7 +353,7 @@ COMMON_INFO = {
     Max output file size before rolling over to a new file.
     """,
     "multiagent": {
-        "__info__": """\
+        "__help__": """\
         === Settings for Multi-Agent Environments ===
         """,
         "policies": """\
@@ -384,17 +380,14 @@ COMMON_INFO = {
         transitions are replayed independently per policy.
         """,
     },
-    # === Replay Settings ===
-    "replay_sequence_length": """\
-    The number of contiguous environment steps to replay at once. This may
-    be set to greater than 1 to support recurrent models.
-    """,
-    # Deprecated keys:
     "use_pytorch": """\
-    Replaced by `framework=torch`.
+    Use PyTorch (instead of tf). If using `rllib train`, this can also be
+    enabled with the `--torch` flag.
+    NOTE: Some agents may not support `torch` yet and throw an error.
     """,
     "eager": """\
-    Replaced by `framework=tfe`.
+    Enable TF eager execution (TF policies only). If using `rllib train`,
+    this can also be enabled with the `--eager` flag.
     """,
 }
 
@@ -404,7 +397,9 @@ Info = Dict[str, Union[str, "Info"]]
 
 def dedent_info_dict(info: Info) -> Info:
     """Remove any common leading whitespaces from every help text in info."""
-    return tree.map_structure((lambda x: dedent(x) if isinstance(x, str) else x), info)
+    return tree.map_structure(
+        (lambda x: dedent(x).rstrip() if isinstance(x, str) else x), info
+    )
 
 
 def with_rllib_info(info: Info) -> Info:
@@ -469,10 +464,10 @@ def recursive_check_info(
         raise ExtraConfigInfoError(prefix + f"{extra}")
 
     for key in config.keys():
-        conf_, info_ = config[key], info[key]
-        if isinstance(conf_, dict) and isinstance(info_, dict):
+        config_, info_ = config[key], info[key]
+        if isinstance(config_, dict) and isinstance(info_, dict):
             if "__help__" not in info_:
                 raise MissingConfigInfoError(prefix + key)
             if key in allow_new_subkey_list:
                 continue
-            recursive_check_info(conf_, info_, prefix=key + "/")
+            recursive_check_info(config_, info_, prefix=key + "/")
