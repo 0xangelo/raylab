@@ -7,7 +7,6 @@ from typing import Optional
 
 from ray.rllib.agents import with_common_config as with_rllib_config
 from ray.rllib.agents.trainer import Trainer as _Trainer
-from ray.rllib.agents.trainer import with_base_config
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils import override as overrd
@@ -32,11 +31,6 @@ BASE_INFO = with_rllib_info(
         "torch_optimizer": "Config dict for PyTorch optimizers.",
     }
 )
-
-
-def with_common_config(extra_config: Config) -> Config:
-    """Returns the given config dict merged with common agent confs."""
-    return with_base_config(BASE_CONFIG, extra_config)
 
 
 def config(
