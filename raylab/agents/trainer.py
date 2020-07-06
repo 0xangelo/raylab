@@ -3,6 +3,7 @@ import copy
 import warnings
 from abc import ABCMeta
 from typing import Callable
+from typing import List
 from typing import Optional
 
 from ray.rllib.agents import with_common_config as with_rllib_config
@@ -23,15 +24,22 @@ def config(
     *,
     info: Optional[str] = None,
     override: bool = False,
+    allow_unknown_subkeys: bool = False,
+    override_all_if_type_changes: bool = False,
     separator: str = "/",
 ) -> Callable[[type], type]:
-    """Decorator for adding/overriding a config to a Trainer class.
+    """Returns a decorator for adding/overriding a Trainer class config.
 
     Args:
         key: Name of the config paremeter which the use can tune
         default: Default Jsonable value to set for the parameter
         info: Parameter help text explaining what the parameter does
         override: Whether to override an existing parameter
+        allow_unknown_subkeys: Whether to allow new keys for dict parameters.
+            This is only at the top level
+        override_all_if_type_changes: Whether to override the entire value
+            (dict) iff the 'type' key in this value dict changes. This is only
+            at the top level
         separator: String token separating nested keys
 
     Raises:
@@ -39,12 +47,24 @@ def config(
             set to `False`.
         RuntimeError: If attempting to override an existing parameter with its
             same default value.
+        RuntimeError: If attempting to enable `allow_unknown_subkeys` or
+            `override_all_if_type_changes` options for non-toplevel keys
     """
-    # pylint:disable=protected-access
+    # pylint:disable=protected-access,too-many-arguments
+    if (allow_unknown_subkeys or override_all_if_type_changes) and separator in key:
+        raise RuntimeError(
+            "Cannot use 'allow_unknown_subkeys' or 'override_all_if_type_changes'"
+            f" for non-toplevel key: '{key}'"
+        )
     key_seq = key.split(separator)
 
     def add_config(cls):
-        nonlocal info
+        nonlocal info, key
+
+        if allow_unknown_subkeys and not override:
+            cls._allow_unknown_subkeys += [key]
+        if override_all_if_type_changes and not override:
+            cls._override_all_subkeys_if_type_changes += [key]
 
         conf_, info_ = cls._default_config, cls._config_info
         for key in key_seq[:-1]:
@@ -73,7 +93,9 @@ def config(
 
 
 @config("compile_policy", False, info="Whether to optimize the policy's backend")
-@config("module", {}, info="Type and config of the PyTorch NN module.")
+@config(
+    "module", {}, info="Type and config of the PyTorch NN module.",
+)
 @config("torch_optimizer", {}, info="Config dict for PyTorch optimizers.")
 class Trainer(_Trainer, metaclass=ABCMeta):
     """Base Trainer for all agents.
@@ -92,6 +114,8 @@ class Trainer(_Trainer, metaclass=ABCMeta):
     evaluation_metrics: Optional[dict]
     optimizer: Optional[PolicyOptimizer]
     workers: Optional[WorkerSet]
+    _allow_unknown_subkeys: List[str] = []
+    _override_all_subkeys_if_type_changes: List[str] = []
     _config_info: Info = with_rllib_info({})
     _default_config: Config = with_rllib_config({})
 
@@ -117,14 +141,17 @@ class Trainer(_Trainer, metaclass=ABCMeta):
         return trainer_cls
 
     def _setup(self, *args, **kwargs):
-        _Trainer._allow_unknown_subkeys += ["module", "torch_optimizer"]
-        _Trainer._override_all_subkeys_if_type_changes += ["module"]
+        for key in self._allow_unknown_subkeys:
+            _Trainer._allow_unknown_subkeys += [key]
+        for key in self._override_all_subkeys_if_type_changes:
+            _Trainer._override_all_subkeys_if_type_changes += [key]
         try:
             super()._setup(*args, **kwargs)
         finally:
-            _Trainer._allow_unknown_subkeys.remove("module")
-            _Trainer._allow_unknown_subkeys.remove("torch_optimizer")
-            _Trainer._override_all_subkeys_if_type_changes.remove("module")
+            for key in self._allow_unknown_subkeys:
+                _Trainer._allow_unknown_subkeys.remove(key)
+            for key in self._override_all_subkeys_if_type_changes:
+                _Trainer._override_all_subkeys_if_type_changes.remove(key)
 
         # Have a PolicyOptimizer by default to collect metrics
         if not hasattr(self, "optimizer"):

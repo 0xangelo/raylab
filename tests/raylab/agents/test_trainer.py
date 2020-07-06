@@ -11,7 +11,7 @@ from raylab.agents.trainer import Trainer
 
 
 @pytest.fixture(scope="module")
-def _policy():
+def policy_cls():
     class DummyPolicy(Policy):
         # pylint:disable=abstract-method,too-many-arguments
         def compute_actions(
@@ -38,12 +38,18 @@ def _policy():
 
 
 @pytest.fixture(scope="module")
-def trainer_cls(_policy):
+def trainer_cls(policy_cls):
     @config("workers", False)
     @config("optim", False)
+    @config(
+        "arbitrary",
+        {"type": "one", "key": "value"},
+        allow_unknown_subkeys=True,
+        override_all_if_type_changes=True,
+    )
     class MinimalTrainer(Trainer):
         _name = "MinimalTrainer"
-        _policy = _policy
+        _policy = policy_cls
 
         def _init(self, config, env_creator):
             def make_workers():
@@ -95,6 +101,27 @@ def test_trainer(trainer_cls, workers, optim):
         assert "episode_len_mean" in metrics
 
     trainer.stop()
+
+
+@pytest.fixture(
+    params=({}, {"type": "two", "param": "default"}),
+    ids="Unchanged OverrideType".split(),
+)
+def arbitrary(request):
+    return request.param
+
+
+def test_override_all_if_type_changes(trainer_cls, arbitrary):
+    trainer = trainer_cls(config=dict(arbitrary=arbitrary))
+
+    subconfig = trainer.config["arbitrary"]
+    if arbitrary:
+        assert "key" not in subconfig
+        assert "param" in subconfig
+        assert subconfig["param"] == "default"
+    else:
+        assert "key" in subconfig
+        assert subconfig["key"] == "value"
 
 
 @pytest.fixture
