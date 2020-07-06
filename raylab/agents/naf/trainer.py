@@ -16,19 +16,17 @@ from .policy import NAFTorchPolicy
     info="Interpolation factor in polyak averaging for target networks.",
 )
 @trainer.config(
+    "exploration_config/type", "raylab.utils.exploration.ParameterNoise", override=True
+)
+@trainer.config(
     "exploration_config/param_noise_spec",
     {"initial_stddev": 0.1, "desired_action_stddev": 0.2, "adaptation_coeff": 1.01},
 )
 @trainer.config("exploration_config/pure_exploration_steps", 1000)
-@trainer.config(
-    "exploration_config/type", "raylab.utils.exploration.ParameterNoise", override=True
-)
 @trainer.config("evaluation_config/explore", False, override=True)
 @OffPolicyTrainer.with_base_specs
 class NAFTrainer(OffPolicyTrainer):
     """Single agent trainer for NAF."""
-
-    # pylint: disable=attribute-defined-outside-init
 
     _name = "NAF"
     _policy = NAFTorchPolicy
