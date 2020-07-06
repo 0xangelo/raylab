@@ -3,6 +3,7 @@ import warnings
 from abc import ABCMeta
 from dataclasses import dataclass
 from dataclasses import field
+from typing import Callable
 from typing import List
 from typing import Optional
 from typing import Union
@@ -14,24 +15,86 @@ from ray.rllib.evaluation.metrics import collect_episodes
 from ray.rllib.evaluation.metrics import summarize_episodes
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.optimizers import PolicyOptimizer
-from ray.rllib.utils import override
+
+from .config import Config
+from .config import Info
+from .config import Json
+from .config import with_rllib_info
 
 _Trainer._allow_unknown_subkeys += ["module", "torch_optimizer"]
 _Trainer._override_all_subkeys_if_type_changes += ["module"]
 
 
-BASE_CONFIG = with_rllib_config(
+BASE_CONFIG = with_rllib_config({"compile_policy": False, "module": {}})
+
+BASE_INFO = with_rllib_info(
     {
-        # === Policy ===
-        # Whether to optimize the policy's backend
-        "compile_policy": False
+        "compile_policy": "Whether to optimize the policy's backend",
+        "module": """\
+        Type and config of the PyTorch NN module.
+        """,
     }
 )
 
 
-def with_common_config(extra_config: dict) -> dict:
+def with_common_config(extra_config: Config) -> Config:
     """Returns the given config dict merged with common agent confs."""
     return with_base_config(BASE_CONFIG, extra_config)
+
+
+def with_common_specs(cls: type) -> type:
+    """Decorator for setting a trainer class' config and info with common specs."""
+    # pylint:disable=protected-access
+    cls._default_config = BASE_CONFIG
+    cls._config_info = BASE_INFO
+    return cls
+
+
+def config(
+    key: str,
+    default: Json,
+    info: Optional[str] = None,
+    override: bool = False,
+    separator: str = "/",
+) -> Callable[[type], type]:
+    """Decorator for adding/overriding a config to a Trainer class.
+
+    Args:
+        key: Name of the config paremeter which the use can tune
+        default: Default Jsonable value to set for the parameter
+        info: Parameter help text explaining what the parameter does
+        override: Whether to override an existing parameter
+        separator: String token separating nested keys
+
+    Raises:
+        RuntimeError: If attempting to set an existing parameter with `override`
+            set to `False`.
+    """
+    # pylint:disable=protected-access
+    key_seq = key.split(separator)
+
+    def add_config(cls):
+        nonlocal info
+
+        conf_, info_ = cls._default_config, cls._config_info
+        for key in key_seq[:-1]:
+            conf_ = conf_[key]
+            if not isinstance(info_[key], dict):
+                info_[key] = {"__help__": info_[key]}
+            info_ = info_[key]
+
+        key = key_seq[-1]
+        if key in conf_ and not override:
+            raise RuntimeError(
+                f"Attempted to override config key '{key}' but override=False."
+            )
+        conf_[key] = default
+        if info is not None:
+            info_[key] = info
+
+        return cls
+
+    return add_config
 
 
 @dataclass
@@ -122,6 +185,7 @@ class Trainer(_Trainer, metaclass=ABCMeta):
     so that logging code is standardized.
     """
 
+    _config_info: Info
     evaluation_metrics: Optional[dict]
     optimizer: Optional[PolicyOptimizer]
     workers: Optional[WorkerSet]
@@ -154,7 +218,7 @@ class Trainer(_Trainer, metaclass=ABCMeta):
                 )
             workers.foreach_policy(lambda p, _: p.compile())
 
-    @override(_Trainer)
+    # @override(_Trainer)
     def train(self):
         # Evaluate first, before any optimization is done
         if self._iteration == 0 and self.config["evaluation_interval"]:
@@ -166,7 +230,7 @@ class Trainer(_Trainer, metaclass=ABCMeta):
         self.global_vars["timestep"] = self.tracker.num_steps_sampled
         return result
 
-    @override(_Trainer)
+    # @override(_Trainer)
     def collect_metrics(self, selected_workers=None):
         return self.tracker.collect_metrics(
             self.config["collect_metrics_timeout"],
@@ -174,7 +238,7 @@ class Trainer(_Trainer, metaclass=ABCMeta):
             selected_workers=selected_workers,
         )
 
-    @override(_Trainer)
+    # @override(_Trainer)
     def __getstate__(self):
         state = super().__getstate__()
         state["global_vars"] = self.global_vars
@@ -183,7 +247,7 @@ class Trainer(_Trainer, metaclass=ABCMeta):
             state["tracker"] = self.tracker.save()
         return state
 
-    @override(_Trainer)
+    # @override(_Trainer)
     def __setstate__(self, state):
         self.global_vars = state["global_vars"]
 
