@@ -1,22 +1,22 @@
-"""Network and configurations for model-based SAC algorithms."""
+"""Network and configurations for model-based DDPG algorithms."""
 from dataclasses import dataclass
 from dataclasses import field
 
 from gym.spaces import Box
 
+from .ddpg import DDPG
+from .ddpg import DDPGSpec
 from .model.stochastic import build_ensemble
 from .model.stochastic import EnsembleSpec
-from .sac import SAC
-from .sac import SACSpec
 
 
 @dataclass
-class MBSACSpec(SACSpec):
-    """Specifications for model-based SAC modules.
+class ModelBasedDDPGSpec(DDPGSpec):
+    """Specifications for model-based DDPG modules.
 
     Args:
         model: Specifications for stochastic dynamics model ensemble
-        actor: Specifications for stochastic policy and entropy coefficient
+        actor: Specifications for policy, behavior, and target policy
         critic: Specifications for action-value estimators
         initializer: Optional dictionary with mandatory `type` key corresponding
             to the initializer function name in `torch.nn.init` and optional
@@ -32,18 +32,20 @@ class MBSACSpec(SACSpec):
             self.model.initializer = self.initializer
 
 
-class MBSAC(SAC):
-    """NN module for Model-Based Soft Actor-Critic algorithms.
+class ModelBasedDDPG(DDPG):
+    """NN module for Model-Based DDPG algorithms.
 
     Args:
         obs_space: Observation space
         action_space: Action space
-        spec: Specifications for model-based SAC modules
+        spec: Specifications for model-based DDPG modules
 
     Attributes:
-        models (StochasticModelEnsemble): Stochastic dynamics model ensemble
-        actor (StochasticPolicy): Stochastic policy to be learned
-        alpha (Alpha): Entropy bonus coefficient
+        model (StochasticModelEnsemble): Stochastic dynamics model ensemble
+        actor (DeterministicPolicy): The deterministic policy to be learned
+        behavior (DeterministicPolicy): The policy for exploration
+        target_actor (DeterministicPolicy): The policy used for estimating the
+            arg max in Q-Learning
         critics (QValueEnsemble): The action-value estimators to be learned
         target_critics (QValueEnsemble): The action-value estimators used for
             bootstrapping in Q-Learning
@@ -51,9 +53,9 @@ class MBSAC(SAC):
     """
 
     # pylint:disable=abstract-method
-    spec_cls = MBSACSpec
+    spec_cls = ModelBasedDDPGSpec
 
-    def __init__(self, obs_space: Box, action_space: Box, spec: MBSACSpec):
+    def __init__(self, obs_space: Box, action_space: Box, spec: ModelBasedDDPGSpec):
         super().__init__(obs_space, action_space, spec)
 
         self.models = build_ensemble(obs_space, action_space, spec.model)

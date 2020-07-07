@@ -1,3 +1,7 @@
 """Collection of neural network modules in PyTorch."""
 
-from .networks import *
+from .registry import get_module
+
+__all__ = [
+    "get_module",
+]

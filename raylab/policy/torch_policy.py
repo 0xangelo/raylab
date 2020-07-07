@@ -12,6 +12,7 @@ import torch.nn as nn
 from gym.spaces import Space
 from ray.rllib import Policy
 from ray.rllib import SampleBatch
+from ray.rllib.agents import Trainer
 from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.model import flatten
 from ray.rllib.models.model import restore_original_dimensions
@@ -21,11 +22,10 @@ from ray.tune.logger import pretty_print
 from torch import Tensor
 from torch.optim import Optimizer
 
-from raylab.agents import Trainer
 from raylab.pytorch.utils import convert_to_tensor
 from raylab.utils.dictionaries import deep_merge
 
-from .modules.catalog import get_module
+from .modules import get_module
 from .optimizer_collection import OptimizerCollection
 
 
@@ -50,9 +50,8 @@ class TorchPolicy(Policy):
         config = deep_merge(
             {**self.get_default_config(), "worker_index": None},
             config,
-            new_keys_allowed=False,
-            whitelist=Trainer._allow_unknown_subkeys,
-            override_all_if_type_changes=Trainer._override_all_subkeys_if_type_changes,
+            new_keys_allowed=True,
+            override_all_if_type_changes=self._override_all_subkeys_if_type_changes,
         )
         # Allow subclasses to set `dist_class` before calling init
         action_dist = getattr(self, "dist_class", None)
@@ -79,6 +78,18 @@ class TorchPolicy(Policy):
         Mostly for compatibility with RLlib's API.
         """
         return self.module
+
+    @property
+    def _override_all_subkeys_if_type_changes(self) -> List[str]:
+        """Nested config dictionaries with special "type" keys.
+
+        Returns:
+            List of top level keys with value=dict, for which we always simply
+            override the entire value (dict), iff the "type" key in that value
+            dict changes.
+        """
+        # pylint:disable=protected-access
+        return Trainer._override_all_subkeys_if_type_changes + ["module"]
 
     @staticmethod
     @abstractmethod

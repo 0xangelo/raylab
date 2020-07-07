@@ -36,10 +36,10 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def get_default_config():
         """Return the default config for SVG(1)"""
-        # pylint: disable=cyclic-import
-        from raylab.agents.svg.one import DEFAULT_CONFIG
+        # pylint: disable=cyclic-import,protected-access
+        from raylab.agents.svg.one import SVGOneTrainer
 
-        return DEFAULT_CONFIG
+        return SVGOneTrainer._default_config
 
     @override(SVGTorchPolicy)
     def make_module(self, obs_space, action_space, config):
@@ -49,8 +49,8 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def make_optimizers(self):
         """PyTorch optimizer to use."""
-        cls = get_optimizer_class(self.config["torch_optimizer"], wrap=True)
-        options = self.config["torch_optimizer_options"]
+        cls = get_optimizer_class(self.config["torch_optimizer"]["type"], wrap=True)
+        options = self.config["torch_optimizer"]
         modules = {
             "model": self.module.model,
             "actor": self.module.actor,

@@ -4,6 +4,7 @@ import click
 from .best_checkpoint import find_best
 from .evaluate_checkpoint import rollout
 from .experiment import experiment
+from .info import info_cli
 
 
 @click.group()
@@ -55,3 +56,4 @@ def test_module(agent_id, checkpoint):
 raylab.add_command(experiment)
 raylab.add_command(find_best)
 raylab.add_command(rollout)
+raylab.add_command(info_cli)
