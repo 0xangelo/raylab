@@ -8,7 +8,7 @@ def get_config():
         "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === MAPOTorchPolicy ===
         "module": {
-            "type": "MBSAC",
+            "type": "ModelBasedSAC",
             "model": {
                 "ensemble_size": 1,
                 "residual": True,
@@ -48,7 +48,6 @@ def get_config():
         },
         # === SACTorchPolicy ===
         "target_entropy": "auto",
-        "clipped_double_q": True,
         # === TargetNetworksMixin ===
         "polyak": 0.995,
         # === ModelTrainingMixin ===
