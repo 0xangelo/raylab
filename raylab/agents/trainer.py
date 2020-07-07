@@ -98,9 +98,18 @@ def config(
 
 @config("compile_policy", False, info="Whether to optimize the policy's backend")
 @config(
-    "module", {}, info="Type and config of the PyTorch NN module.",
+    "module",
+    {},
+    info="Type and config of the PyTorch NN module.",
+    allow_unknown_subkeys=True,
+    override_all_if_type_changes=True,
 )
-@config("torch_optimizer", {}, info="Config dict for PyTorch optimizers.")
+@config(
+    "torch_optimizer",
+    {},
+    info="Config dict for PyTorch optimizers.",
+    allow_unknown_subkeys=True,
+)
 class Trainer(_Trainer, metaclass=ABCMeta):
     """Base Trainer for all agents.
 

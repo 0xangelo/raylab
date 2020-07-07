@@ -8,7 +8,7 @@ def get_config():
         "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === MBPOTorchPolicy ===
         "module": {
-            "type": "MBSAC",
+            "type": "ModelBasedSAC",
             "model": {
                 "ensemble_size": 7,
                 "parallelize": True,
@@ -35,7 +35,6 @@ def get_config():
         },
         # === SACTorchPolicy ===
         "target_entropy": "auto",
-        "clipped_double_q": True,
         "polyak": 0.995,
         # === ModelTrainingMixin ===
         "model_training": {
