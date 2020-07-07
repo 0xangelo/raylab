@@ -88,9 +88,9 @@ Algorithms
 +--------------------------------------------------------+-------------------------+
 | `Soft Actor-Critic`_                                   | SoftAC                  |
 +--------------------------------------------------------+-------------------------+
-| `Model-Based Policy Optimization`_                     | MBPO                    |
-+--------------------------------------------------------+-------------------------+
 | `Streamlined Off-Policy`_ (DDPG)                       | SOP                     |
++--------------------------------------------------------+-------------------------+
+| `Model-Based Policy Optimization`_                     | MBPO                    |
 +--------------------------------------------------------+-------------------------+
 | `Model-based Action-Gradient-Estimator`_               | MAGE                    |
 +--------------------------------------------------------+-------------------------+
@@ -109,22 +109,26 @@ Algorithms
 Command-line interface
 ----------------------
 
-For a high-level description of the available utilities, run `raylab --help`
+.. role:: bash(code)
+   :language: bash
+
+For a high-level description of the available utilities, run :bash:`raylab --help`
 
 .. code:: bash
 
-	  Usage: raylab [OPTIONS] COMMAND [ARGS]...
+	Usage: raylab [OPTIONS] COMMAND [ARGS]...
 
 	  RayLab: Reinforcement learning algorithms in RLlib.
 
-	  Options:
+	Options:
 	  --help  Show this message and exit.
 
-	  Commands:
+	Commands:
 	  dashboard    Launch the experiment dashboard to monitor training progress.
 	  episodes     Launch the episode dashboard to monitor state and action...
 	  experiment   Launch a Tune experiment from a config file.
 	  find-best    Find the best experiment checkpoint as measured by a metric.
+	  info         View information about an agent's config parameters.
 	  rollout      Wrap `rllib rollout` with customized options.
 	  test-module  Launch dashboard to test generative models from a checkpoint.
 
@@ -136,12 +140,12 @@ The project is structured as follows
 ::
 
     raylab
-    ├── agents            # Trainer and Policy classes
-    ├── cli               # Command line utilities
-    ├── envs              # Gym environment registry and utilities
-    ├── losses            # RL loss functions
-    ├── logger            # Tune loggers
-    ├── modules           # PyTorch neural network modules for algorithms
-    ├── policy            # Extensions and customizations of RLlib's policy API
-    ├── pytorch           # PyTorch extensions
-    ├── utils             # miscellaneous utilities
+    |-- agents            # Trainer and Policy classes
+    |-- cli               # Command line utilities
+    |-- envs              # Gym environment registry and utilities
+    |-- logger            # Tune loggers
+    |-- policy            # Extensions and customizations of RLlib's policy API
+    |   |-- losses        # RL loss functions
+    |   |-- modules       # PyTorch neural network modules for TorchPolicy
+    |-- pytorch           # PyTorch extensions
+    |-- utils             # miscellaneous utilities
