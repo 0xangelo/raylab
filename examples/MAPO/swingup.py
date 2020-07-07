@@ -48,7 +48,6 @@ def get_config():
         },
         # === SACTorchPolicy ===
         "target_entropy": "auto",
-        "clipped_double_q": True,
         # === TargetNetworksMixin ===
         "polyak": 0.995,
         # === ModelTrainingMixin ===
