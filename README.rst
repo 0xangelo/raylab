@@ -109,25 +109,28 @@ Algorithms
 Command-line interface
 ----------------------
 
-For a high-level description of the available utilities, run `raylab --help`
+.. role:: bash(code)
+   :language: bash
+
+For a high-level description of the available utilities, run :bash:`raylab --help`
 
 .. code:: bash
 
-  Usage: raylab [OPTIONS] COMMAND [ARGS]...
+	Usage: raylab [OPTIONS] COMMAND [ARGS]...
 
-    RayLab: Reinforcement learning algorithms in RLlib.
+	  RayLab: Reinforcement learning algorithms in RLlib.
 
-  Options:
-    --help  Show this message and exit.
+	Options:
+	  --help  Show this message and exit.
 
-  Commands:
-    dashboard    Launch the experiment dashboard to monitor training progress.
-    episodes     Launch the episode dashboard to monitor state and action...
-    experiment   Launch a Tune experiment from a config file.
-    find-best    Find the best experiment checkpoint as measured by a metric.
-    info         View information about an agent's config parameters.
-    rollout      Wrap `rllib rollout` with customized options.
-    test-module  Launch dashboard to test generative models from a checkpoint.
+	Commands:
+	  dashboard    Launch the experiment dashboard to monitor training progress.
+	  episodes     Launch the episode dashboard to monitor state and action...
+	  experiment   Launch a Tune experiment from a config file.
+	  find-best    Find the best experiment checkpoint as measured by a metric.
+	  info         View information about an agent's config parameters.
+	  rollout      Wrap `rllib rollout` with customized options.
+	  test-module  Launch dashboard to test generative models from a checkpoint.
 
 
 Packages
