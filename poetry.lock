@@ -1337,7 +1337,7 @@ description = "pytest-sugar is a plugin for pytest that changes the default look
 name = "pytest-sugar"
 optional = false
 python-versions = "*"
-version = "0.9.3"
+version = "0.9.4"
 
 [package.dependencies]
 packaging = ">=14.1"
@@ -2028,7 +2028,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "296a7baff738c4c577571743e30d15afc32b3cbff6fda129e36c02593895fe56"
+content-hash = "188b8ec35a8698f2410dcd9fd148bf1bbeca80f7601eff7dac8f34030776d966"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -2796,7 +2796,7 @@ pytest-mock = [
     {file = "pytest_mock-3.1.1-py3-none-any.whl", hash = "sha256:a9fedba70e37acf016238bb2293f2652ce19985ceb245bbd3d7f3e4032667402"},
 ]
 pytest-sugar = [
-    {file = "pytest-sugar-0.9.3.tar.gz", hash = "sha256:1630b5b7ea3624919b73fde37cffb87965c5087a4afab8a43074ff44e0d810c4"},
+    {file = "pytest-sugar-0.9.4.tar.gz", hash = "sha256:b1b2186b0a72aada6859bea2a5764145e3aaa2c1cfbb23c3a19b5f7b697563d3"},
 ]
 python-dateutil = [
     {file = "python-dateutil-2.8.1.tar.gz", hash = "sha256:73ebfe9dbf22e832286dafa60473e4cd239f8592f699aa5adaf10050e6e1823c"},
