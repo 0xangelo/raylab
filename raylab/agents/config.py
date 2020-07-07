@@ -46,6 +46,7 @@ COMMON_INFO = {
     evenly sized batches, but increases variance as the reward-to-go will
     need to be estimated at truncation boundaries.
     """,
+    # === Settings for the Trainer process ===
     "num_gpus": """\
     Number of GPUs to allocate to the trainer process. Note that not all
     algorithms can take advantage of trainer GPUs. This can be fractional
@@ -63,6 +64,7 @@ COMMON_INFO = {
     "optimizer": """\
     Arguments to pass to the policy optimizer. These vary by optimizer.
     """,
+    # === Environment Settings ===
     "gamma": """\
     Discount factor of the MDP.
     """,
@@ -102,6 +104,7 @@ COMMON_INFO = {
     "lr": """\
     The default learning rate. Not used by Raylab
     """,
+    # === Debug Settings ===
     "monitor": """\
     Whether to write episode stats and videos to the agent log dir. This is
     typically located in ~/ray_results.
@@ -128,6 +131,15 @@ COMMON_INFO = {
     Log system resource metrics to results. This requires `psutil` to be
     installed for sys stats, and `gputil` for GPU metrics.
     """,
+    "fake_sampler": """\
+    Use fake (infinite speed) sampler. For testing only.
+    """,
+    # === Deep Learning Framework Settings ===
+    "framework": """\
+    tf: TensorFlow
+    tfe: TensorFlow eager
+    torch: PyTorch
+    """,
     "eager_tracing": """\
     Enable tracing in eager mode. This greatly improves performance, but
     makes it slightly harder to debug since Python code won't be evaluated
@@ -137,6 +149,7 @@ COMMON_INFO = {
     Disable eager execution on workers (but allow it on the driver). This
     only has an effect if eager is enabled.
     """,
+    # === Exploration Settings ===
     "explore": """\
     Default exploration behavior, iff `explore`=None is passed into
     compute_action(s).
@@ -154,6 +167,7 @@ COMMON_INFO = {
         EpsilonGreedy").
         """,
     },
+    # === Evaluation Settings ===
     "evaluation_interval": """\
     Evaluate with every `evaluation_interval` training iterations.
     The evaluation stats will be reported under the "evaluation" metric key.
@@ -192,10 +206,7 @@ COMMON_INFO = {
     trainer guarantees all eval workers have the latest policy state before
     this function is called.
     """,
-    "use_exec_api": """\
-    EXPERIMENTAL: use the execution plan based API impl of the algo. Can also
-    be enabled by setting RLLIB_EXEC_API=1.
-    """,
+    # === Advanced Rollout Settings ===
     "sample_async": """\
     Use a background thread for sampling (slightly off-policy, usually not
     advisable to turn on unless your env specifically requires it).
@@ -352,6 +363,7 @@ COMMON_INFO = {
     "output_max_file_size": """\
     Max output file size before rolling over to a new file.
     """,
+    # === Settings for Multi-Agent Environments ===
     "multiagent": {
         "__help__": """\
         === Settings for Multi-Agent Environments ===
@@ -381,13 +393,10 @@ COMMON_INFO = {
         """,
     },
     "use_pytorch": """\
-    Use PyTorch (instead of tf). If using `rllib train`, this can also be
-    enabled with the `--torch` flag.
-    NOTE: Some agents may not support `torch` yet and throw an error.
+    Deprecated; replaced by `framework=torch`.
     """,
     "eager": """\
-    Enable TF eager execution (TF policies only). If using `rllib train`,
-    this can also be enabled with the `--eager` flag.
+    Deprecated; replaced by `framework=tfe`.
     """,
 }
 
