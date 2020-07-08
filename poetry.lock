@@ -1112,7 +1112,7 @@ version = ">=0.12"
 dev = ["pre-commit", "tox"]
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Python library for extracting version from poetry pyproject.toml file"
 name = "poetry-version"
 optional = false
@@ -1787,7 +1787,7 @@ python-versions = "*"
 version = "0.10.1"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Style preserving TOML library"
 name = "tomlkit"
 optional = false
@@ -2028,7 +2028,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "296a7baff738c4c577571743e30d15afc32b3cbff6fda129e36c02593895fe56"
+content-hash = "49479a41e1f0ff9a6ad927a062564b06b977401a2b11df34a36f8074758f1ff0"
 python-versions = "^3.7"
 
 [metadata.files]
