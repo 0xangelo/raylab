@@ -8,7 +8,7 @@ from typing import List
 from typing import Optional
 
 from ray.rllib.agents import with_common_config as with_rllib_config
-from ray.rllib.agents.trainer import Trainer as _Trainer
+from ray.rllib.agents.trainer import Trainer as RLlibTrainer
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils import override as overrd
@@ -110,7 +110,7 @@ def config(
     info="Config dict for PyTorch optimizers.",
     allow_unknown_subkeys=True,
 )
-class Trainer(_Trainer, metaclass=ABCMeta):
+class Trainer(RLlibTrainer, metaclass=ABCMeta):
     """Base Trainer for all agents.
 
     Either a PolicyOptimizer or WorkerSet must be set (as `optimizer` or
@@ -127,12 +127,16 @@ class Trainer(_Trainer, metaclass=ABCMeta):
     evaluation_metrics: Optional[dict]
     optimizer: Optional[PolicyOptimizer]
     workers: Optional[WorkerSet]
-    _allow_unknown_subkeys: List[str] = []
-    _override_all_subkeys_if_type_changes: List[str] = []
+    _allow_unknown_subkeys: List[str] = copy.deepcopy(
+        RLlibTrainer._allow_unknown_subkeys
+    )
+    _override_all_subkeys_if_type_changes: List[str] = copy.deepcopy(
+        RLlibTrainer._override_all_subkeys_if_type_changes
+    )
     _config_info: Info = with_rllib_info({})
     _default_config: Config = with_rllib_config({})
 
-    @overrd(_Trainer)
+    @overrd(RLlibTrainer)
     def train(self):
         # Evaluate first, before any optimization is done
         if self._iteration == 0 and self.config["evaluation_interval"]:
@@ -150,21 +154,15 @@ class Trainer(_Trainer, metaclass=ABCMeta):
         # pylint:disable=protected-access
         trainer_cls._default_config = copy.deepcopy(cls._default_config)
         trainer_cls._config_info = copy.deepcopy(cls._config_info)
+        trainer_cls._allow_unknown_subkeys = copy.deepcopy(cls._allow_unknown_subkeys)
+        trainer_cls._override_all_subkeys_if_type_changes = copy.deepcopy(
+            cls._override_all_subkeys_if_type_changes
+        )
 
         return trainer_cls
 
     def _setup(self, *args, **kwargs):
-        for key in self._allow_unknown_subkeys:
-            _Trainer._allow_unknown_subkeys += [key]
-        for key in self._override_all_subkeys_if_type_changes:
-            _Trainer._override_all_subkeys_if_type_changes += [key]
-        try:
-            super()._setup(*args, **kwargs)
-        finally:
-            for key in self._allow_unknown_subkeys:
-                _Trainer._allow_unknown_subkeys.remove(key)
-            for key in self._override_all_subkeys_if_type_changes:
-                _Trainer._override_all_subkeys_if_type_changes.remove(key)
+        super()._setup(*args, **kwargs)
 
         # Always have a PolicyOptimizer to collect metrics
         if not hasattr(self, "optimizer"):
@@ -187,15 +185,15 @@ class Trainer(_Trainer, metaclass=ABCMeta):
         if attr == "metrics":
             return self.optimizer
 
-        raise AttributeError(f"{type(self)} has not {attr} attribute")
+        raise AttributeError(f"{type(self)} has no {attr} attribute")
 
-    @overrd(_Trainer)
+    @overrd(RLlibTrainer)
     def __getstate__(self):
         state = super().__getstate__()
         state["global_vars"] = self.global_vars
         return state
 
-    @overrd(_Trainer)
+    @overrd(RLlibTrainer)
     def __setstate__(self, state):
         self.global_vars = state["global_vars"]
         if hasattr(self, "workers"):
