@@ -78,7 +78,7 @@ def optim(request):
     return request.param
 
 
-def test_trainer(trainer_cls, workers, optim):
+def test_metrics_creation(trainer_cls, workers, optim):
     should_have_workers = any((workers, optim))
     context = (
         contextlib.nullcontext() if should_have_workers else pytest.warns(UserWarning)
@@ -87,6 +87,11 @@ def test_trainer(trainer_cls, workers, optim):
         trainer = trainer_cls(config=dict(workers=workers, optim=optim, num_workers=0))
 
     assert not should_have_workers or hasattr(trainer, "metrics")
+
+
+def test_returns_metrics(trainer_cls, workers, optim):
+    should_have_workers = any((workers, optim))
+    trainer = trainer_cls(config=dict(workers=workers, optim=optim, num_workers=0))
 
     if should_have_workers:
         assert trainer.metrics.workers
@@ -99,8 +104,13 @@ def test_trainer(trainer_cls, workers, optim):
         assert "episode_reward_min" in metrics
         assert "episode_reward_max" in metrics
         assert "episode_len_mean" in metrics
+        trainer.stop()
 
-    trainer.stop()
+
+def test_preserve_original_trainer_attr(trainer_cls):
+    allow_unknown_subkeys = set(Trainer._allow_unknown_subkeys)
+    trainer_cls(config=dict(num_workers=0))
+    assert allow_unknown_subkeys == set(Trainer._allow_unknown_subkeys)
 
 
 @pytest.fixture(
