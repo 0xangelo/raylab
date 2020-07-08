@@ -23,6 +23,7 @@ cachetools = {version = "^4.1.0", python = "^3.7"}
 bokeh = "^2.1.0"
 dataclasses-json = "^0.5.1"
 opencv-python = "^4.2.0"
+poetry-version = "^0.1.5"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.8.3"
@@ -38,7 +39,6 @@ reorder-python-imports = "^2.3.1"
 mypy = "^0.782"
 coverage = "^5.1"
 ipython = "^7.16.1"
-poetry-version = "^0.1.5"
 pytest-mock = "^3.1.1"
 pytest-sugar = "^0.9.3"
 auto-changelog = "^0.5.1"
