@@ -1,4 +1,5 @@
 """Registry of agents as trainables for Tune."""
+from ray.tune.registry import get_trainable_cls
 
 
 def _import_naf():
@@ -80,3 +81,12 @@ AGENTS = {
     "MBPO": _import_mbpo,
     "MAGE": _import_mage,
 }
+
+
+def get_agent_cls(agent_name):
+    """Retrieve agent class from global registry.
+
+    The user must have called `raylab.register_all_agents()` beforehand to
+    have access to Raylab's agents.
+    """
+    return get_trainable_cls(agent_name)
