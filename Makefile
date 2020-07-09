@@ -47,8 +47,15 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr htmlcov/
 	rm -fr .pytest_cache
 
-lint: ## check style with flake8
+f8lint: ## check style with flake8
 	flake8 raylab tests
+
+pylint: ## lint code with pylint
+	pylint raylab -d similarities
+	pylint --rcfile=tests/pylintrc tests -d similarities
+
+similarities: ## check code duplication with pylint
+	pylint raylab -d all -e similarities
 
 test: ## run tests quickly with the default Python
 	pytest
