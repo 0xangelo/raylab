@@ -52,6 +52,8 @@ f8lint: ## check style with flake8
 
 pylint: ## lint code with pylint
 	pylint raylab -d similarities
+
+pylint-test: ## lint test files with pylint
 	pylint --rcfile=tests/pylintrc tests -d similarities
 
 similarities: ## check code duplication with pylint
