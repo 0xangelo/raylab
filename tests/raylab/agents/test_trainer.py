@@ -67,7 +67,7 @@ def trainer_cls(policy_cls):
                 self.workers = make_workers()
 
         def _train(self):
-            return self._log_metrics({}, 0)
+            return {}
 
     return MinimalTrainer
 

@@ -94,14 +94,14 @@ class ModelBasedTrainer(OffPolicyTrainer):
     @override(OffPolicyTrainer)
     def _train(self):
         pre_learning_steps = self.sample_until_learning_starts()
-        init_timesteps = self.metrics.num_steps_sampled
+        timesteps_this_iter = 0
 
         config = self.config
         worker = self.workers.local_worker()
         stats = {}
-        while not self._iteration_done(init_timesteps):
+        while timesteps_this_iter < max(self.config["timesteps_per_iteration"], 1):
             samples = worker.sample()
-            self.metrics.num_steps_sampled += samples.count
+            timesteps_this_iter += samples.count
             for row in samples.rows():
                 self.replay.add(row)
 
@@ -116,7 +116,8 @@ class ModelBasedTrainer(OffPolicyTrainer):
             stats.update(model_train_info)
             stats.update(policy_train_info)
 
-        return self._log_metrics(stats, init_timesteps - pre_learning_steps)
+        self.metrics.num_steps_sampled += timesteps_this_iter
+        return self._log_metrics(stats, timesteps_this_iter + pre_learning_steps)
 
     def train_dynamics_model(self) -> Tuple[List[float], Dict[str, float]]:
         """Implements the model training step.

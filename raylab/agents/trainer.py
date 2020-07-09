@@ -124,7 +124,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     optimizer isn't being used by the algorithm.
     """
 
-    evaluation_metrics: Optional[dict]
+    evaluation_metrics: Optional[dict] = None
     optimizer: Optional[PolicyOptimizer]
     workers: Optional[WorkerSet]
     _allow_unknown_subkeys: List[str] = copy.deepcopy(
@@ -144,6 +144,8 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
 
         result = super().train()
 
+        if self.evaluation_metrics:
+            result.update(self.evaluation_metrics)
         # Update global_vars after training so that they're saved if checkpointing
         self.global_vars["timestep"] = self.metrics.num_steps_sampled
         return result
@@ -208,18 +210,3 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
             self.workers.foreach_worker(lambda w: w.set_global_vars(self.global_vars))
 
         super().__setstate__(state)
-
-    def _iteration_done(self, init_timesteps):
-        return self.metrics.num_steps_sampled - init_timesteps >= max(
-            self.config["timesteps_per_iteration"], 1
-        )
-
-    def _log_metrics(self, learner_stats, init_timesteps):
-        res = self.collect_metrics()
-        res.update(
-            timesteps_this_iter=self.metrics.num_steps_sampled - init_timesteps,
-            info=dict(learner=learner_stats, **res.get("info", {})),
-        )
-        if self._iteration == 0 and self.config["evaluation_interval"]:
-            res.update(self.evaluation_metrics)
-        return res
