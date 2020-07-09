@@ -1,9 +1,13 @@
 """Registry of environment reward functions in PyTorch."""
+import math
+
 import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 from ray.tune.registry import _global_registry
 from ray.tune.registry import ENV_CREATOR
+
+from .utils import get_env_parameters
 
 REWARDS = {}
 
@@ -91,12 +95,18 @@ class HalfCheetahReward(RewardFn):
 
     def __init__(self, config):
         super().__init__(config)
+        parameters = get_env_parameters("HalfCheetah-v3")
+        for attr in """
+        ctrl_cost_weight
+        forward_reward_weight
+        exclude_current_positions_from_observation
+        """.split():
+            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+
         assert (
-            config.get("exclude_current_positions_from_observation", True) is False
+            self._exclude_current_positions_from_observation is False
         ), "Need x position for HalfCheetah-v3 reward function"
         self.delta_t = 0.05
-        self._ctrl_cost_weight = config.get("ctrl_cost_weight", 0.1)
-        self._forward_reward_weight = config.get("forward_reward_weight", 1.0)
 
     @override(RewardFn)
     def forward(self, state, action, next_state):
@@ -276,9 +286,26 @@ class ReacherBulletEnvReward(RewardFn):
         return rewards
 
 
-# @register("Pendulum-v0")
-# class PendulumReward(RewardFn):
-#     """Pendulum-v0's reward function."""
+@register("Pendulum-v0")
+class PendulumReward(RewardFn):
+    """Pendulum-v0's reward function."""
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.max_torque = 2.0
+
+    def forward(self, state, action, next_state):
+        # pylint:disable=invalid-name
+        cos_th, sin_th, thdot = state[..., 0], state[..., 1], state[..., 2]
+        th = torch.atan2(sin_th, cos_th)
+        u = action[..., 0]
+
+        # angle_normalize
+        th = ((th + math.pi) % (2 * math.pi)) - math.pi
+
+        u = torch.clamp(u, -self.max_torque, self.max_torque)
+        costs = (th) ** 2 + 0.1 * thdot ** 2 + 0.001 * (u ** 2)
+        return -costs
 
 
 # @register("Pusher-v2")

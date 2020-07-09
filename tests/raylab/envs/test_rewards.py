@@ -45,4 +45,5 @@ def test_reproduce_rewards(env_reward):
     obs, action, new_obs, rew = map(torch.Tensor, (obs, action, new_obs, rew))
 
     rew_ = reward_fn(obs, action, new_obs)
+    assert rew.shape == rew_.shape
     assert torch.allclose(rew, rew_, rtol=1e-4, atol=1e-5)
