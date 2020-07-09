@@ -70,7 +70,7 @@ class ParameterNoise(RandomUniform):
         self.update_parameter_noise(policy, sample_batch)
         return sample_batch
 
-    def get_info(self) -> dict:
+    def get_info(self, sess=None) -> dict:
         return {"param_noise_stddev": self._param_noise_spec.curr_stddev}
 
     def update_parameter_noise(self, policy: TorchPolicy, sample_batch: SampleBatch):
