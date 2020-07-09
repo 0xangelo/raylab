@@ -5,6 +5,8 @@ from ray.rllib.utils import override
 from ray.tune.registry import _global_registry
 from ray.tune.registry import ENV_CREATOR
 
+from .utils import get_env_parameters
+
 TERMINATIONS = {}
 
 
@@ -52,7 +54,6 @@ class TimeAwareTerminationFn(TerminationFn):
         super().__init__()
         self.termination_fn = termination_fn
 
-    @override(TerminationFn)
     def forward(self, state, action, next_state):
         timeout = next_state[..., -1] >= 1.0
         env_done = self.termination_fn(state[..., :-1], action, next_state[..., :-1])
@@ -67,6 +68,10 @@ class TimeAwareTerminationFn(TerminationFn):
     "IBMisCalibration-v0",
     "IBFatigue-v0",
     "ReacherBulletEnv-v0",
+    "Pusher-v2",
+    "Swimmer-v2",
+    "Swimmer-v3",
+    "Pendulum-v0",
 )
 class NoTermination(TerminationFn):
     """Termination function for continuing environments.
@@ -78,7 +83,6 @@ class NoTermination(TerminationFn):
     def __init__(self, _):
         super().__init__()
 
-    @override(TerminationFn)
     def forward(self, state, action, next_state):
         return torch.zeros(next_state.shape[:-1]).bool()
 
@@ -99,7 +103,6 @@ class CartPoleSwingUpTermination(TerminationFn):
         params = CartPoleSwingUpParams()
         self.x_threshold = params.x_threshold
 
-    @override(TerminationFn)
     def forward(self, state, action, next_state):
         return next_state[..., 0].abs() > self.x_threshold
 
@@ -114,7 +117,6 @@ class MountainCarContinuousTermination(TerminationFn):
         goal_velocity = config.get("goal_velocity", 0.0)
         self.goal = torch.as_tensor([goal_position, goal_velocity])
 
-    @override(TerminationFn)
     def forward(self, state, action, next_state):
         return (next_state >= self.goal).all(dim=-1)
 
@@ -126,7 +128,6 @@ class HVACTermination(TerminationFn):
     def __init__(self, _):
         super().__init__()
 
-    @override(TerminationFn)
     def forward(self, state, action, next_state):
         return next_state[..., -1] >= 1.0
 
@@ -138,7 +139,6 @@ class ReservoirTermination(TerminationFn):
     def __init__(self, _):
         super().__init__()
 
-    @override(TerminationFn)
     def forward(self, state, action, next_state):
         return next_state[..., -1] >= 1.0
 
@@ -154,8 +154,49 @@ class NavigationTermination(TerminationFn):
         config = {**DEFAULT_CONFIG, **config}
         self.end = torch.as_tensor(config["end"]).float()
 
-    @override(TerminationFn)
     def forward(self, state, action, next_state):
         hit_goal = ((next_state[..., :2] - self.end).abs() <= 1e-1).all(dim=-1)
         timeout = next_state[..., -1] >= 1
         return hit_goal | timeout
+
+
+# @register("Pendulum-v0")
+# class PendulumTermination(TerminationFn):
+#     """Pendulum-v0's termination function."""
+
+
+@register("Walker2d-v3")
+class Walker2DTermination(TerminationFn):
+    """Walker2d-v3's termination function."""
+
+    def __init__(self, config):
+        super().__init__()
+        parameters = get_env_parameters("Walker2d-v3")
+        for attr in """
+        terminate_when_unhealthy
+        healthy_z_range
+        healthy_angle_range
+        exclude_current_positions_from_observation
+        """.split():
+            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+
+    def _is_healthy(self, state):
+        # pylint:disable=invalid-name
+        if self._exclude_current_positions_from_observation:
+            z, angle = state[..., 0], state[..., 1]
+        else:
+            z, angle = state[..., 1], state[..., 2]
+
+        min_z, max_z = self._healthy_z_range
+        min_angle, max_angle = self._healthy_angle_range
+
+        healthy_z = (min_z < z) & (z < max_z)
+        healthy_angle = (min_angle < angle) & (angle < max_angle)
+        is_healthy = healthy_z & healthy_angle
+
+        return is_healthy
+
+    def forward(self, state, action, next_state):
+        if self._terminate_when_unhealthy:
+            return ~self._is_healthy(next_state)
+        return torch.zeros(next_state.shape[:-1]).bool()

@@ -1,6 +1,10 @@
 """Env creation utilities."""
 import functools
+import importlib
+import inspect
+from typing import Mapping
 
+import gym
 from gym.wrappers import TimeLimit
 from ray.tune.registry import _global_registry
 from ray.tune.registry import ENV_CREATOR
@@ -81,3 +85,20 @@ def wrap_gaussian_random_walks(env, walks_kwargs):
     if walks_kwargs:
         env = GaussianRandomWalks(env, **walks_kwargs)
     return env
+
+
+def get_env_parameters(env_id: str) -> Mapping[str, inspect.Parameter]:
+    """Return an unwrapped environment's constructor parameters.
+
+    Args:
+        env_id: The environment name registered in Gym
+
+    Returns:
+        A mapping from parameter names to Parameter objects
+    """
+    env_spec = gym.spec(env_id)
+    mod_str, cls_str = env_spec.entry_point.split(":")
+    mod = importlib.import_module(mod_str)
+    env_cls = getattr(mod, cls_str)
+
+    return inspect.signature(env_cls).parameters
