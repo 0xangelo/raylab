@@ -74,7 +74,7 @@ repos:
         types: [python]
         stages: [commit]
         args: [-j 0]
-        exclude: examples/|tests/
+        files: ^raylab/
 
     - repo: local
       hooks:
@@ -85,4 +85,4 @@ repos:
         types: [python]
         stages: [commit]
         args: [--rcfile=tests/pylintrc]
-        exclude: examples/|raylab/
+        files: ^tests/
