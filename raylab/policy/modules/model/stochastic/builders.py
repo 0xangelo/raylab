@@ -57,14 +57,16 @@ class EnsembleSpec(Spec):
 
     Args:
         network: Specifications for stochastic model networks
-        ensemble_size: Number of models in the collection.
+        input_dependent_scale: Whether to parameterize the Gaussian standard
+            deviation as a function of the state and action
         residual: Whether to build each model as a residual one, i.e., that
             predicts the change in state rather than the next state itself
-        parallelize: Whether to use an ensemble with parallelized `sample`,
-            `rsample`, and `log_prob` methods
         initializer: Optional dictionary with mandatory `type` key corresponding
             to the initializer function name in `torch.nn.init` and optional
             keyword arguments. Used to initialize the models' Linear layers.
+        ensemble_size: Number of models in the collection.
+        parallelize: Whether to use an ensemble with parallelized `sample`,
+            `rsample`, and `log_prob` methods
     """
 
     ensemble_size: int = 1
