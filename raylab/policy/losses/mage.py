@@ -9,6 +9,10 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
+from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
+from raylab.policy.modules.critic.q_value import QValueEnsemble
+from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
 
@@ -25,11 +29,11 @@ class MAGEModules:
         models: ensemble of stochastic models
     """
 
-    critics: nn.ModuleList
-    target_critics: nn.ModuleList
-    policy: nn.Module
-    target_policy: nn.Module
-    models: nn.ModuleList
+    critics: QValueEnsemble
+    target_critics: QValueEnsemble
+    policy: DeterministicPolicy
+    target_policy: DeterministicPolicy
+    models: StochasticModelEnsemble
 
 
 class MAGE(EnvFunctionsMixin, Loss):

@@ -80,9 +80,9 @@ def action(n_models, batch_shape, action_space):
     return tensor.requires_grad_(True)
 
 
-def test_expand_for_each_model(loss_fn, batch, obs):
+def test_expand_foreach_model(loss_fn, batch, obs):
     batch_obs = batch[SampleBatch.CUR_OBS]
-    res = loss_fn.expand_for_each_model(batch_obs)
+    res = loss_fn.expand_foreach_model(batch_obs)
     assert torch.is_tensor(res)
     assert res.shape == obs.shape
 

@@ -8,6 +8,9 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
+from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
+from raylab.policy.modules.critic.q_value import QValueEnsemble
+from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
 from raylab.utils.annotations import DynamicsFn
 
 from .abstract import Loss
@@ -37,7 +40,10 @@ class MAPO(EnvFunctionsMixin, Loss):
     model_samples: int = 1
 
     def __init__(
-        self, models: nn.ModuleList, actor: nn.Module, critics: nn.ModuleList,
+        self,
+        models: StochasticModelEnsemble,
+        actor: StochasticPolicy,
+        critics: QValueEnsemble,
     ):
         super().__init__()
         modules = nn.ModuleDict()
@@ -47,6 +53,11 @@ class MAPO(EnvFunctionsMixin, Loss):
         self._modules = modules
 
         self._rng = np.random.default_rng()
+
+    def compile(self):
+        self._modules.update(
+            {k: torch.jit.script(v) for k, v in self._modules.items() if k != "policy"}
+        )
 
     def seed(self, seed: int):
         """Seeds the RNG for choosing a model from the ensemble."""
@@ -194,7 +205,7 @@ class DAPO(EnvFunctionsMixin, Loss):
     grad_estimator: str = "SF"
 
     def __init__(
-        self, dynamics_fn: DynamicsFn, actor: nn.Module, critics: nn.ModuleList
+        self, dynamics_fn: DynamicsFn, actor: StochasticPolicy, critics: QValueEnsemble
     ):
         super().__init__()
         self.dynamics_fn = dynamics_fn
