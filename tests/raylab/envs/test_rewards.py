@@ -20,7 +20,7 @@ def env_config(request):
 @pytest.fixture(params=VALID_ENVS)
 def env_reward(request, envs, env_config):
     env_name = request.param
-    if "HalfCheetah" in env_name:
+    if any(prefix in env_name for prefix in "HalfCheetah Walker2d Swimmer".split()):
         env_config["exclude_current_positions_from_observation"] = False
     if "IndustrialBenchmark" in env_name:
         env_config["max_episode_steps"] = 200
@@ -45,4 +45,5 @@ def test_reproduce_rewards(env_reward):
     obs, action, new_obs, rew = map(torch.Tensor, (obs, action, new_obs, rew))
 
     rew_ = reward_fn(obs, action, new_obs)
-    assert torch.allclose(rew, rew_, atol=1e-5)
+    assert rew.shape == rew_.shape
+    assert torch.allclose(rew, rew_, rtol=1e-4, atol=1e-5)

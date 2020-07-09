@@ -33,14 +33,14 @@ class OffPolicyTrainer(Trainer):
     @override(Trainer)
     def _train(self):
         pre_learning_steps = self.sample_until_learning_starts()
-        init_timesteps = self.metrics.num_steps_sampled
+        timesteps_this_iter = 0
 
         worker = self.workers.local_worker()
         policy = worker.get_policy()
         stats = {}
-        while not self._iteration_done(init_timesteps):
+        while timesteps_this_iter < max(self.config["timesteps_per_iteration"], 1):
             samples = worker.sample()
-            self.metrics.num_steps_sampled += samples.count
+            timesteps_this_iter += samples.count
             for row in samples.rows():
                 self.replay.add(row)
             stats.update(policy.get_exploration_info())
@@ -51,7 +51,8 @@ class OffPolicyTrainer(Trainer):
                 stats.update(policy.learn_on_batch(batch))
                 self.metrics.num_steps_trained += batch.count
 
-        return self._log_metrics(stats, init_timesteps - pre_learning_steps)
+        self.metrics.num_steps_sampled += timesteps_this_iter
+        return self._log_metrics(stats, timesteps_this_iter + pre_learning_steps)
 
     def build_replay_buffer(self, config):
         """Construct replay buffer to hold samples."""
@@ -84,6 +85,14 @@ class OffPolicyTrainer(Trainer):
 
     def _before_replay_steps(self, policy):  # pylint:disable=unused-argument
         pass
+
+    def _log_metrics(self, learner_stats, timesteps_this_iter):
+        res = self.collect_metrics()
+        res.update(
+            timesteps_this_iter=timesteps_this_iter,
+            info=dict(learner=learner_stats, **res.get("info", {})),
+        )
+        return res
 
     @staticmethod
     def validate_config(config):

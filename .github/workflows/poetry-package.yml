@@ -6,8 +6,8 @@ name: Poetry package
 on: [push, pull_request]
 
 jobs:
-  build:
-
+  test:
+    name: Pytest
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -25,3 +25,22 @@ jobs:
       run: poetry install
     - name: Run pytest
       run: poetry run pytest
+
+  publish:
+    name: Publish
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Install Poetry
+      uses: dschep/install-poetry-action@v1.3
+    - name: Install package
+      run: poetry install
+    - name: Build and publish
+      run: poetry publish --build --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}

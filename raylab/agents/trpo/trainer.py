@@ -73,8 +73,11 @@ class TRPOTrainer(Trainer):
     @override(Trainer)
     def _train(self):
         init_timesteps = self.optimizer.num_steps_sampled
+        timesteps_per_iteration = max(self.config["timesteps_per_iteration"], 2)
 
-        while not self._iteration_done(init_timesteps):
+        while (
+            self.optimizer.num_steps_sampled - init_timesteps < timesteps_per_iteration
+        ):
             _ = self.optimizer.step()
 
         res = self.collect_metrics()

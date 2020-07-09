@@ -1,9 +1,13 @@
 """Registry of environment reward functions in PyTorch."""
+import math
+
 import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 from ray.tune.registry import _global_registry
 from ray.tune.registry import ENV_CREATOR
+
+from .utils import get_env_parameters
 
 REWARDS = {}
 
@@ -91,12 +95,18 @@ class HalfCheetahReward(RewardFn):
 
     def __init__(self, config):
         super().__init__(config)
+        parameters = get_env_parameters("HalfCheetah-v3")
+        for attr in """
+        ctrl_cost_weight
+        forward_reward_weight
+        exclude_current_positions_from_observation
+        """.split():
+            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+
         assert (
-            config.get("exclude_current_positions_from_observation", True) is False
+            self._exclude_current_positions_from_observation is False
         ), "Need x position for HalfCheetah-v3 reward function"
         self.delta_t = 0.05
-        self._ctrl_cost_weight = config.get("ctrl_cost_weight", 0.1)
-        self._forward_reward_weight = config.get("forward_reward_weight", 1.0)
 
     @override(RewardFn)
     def forward(self, state, action, next_state):
@@ -274,3 +284,141 @@ class ReacherBulletEnvReward(RewardFn):
 
         rewards = (potential_new - potential_old) + electricity_cost + stuck_joint_cost
         return rewards
+
+
+@register("Pendulum-v0")
+class PendulumReward(RewardFn):
+    """Pendulum-v0's reward function."""
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.max_torque = 2.0
+
+    def forward(self, state, action, next_state):
+        # pylint:disable=invalid-name
+        cos_th, sin_th, thdot = state[..., 0], state[..., 1], state[..., 2]
+        th = torch.atan2(sin_th, cos_th)
+        u = action[..., 0]
+
+        # angle_normalize
+        th = ((th + math.pi) % (2 * math.pi)) - math.pi
+
+        u = torch.clamp(u, -self.max_torque, self.max_torque)
+        costs = (th) ** 2 + 0.1 * thdot ** 2 + 0.001 * (u ** 2)
+        return -costs
+
+
+@register("Pusher-v2")
+class PusherReward(RewardFn):
+    """Pusher-v2's reward function."""
+
+    vec_size: int = 3
+
+    def forward(self, state, action, next_state):
+        idx, vec_size = 14, self.vec_size
+        tips_arm = state[..., idx : idx + vec_size]
+        idx += vec_size
+        obj = state[..., idx : idx + vec_size]
+        idx += vec_size
+        goal = state[..., idx : idx + vec_size]
+        vec_1 = obj - tips_arm
+        vec_2 = obj - goal
+
+        reward_near = -torch.norm(vec_1, dim=-1)
+        reward_dist = -torch.norm(vec_2, dim=-1)
+        reward_ctrl = -torch.square(action).sum(dim=-1)
+        return reward_dist + 0.1 * reward_ctrl + 0.5 * reward_near
+
+
+@register("Walker2d-v3")
+class Walker2DReward(RewardFn):
+    """Walker2d-v3's reward function."""
+
+    def __init__(self, config):
+        super().__init__(config)
+        parameters = get_env_parameters("Walker2d-v3")
+        for attr in """
+        ctrl_cost_weight
+        forward_reward_weight
+        healthy_reward
+        terminate_when_unhealthy
+        healthy_z_range
+        healthy_angle_range
+        exclude_current_positions_from_observation
+        """.split():
+            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+
+        assert (
+            not self._exclude_current_positions_from_observation
+        ), "Need x position for Walkered-v3 reward function"
+        self.delta_t = 0.008
+
+    def forward(self, state, action, next_state):
+        x_velocity = (next_state[..., 0] - state[..., 0]) / self.delta_t
+        ctrl_cost = self._control_cost(action)
+
+        forward_reward = self._forward_reward_weight * x_velocity
+        if self._terminate_when_unhealthy:
+            healthy_reward = torch.empty_like(forward_reward).fill_(
+                self._healthy_reward
+            )
+        else:
+            healthy_reward = torch.where(
+                self._is_healthy(next_state),
+                torch.empty_like(forward_reward).fill_(self._healthy_reward),
+                torch.zeros_like(forward_reward),
+            )
+
+        rewards = forward_reward + healthy_reward
+        costs = ctrl_cost
+
+        return rewards - costs
+
+    def _control_cost(self, action):
+        control_cost = self._ctrl_cost_weight * torch.sum(torch.square(action), dim=-1)
+        return control_cost
+
+    def _is_healthy(self, state):
+        # pylint:disable=invalid-name
+        z, angle = state[..., 1], state[..., 2]
+
+        min_z, max_z = self._healthy_z_range
+        min_angle, max_angle = self._healthy_angle_range
+
+        healthy_z = (min_z < z) & (z < max_z)
+        healthy_angle = (min_angle < angle) & (angle < max_angle)
+        is_healthy = healthy_z & healthy_angle
+
+        return is_healthy
+
+
+@register("Swimmer-v3")
+class SwimmerReward(RewardFn):
+    """Swimmer-v3's reward function."""
+
+    def __init__(self, config):
+        super().__init__(config)
+        parameters = get_env_parameters("Swimmer-v3")
+        for attr in """
+        ctrl_cost_weight
+        forward_reward_weight
+        exclude_current_positions_from_observation
+        """.split():
+            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+
+        assert (
+            not self._exclude_current_positions_from_observation
+        ), "Need x position for Swimmer-v3 reward function"
+        self.delta_t = 0.04
+
+    def forward(self, state, action, next_state):
+        x_velocity = (next_state[..., 0] - state[..., 0]) / self.delta_t
+        forward_reward = self._forward_reward_weight * x_velocity
+
+        ctrl_cost = self._control_cost(action)
+
+        return forward_reward - ctrl_cost
+
+    def _control_cost(self, action):
+        control_cost = self._ctrl_cost_weight * torch.sum(torch.square(action), dim=-1)
+        return control_cost

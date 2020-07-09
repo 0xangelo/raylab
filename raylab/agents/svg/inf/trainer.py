@@ -91,4 +91,13 @@ class SVGInfTrainer(Trainer):
 
         stats.update(policy.learn_on_batch(samples))
 
-        return self._log_metrics(stats, init_timesteps)
+        timesteps_this_iter = self.metrics.num_steps_sampled - init_timesteps
+        return self._log_metrics(stats, timesteps_this_iter)
+
+    def _log_metrics(self, learner_stats, timesteps_this_iter):
+        res = self.collect_metrics()
+        res.update(
+            timesteps_this_iter=timesteps_this_iter,
+            info=dict(learner=learner_stats, **res.get("info", {})),
+        )
+        return res
