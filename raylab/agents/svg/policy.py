@@ -13,7 +13,7 @@ from raylab.pytorch.nn.utils import update_polyak
 class SVGTorchPolicy(EnvFnMixin, TorchPolicy):
     """Stochastic Value Gradients policy using PyTorch."""
 
-    # pylint: disable=abstract-method
+    # pylint:disable=abstract-method
     dist_class = WrapStochasticPolicy
 
     def __init__(self, observation_space, action_space, config):

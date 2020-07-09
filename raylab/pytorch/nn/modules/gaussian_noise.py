@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring
+# pylint:disable=missing-docstring
 import torch
 import torch.nn as nn
 from ray.rllib.utils import override
@@ -14,5 +14,5 @@ class GaussianNoise(nn.Module):
         self.scale = scale
 
     @override(nn.Module)
-    def forward(self, inputs):  # pylint: disable=arguments-differ
+    def forward(self, inputs):  # pylint:disable=arguments-differ
         return inputs + torch.randn_like(inputs) * self.scale

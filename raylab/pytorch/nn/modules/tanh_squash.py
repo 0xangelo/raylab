@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring
+# pylint:disable=missing-docstring
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -13,7 +13,7 @@ class TanhSquash(nn.Module):
         self.register_buffer("scale", (high - low) / 2)
 
     def forward(self, inputs: Tensor, reverse: bool = False) -> Tensor:
-        # pylint: disable=arguments-differ
+        # pylint:disable=arguments-differ
         if reverse:
             inputs = (inputs - self.loc) / self.scale
             to_log1 = torch.clamp(1 + inputs, min=1.1754943508222875e-38)

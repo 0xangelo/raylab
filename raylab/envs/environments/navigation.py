@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring
+# pylint:disable=missing-docstring
 # pylint: enable=missing-docstring
 import gym
 import numpy as np
@@ -34,7 +34,7 @@ class NavigationEnv(gym.Env):
     In Proceedings of the AAAI Conference on Artificial Intelligence.
     """
 
-    # pylint: disable=too-many-instance-attributes
+    # pylint:disable=too-many-instance-attributes
 
     metadata = {"render.modes": ["human"]}
 
@@ -91,7 +91,7 @@ class NavigationEnv(gym.Env):
         return self._state, reward, self._terminal(), {}
 
     def transition_fn(self, state, action, sample_shape=()):
-        # pylint: disable=missing-docstring
+        # pylint:disable=missing-docstring
         position, time = self._unpack_state(state)
         deceleration = 1.0
         if self._deceleration_zones:
@@ -129,7 +129,7 @@ class NavigationEnv(gym.Env):
         return torch.clamp((timestep + 1) / self._horizon, 0, 1)
 
     def reward_fn(self, state, action, next_state):
-        # pylint: disable=unused-argument,missing-docstring
+        # pylint:disable=unused-argument,missing-docstring
         position, _ = self._unpack_state(next_state)
         goal = torch.from_numpy(self._end)
         return torch.norm(position - goal, dim=-1).neg()

@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring
+# pylint:disable=missing-docstring
 import torch
 import torch.nn as nn
 from ray.rllib.utils import override
@@ -12,5 +12,5 @@ class LeafParameter(nn.Module):
         self.bias = nn.Parameter(torch.zeros(in_features))
 
     @override(nn.Module)
-    def forward(self, inputs):  # pylint: disable=arguments-differ
+    def forward(self, inputs):  # pylint:disable=arguments-differ
         return self.bias.expand(inputs.shape[:-1] + (-1,))

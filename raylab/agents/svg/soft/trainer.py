@@ -53,7 +53,7 @@ H = -dim(A), where A is the action space
 class SoftSVGTrainer(OffPolicyTrainer):
     """Single agent trainer for SoftSVG."""
 
-    # pylint: disable=attribute-defined-outside-init
+    # pylint:disable=attribute-defined-outside-init
     _name = "SoftSVG"
     _policy = SoftSVGTorchPolicy
 

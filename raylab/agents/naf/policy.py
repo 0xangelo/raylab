@@ -13,7 +13,7 @@ from raylab.pytorch.optim import build_optimizer
 class NAFTorchPolicy(TorchPolicy):
     """Normalized Advantage Function policy in Pytorch to use with RLlib."""
 
-    # pylint: disable=abstract-method
+    # pylint:disable=abstract-method
     dist_class = WrapDeterministicPolicy
 
     def __init__(self, *args, **kwargs):
@@ -28,7 +28,7 @@ class NAFTorchPolicy(TorchPolicy):
     @override(TorchPolicy)
     def get_default_config():
         """Return the default config for NAF."""
-        # pylint: disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import,protected-access
         from raylab.agents.naf import NAFTrainer
 
         return NAFTrainer._default_config

@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring
+# pylint:disable=missing-docstring
 import torch.nn as nn
 
 from .linear import NormalizedLinear

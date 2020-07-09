@@ -15,7 +15,7 @@ from raylab.pytorch.optim import build_optimizer
 class SACTorchPolicy(TorchPolicy):
     """Soft Actor-Critic policy in PyTorch to use with RLlib."""
 
-    # pylint: disable=abstract-method
+    # pylint:disable=abstract-method
     dist_class = WrapStochasticPolicy
 
     def __init__(self, observation_space, action_space, config):
@@ -39,7 +39,7 @@ class SACTorchPolicy(TorchPolicy):
     @override(TorchPolicy)
     def get_default_config():
         """Return the default config for SAC."""
-        # pylint: disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import,protected-access
         from raylab.agents.sac import SACTrainer
 
         return SACTrainer._default_config

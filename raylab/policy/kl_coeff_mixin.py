@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring
+# pylint:disable=missing-docstring
 # pylint: enable=missing-docstring
 from abc import abstractmethod
 

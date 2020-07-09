@@ -1,8 +1,10 @@
 """Network and configurations for modules with stochastic model ensembles."""
 from typing import List
+from typing import Tuple
 
 import torch
 import torch.nn as nn
+from torch import Tensor
 
 from .single import StochasticModel
 
@@ -24,7 +26,9 @@ class StochasticModelEnsemble(nn.ModuleList):
         super().__init__(models)
 
     @torch.jit.export
-    def sample(self, obs, action, sample_shape: List[int] = ()):
+    def sample(
+        self, obs, action, sample_shape: List[int] = ()
+    ) -> Tuple[Tensor, Tensor]:
         """Compute samples and likelihoods for each model in the ensemble."""
         outputs = [m.sample(obs, action, sample_shape) for m in self]
         sample = torch.stack([s for s, _ in outputs])
@@ -32,7 +36,9 @@ class StochasticModelEnsemble(nn.ModuleList):
         return sample, logp
 
     @torch.jit.export
-    def rsample(self, obs, action, sample_shape: List[int] = ()):
+    def rsample(
+        self, obs, action, sample_shape: List[int] = ()
+    ) -> Tuple[Tensor, Tensor]:
         """Compute reparemeterized samples and likelihoods for each model."""
         outputs = [m.rsample(obs, action, sample_shape) for m in self]
         sample = torch.stack([s for s, _ in outputs])
@@ -40,7 +46,7 @@ class StochasticModelEnsemble(nn.ModuleList):
         return sample, logp
 
     @torch.jit.export
-    def log_prob(self, obs, action, next_obs):
+    def log_prob(self, obs, action, next_obs) -> Tensor:
         """Compute likelihoods for each model in the ensemble."""
         return torch.stack([m.log_prob(obs, action, next_obs) for m in self])
 

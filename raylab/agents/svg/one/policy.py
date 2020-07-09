@@ -17,7 +17,7 @@ from raylab.pytorch.optim import get_optimizer_class
 class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
 
-    # pylint: disable=abstract-method
+    # pylint:disable=abstract-method
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -36,7 +36,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def get_default_config():
         """Return the default config for SVG(1)"""
-        # pylint: disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import,protected-access
         from raylab.agents.svg.one import SVGOneTrainer
 
         return SVGOneTrainer._default_config
