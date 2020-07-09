@@ -71,6 +71,7 @@ class TimeAwareTerminationFn(TerminationFn):
     "Pusher-v2",
     "Swimmer-v2",
     "Swimmer-v3",
+    "Pendulum-v0",
 )
 class NoTermination(TerminationFn):
     """Termination function for continuing environments.
