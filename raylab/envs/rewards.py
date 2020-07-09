@@ -330,9 +330,66 @@ class PusherReward(RewardFn):
         return reward_dist + 0.1 * reward_ctrl + 0.5 * reward_near
 
 
-# @register("Walker2d-v2")
-# class Walker2DReward(RewardFn):
-#     """Walker2d-v2's reward function."""
+@register("Walker2d-v3")
+class Walker2DReward(RewardFn):
+    """Walker2d-v3's reward function."""
+
+    def __init__(self, config):
+        super().__init__(config)
+        parameters = get_env_parameters("Walker2d-v3")
+        for attr in """
+        ctrl_cost_weight
+        forward_reward_weight
+        healthy_reward
+        terminate_when_unhealthy
+        healthy_z_range
+        healthy_angle_range
+        exclude_current_positions_from_observation
+        """.split():
+            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+
+        assert (
+            not self._exclude_current_positions_from_observation
+        ), "Need x position for Walkered-v3 reward function"
+        self.delta_t = 0.008
+
+    def forward(self, state, action, next_state):
+        x_velocity = (next_state[..., 0] - state[..., 0]) / self.delta_t
+        ctrl_cost = self._control_cost(action)
+
+        forward_reward = self._forward_reward_weight * x_velocity
+        if self._terminate_when_unhealthy:
+            healthy_reward = torch.empty_like(forward_reward).fill_(
+                self._healthy_reward
+            )
+        else:
+            healthy_reward = torch.where(
+                self._is_healthy(next_state),
+                torch.empty_like(forward_reward).fill_(self._healthy_reward),
+                torch.zeros_like(forward_reward),
+            )
+
+        rewards = forward_reward + healthy_reward
+        costs = ctrl_cost
+
+        return rewards - costs
+
+    def _control_cost(self, action):
+        control_cost = self._ctrl_cost_weight * torch.sum(torch.square(action), dim=-1)
+        return control_cost
+
+    def _is_healthy(self, state):
+        # pylint:disable=invalid-name
+        z, angle = state[..., 1], state[..., 2]
+
+        min_z, max_z = self._healthy_z_range
+        min_angle, max_angle = self._healthy_angle_range
+
+        healthy_z = (min_z < z) & (z < max_z)
+        healthy_angle = (min_angle < angle) & (angle < max_angle)
+        is_healthy = healthy_z & healthy_angle
+
+        return is_healthy
 
 
 # @register("Swimmer-v2")
