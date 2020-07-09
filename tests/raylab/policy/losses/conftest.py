@@ -1,15 +1,12 @@
 import pytest
 import torch
-import torch.nn as nn
 
-import raylab.pytorch.nn as nnx
-import raylab.pytorch.nn.distributions as ptd
-from raylab.policy.modules.v0.mixins.action_value_mixin import ActionValueFunction
-from raylab.policy.modules.v0.mixins.deterministic_actor_mixin import (
-    DeterministicPolicy,
-)
-from raylab.policy.modules.v0.mixins.stochastic_actor_mixin import StochasticPolicy
-from raylab.policy.modules.v0.mixins.stochastic_model_mixin import StochasticModelMixin
+from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
+from raylab.policy.modules.actor.policy.deterministic import MLPDeterministicPolicy
+from raylab.policy.modules.actor.policy.stochastic import MLPContinuousPolicy
+from raylab.policy.modules.critic.action_value import ActionValueCritic
+from raylab.policy.modules.model.stochastic.builders import build_ensemble
+from raylab.policy.modules.model.stochastic.builders import EnsembleSpec
 from raylab.utils.debug import fake_batch
 
 
@@ -35,44 +32,38 @@ def batch(obs_space, action_space):
     return {k: torch.from_numpy(v) for k, v in samples.items()}
 
 
-@pytest.fixture
-def make_model(obs_space, action_space):
+@pytest.fixture(params=(1, 2, 4), ids=(f"Models({n})" for n in (1, 2, 4)))
+def models(request, obs_space, action_space):
     config = {
-        "encoder": {"units": (32,)},
+        "network": {"units": (32,)},
         "residual": True,
         "input_dependent_scale": True,
+        "ensemble_size": request.param,
+        "parallelize": False,
     }
+    spec = EnsembleSpec.from_dict(config)
 
-    def factory():
-        return StochasticModelMixin.build_single_model(obs_space, action_space, config)
-
-    return factory
-
-
-@pytest.fixture(params=(1, 2, 4), ids=(f"Models({n})" for n in (1, 2, 4)))
-def models(request, make_model):
-    return nn.ModuleList([make_model() for _ in range(request.param)])
+    return build_ensemble(obs_space, action_space, spec)
 
 
 @pytest.fixture(params=(1, 2), ids=(f"Critics({n})" for n in (1, 2)))
 def action_critics(request, obs_space, action_space):
-    def critic():
-        return ActionValueFunction.from_scratch(
-            obs_space.shape[0], action_space.shape[0], units=(32,)
-        )
+    config = {
+        "encoder": {"units": [32]},
+        "double_q": request.param == 2,
+        "parallelize": False,
+    }
+    spec = ActionValueCritic.spec_cls.from_dict(config)
 
-    critics = nn.ModuleList([critic() for _ in range(request.param)])
-    target_critics = nn.ModuleList([critic() for _ in range(request.param)])
-    target_critics.load_state_dict(critics.state_dict())
-    return critics, target_critics
+    act_critic = ActionValueCritic(obs_space, action_space, spec)
+    return act_critic.q_values, act_critic.target_q_values
 
 
 @pytest.fixture
 def deterministic_policies(obs_space, action_space):
-    policy = DeterministicPolicy.from_scratch(
-        obs_space, action_space, {"beta": 1.2, "encoder": {"units": (32,)}}
-    )
-    target_policy = DeterministicPolicy.from_existing(policy, noise=0.3)
+    mlp_spec = MLPDeterministicPolicy.spec_cls(units=(32,), activation="ReLU")
+    policy = MLPDeterministicPolicy(obs_space, action_space, mlp_spec, norm_beta=1.2)
+    target_policy = DeterministicPolicy.add_gaussian_noise(policy, noise_stddev=0.3)
     return policy, target_policy
 
 
@@ -83,24 +74,8 @@ def policy_input_scale(request):
 
 @pytest.fixture
 def stochastic_policy(obs_space, action_space, policy_input_scale):
-    config = {
-        "encoder": {"units": (32,)},
-        "input_dependent_scale": policy_input_scale,
-    }
-
-    logits = nnx.FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
-    params = nnx.NormalParams(
-        logits.out_features,
-        action_space.shape[0],
-        input_dependent_scale=config["input_dependent_scale"],
+    config = {"encoder": {"units": (32,)}}
+    mlp_spec = MLPContinuousPolicy.spec_cls.from_dict(config)
+    return MLPContinuousPolicy(
+        obs_space, action_space, mlp_spec, input_dependent_scale=policy_input_scale
     )
-    params_module = nn.Sequential(logits, params)
-    dist_module = ptd.TransformedDistribution(
-        ptd.Independent(ptd.Normal(), reinterpreted_batch_ndims=1),
-        ptd.flows.TanhSquashTransform(
-            low=torch.as_tensor(action_space.low),
-            high=torch.as_tensor(action_space.high),
-            event_dim=1,
-        ),
-    )
-    return StochasticPolicy(params_module, dist_module)

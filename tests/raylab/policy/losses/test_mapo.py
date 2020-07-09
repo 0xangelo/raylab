@@ -1,3 +1,5 @@
+import math
+
 import pytest
 import torch
 
@@ -52,13 +54,18 @@ def test_mapo_compile(mapo, batch):
 
 
 @pytest.fixture
-def dynamics_fn(make_model):
-    model = make_model()
+def dynamics_fn():
+    def func(obs, _):
+        sample = torch.randn_like(obs)
+        log_prob = torch.sum(
+            -(sample ** 2) / 2
+            - torch.ones_like(obs).log()
+            - math.log(math.sqrt(2 * math.pi)),
+            dim=-1,
+        )
+        return sample, log_prob
 
-    def dynamics(obs, action):
-        return model.rsample(obs, action)
-
-    return dynamics
+    return func
 
 
 @pytest.fixture
