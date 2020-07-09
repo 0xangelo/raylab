@@ -15,7 +15,6 @@ from raylab.utils.annotations import DynamicsFn
 
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
-from .utils import clipped_action_value
 
 
 class MAPO(EnvFunctionsMixin, Loss):
@@ -134,7 +133,7 @@ class MAPO(EnvFunctionsMixin, Loss):
         next_act, logp = self._modules["policy"].rsample(next_obs)
         self._modules["policy"].requires_grad_(True)
 
-        next_qval = clipped_action_value(next_obs, next_act, self._modules["critics"])
+        next_qval = self._modules["critics"](next_obs, next_act, clip=True)[..., 0]
 
         reward = self._env.reward(obs, action, next_obs)
         done = self._env.termination(obs, action, next_obs)
@@ -278,7 +277,7 @@ class DAPO(EnvFunctionsMixin, Loss):
         next_act, logp = self._modules["policy"].rsample(next_obs)
         self._modules["policy"].requires_grad_(True)
 
-        next_qval = clipped_action_value(next_obs, next_act, self._modules["critics"])
+        next_qval = self._modules["critics"](next_obs, next_act, clip=True)[..., 0]
 
         reward = self._env.reward(obs, action, next_obs)
         done = self._env.termination(obs, action, next_obs)

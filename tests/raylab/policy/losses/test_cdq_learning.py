@@ -41,8 +41,9 @@ def test_target_value(cdq_loss, batch, critics, target_critics, target_policy):
         batch, SampleBatch.REWARDS, SampleBatch.NEXT_OBS, SampleBatch.DONES
     )
     targets = cdq_loss.critic_targets(rewards, next_obs, dones)
-    assert targets.shape == (len(next_obs),)
+    assert targets.shape == (len(next_obs), len(critics))
     assert targets.dtype == torch.float32
+    targets = targets[..., 0]
     assert torch.allclose(targets[dones], rewards[dones])
 
     modules.zero_grad()
@@ -67,13 +68,12 @@ def test_critic_loss(cdq_loss, batch, critics, target_critics, target_policy):
     assert all(p.grad is None for p in aux_params)
 
     obs, acts = dutil.get_keys(batch, SampleBatch.CUR_OBS, SampleBatch.ACTIONS)
-    vals = [m(obs, acts) for m in critics]
-    concat_vals = torch.cat(vals, dim=-1)
-    targets = torch.randn_like(vals[0])
+    vals = critics(obs, acts)
+    targets = torch.randn_like(vals)
     cdq_loss = nn.MSELoss()
     assert torch.allclose(
-        cdq_loss(concat_vals, targets.expand_as(concat_vals)),
-        sum(cdq_loss(val, targets) for val in vals) / len(vals),
+        cdq_loss(vals, targets),
+        sum(cdq_loss(val, tar) for val, tar in zip(vals, targets)) / len(vals),
     )
 
 
@@ -84,7 +84,7 @@ def actor(stochastic_policy):
 
 @pytest.fixture
 def soft_cdq_loss(critics, target_critics, actor):
-    return SoftCDQLearning(critics, target_critics, actor.sample)
+    return SoftCDQLearning(critics, target_critics, actor)
 
 
 def test_soft_critic_targets(soft_cdq_loss, batch, critics, target_critics, actor):
@@ -94,8 +94,9 @@ def test_soft_critic_targets(soft_cdq_loss, batch, critics, target_critics, acto
         batch, SampleBatch.REWARDS, SampleBatch.NEXT_OBS, SampleBatch.DONES
     )
     targets = loss_fn.critic_targets(rewards, next_obs, dones)
-    assert targets.shape == (len(next_obs),)
+    assert targets.shape == (len(next_obs), len(critics))
     assert targets.dtype == torch.float32
+    targets = targets[..., 0]
     assert torch.allclose(targets[dones], batch[SampleBatch.REWARDS][dones])
 
     targets.mean().backward()
@@ -120,11 +121,10 @@ def test_soft_critic_loss(soft_cdq_loss, batch, critics, target_critics, actor):
     assert all(p.grad is None for p in aux_params)
 
     obs, acts = dutil.get_keys(batch, SampleBatch.CUR_OBS, SampleBatch.ACTIONS)
-    vals = [m(obs, acts) for m in critics]
-    concat_vals = torch.cat(vals, dim=-1)
-    targets = torch.randn_like(vals[0])
+    vals = critics(obs, acts)
+    targets = torch.randn_like(vals)
     loss_fn = nn.MSELoss()
     assert torch.allclose(
-        loss_fn(concat_vals, targets.expand_as(concat_vals)),
-        sum(loss_fn(val, targets) for val in vals) / len(vals),
+        loss_fn(vals, targets),
+        sum(loss_fn(val, tar) for val, tar in zip(vals, targets)) / len(vals),
     )
