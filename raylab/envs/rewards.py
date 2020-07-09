@@ -392,6 +392,33 @@ class Walker2DReward(RewardFn):
         return is_healthy
 
 
-# @register("Swimmer-v2")
-# class SwimmerReward(RewardFn):
-#     """Swimmer-v2's reward function."""
+@register("Swimmer-v3")
+class SwimmerReward(RewardFn):
+    """Swimmer-v3's reward function."""
+
+    def __init__(self, config):
+        super().__init__(config)
+        parameters = get_env_parameters("Swimmer-v3")
+        for attr in """
+        ctrl_cost_weight
+        forward_reward_weight
+        exclude_current_positions_from_observation
+        """.split():
+            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+
+        assert (
+            not self._exclude_current_positions_from_observation
+        ), "Need x position for Swimmer-v3 reward function"
+        self.delta_t = 0.04
+
+    def forward(self, state, action, next_state):
+        x_velocity = (next_state[..., 0] - state[..., 0]) / self.delta_t
+        forward_reward = self._forward_reward_weight * x_velocity
+
+        ctrl_cost = self._control_cost(action)
+
+        return forward_reward - ctrl_cost
+
+    def _control_cost(self, action):
+        control_cost = self._ctrl_cost_weight * torch.sum(torch.square(action), dim=-1)
+        return control_cost
