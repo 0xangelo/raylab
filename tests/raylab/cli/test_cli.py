@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,redefined-outer-name,protected-access
+# pylint:disable=missing-docstring,redefined-outer-name,protected-access
 from click.testing import CliRunner
 
 from raylab import cli

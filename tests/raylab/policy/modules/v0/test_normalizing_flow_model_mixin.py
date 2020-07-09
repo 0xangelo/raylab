@@ -1,5 +1,5 @@
-# pylint: disable=missing-docstring,redefined-outer-name,protected-access
-# pylint: disable=too-many-arguments,too-many-locals
+# pylint:disable=missing-docstring,redefined-outer-name,protected-access
+# pylint:disable=too-many-arguments,too-many-locals
 import numpy as np
 import pytest
 import torch

@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,redefined-outer-name,protected-access
+# pylint:disable=missing-docstring,redefined-outer-name,protected-access
 import gym.spaces as spaces
 import pytest
 
