@@ -308,9 +308,26 @@ class PendulumReward(RewardFn):
         return -costs
 
 
-# @register("Pusher-v2")
-# class PusherReward(RewardFn):
-#     """Pusher-v2's reward function."""
+@register("Pusher-v2")
+class PusherReward(RewardFn):
+    """Pusher-v2's reward function."""
+
+    vec_size: int = 3
+
+    def forward(self, state, action, next_state):
+        idx, vec_size = 14, self.vec_size
+        tips_arm = state[..., idx : idx + vec_size]
+        idx += vec_size
+        obj = state[..., idx : idx + vec_size]
+        idx += vec_size
+        goal = state[..., idx : idx + vec_size]
+        vec_1 = obj - tips_arm
+        vec_2 = obj - goal
+
+        reward_near = -torch.norm(vec_1, dim=-1)
+        reward_dist = -torch.norm(vec_2, dim=-1)
+        reward_ctrl = -torch.square(action).sum(dim=-1)
+        return reward_dist + 0.1 * reward_ctrl + 0.5 * reward_near
 
 
 # @register("Walker2d-v2")
