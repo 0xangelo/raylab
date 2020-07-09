@@ -69,6 +69,8 @@ class TimeAwareTerminationFn(TerminationFn):
     "IBFatigue-v0",
     "ReacherBulletEnv-v0",
     "Pusher-v2",
+    "Swimmer-v2",
+    "Swimmer-v3",
 )
 class NoTermination(TerminationFn):
     """Termination function for continuing environments.
@@ -197,8 +199,3 @@ class Walker2DTermination(TerminationFn):
         if self._terminate_when_unhealthy:
             return ~self._is_healthy(next_state)
         return torch.zeros(next_state.shape[:-1]).bool()
-
-
-# @register("Swimmer-v2")
-# class SwimmerTermination(TerminationFn):
-#     """Swimmer-v2's termination function."""
