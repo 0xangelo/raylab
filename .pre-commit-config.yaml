@@ -67,11 +67,22 @@ repos:
 
     - repo: local
       hooks:
-      - id: pylint
-        name: pylint
+      - id: pylint-main
+        name: Pylint main
         entry: pylint
         language: system
         types: [python]
         stages: [commit]
         args: [-j 0]
-        exclude: "examples*"
+        exclude: examples/|tests/
+
+    - repo: local
+      hooks:
+      - id: pylint-test
+        name: Pylint test
+        entry: pylint
+        language: system
+        types: [python]
+        stages: [commit]
+        args: [--rcfile=tests/pylintrc]
+        exclude: examples/|raylab/
