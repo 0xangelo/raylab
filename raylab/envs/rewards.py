@@ -274,3 +274,23 @@ class ReacherBulletEnvReward(RewardFn):
 
         rewards = (potential_new - potential_old) + electricity_cost + stuck_joint_cost
         return rewards
+
+
+# @register("Pendulum-v0")
+# class PendulumReward(RewardFn):
+#     """Pendulum-v0's reward function."""
+
+
+# @register("Pusher-v2")
+# class PusherReward(RewardFn):
+#     """Pusher-v2's reward function."""
+
+
+# @register("Walker2d-v2")
+# class Walker2DReward(RewardFn):
+#     """Walker2d-v2's reward function."""
+
+
+# @register("Swimmer-v2")
+# class SwimmerReward(RewardFn):
+#     """Swimmer-v2's reward function."""
