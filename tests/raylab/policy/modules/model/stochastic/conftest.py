@@ -3,13 +3,20 @@ from ray.rllib import SampleBatch
 
 
 @pytest.fixture
-def log_prob_inputs(batch):
-    return [
-        batch[k]
-        for k in (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, SampleBatch.NEXT_OBS)
-    ]
+def obs(batch):
+    return batch[SampleBatch.CUR_OBS]
 
 
 @pytest.fixture
-def sample_inputs(batch):
-    return [batch[k] for k in (SampleBatch.CUR_OBS, SampleBatch.ACTIONS)]
+def act(batch):
+    return batch[SampleBatch.ACTIONS]
+
+
+@pytest.fixture
+def next_obs(batch):
+    return batch[SampleBatch.NEXT_OBS]
+
+
+@pytest.fixture
+def rew(batch):
+    return batch[SampleBatch.REWARDS]
