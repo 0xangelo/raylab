@@ -1,9 +1,9 @@
 # pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import contextlib
-import functools
 
 import pytest
 from ray.rllib import Policy
+from ray.rllib.agents.trainer import Trainer as RLlibTrainer
 from ray.rllib.optimizers import PolicyOptimizer
 
 from raylab.agents.trainer import config
@@ -47,9 +47,13 @@ def trainer_cls(policy_cls):
         allow_unknown_subkeys=True,
         override_all_if_type_changes=True,
     )
+    @Trainer.with_base_specs
     class MinimalTrainer(Trainer):
         _name = "MinimalTrainer"
         _policy = policy_cls
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, env="MockEnv", **kwargs)
 
         def _init(self, config, env_creator):
             def make_workers():
@@ -65,7 +69,7 @@ def trainer_cls(policy_cls):
         def _train(self):
             return self._log_metrics({}, 0)
 
-    return functools.partial(MinimalTrainer, env="MockEnv")
+    return MinimalTrainer
 
 
 @pytest.fixture(params=(True, False), ids=(f"Workers({b})" for b in (True, False)))
@@ -108,9 +112,9 @@ def test_returns_metrics(trainer_cls, workers, optim):
 
 
 def test_preserve_original_trainer_attr(trainer_cls):
-    allow_unknown_subkeys = set(Trainer._allow_unknown_subkeys)
+    allow_unknown_subkeys = set(RLlibTrainer._allow_unknown_subkeys)
     trainer_cls(config=dict(num_workers=0))
-    assert allow_unknown_subkeys == set(Trainer._allow_unknown_subkeys)
+    assert allow_unknown_subkeys == set(RLlibTrainer._allow_unknown_subkeys)
 
 
 @pytest.fixture(
@@ -122,6 +126,8 @@ def arbitrary(request):
 
 
 def test_override_all_if_type_changes(trainer_cls, arbitrary):
+    assert "arbitrary" in trainer_cls._allow_unknown_subkeys
+    assert "arbitrary" in trainer_cls._override_all_subkeys_if_type_changes
     trainer = trainer_cls(config=dict(arbitrary=arbitrary))
 
     subconfig = trainer.config["arbitrary"]

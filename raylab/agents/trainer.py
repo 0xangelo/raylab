@@ -162,7 +162,15 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         return trainer_cls
 
     def _setup(self, *args, **kwargs):
-        super()._setup(*args, **kwargs)
+        cls_attrs = ("_allow_unknown_subkeys", "_override_all_subkeys_if_type_changes")
+        attr_cache = ((attr, getattr(RLlibTrainer, attr)) for attr in cls_attrs)
+        for attr in cls_attrs:
+            setattr(RLlibTrainer, attr, getattr(self, attr))
+        try:
+            super()._setup(*args, **kwargs)
+        finally:
+            for attr, cache in attr_cache:
+                setattr(RLlibTrainer, attr, cache)
 
         # Always have a PolicyOptimizer to collect metrics
         if not hasattr(self, "optimizer"):
