@@ -22,7 +22,7 @@ class SACTorchPolicy(TorchPolicy):
         super().__init__(observation_space, action_space, config)
         self.loss_actor = ReparameterizedSoftPG(self.module.actor, self.module.critics)
         self.loss_critic = SoftCDQLearning(
-            self.module.critics, self.module.target_critics, self.module.actor.sample
+            self.module.critics, self.module.target_critics, self.module.actor
         )
         self.loss_critic.gamma = self.config["gamma"]
 
