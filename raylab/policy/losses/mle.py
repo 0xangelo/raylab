@@ -1,14 +1,13 @@
 """Loss functions for Maximum Likelihood Estimation."""
 from typing import Dict
-from typing import List
 from typing import Tuple
 
 import torch
-import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.policy.modules.v0.mixins.stochastic_model_mixin import StochasticModel
+from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+from raylab.policy.modules.model.stochastic.single import StochasticModel
 from raylab.utils.dictionaries import get_keys
 
 from .abstract import Loss
@@ -57,8 +56,8 @@ class ModelEnsembleMLE(Loss):
 
     batch_keys: Tuple[str, str, str] = MaximumLikelihood.batch_keys
 
-    def __init__(self, models: nn.ModuleList):
-        self.loss = NLLLoss(models)
+    def __init__(self, models: StochasticModelEnsemble):
+        self.models = models
 
     def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
         """Compute Maximum Likelihood Estimation (MLE) loss for each model.
@@ -67,32 +66,23 @@ class ModelEnsembleMLE(Loss):
             A tuple with a 1d loss tensor containing each model's loss and a
             dictionary of loss statistics
         """
-        obs, actions, next_obs = get_keys(batch, *self.batch_keys)
-        losses = self.loss(obs, actions, next_obs)
-        loss = torch.stack(losses)
-        info = {f"loss(models[{i}])": l.item() for i, l in enumerate(losses)}
+        obs, actions, next_obs = map(
+            self.expand_foreach_model, get_keys(batch, *self.batch_keys)
+        )
+        loss = -self.models.log_prob(obs, actions, next_obs).mean(dim=-1)
+        info = {f"loss(models[{i}])": s for i, s in enumerate(loss.tolist())}
         return loss, info
 
+    def expand_foreach_model(self, tensor: Tensor) -> Tensor:
+        """Add first dimension to tensor with the size of the model ensemble.
+
+        Args:
+            tensor: Tensor of shape `S`
+
+        Returns:
+            Tensor `tensor` expanded to shape `(N,) + S`
+        """
+        return tensor.expand((len(self.models),) + tensor.shape)
+
     def compile(self):
-        self.loss = torch.jit.script(self.loss)
-
-
-class NLLLoss(nn.Module):
-    """Negative log-likelihood loss for a model ensemble.
-
-    Computes transition likelihood under each model.
-
-    Args:
-        models: the model ensemble
-
-    Attributes:
-        models: the model ensemble
-    """
-
-    def __init__(self, models: nn.ModuleList):
-        super().__init__()
-        self.models = models
-
-    def forward(self, obs: Tensor, act: Tensor, new_obs: Tensor) -> List[Tensor]:
-        # pylint:disable=arguments-differ
-        return [-m.log_prob(obs, act, new_obs).mean() for m in self.models]
+        self.models = torch.jit.script(self.models)

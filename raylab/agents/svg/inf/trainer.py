@@ -50,7 +50,7 @@ from .policy import SVGInfTorchPolicy
 class SVGInfTrainer(Trainer):
     """Single agent trainer for SVG(inf)."""
 
-    # pylint: disable=attribute-defined-outside-init
+    # pylint:disable=attribute-defined-outside-init
 
     _name = "SVG(inf)"
     _policy = SVGInfTorchPolicy

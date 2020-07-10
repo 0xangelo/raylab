@@ -1,4 +1,4 @@
-# pylint: disable=missing-module-docstring
+# pylint:disable=missing-module-docstring
 from ray.rllib.utils import override
 
 from raylab.agents import trainer

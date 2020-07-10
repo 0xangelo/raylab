@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,invalid-name
+# pylint:disable=missing-docstring,invalid-name
 import gym
 import numpy as np
 import torch
@@ -66,7 +66,7 @@ class ReservoirEnv(gym.Env):
         return self._state, reward, self._terminal(), {}
 
     def transition_fn(self, state, action, sample_shape=()):
-        # pylint: disable=missing-docstring
+        # pylint:disable=missing-docstring
         state, time = self._unpack_state(state)
         rain, logp = self._rainfall(state, sample_shape)
         action = torch.as_tensor(action) * state
@@ -124,7 +124,7 @@ class ReservoirEnv(gym.Env):
         return torch.clamp((timestep + 1) / self._horizon, 0, 1)
 
     def reward_fn(self, state, action, next_state):
-        # pylint: disable=unused-argument,missing-docstring
+        # pylint:disable=unused-argument,missing-docstring
         rlevel, _ = self._unpack_state(next_state)
 
         LOWER_BOUND = torch.as_tensor(self._config["LOWER_BOUND"])

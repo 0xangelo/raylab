@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring
+# pylint:disable=missing-docstring
 # pylint: enable=missing-docstring
 import torch
 import torch.distributions as dists
@@ -10,7 +10,7 @@ class DiagMultivariateNormal(dists.Independent):
     parameterized by a mean vector and a diagonal covariance matrix.
     """
 
-    # pylint: disable=abstract-method
+    # pylint:disable=abstract-method
 
     def __init__(self, loc, scale_diag, validate_args=None):
         base_distribution = dists.Normal(loc=loc, scale=scale_diag)

@@ -18,7 +18,7 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
         loss_critic: model-based action-value-gradient estimator loss
     """
 
-    # pylint: disable=abstract-method
+    # pylint:disable=abstract-method
     dist_class = WrapDeterministicPolicy
 
     def __init__(self, observation_space, action_space, config):

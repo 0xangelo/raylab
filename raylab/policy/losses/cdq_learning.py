@@ -4,11 +4,11 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 
 import raylab.utils.dictionaries as dutil
-from raylab.utils.annotations import DetPolicy
-from raylab.utils.annotations import StochasticPolicy
+from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
+from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
+from raylab.policy.modules.critic.q_value import QValueEnsemble
 
 from .abstract import Loss
-from .utils import clipped_action_value
 
 
 class QLearningMixin:
@@ -29,8 +29,8 @@ class QLearningMixin:
         with torch.no_grad():
             target_values = self.critic_targets(rewards, next_obs, dones)
         loss_fn = nn.MSELoss()
-        values = torch.cat([m(obs, actions) for m in self.critics], dim=-1)
-        critic_loss = loss_fn(values, target_values.unsqueeze(-1).expand_as(values))
+        values = self.critics(obs, actions)
+        critic_loss = loss_fn(values, target_values)
 
         stats = {
             "q_mean": values.mean().item(),
@@ -59,7 +59,10 @@ class ClippedDoubleQLearning(QLearningMixin, Loss):
     gamma: float = 0.99
 
     def __init__(
-        self, critics: nn.ModuleList, target_critics: nn.ModuleList, actor: DetPolicy,
+        self,
+        critics: QValueEnsemble,
+        target_critics: QValueEnsemble,
+        actor: DeterministicPolicy,
     ):
         self.critics = critics
         self.target_critics = target_critics
@@ -71,9 +74,11 @@ class ClippedDoubleQLearning(QLearningMixin, Loss):
         using target networks and batch transitions.
         """
         next_acts = self.actor(next_obs)
-        target_values = clipped_action_value(next_obs, next_acts, self.target_critics)
-        next_values = torch.where(dones, torch.zeros_like(target_values), target_values)
-        return rewards + self.gamma * next_values
+        target_values = self.target_critics(next_obs, next_acts, clip=True)
+        vals = target_values[..., 0]
+        next_vals = torch.where(dones, torch.zeros_like(vals), vals)
+        target = rewards + self.gamma * next_vals
+        return target.unsqueeze(-1).expand_as(target_values)
 
 
 class SoftCDQLearning(QLearningMixin, Loss):
@@ -94,8 +99,8 @@ class SoftCDQLearning(QLearningMixin, Loss):
 
     def __init__(
         self,
-        critics: nn.ModuleList,
-        target_critics: nn.ModuleList,
+        critics: QValueEnsemble,
+        target_critics: QValueEnsemble,
         actor: StochasticPolicy,
     ):
         self.critics = critics
@@ -107,9 +112,11 @@ class SoftCDQLearning(QLearningMixin, Loss):
         Compute 1-step approximation of Q^{\\pi}(s, a) for Clipped Double Q-Learning
         using target networks and batch transitions.
         """
-        next_acts, next_logp = self.actor(next_obs)
-        target_values = clipped_action_value(next_obs, next_acts, self.target_critics)
+        next_acts, next_logp = self.actor.sample(next_obs)
+        target_values = self.target_critics(next_obs, next_acts, clip=True)
+        vals = target_values[..., 0]
 
-        next_values = torch.where(dones, torch.zeros_like(target_values), target_values)
+        next_vals = torch.where(dones, torch.zeros_like(vals), vals)
         next_entropy = torch.where(dones, torch.zeros_like(next_logp), -next_logp)
-        return rewards + self.gamma * (next_values + self.alpha * next_entropy)
+        target = rewards + self.gamma * (next_vals + self.alpha * next_entropy)
+        return target.unsqueeze(-1).expand_as(target_values)

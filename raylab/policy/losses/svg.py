@@ -207,7 +207,7 @@ class ReproduceRewards(nn.Module):
             Assumes the first tensor dimension of `acts` and `next_obs`
             corresponds to the timestep and iterates over it.
         """
-        # pylint: disable=arguments-differ
+        # pylint:disable=arguments-differ
         reward_seq = []
         for act, next_ob in zip(acts, next_obs):
             _act, _ = self.policy.reproduce(init_ob, act)

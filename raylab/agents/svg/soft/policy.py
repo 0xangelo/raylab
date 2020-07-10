@@ -15,7 +15,7 @@ from raylab.pytorch.optim import build_optimizer
 class SoftSVGTorchPolicy(SVGTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
 
-    # pylint: disable=abstract-method
+    # pylint:disable=abstract-method
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
@@ -50,7 +50,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def get_default_config():
         """Return the default config for SoftSVG"""
-        # pylint: disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import,protected-access
         from raylab.agents.svg.soft import SoftSVGTrainer
 
         return SoftSVGTrainer._default_config

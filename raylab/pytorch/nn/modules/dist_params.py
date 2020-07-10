@@ -23,7 +23,7 @@ class CategoricalParams(nn.Module):
 
     @override(nn.Module)
     def forward(self, inputs: torch.Tensor) -> Dict[str, torch.Tensor]:
-        # pylint: disable=arguments-differ
+        # pylint:disable=arguments-differ
         logits = self.logits_module(inputs)
         return {"logits": logits - logits.logsumexp(dim=-1, keepdim=True)}
 
@@ -51,7 +51,7 @@ class NormalParams(nn.Module):
 
     @override(nn.Module)
     def forward(self, inputs: torch.Tensor) -> Dict[str, torch.Tensor]:
-        # pylint: disable=arguments-differ
+        # pylint:disable=arguments-differ
         loc = self.loc_module(inputs)
         log_scale = self.log_scale_module(inputs)
         scale = torch.clamp(log_scale, self.LOG_STD_MIN, self.LOG_STD_MAX).exp()
@@ -68,6 +68,6 @@ class StdNormalParams(nn.Module):
 
     @override(nn.Module)
     def forward(self, inputs: torch.Tensor) -> Dict[str, torch.Tensor]:
-        # pylint: disable=arguments-differ
+        # pylint:disable=arguments-differ
         shape = inputs.shape[: -self.input_dim] + self.event_shape
         return {"loc": torch.zeros(shape), "scale": torch.ones(shape)}
