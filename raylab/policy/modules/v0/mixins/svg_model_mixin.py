@@ -57,7 +57,7 @@ class SVGDynamicsParams(nn.Module):
         self.params = nn.ModuleList([make_param(m.out_features) for m in self.logits])
 
     @override(nn.Module)
-    def forward(self, obs, act):  # pylint: disable=arguments-differ
+    def forward(self, obs, act):  # pylint:disable=arguments-differ
         params = [p(l(obs, act)) for p, l in zip(self.params, self.logits)]
         loc = torch.cat([d["loc"] for d in params], dim=-1)
         scale = torch.cat([d["scale"] for d in params], dim=-1)

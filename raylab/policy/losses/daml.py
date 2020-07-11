@@ -14,7 +14,6 @@ from raylab.utils.annotations import DynamicsFn
 from raylab.utils.annotations import RewardFn
 
 from .abstract import Loss
-from .utils import clipped_action_value
 
 
 class DPGAwareModelLearning(Loss):
@@ -84,7 +83,7 @@ class DPGAwareModelLearning(Loss):
         # Next action grads shouldn't propagate
         with torch.no_grad():
             next_acts = self.actor(next_obs)
-        next_values = clipped_action_value(next_obs, next_acts, self.critics)
+        next_values = self.critics(next_obs, next_acts, clip=True)[..., 0]
         values = rewards + self.gamma * next_values
 
         if self.grad_estimator == "SF":
@@ -107,4 +106,4 @@ class DPGAwareModelLearning(Loss):
 
     def zero_step_action_values(self, obs: Tensor, actions: Tensor) -> Tensor:
         """Compute Q^{\\pi}(s, a) directly using approximate critic."""
-        return clipped_action_value(obs, actions, self.critics)
+        return self.critics(obs, actions, clip=True)[..., 0]

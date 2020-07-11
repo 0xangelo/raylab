@@ -4,7 +4,8 @@ import pickle
 import warnings
 
 from ray.rllib.utils import merge_dicts
-from ray.tune.registry import get_trainable_cls
+
+from raylab.agents.registry import get_agent_cls
 
 
 def get_agent_from_checkpoint(checkpoint, agent_name, env=None, **config_kwargs):
@@ -42,8 +43,3 @@ def get_config_from_checkpoint(checkpoint, use_eval_config=True, config_override
     if config_overrides:
         config = merge_dicts(config, config_overrides)
     return config
-
-
-def get_agent_cls(agent_name):
-    """Retrieve agent class from global registry."""
-    return get_trainable_cls(agent_name)

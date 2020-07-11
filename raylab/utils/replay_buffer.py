@@ -55,7 +55,7 @@ class ListReplayBuffer(_ReplayBuffer):
         self.fields = self.fields + fields
 
     @override(_ReplayBuffer)
-    def add(self, row: dict):  # pylint: disable=arguments-differ
+    def add(self, row: dict):  # pylint:disable=arguments-differ
         """Add a row from a SampleBatch to storage.
 
         Args:
@@ -171,7 +171,7 @@ class NumpyReplayBuffer:
         self.fields = self.fields + fields
         self._build_buffers(*fields)
 
-    def add(self, row: dict):  # pylint: disable=arguments-differ
+    def add(self, row: dict):  # pylint:disable=arguments-differ
         """Add a row from a SampleBatch to storage.
 
         Args:

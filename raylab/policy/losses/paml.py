@@ -7,10 +7,13 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
+from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
+from raylab.policy.modules.critic.q_value import QValueEnsemble
+from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
 from .mle import ModelEnsembleMLE
-from .utils import clipped_action_value
 
 
 class SPAML(EnvFunctionsMixin, Loss):
@@ -45,7 +48,12 @@ class SPAML(EnvFunctionsMixin, Loss):
     grad_estimator: str = "SF"
     lambda_: float = 0.05
 
-    def __init__(self, models, actor, critics):
+    def __init__(
+        self,
+        models: StochasticModelEnsemble,
+        actor: StochasticPolicy,
+        critics: QValueEnsemble,
+    ):
         super().__init__()
         modules = nn.ModuleDict()
         modules["models"] = models
@@ -76,7 +84,7 @@ class SPAML(EnvFunctionsMixin, Loss):
             "Did you set reward and termination functions?"
         )
         obs = batch[SampleBatch.CUR_OBS]
-        obs = self.expand_for_each_model(obs)
+        obs = self.expand_foreach_model(obs)
         action = self.generate_action(obs)
         value_target = self.zero_step_action_value(obs, action)
         value_pred = self.one_step_action_value_surrogate(obs, action)
@@ -84,21 +92,21 @@ class SPAML(EnvFunctionsMixin, Loss):
         mle_loss = self.maximum_likelihood_loss(batch)
 
         loss = grad_loss + self.lambda_ * mle_loss
-        info = {f"loss(models[{i}])": loss for i, loss in enumerate(loss.tolist())}
+        info = {f"loss(models[{i}])": s for i, s in enumerate(loss.tolist())}
         info["loss(daml)"] = grad_loss.mean().item()
         info["loss(mle)"] = mle_loss.mean().item()
         return loss, info
 
-    def expand_for_each_model(self, obs: Tensor) -> Tensor:
-        """Expands the observation to match the size of the model ensemble.
+    def expand_foreach_model(self, tensor: Tensor) -> Tensor:
+        """Add first dimension to tensor with the size of the model ensemble.
 
         Args:
-            obs: The observation tensor of shape `(*, O)`
+            tensor: Tensor of shape `S`
 
         Returns:
-            The observation tensor expanded to shape `(N, *, O)`
+            Tensor `tensor` expanded to shape `(N,) + S`
         """
-        return obs.expand((self.ensemble_size,) + obs.shape)
+        return tensor.expand((len(self._modules["models"]),) + tensor.shape)
 
     @torch.no_grad()
     def generate_action(self, obs: Tensor) -> Tensor:
@@ -129,7 +137,7 @@ class SPAML(EnvFunctionsMixin, Loss):
         Returns:
             The action-value tensor of shape `(N, *)`
         """
-        return clipped_action_value(obs, action, self._modules["critics"])
+        return self._modules["critics"](obs, action, clip=True)[..., 0]
 
     def one_step_action_value_surrogate(self, obs: Tensor, action: Tensor) -> Tensor:
         """Surrogate loss for gradient estimation of action values.
@@ -168,7 +176,7 @@ class SPAML(EnvFunctionsMixin, Loss):
         next_act, logp = self._modules["policy"].rsample(next_obs)
         self._modules["policy"].requires_grad_(True)
 
-        next_qval = clipped_action_value(next_obs, next_act, self._modules["critics"])
+        next_qval = self._modules["critics"](next_obs, next_act, clip=True)[..., 0]
 
         reward = self._env.reward(obs, action, next_obs)
         done = self._env.termination(obs, action, next_obs)
@@ -200,12 +208,10 @@ class SPAML(EnvFunctionsMixin, Loss):
         models = self._modules["models"]
 
         if self.grad_estimator == "SF":
-            model_outputs = [m.sample(obs[i], action[i]) for i, m in enumerate(models)]
+            next_obs, logp = models.sample(obs, action)
         elif self.grad_estimator == "PD":
-            model_outputs = [m.rsample(obs[i], action[i]) for i, m in enumerate(models)]
+            next_obs, logp = models.rsample(obs, action)
 
-        next_obs = torch.stack([o for o, _ in model_outputs])
-        logp = torch.stack([l for _, l in model_outputs])
         return next_obs, logp
 
     @staticmethod
@@ -228,7 +234,11 @@ class SPAML(EnvFunctionsMixin, Loss):
         (action_gradient,) = torch.autograd.grad(
             temporal_diff.sum(), action, create_graph=True
         )
-        return action_gradient.abs().sum(dim=-1).mean(dim=-1)
+
+        # First compute action gradient norms by reducing along action dimension
+        grad_norms = action_gradient.abs().sum(dim=-1)
+        # Return mean action gradient loss along batch dimension
+        return grad_norms.mean(dim=-1)
 
     def maximum_likelihood_loss(self, batch: Dict[str, Tensor]) -> Tensor:
         """Model regularization through Maximum Likelihood.

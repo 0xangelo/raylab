@@ -14,7 +14,7 @@ from raylab.pytorch.optim import build_optimizer
 class MAPOTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
     """Model-Aware Policy Optimization policy in PyTorch to use with RLlib."""
 
-    # pylint: disable=abstract-method
+    # pylint:disable=abstract-method
     dist_class = WrapStochasticPolicy
 
     def __init__(self, observation_space, action_space, config):
@@ -58,7 +58,7 @@ class MAPOTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
     @staticmethod
     def get_default_config():
         """Return the default configuration for MAPO."""
-        # pylint: disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import,protected-access
         from raylab.agents.mapo import MAPOTrainer
 
         return MAPOTrainer._default_config

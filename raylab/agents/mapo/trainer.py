@@ -95,7 +95,7 @@ EXPLORATION_CONFIG = {"type": "raylab.utils.exploration.StochasticActor"}
 class MAPOTrainer(ModelBasedTrainer):
     """Single agent trainer for Model-Aware Policy Optimization."""
 
-    # pylint: disable=attribute-defined-outside-init
+    # pylint:disable=attribute-defined-outside-init
 
     _name = "MAPO"
     _policy = MAPOTorchPolicy

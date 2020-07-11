@@ -91,10 +91,23 @@ class QValueEnsemble(nn.ModuleList):
             A tensor of shape `(*, N)`, where `N` is the ensemble size
         """
         # pylint:disable=arguments-differ
-        action_values = torch.cat([m(obs, action) for m in self], dim=-1)
+        action_values = self.action_values(obs, action)
         if clip:
-            action_values, _ = action_values.min(keepdim=True, dim=-1)
+            clipped, _ = action_values.min(keepdim=True, dim=-1)
+            action_values = clipped.expand_as(action_values)
         return action_values
+
+    def action_values(self, obs: Tensor, act: Tensor) -> Tensor:
+        """Evaluate each Q estimator in the ensemble.
+
+        Args:
+            obs: The observation tensor
+            action: The action tensor
+
+        Returns:
+            A tensor of shape `(*, N)`, where `N` is the ensemble size
+        """
+        return torch.cat([m(obs, act) for m in self], dim=-1)
 
     def initialize_parameters(self, initializer_spec: dict):
         """Initialize each Q estimator in the ensemble.
@@ -111,10 +124,7 @@ class QValueEnsemble(nn.ModuleList):
 class ForkedQValueEnsemble(QValueEnsemble):
     """Ensemble of Q-value estimators with parallelized forward pass."""
 
-    def forward(self, obs: Tensor, action: Tensor, clip: bool = False) -> Tensor:
+    def action_values(self, obs: Tensor, act: Tensor) -> Tensor:
         # pylint:disable=protected-access
-        futures = [torch.jit._fork(m, obs, action) for m in self]
-        action_values = torch.cat([torch.jit._wait(f) for f in futures], dim=-1)
-        if clip:
-            action_values, _ = action_values.min(keepdim=True, dim=-1)
-        return action_values
+        futures = [torch.jit._fork(m, obs, act) for m in self]
+        return torch.cat([torch.jit._wait(f) for f in futures], dim=-1)

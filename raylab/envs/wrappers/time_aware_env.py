@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring
+# pylint:disable=missing-docstring
 # pylint: enable=missing-docstring
 import gym
 import numpy as np
@@ -34,7 +34,7 @@ class AddRelativeTimestep(gym.ObservationWrapper):
             self.reward_fn = reward_fn
 
     def observation(self, observation):
-        # pylint: disable=protected-access
+        # pylint:disable=protected-access
         return np.append(
             observation, (self._env._elapsed_steps / self._env._max_episode_steps)
         )

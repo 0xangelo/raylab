@@ -103,7 +103,7 @@ class NAF(nn.Module):
         )
 
     @override(nn.Module)
-    def forward(self, obs, actions):  # pylint: disable=arguments-differ
+    def forward(self, obs, actions):  # pylint:disable=arguments-differ
         logits = self.logits(obs)
         best_value = self.value(logits)
         advantage = self.advantage_module(logits, actions)
@@ -119,7 +119,7 @@ class AdvantageFunction(nn.Module):
         self.action_module = action_module
 
     @override(nn.Module)
-    def forward(self, logits, actions):  # pylint: disable=arguments-differ
+    def forward(self, logits, actions):  # pylint:disable=arguments-differ
         tril_matrix = self.tril_module(logits)  # square matrix [..., N, N]
         best_action = self.action_module(logits)  # batch of actions [..., N]
         action_diff = (actions - best_action).unsqueeze(-1)  # column vector [..., N, 1]
@@ -138,7 +138,7 @@ class MultivariateNormalParams(nn.Module):
         self.scale_tril_module = scale_tril_module
 
     @override(nn.Module)
-    def forward(self, obs):  # pylint: disable=arguments-differ
+    def forward(self, obs):  # pylint:disable=arguments-differ
         logits = self.logits_module(obs)
         loc = self.loc_module(logits)
         scale_tril = self.scale_tril_module(logits)

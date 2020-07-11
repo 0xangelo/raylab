@@ -14,7 +14,6 @@ from raylab.utils.annotations import DynamicsFn
 from raylab.utils.annotations import RewardFn
 
 from .abstract import Loss
-from .utils import clipped_action_value
 
 
 class DeterministicPolicyGradient(Loss):
@@ -43,7 +42,7 @@ class DeterministicPolicyGradient(Loss):
     def state_value(self, obs):
         """Compute the state value by combining policy and action-value function."""
         actions = self.actor(obs)
-        return clipped_action_value(obs, actions, self.critics)
+        return self.critics(obs, actions, clip=True)[..., 0]
 
 
 class ReparameterizedSoftPG(Loss):
@@ -69,18 +68,18 @@ class ReparameterizedSoftPG(Loss):
     def __call__(self, batch):
         obs = batch[SampleBatch.CUR_OBS]
 
-        action_values, entropy = self.action_value_entropy(obs)
+        action_values, entropy = self.action_value_plus_entropy(obs)
         loss = -torch.mean(action_values + self.alpha * entropy)
 
         stats = {"loss(actor)": loss.item(), "entropy": entropy.mean().item()}
         return loss, stats
 
-    def action_value_entropy(self, obs):
+    def action_value_plus_entropy(self, obs):
         """
         Compute the action-value and a single sample estimate of the policy's entropy.
         """
         actions, logp = self.actor.rsample(obs)
-        action_values = clipped_action_value(obs, actions, self.critics)
+        action_values = self.critics(obs, actions, clip=True)[..., 0]
         return action_values, -logp
 
 
@@ -144,7 +143,7 @@ class ModelAwareDPG:
         # Next action grads shouldn't propagate
         with torch.no_grad():
             next_acts = self.actor(next_obs)
-        next_values = clipped_action_value(next_obs, next_acts, self.critics)
+        next_values = self.critics(next_obs, next_acts, clip=True)[..., 0]
         values = rewards + self.gamma * next_values
 
         if self.grad_estimator == "SF":

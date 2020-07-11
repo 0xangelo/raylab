@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring
+# pylint:disable=missing-docstring
 # pylint: enable=missing-docstring
 import torch.distributions as dists
 
@@ -8,7 +8,7 @@ from .transforms import TanhTransform
 class SquashedDistribution(dists.TransformedDistribution):
     """Transformed distribution with samples constrained to the desired range."""
 
-    # pylint: disable=abstract-method
+    # pylint:disable=abstract-method
 
     def __init__(self, base_distribution, low, high, **kwargs):
         squash = TanhTransform(cache_size=1)

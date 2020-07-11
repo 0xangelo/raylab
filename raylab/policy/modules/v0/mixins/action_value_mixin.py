@@ -52,7 +52,7 @@ class ActionValueFunction(nn.Module):
         self.value_module = value_module
 
     @override(nn.Module)
-    def forward(self, obs, actions):  # pylint: disable=arguments-differ
+    def forward(self, obs, actions):  # pylint:disable=arguments-differ
         logits = self.logits_module(obs, actions)
         return self.value_module(logits)
 

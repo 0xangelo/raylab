@@ -1,4 +1,3 @@
-# pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import copy
 
 import pytest

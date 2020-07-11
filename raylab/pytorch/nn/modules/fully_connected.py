@@ -41,7 +41,7 @@ class FullyConnected(nn.Sequential):
 
     @override(nn.Module)
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        # pylint: disable=arguments-differ
+        # pylint:disable=arguments-differ
         return self.sequential(inputs)
 
 
@@ -77,7 +77,7 @@ class StateActionEncoder(nn.Module):
 
     @override(nn.Module)
     def forward(self, obs: torch.Tensor, actions: torch.Tensor) -> torch.Tensor:
-        # pylint: disable=arguments-differ
+        # pylint:disable=arguments-differ
         output = self.obs_module(obs)
         output = torch.cat([output, actions], dim=-1)
         output = self.sequential_module(output)
@@ -106,7 +106,7 @@ class MADE(nn.Module):
         input dimensions in "chunks" and should be carefully decoded downstream.
     """
 
-    # pylint: disable=too-many-instance-attributes
+    # pylint:disable=too-many-instance-attributes
 
     def __init__(
         self,
@@ -115,7 +115,7 @@ class MADE(nn.Module):
         out_features: int,
         natural_ordering: bool = False,
     ):
-        # pylint: disable=too-many-arguments
+        # pylint:disable=too-many-arguments
         super().__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -140,10 +140,10 @@ class MADE(nn.Module):
         linears = [MaskedLinear(hin, hout) for hin, hout in zip(sizes[:-1], sizes[1:])]
         for linear, mask in zip(linears, masks):
             linear.set_mask(mask)
-        layers = [m for l in linears[:-1] for m in (l, nn.LeakyReLU(0.2))]
+        layers = [m for layer in linears[:-1] for m in (layer, nn.LeakyReLU(0.2))]
         layers += linears[-1:]
         self.net = nn.Sequential(*layers)
 
     @override(nn.Module)
-    def forward(self, inputs):  # pylint: disable=arguments-differ
+    def forward(self, inputs):  # pylint:disable=arguments-differ
         return self.net(inputs)

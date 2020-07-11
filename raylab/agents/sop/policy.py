@@ -14,7 +14,7 @@ from raylab.pytorch.optim import build_optimizer
 class SOPTorchPolicy(TorchPolicy):
     """Streamlined Off-Policy policy in PyTorch to use with RLlib."""
 
-    # pylint: disable=abstract-method
+    # pylint:disable=abstract-method
     dist_class = WrapDeterministicPolicy
 
     def __init__(self, *args, **kwargs):

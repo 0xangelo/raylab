@@ -11,7 +11,7 @@ from raylab.envs.termination import register as register_termination
 from raylab.envs.termination import TerminationFn
 
 
-class MockEnv(gym.Env):  # pylint: disable=abstract-method
+class MockEnv(gym.Env):  # pylint:disable=abstract-method
     """Dummy environment with continuous action space."""
 
     def __init__(self, _):
@@ -48,7 +48,7 @@ class MockEnv(gym.Env):  # pylint: disable=abstract-method
         return self.state, reward, self.time >= self.horizon, {}
 
     def reward_fn(self, state, action, next_state):
-        # pylint: disable=missing-docstring,unused-argument
+        # pylint:disable=missing-docstring,unused-argument
         return torch.norm(next_state - self.goal, dim=-1)
 
 

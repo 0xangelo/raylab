@@ -60,7 +60,7 @@ def wrap_time_limit(env, time_aware, max_episode_steps):
             env_ = env_.env
 
         if has_timelimit:
-            # pylint: disable=protected-access
+            # pylint:disable=protected-access
             env_._max_episode_steps = max_episode_steps
             # pylint: enable=protected-access
         else:

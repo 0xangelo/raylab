@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring,invalid-name
+# pylint:disable=missing-docstring,invalid-name
 import gym
 import numpy as np
 import torch
@@ -70,7 +70,7 @@ class HVACEnv(gym.Env):
         return self._state, reward, self._terminal(), {}
 
     def transition_fn(self, state, action, sample_shape=()):
-        # pylint: disable=missing-docstring
+        # pylint:disable=missing-docstring
         state, time = self._unpack_state(state)
 
         AIR_MAX = torch.as_tensor(self._config["AIR_MAX"])
@@ -105,7 +105,7 @@ class HVACEnv(gym.Env):
         logp = dist.log_prob(sample.detach())
         return sample, logp
 
-    def _temp(self, action, temp_outside, temp_hall):  # pylint: disable=too-many-locals
+    def _temp(self, action, temp_outside, temp_hall):  # pylint:disable=too-many-locals
         air = action
 
         TIME_DELTA = torch.as_tensor(self._config["TIME_DELTA"])
@@ -141,7 +141,7 @@ class HVACEnv(gym.Env):
         return torch.clamp((timestep + 1) / self._horizon, 0, 1)
 
     def reward_fn(self, state, action, next_state):
-        # pylint: disable=unused-argument,missing-docstring
+        # pylint:disable=unused-argument,missing-docstring
         AIR_MAX = torch.as_tensor(self._config["AIR_MAX"])
         air = torch.as_tensor(action) * AIR_MAX
 

@@ -22,6 +22,7 @@ endef
 export PRINT_HELP_PYSCRIPT
 
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
+LATEST_TAG := $(shell git describe --abbrev=0)
 
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
@@ -47,14 +48,26 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr htmlcov/
 	rm -fr .pytest_cache
 
-lint: ## check style with flake8
+f8lint: ## check style with flake8
 	flake8 raylab tests
+
+pylint: ## lint code with pylint
+	pylint raylab -d similarities
+
+pylint-test: ## lint test files with pylint
+	pylint --rcfile=tests/pylintrc tests -d similarities
+
+similarities: ## check code duplication with pylint
+	pylint raylab -d all -e similarities
 
 test: ## run tests quickly with the default Python
 	pytest
 
 test-all: ## run tests on every Python version with tox
 	tox
+
+changelog:
+	auto-changelog --tag-prefix v --unreleased --stdout --starting-commit HEAD
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source raylab -m pytest

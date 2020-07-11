@@ -1,4 +1,3 @@
-# pylint:disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 
 from .mock_env import MockEnv

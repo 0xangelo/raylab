@@ -1,22 +1,13 @@
-# pylint: disable=missing-docstring,redefined-outer-name,protected-access
 import pytest
 
 
 @pytest.fixture
-def sac_trainer():
-    from raylab.agents.registry import AGENTS
+def trainer_cls():
+    from raylab.agents.registry import get_agent_cls
 
-    return AGENTS["SoftAC"]()
-
-
-@pytest.fixture
-def sac_policy(sac_trainer):
-    return sac_trainer._policy
+    return get_agent_cls("SoftAC")
 
 
 @pytest.fixture
-def policy_and_batch_fn(policy_and_batch_, sac_policy):
-    def make_policy_and_batch(config):
-        return policy_and_batch_(sac_policy, config)
-
-    return make_policy_and_batch
+def policy_cls(trainer):
+    return trainer._policy

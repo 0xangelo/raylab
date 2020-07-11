@@ -1,4 +1,4 @@
-# pylint: disable=missing-docstring
+# pylint:disable=missing-docstring
 import torch
 import torch.nn as nn
 from ray.rllib.utils import override
@@ -18,7 +18,7 @@ class TrilMatrix(nn.Module):
         self.linear_module = nn.Linear(self.in_features, tril_dim)
 
     @override(nn.Module)
-    def forward(self, logits):  # pylint: disable=arguments-differ
+    def forward(self, logits):  # pylint:disable=arguments-differ
         # Batch of flattened lower triangular matrices: [..., N * (N + 1) / 2]
         flat_tril = self.linear_module(logits)
         # Split flat lower triangular into rows
