@@ -22,6 +22,7 @@ endef
 export PRINT_HELP_PYSCRIPT
 
 BROWSER := python -c "$$BROWSER_PYSCRIPT"
+LATEST_TAG := $(shell git describe --abbrev=0)
 
 help:
 	@python -c "$$PRINT_HELP_PYSCRIPT" < $(MAKEFILE_LIST)
@@ -64,6 +65,9 @@ test: ## run tests quickly with the default Python
 
 test-all: ## run tests on every Python version with tox
 	tox
+
+changelog:
+	auto-changelog --tag-prefix v --unreleased --stdout --starting-commit HEAD
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source raylab -m pytest
