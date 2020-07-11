@@ -6,10 +6,8 @@ a distributed setting.
 """
 import ray
 import ray.cloudpickle as pickle
-from ray.experimental.internal_kv import _internal_kv_get
 from ray.experimental.internal_kv import _internal_kv_initialized
-from ray.experimental.internal_kv import _internal_kv_put
-from ray.tune.registry import _make_key
+from ray.tune.registry import _Registry as _TuneRegistry
 
 RAYLAB_REWARD = "raylab_reward"
 RAYLAB_TERMINATION = "raylab_termination"
@@ -21,11 +19,8 @@ KNOWN_CATEGORIES = {
 }
 
 
-class _Registry:
+class _RaylabRegistry(_TuneRegistry):
     # pylint:disable=missing-docstring
-    def __init__(self):
-        self._to_flush = {}
-
     def register(self, category, key, value):
         if category not in KNOWN_CATEGORIES:
             from ray.tune import TuneError
@@ -37,30 +32,7 @@ class _Registry:
         if _internal_kv_initialized():
             self.flush_values()
 
-    def contains(self, category, key):
-        if _internal_kv_initialized():
-            value = _internal_kv_get(_make_key(category, key))
-            return value is not None
 
-        return (category, key) in self._to_flush
-
-    def get(self, category, key):
-        if _internal_kv_initialized():
-            value = _internal_kv_get(_make_key(category, key))
-            if value is None:
-                raise ValueError(
-                    "Registry value for {}/{} doesn't exist.".format(category, key)
-                )
-            return pickle.loads(value)
-
-        return pickle.loads(self._to_flush[(category, key)])
-
-    def flush_values(self):
-        for (category, key), value in self._to_flush.items():
-            _internal_kv_put(_make_key(category, key), value, overwrite=True)
-        self._to_flush.clear()
-
-
-_raylab_registry = _Registry()
+_raylab_registry = _RaylabRegistry()
 # pylint:disable=protected-access
 ray.worker._post_init_hooks.append(_raylab_registry.flush_values)
