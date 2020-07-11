@@ -1,6 +1,7 @@
 """Trainer and configuration for MBPO."""
 from raylab.agents import trainer
 from raylab.agents.model_based import ModelBasedTrainer
+from raylab.agents.sac.trainer import sac_config
 from raylab.policy.model_based.sampling_mixin import SamplingSpec
 from raylab.policy.model_based.training_mixin import TrainingSpec
 
@@ -26,27 +27,10 @@ DEFAULT_MODULE = {
     "entropy": {"initial_alpha": 0.05},
 }
 
-TORCH_OPTIMIZERS = {
-    "models": {"type": "Adam", "lr": 3e-4, "weight_decay": 0.0001},
-    "actor": {"type": "Adam", "lr": 3e-4},
-    "critics": {"type": "Adam", "lr": 3e-4},
-    "alpha": {"type": "Adam", "lr": 3e-4},
-}
-
 
 @trainer.config("module", DEFAULT_MODULE, override=True)
-@trainer.config("torch_optimizer", TORCH_OPTIMIZERS, override=True)
 @trainer.config(
-    "target_entropy",
-    "auto",
-    info="Target entropy to optimize the temperature parameter towards"
-    " If 'auto', will use the heuristic provided in the SAC paper,"
-    " H = -dim(A), where A is the action space",
-)
-@trainer.config(
-    "polyak",
-    0.995,
-    info="Interpolation factor in polyak averaging for target networks.",
+    "torch_optimizer/models", {"type": "Adam", "lr": 3e-4, "weight_decay": 0.0001}
 )
 @trainer.config("model_training", TrainingSpec().to_dict(), info=TrainingSpec.__doc__)
 @trainer.config("model_sampling", SamplingSpec().to_dict(), info=SamplingSpec.__doc__)
@@ -57,6 +41,7 @@ TORCH_OPTIMIZERS = {
 @trainer.config("learning_starts", 5000, override=True)
 @trainer.config("train_batch_size", 512, override=True)
 @trainer.config("compile_policy", True, override=True)
+@sac_config
 @ModelBasedTrainer.with_base_specs
 class MBPOTrainer(ModelBasedTrainer):
     """Model-based trainer using SAC for policy improvement."""

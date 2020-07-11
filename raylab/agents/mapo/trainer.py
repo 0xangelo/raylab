@@ -3,7 +3,7 @@ from ray.rllib.utils import override
 
 from raylab.agents import trainer
 from raylab.agents.model_based import ModelBasedTrainer
-from raylab.policy.model_based.training_mixin import DataloaderSpec
+from raylab.agents.sac.trainer import sac_config
 from raylab.policy.model_based.training_mixin import TrainingSpec
 
 from .policy import MAPOTorchPolicy
@@ -19,24 +19,6 @@ DEFAULT_MODULE = {
     },
     "critic": {"double_q": True},
 }
-
-MODEL_TRAINING = TrainingSpec(
-    dataloader=DataloaderSpec(batch_size=256),
-    max_epochs=10,
-    max_grad_steps=120,
-    max_time=5,
-    improvement_threshold=0.01,
-    patience_epochs=5,
-).to_dict()
-
-TORCH_OPTIMIZERS = {
-    "models": {"type": "Adam", "lr": 1e-3},
-    "actor": {"type": "Adam", "lr": 1e-3},
-    "critics": {"type": "Adam", "lr": 1e-3},
-    "alpha": {"type": "Adam", "lr": 1e-3},
-}
-
-EXPLORATION_CONFIG = {"type": "raylab.utils.exploration.StochasticActor"}
 
 
 @trainer.config(
@@ -72,17 +54,22 @@ EXPLORATION_CONFIG = {"type": "raylab.utils.exploration.StochasticActor"}
     "losses", {}, info="Configurations for model, actor, and critic loss functions"
 )
 @trainer.config("module", DEFAULT_MODULE, override=True)
-@trainer.config("torch_optimizer", TORCH_OPTIMIZERS, override=True)
+@trainer.config("torch_optimizer/models", {"type": "Adam", "lr": 1e-3})
 @trainer.config(
-    "target_entropy",
-    "auto",
-    info="Target entropy to optimize the temperature parameter towards"
-    " If 'auto', will use the heuristic provided in the SAC paper,"
-    " H = -dim(A), where A is the action space",
+    "model_training",
+    dict(
+        dataloader=dict(batch_size=256),
+        max_epochs=10,
+        max_grad_steps=120,
+        max_time=5,
+        improvement_threshold=0.01,
+        patience_epochs=5,
+    ),
+    info=TrainingSpec.__doc__,
 )
-@trainer.config("polyak", 0.995, info="Averaging factor for target networks")
-@trainer.config("model_training", MODEL_TRAINING, info=TrainingSpec.__doc__)
-@trainer.config("exploration_config", EXPLORATION_CONFIG, override=True)
+@trainer.config(
+    "exploration_config/type", "raylab.utils.exploration.StochasticActor", override=True
+)
 @trainer.config("holdout_ratio", 0, override=True)
 @trainer.config("max_holdout", 0, override=True)
 @trainer.config("virtual_buffer_size", 0, override=True)
@@ -91,6 +78,7 @@ EXPLORATION_CONFIG = {"type": "raylab.utils.exploration.StochasticActor"}
 @trainer.config("evaluation_config/explore", False, override=True)
 @trainer.config("rollout_fragment_length", 25, override=True)
 @trainer.config("batch_mode", "truncate_episodes", override=True)
+@sac_config
 @ModelBasedTrainer.with_base_specs
 class MAPOTrainer(ModelBasedTrainer):
     """Single agent trainer for Model-Aware Policy Optimization."""
