@@ -2,6 +2,7 @@
 import functools
 import importlib
 import inspect
+from typing import Callable
 from typing import Mapping
 
 import gym
@@ -13,7 +14,12 @@ from .wrappers import AddRelativeTimestep
 from .wrappers import GaussianRandomWalks
 
 
-def get_env_creator(env_id):
+def has_env_creator(env_id: str) -> bool:
+    "Whether and environment with the given id is in the global registry."
+    return _global_registry.contains(ENV_CREATOR, env_id)
+
+
+def get_env_creator(env_id: str) -> Callable[[dict], gym.Env]:
     """Return the environment creator funtion for the given environment id."""
     if not _global_registry.contains(ENV_CREATOR, env_id):
         raise ValueError(f"Environment id {env_id} not registered in Tune")
