@@ -52,6 +52,10 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         """Whether or not the loss function has all the necessary components."""
         return self._env.initialized
 
+    @property
+    def _models(self):
+        return self._modules["models"]
+
     def compile(self):
         self._modules.update(
             {k: torch.jit.script(v) for k, v in self._modules.items() if k != "policy"}
