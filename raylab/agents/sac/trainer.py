@@ -27,6 +27,11 @@ def sac_config(cls: type) -> type:
             0.995,
             info="Interpolation factor in polyak averaging for target networks.",
         ),
+        trainer.config(
+            "exploration_config/type",
+            "raylab.utils.exploration.StochasticActor",
+            override=True,
+        ),
     ]:
         cls = config_setter(cls)
 
@@ -35,11 +40,6 @@ def sac_config(cls: type) -> type:
 
 @sac_config
 @trainer.config("module", {"type": "SAC", "critic": {"double_q": True}}, override=True)
-@trainer.config(
-    "exploration_config/type",
-    "raylab.utils.exploration.StochasticActor",
-    override=True,
-)
 @trainer.config("exploration_config/pure_exploration_steps", 1000)
 @trainer.config("evaluation_config/explore", False, override=True)
 @OffPolicyTrainer.with_base_specs
