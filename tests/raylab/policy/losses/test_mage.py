@@ -99,6 +99,7 @@ def action(batch):
 
 
 def test_grad_loss_gradient_propagation(loss_fn, obs, action):
+    action.requires_grad_()
     next_obs = loss_fn.transition(obs, action)
     delta = loss_fn.temporal_diff_error(obs, action, next_obs)
     _ = loss_fn.gradient_loss(delta, action)
