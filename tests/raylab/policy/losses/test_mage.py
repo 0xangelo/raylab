@@ -99,11 +99,11 @@ def action(batch):
 
 
 def test_grad_loss_gradient_propagation(loss_fn, obs, action):
-    action.requires_grad_()
+    action.requires_grad_(True)
     next_obs = loss_fn.transition(obs, action)
+
     delta = loss_fn.temporal_diff_error(obs, action, next_obs)
     _ = loss_fn.gradient_loss(delta, action)
 
     parameters = set(loss_fn._modules.parameters())
     assert all(p.grad is None for p in parameters)
-    assert action.grad_fn is not None
