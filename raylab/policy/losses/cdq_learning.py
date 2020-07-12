@@ -1,6 +1,7 @@
 """Modularized Q-Learning procedures."""
 from abc import ABC
 from abc import abstractmethod
+from functools import partial
 from typing import Dict
 from typing import Tuple
 
@@ -129,7 +130,7 @@ class SoftCDQLearning(QLearningMixin, Loss):
         return target.unsqueeze(-1).expand_as(target_values)
 
 
-class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
+class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLearning):
     """Loss function Dyna-augmented soft clipped double Q-learning.
 
     Args:
@@ -144,8 +145,6 @@ class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
     """
 
     batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
-    gamma: float = 0.99
-    alpha: float = 0.05
 
     def __init__(
         self,
@@ -170,3 +169,22 @@ class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
             "Environment functions missing. "
             "Did you set reward and termination functions?"
         )
+        obs = batch[SampleBatch.CUR_OBS]
+        action, _ = self.policy.sample(obs)
+        next_obs, _ = map(partial(torch.squeeze, dim=0), self.transition(obs, action))
+        reward = self._env.reward(obs, action, next_obs)
+        done = self._env.termination(obs, action, next_obs)
+
+        loss_fn = nn.MSELoss()
+        value = self.critics(obs, action)
+        with torch.no_grad():
+            target_value = self.critic_targets(reward, next_obs, done)
+        critic_loss = loss_fn(value, target_value)
+
+        stats = {
+            "q_mean": value.mean().item(),
+            "q_max": value.max().item(),
+            "q_min": value.min().item(),
+            "loss(critics)": critic_loss.item(),
+        }
+        return critic_loss, stats
