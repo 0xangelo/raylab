@@ -40,6 +40,7 @@ def test_sample(module, obs, act, next_obs, rew):
 
 def test_rsample_gradient_propagation(module, obs, act):
     sampler = module.rsample
+    obs.requires_grad_(True)
     act.requires_grad_(True)
 
     sample, logp = sampler(obs, act)
