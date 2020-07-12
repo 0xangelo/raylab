@@ -1,5 +1,6 @@
 """Losses for model aware action gradient estimation."""
 from dataclasses import dataclass
+from functools import partial
 from typing import Dict
 from typing import Tuple
 
@@ -95,7 +96,7 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
 
         obs = batch[SampleBatch.CUR_OBS]
         action = self._modules["policy"](obs)
-        next_obs, _ = self.transition(obs, action)
+        next_obs, _ = map(partial(torch.squeeze, dim=0), self.transition(obs, action))
 
         delta = self.temporal_diff_error(obs, action, next_obs)
         grad_loss = self.gradient_loss(delta, action)
