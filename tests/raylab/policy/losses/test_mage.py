@@ -1,5 +1,6 @@
 import pytest
 import torch
+from ray.rllib import SampleBatch
 
 from raylab.policy.losses.mage import MAGE
 from raylab.policy.losses.mage import MAGEModules
@@ -87,8 +88,18 @@ def test_rng(loss_fn):
     assert id_ == id(model)
 
 
-def test_grad_loss_gradient_propagation(loss_fn, batch):
-    obs, action, next_obs = loss_fn.generate_transition(batch)
+@pytest.fixture
+def obs(batch):
+    return batch[SampleBatch.CUR_OBS]
+
+
+@pytest.fixture
+def action(batch):
+    return batch[SampleBatch.ACTIONS]
+
+
+def test_grad_loss_gradient_propagation(loss_fn, obs, action):
+    next_obs = loss_fn.transition(obs, action)
     delta = loss_fn.temporal_diff_error(obs, action, next_obs)
     _ = loss_fn.gradient_loss(delta, action)
 

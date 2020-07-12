@@ -88,6 +88,10 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
     def compile(self):
         self._modules.update({k: torch.jit.script(v) for k, v in self._modules.items()})
 
+    def transition(self, obs, action):
+        next_obs, _ = map(partial(torch.squeeze, dim=0), self.transition(obs, action))
+        return next_obs
+
     def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
         assert self.initialized, (
             "Environment functions missing. "
@@ -96,7 +100,7 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
 
         obs = batch[SampleBatch.CUR_OBS]
         action = self._modules["policy"](obs)
-        next_obs, _ = map(partial(torch.squeeze, dim=0), self.transition(obs, action))
+        next_obs = self.transition(obs, action)
 
         delta = self.temporal_diff_error(obs, action, next_obs)
         grad_loss = self.gradient_loss(delta, action)
