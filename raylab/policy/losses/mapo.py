@@ -2,7 +2,6 @@
 from typing import Dict
 from typing import Tuple
 
-import numpy as np
 import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
@@ -15,9 +14,10 @@ from raylab.utils.annotations import DynamicsFn
 
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
+from .mixins import UniformModelPriorMixin
 
 
-class MAPO(EnvFunctionsMixin, Loss):
+class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
     """Model-Aware Policy Optimization.
 
     Args:
@@ -28,15 +28,11 @@ class MAPO(EnvFunctionsMixin, Loss):
     Attributes:
         gamma: Discount factor
         alpha: Entropy regularization coefficient
-        grad_estimator: Gradient estimator for expecations ('PD' or 'SF')
-        model_samples: Number of next states to draw from the model
     """
 
     batch_keys = (SampleBatch.CUR_OBS,)
     gamma: float = 0.99
     alpha: float = 0.05
-    grad_estimator: str = "SF"
-    model_samples: int = 1
 
     def __init__(
         self,
@@ -51,21 +47,15 @@ class MAPO(EnvFunctionsMixin, Loss):
         modules["critics"] = critics
         self._modules = modules
 
-        self._rng = np.random.default_rng()
+    @property
+    def initialized(self) -> bool:
+        """Whether or not the loss function has all the necessary components."""
+        return self._env.initialized
 
     def compile(self):
         self._modules.update(
             {k: torch.jit.script(v) for k, v in self._modules.items() if k != "policy"}
         )
-
-    def seed(self, seed: int):
-        """Seeds the RNG for choosing a model from the ensemble."""
-        self._rng = np.random.default_rng(seed)
-
-    @property
-    def initialized(self) -> bool:
-        """Whether or not the loss function has all the necessary components."""
-        return self._env.initialized
 
     def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
         assert self.initialized, (
@@ -84,29 +74,6 @@ class MAPO(EnvFunctionsMixin, Loss):
 
         stats = {"loss(actor)": loss.item(), "entropy": entropy.item()}
         return loss, stats
-
-    def transition(self, obs: Tensor, action: Tensor) -> Tuple[Tensor, Tensor]:
-        """Compute virtual transition and its log density.
-
-        Samples a model from the ensemble using the internal RNG and uses it to
-        generate the next state.
-
-        Args:
-            obs: The current state
-            action: The action sampled from the stochastic policy
-
-        Returns:
-            A tuple with the next state and its log-likelihood generated from
-            a model sampled from the ensemble
-        """
-        sample_shape = (self.model_samples,)
-
-        model = self._rng.choice(self._modules["models"])
-        if self.grad_estimator == "SF":
-            next_obs, logp = model.sample(obs, action, sample_shape)
-        elif self.grad_estimator == "PD":
-            next_obs, logp = model.rsample(obs, action, sample_shape)
-        return next_obs, logp
 
     def one_step_action_value_surrogate(
         self, obs: Tensor, action: Tensor, next_obs: Tensor, log_prob: Tensor
@@ -148,38 +115,6 @@ class MAPO(EnvFunctionsMixin, Loss):
         elif self.grad_estimator == "PD":
             surrogate = torch.mean(next_vval, dim=0)
         return surrogate
-
-    def verify_model(self, batch: Dict[str, Tensor]):
-        """Verify model for Model-Aware DPG.
-
-        Assumes all models in the ensemble behave the same way.
-
-        Args:
-            batch: Fake batch tensors for model input
-
-        Raises:
-            AssertionError: If the internal model does not satisfy requirements
-                for gradient estimation
-        """
-        obs = batch[SampleBatch.CUR_OBS]
-        act = batch[SampleBatch.ACTIONS]
-        model = self._modules["models"][0]
-        if self.grad_estimator == "SF":
-            sample, logp = model.sample(obs, act.requires_grad_())
-            assert sample.grad_fn is None
-            assert logp is not None
-            logp.mean().backward()
-            assert (
-                act.grad is not None
-            ), "Transition grad log_prob must exist for SF estimator"
-            assert not torch.allclose(act.grad, torch.zeros_like(act))
-        if self.grad_estimator == "PD":
-            sample, _ = model.rsample(obs.requires_grad_(), act.requires_grad_())
-            sample.mean().backward()
-            assert (
-                act.grad is not None
-            ), "Transition grad w.r.t. state and action must exist for PD estimator"
-            assert not torch.allclose(act.grad, torch.zeros_like(act))
 
 
 class DAPO(EnvFunctionsMixin, Loss):
