@@ -45,7 +45,7 @@ def test_rsample_gradient_propagation(module, obs, act):
     sample, logp = sampler(obs, act)
     assert obs.grad_fn is None
     assert act.grad_fn is None
-    sample.sum().backward(retain_grad=True)
+    sample.sum().backward(retain_graph=True)
     assert obs.grad is not None
     assert act.grad is not None
 
