@@ -1,13 +1,20 @@
 """Registry of environment termination functions in PyTorch."""
 import torch
 import torch.nn as nn
-from ray.rllib.utils import override
-from ray.tune.registry import _global_registry
-from ray.tune.registry import ENV_CREATOR
+
+from raylab.tune.registry import _raylab_registry
+from raylab.tune.registry import RAYLAB_TERMINATION
 
 from .utils import get_env_parameters
+from .utils import has_env_creator
 
+# For testing purposes
 TERMINATIONS = {}
+
+
+def has_termination_fn(env_id: str) -> bool:
+    """Whether a termination function for the env id is in the global registry."""
+    return _raylab_registry.contains(RAYLAB_TERMINATION, env_id)
 
 
 def get_termination_fn(env_id, env_config=None):
@@ -15,13 +22,13 @@ def get_termination_fn(env_id, env_config=None):
 
     Only returns for environments which have been registered with Tune.
     """
-    assert env_id in TERMINATIONS, f"{env_id} environment termination not registered."
-    assert _global_registry.contains(
-        ENV_CREATOR, env_id
-    ), f"{env_id} environment not registered with Tune."
+    assert has_env_creator(env_id), f"{env_id} environment not registered with Tune."
+    assert has_termination_fn(
+        env_id
+    ), f"{env_id} environment termination not registered."
 
     env_config = env_config or {}
-    termination_fn = TERMINATIONS[env_id](env_config)
+    termination_fn = _raylab_registry.get(RAYLAB_TERMINATION, env_id)(env_config)
     if env_config.get("time_aware", False):
         termination_fn = TimeAwareTerminationFn(termination_fn)
     return termination_fn
@@ -31,7 +38,10 @@ def register(*ids):
     """Register termination function class for environments with given ids."""
 
     def librarian(cls):
-        TERMINATIONS.update({i: cls for i in ids})
+        for id_ in ids:
+            TERMINATIONS[id_] = cls
+            _raylab_registry.register(RAYLAB_TERMINATION, id_, cls)
+
         return cls
 
     return librarian
@@ -42,7 +52,6 @@ class TerminationFn(nn.Module):
     Module that computes an environment's termination function for batches of inputs.
     """
 
-    @override(nn.Module)
     def forward(self, state, action, next_state):  # pylint:disable=arguments-differ
         raise NotImplementedError
 
@@ -58,6 +67,11 @@ class TimeAwareTerminationFn(TerminationFn):
         timeout = next_state[..., -1] >= 1.0
         env_done = self.termination_fn(state[..., :-1], action, next_state[..., :-1])
         return timeout | env_done
+
+
+################################################################################
+# Built-ins
+################################################################################
 
 
 @register(
