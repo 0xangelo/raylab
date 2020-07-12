@@ -67,9 +67,6 @@ DEFAULT_MODULE = {
     ),
     info=TrainingSpec.__doc__,
 )
-@trainer.config(
-    "exploration_config/type", "raylab.utils.exploration.StochasticActor", override=True
-)
 @trainer.config("holdout_ratio", 0, override=True)
 @trainer.config("max_holdout", 0, override=True)
 @trainer.config("virtual_buffer_size", 0, override=True)
