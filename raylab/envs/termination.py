@@ -28,7 +28,7 @@ def get_termination_fn(env_id, env_config=None):
     ), f"{env_id} environment termination not registered."
 
     env_config = env_config or {}
-    termination_fn = _raylab_registry.get(RAYLAB_TERMINATION, env_id)
+    termination_fn = _raylab_registry.get(RAYLAB_TERMINATION, env_id)(env_config)
     if env_config.get("time_aware", False):
         termination_fn = TimeAwareTerminationFn(termination_fn)
     return termination_fn

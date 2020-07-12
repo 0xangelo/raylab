@@ -43,7 +43,7 @@ def get_reward_fn(env_id: str, env_config: Optional[dict] = None) -> "RewardFn":
     assert has_reward_fn(env_id), f"{env_id} environment reward not registered."
 
     env_config = env_config or {}
-    reward_fn = _raylab_registry.get(RAYLAB_REWARD, env_id)
+    reward_fn = _raylab_registry.get(RAYLAB_REWARD, env_id)(env_config)
     if env_config.get("time_aware", False):
         reward_fn = TimeAwareRewardFn(reward_fn)
     return reward_fn
