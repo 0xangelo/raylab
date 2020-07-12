@@ -34,9 +34,6 @@ DEFAULT_MODULE = {
 )
 @trainer.config("model_training", TrainingSpec().to_dict(), info=TrainingSpec.__doc__)
 @trainer.config("model_sampling", SamplingSpec().to_dict(), info=SamplingSpec.__doc__)
-@trainer.config(
-    "exploration_config/type", "raylab.utils.exploration.StochasticActor", override=True
-)
 @trainer.config("model_rollouts", 20, override=True)
 @trainer.config("learning_starts", 5000, override=True)
 @trainer.config("train_batch_size", 512, override=True)
