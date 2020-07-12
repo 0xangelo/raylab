@@ -1,6 +1,5 @@
 """Losses for model aware action gradient estimation."""
 from dataclasses import dataclass
-from functools import partial
 from typing import Dict
 from typing import Tuple
 
@@ -89,8 +88,8 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         self._modules.update({k: torch.jit.script(v) for k, v in self._modules.items()})
 
     def transition(self, obs, action):
-        next_obs, _ = map(partial(torch.squeeze, dim=0), self.transition(obs, action))
-        return next_obs
+        next_obs, _ = super().transition(obs, action)
+        return next_obs.squeeze(dim=0)
 
     def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
         assert self.initialized, (
