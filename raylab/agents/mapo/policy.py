@@ -4,8 +4,6 @@ from ray.rllib.utils import override
 from raylab.agents.sac import SACTorchPolicy
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelTrainingMixin
-from raylab.policy.action_dist import WrapStochasticPolicy
-from raylab.policy.losses import DAPO
 from raylab.policy.losses import MAPO
 from raylab.policy.losses import SPAML
 from raylab.pytorch.optim import build_optimizer
@@ -15,10 +13,12 @@ class MAPOTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
     """Model-Aware Policy Optimization policy in PyTorch to use with RLlib."""
 
     # pylint:disable=abstract-method
-    dist_class = WrapStochasticPolicy
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
+        self._setup_model_loss()
+
+    def _setup_model_loss(self):
         self.loss_model = SPAML(
             self.module.models, self.module.actor, self.module.critics
         )
@@ -26,6 +26,7 @@ class MAPOTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
         self.loss_model.grad_estimator = self.config["losses"]["grad_estimator"]
         self.loss_model.lambda_ = self.config["losses"]["lambda"]
 
+    def _setup_actor_loss(self):
         self.loss_actor = MAPO(
             self.module.models, self.module.actor, self.module.critics
         )
@@ -45,15 +46,10 @@ class MAPOTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
 
     @override(EnvFnMixin)
     def _set_dynamics_hook(self):
-        self.loss_actor = DAPO(self.dynamics_fn, self.module.actor, self.module.critics)
-        self.loss_actor.gamma = self.config["gamma"]
-        self.loss_actor.dynamics_samples = self.config["losses"]["model_samples"]
-        self.loss_actor.grad_estimator = self.config["losses"]["grad_estimator"]
-
-        if self.reward_fn:
-            self.loss_actor.set_reward_fn(self.reward_fn)
-        if self.termination_fn:
-            self.loss_actor.set_termination_fn(self.termination_fn)
+        raise ValueError(
+            """Model-Aware Policy Optimization shouldn't use ground-truth \
+            dynamics. Refer to DAPO instead."""
+        )
 
     @staticmethod
     def get_default_config():

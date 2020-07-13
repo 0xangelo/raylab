@@ -25,7 +25,7 @@ class MockEnv(gym.Env):  # pylint:disable=abstract-method
         action_dim = 3
         self.action_space = Box(high=1, low=-1, shape=(action_dim,), dtype=np.float32)
 
-        self.goal = torch.zeros(self.observation_space.shape)
+        self.goal = torch.randn(*self.observation_space.shape)[..., :-1]
         self.state = None
 
     @override(gym.Env)
@@ -44,19 +44,31 @@ class MockEnv(gym.Env):  # pylint:disable=abstract-method
             self.observation_space.high[:3],
         )
         self.state[-1] = self.time / self.horizon
-        reward = np.linalg.norm((self.state - self.goal.numpy()), axis=-1)
+        reward = np.linalg.norm((self.state[:3] - self.goal.numpy()), axis=-1)
         return self.state, reward, self.time >= self.horizon, {}
 
     def reward_fn(self, state, action, next_state):
         # pylint:disable=missing-docstring,unused-argument
-        return torch.norm(next_state - self.goal, dim=-1)
+        return torch.norm(next_state[..., :3] - self.goal, dim=-1)
+
+    def transition_fn(self, state, action):
+        state, time = state[..., :3], state[..., 3:]
+        new_state = state + action
+        new_state = torch.max(
+            torch.min(new_state, torch.from_numpy(self.action_space.high)),
+            torch.from_numpy(self.action_space.low),
+        )
+
+        time = time * self.horizon
+        new_time = torch.clamp((time + 1) / self.horizon, min=0, max=1)
+        return torch.cat([new_state, new_time], dim=-1), None
 
 
 @register_reward("MockEnv")
 class MockReward(RewardFn):  # pylint:disable=missing-class-docstring
     @override(RewardFn)
     def forward(self, state, action, next_state):
-        return torch.norm(next_state, p=2, dim=-1)
+        return torch.norm(next_state[..., :3], p=2, dim=-1)
 
 
 @register_termination("MockEnv")
