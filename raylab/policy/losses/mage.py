@@ -15,6 +15,7 @@ from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsem
 
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
+from .mixins import UniformModelPriorMixin
 
 
 @dataclass
@@ -36,7 +37,7 @@ class MAGEModules:
     models: StochasticModelEnsemble
 
 
-class MAGE(EnvFunctionsMixin, Loss):
+class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
     """Loss function for Model-based Action-Gradient-Estimator.
 
     Args:
@@ -64,17 +65,31 @@ class MAGE(EnvFunctionsMixin, Loss):
         )
         self._rng = np.random.default_rng()
 
-    def compile(self):
-        self._modules.update({k: torch.jit.script(v) for k, v in self._modules.items()})
-
-    def seed(self, seed: int):
-        """Seeds the RNG for choosing a model from the ensemble."""
-        self._rng = np.random.default_rng(seed)
-
     @property
     def initialized(self) -> bool:
         """Whether or not the loss function has all the necessary components."""
         return self._env.initialized
+
+    @property
+    def grad_estimator(self):
+        """Gradient estimator for expecations."""
+        return "PD"
+
+    @property
+    def model_samples(self):
+        """Number of next states to draw from the model"""
+        return 1
+
+    @property
+    def _models(self) -> StochasticModelEnsemble:
+        return self._modules["models"]
+
+    def compile(self):
+        self._modules.update({k: torch.jit.script(v) for k, v in self._modules.items()})
+
+    def transition(self, obs, action):
+        next_obs, _ = super().transition(obs, action)
+        return next_obs.squeeze(dim=0)
 
     def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
         assert self.initialized, (
@@ -82,7 +97,9 @@ class MAGE(EnvFunctionsMixin, Loss):
             "Did you set reward, termination, and dynamics functions?"
         )
 
-        obs, action, next_obs = self.generate_transition(batch)
+        obs = batch[SampleBatch.CUR_OBS]
+        action = self._modules["policy"](obs)
+        next_obs = self.transition(obs, action)
 
         delta = self.temporal_diff_error(obs, action, next_obs)
         grad_loss = self.gradient_loss(delta, action)
@@ -95,17 +112,6 @@ class MAGE(EnvFunctionsMixin, Loss):
             "loss(TD)": td_reg.item(),
         }
         return loss, info
-
-    def generate_transition(
-        self, batch: Dict[str, Tensor]
-    ) -> Tuple[Tensor, Tensor, Tensor]:
-        """Sample (s, a, s') tuples given initial states in batch."""
-        obs = batch[SampleBatch.CUR_OBS]
-        action = self._modules["policy"](obs)
-
-        model = self._rng.choice(list(self._modules["models"]))
-        next_obs, _ = model.rsample(obs, action)
-        return obs, action, next_obs
 
     def temporal_diff_error(
         self, obs: Tensor, action: Tensor, next_obs: Tensor,

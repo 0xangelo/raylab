@@ -6,28 +6,16 @@ from typing import Tuple
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
+import raylab.envs as envs
 from raylab.agents import trainer
 from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
 @trainer.config(
-    "virtual_buffer_size", int(1e6), info="Size of the buffer for virtual samples"
-)
-@trainer.config(
-    "model_rollouts",
-    40,
-    info="Populate virtual replay with this many model rollouts per environment step",
-)
-@trainer.config(
     "policy_improvements",
     10,
     info="Number of policy improvement steps per real environment step",
-)
-@trainer.config(
-    "real_data_ratio",
-    0.1,
-    info="Fraction of each policy minibatch to sample from environment replay pool",
 )
 @trainer.config(
     "holdout_ratio",
@@ -42,22 +30,32 @@ from raylab.utils.replay_buffer import NumpyReplayBuffer
 class ModelBasedTrainer(OffPolicyTrainer):
     """Generic trainer for model-based agents.
 
+    Sets reward and termination functions for policies. These functions must be
+    either:
+    * Registered via `raylab.envs.register_reward_fn` and
+      `raylab.envs.register_termination_fn`
+    * Accessible attributes of the environment as `reward_fn` and
+      `termination_fn`
+
     Policies must implement `optimize_model` according to
     `raylab.policy:ModelTrainingMixin`
-
-    If `model_rollouts` > 0, policies must also implement
-    `setup_sampling_models` and `generate_virtual_sample_batch` according to
-    `raylab.policy:ModelSamplingMixin`
     """
-
-    # pylint:disable=attribute-defined-outside-init
 
     @override(OffPolicyTrainer)
     def _init(self, config, env_creator):
         super()._init(config, env_creator)
         policy = self.get_policy()
-        policy.set_reward_from_config(config["env"], config["env_config"])
-        policy.set_termination_from_config(config["env"], config["env_config"])
+        worker = self.workers.local_worker()
+
+        if envs.has_reward_fn(config["env"]):
+            policy.set_reward_from_config(config["env"], config["env_config"])
+        else:
+            policy.set_reward_from_callable(worker.env.reward_fn)
+
+        if envs.has_termination_fn(config["env"]):
+            policy.set_termination_from_config(config["env"], config["env_config"])
+        else:
+            policy.set_termination_from_callable(worker.env.termination_fn)
 
     @staticmethod
     @override(OffPolicyTrainer)
@@ -72,24 +70,6 @@ class ModelBasedTrainer(OffPolicyTrainer):
         assert (
             config["policy_improvements"] >= 0
         ), "Number of policy improvement steps must be non-negative"
-        assert (
-            0 <= config["real_data_ratio"] <= 1
-        ), "Fraction of real data samples for policy improvement must be in [0, 1]"
-        assert (
-            config["virtual_buffer_size"] >= 0
-        ), "Virtual buffer capacity must be non-negative"
-        assert (
-            config["model_rollouts"] >= 0
-        ), "Cannot sample a negative number of model rollouts"
-
-    @override(OffPolicyTrainer)
-    def build_replay_buffer(self, config):
-        super().build_replay_buffer(config)
-        policy = self.get_policy()
-        self.virtual_replay = NumpyReplayBuffer(
-            policy.observation_space, policy.action_space, config["virtual_buffer_size"]
-        )
-        self.virtual_replay.seed(config["seed"])
 
     @override(OffPolicyTrainer)
     def _train(self):
@@ -105,10 +85,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
             for row in samples.rows():
                 self.replay.add(row)
 
-            eval_losses, model_train_info = self.train_dynamics_model()
-            self.populate_virtual_buffer(
-                eval_losses, config["model_rollouts"] * samples.count
-            )
+            _, model_train_info = self.train_dynamics_model()
             policy_train_info = self.improve_policy(
                 config["policy_improvements"] * samples.count
             )
@@ -142,6 +119,104 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
         return eval_losses, stats
 
+    def improve_policy(self, num_improvements: int) -> Dict[str, float]:
+        """Improve the policy on previously collected environment data.
+
+        Calls the policy to learn on batches samples from the replay buffer.
+
+        Args:
+            num_improvements: number of times to call `policy.learn_on_batch`
+
+        Returns:
+            A dictionary of training and exploration statistics
+        """
+        policy = self.get_policy()
+        batch_size = self.config["train_batch_size"]
+
+        stats = {}
+        for _ in range(num_improvements):
+            batch = self.replay.sample(batch_size)
+            stats.update(policy.learn_on_batch(batch))
+            self.metrics.num_steps_trained += batch.count
+
+        stats.update(policy.get_exploration_info())
+        return stats
+
+
+@trainer.config(
+    "virtual_buffer_size", int(1e6), info="Size of the buffer for virtual samples"
+)
+@trainer.config(
+    "model_rollouts",
+    40,
+    info="Populate virtual replay with this many model rollouts per environment step",
+)
+@trainer.config(
+    "real_data_ratio",
+    0.1,
+    info="Fraction of each policy minibatch to sample from environment replay pool",
+)
+@ModelBasedTrainer.with_base_specs
+class DynaLikeTrainer(ModelBasedTrainer):
+    """Generic trainer for model-based agents with dyna-like data augmentation.
+
+    If `model_rollouts` > 0, policies must implement `setup_sampling_models`
+    and `generate_virtual_sample_batch` according to
+    `raylab.policy:ModelSamplingMixin`
+    """
+
+    # pylint:disable=attribute-defined-outside-init
+
+    @staticmethod
+    def validate_config(config):
+        ModelBasedTrainer.validate_config(config)
+        assert (
+            0 <= config["real_data_ratio"] <= 1
+        ), "Fraction of real data samples for policy improvement must be in [0, 1]"
+        assert (
+            config["virtual_buffer_size"] >= 0
+        ), "Virtual buffer capacity must be non-negative"
+        assert (
+            config["model_rollouts"] >= 0
+        ), "Cannot sample a negative number of model rollouts"
+
+    @override(OffPolicyTrainer)
+    def build_replay_buffer(self, config):
+        super().build_replay_buffer(config)
+        policy = self.get_policy()
+        self.virtual_replay = NumpyReplayBuffer(
+            policy.observation_space, policy.action_space, config["virtual_buffer_size"]
+        )
+        self.virtual_replay.seed(config["seed"])
+
+    @override(ModelBasedTrainer)
+    def _train(self):
+        pre_learning_steps = self.sample_until_learning_starts()
+        timesteps_this_iter = 0
+
+        config = self.config
+        worker = self.workers.local_worker()
+        stats = {}
+        while timesteps_this_iter < max(self.config["timesteps_per_iteration"], 1):
+            samples = worker.sample()
+            timesteps_this_iter += samples.count
+            for row in samples.rows():
+                self.replay.add(row)
+
+            eval_losses, model_train_info = self.train_dynamics_model()
+            self.populate_virtual_buffer(
+                eval_losses, config["model_rollouts"] * samples.count
+            )
+            policy_train_info = self.improve_policy(
+                config["policy_improvements"] * samples.count
+            )
+
+            stats.update(model_train_info)
+            stats.update(policy_train_info)
+
+        self.metrics.num_steps_sampled += timesteps_this_iter
+        return self._log_metrics(stats, timesteps_this_iter + pre_learning_steps)
+
     def populate_virtual_buffer(self, eval_losses: List[float], num_rollouts: int):
         """Add model rollouts branched from real data to the virtual pool.
 
@@ -163,7 +238,10 @@ class ModelBasedTrainer(OffPolicyTrainer):
             self.virtual_replay.add(row)
 
     def improve_policy(self, num_improvements: int) -> Dict[str, float]:
-        """Call the policy to perform policy improvement using the augmented replay.
+        """Improve the policy on a mixture of environment and model data.
+
+        Calls the policy to learn on batches sampled from the environment and
+        model rollouts.
 
         Args:
             num_improvements: number of times to call `policy.learn_on_batch`

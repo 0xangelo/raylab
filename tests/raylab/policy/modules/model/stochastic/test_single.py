@@ -26,7 +26,7 @@ def module(module_cls, obs_space, action_space, spec, input_dependent_scale):
 
 
 def test_sample(module, obs, act, next_obs, rew):
-    sampler = module.rsample
+    sampler = module.sample
     inputs = (obs, act)
 
     samples, logp = sampler(*inputs)
@@ -36,6 +36,24 @@ def test_sample(module, obs, act, next_obs, rew):
     assert logp.shape == rew.shape
     assert logp.dtype == rew.dtype
     assert not torch.allclose(samples, samples_)
+
+
+def test_rsample_gradient_propagation(module, obs, act):
+    sampler = module.rsample
+    obs.requires_grad_(True)
+    act.requires_grad_(True)
+
+    sample, logp = sampler(obs, act)
+    assert obs.grad_fn is None
+    assert act.grad_fn is None
+    sample.sum().backward(retain_graph=True)
+    assert obs.grad is not None
+    assert act.grad is not None
+
+    obs.grad, act.grad = None, None
+    logp.sum().backward()
+    assert obs.grad is not None
+    assert act.grad is not None
 
 
 def test_params(module, obs, act, next_obs):

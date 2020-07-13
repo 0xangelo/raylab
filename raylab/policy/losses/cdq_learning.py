@@ -1,17 +1,27 @@
 """Modularized Q-Learning procedures."""
+from abc import ABC
+from abc import abstractmethod
+from functools import partial
+from typing import Dict
+from typing import Tuple
+
 import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
+from torch import Tensor
 
 import raylab.utils.dictionaries as dutil
 from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
 from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 from raylab.policy.modules.critic.q_value import QValueEnsemble
+from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
 
 from .abstract import Loss
+from .mixins import EnvFunctionsMixin
+from .mixins import UniformModelPriorMixin
 
 
-class QLearningMixin:
+class QLearningMixin(ABC):
     """Adds default call for Q-Learning losses."""
 
     # pylint:disable=too-few-public-methods
@@ -40,6 +50,12 @@ class QLearningMixin:
         }
         return critic_loss, stats
 
+    @abstractmethod
+    def critic_targets(
+        self, rewards: Tensor, next_obs: Tensor, dones: Tensor
+    ) -> Tensor:
+        """Compute clipped 1-step approximation of Q^{\\pi}(s, a)."""
+
 
 class ClippedDoubleQLearning(QLearningMixin, Loss):
     """Clipped Double Q-Learning.
@@ -48,9 +64,9 @@ class ClippedDoubleQLearning(QLearningMixin, Loss):
     for fitted Q iteration.
 
     Args:
-        critics: callables for main action-values
-        target_critics: callables for target action-values
-        actor: deterministic policy for the next state
+        critics: Main action-values
+        target_critics: Target action-values
+        actor: Deterministic policy for the next state
 
     Attributes:
         gamma: discount factor
@@ -69,10 +85,6 @@ class ClippedDoubleQLearning(QLearningMixin, Loss):
         self.actor = actor
 
     def critic_targets(self, rewards, next_obs, dones):
-        """
-        Compute 1-step approximation of Q^{\\pi}(s, a) for Clipped Double Q-Learning
-        using target networks and batch transitions.
-        """
         next_acts = self.actor(next_obs)
         target_values = self.target_critics(next_obs, next_acts, clip=True)
         vals = target_values[..., 0]
@@ -85,9 +97,9 @@ class SoftCDQLearning(QLearningMixin, Loss):
     """Clipped Double Q-Learning for maximum entropy RL.
 
     Args:
-        critics: callables for main action-values
-        target_critics: callables for target action-values
-        actor: stochastic policy for the next state
+        critics: Main action-values
+        target_critics: Target action-values
+        actor: Stochastic policy for the next state
 
     Attributes:
         gamma: discount factor
@@ -108,10 +120,6 @@ class SoftCDQLearning(QLearningMixin, Loss):
         self.actor = actor
 
     def critic_targets(self, rewards, next_obs, dones):
-        """
-        Compute 1-step approximation of Q^{\\pi}(s, a) for Clipped Double Q-Learning
-        using target networks and batch transitions.
-        """
         next_acts, next_logp = self.actor.sample(next_obs)
         target_values = self.target_critics(next_obs, next_acts, clip=True)
         vals = target_values[..., 0]
@@ -120,3 +128,60 @@ class SoftCDQLearning(QLearningMixin, Loss):
         next_entropy = torch.where(dones, torch.zeros_like(next_logp), -next_logp)
         target = rewards + self.gamma * (next_vals + self.alpha * next_entropy)
         return target.unsqueeze(-1).expand_as(target_values)
+
+
+class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLearning):
+    """Loss function Dyna-augmented soft clipped double Q-learning.
+
+    Args:
+        critics: Main action-values
+        models: Stochastic model ensemble
+        target_critics: Target action-values
+        actor: Stochastic policy for the next state
+
+    Attributes:
+        gamma: discount factor
+        alpha: entropy coefficient
+    """
+
+    batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
+
+    def __init__(
+        self,
+        critics: QValueEnsemble,
+        models: StochasticModelEnsemble,
+        target_critics: QValueEnsemble,
+        actor: StochasticPolicy,
+    ):
+        super().__init__(critics, target_critics, actor)
+        self._models = models
+
+    @property
+    def initialized(self) -> bool:
+        """Whether or not the loss function has all the necessary components."""
+        return self._env.initialized
+
+    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
+        assert self.initialized, (
+            "Environment functions missing. "
+            "Did you set reward and termination functions?"
+        )
+        obs = batch[SampleBatch.CUR_OBS]
+        action, _ = self.actor.sample(obs)
+        next_obs, _ = map(partial(torch.squeeze, dim=0), self.transition(obs, action))
+        reward = self._env.reward(obs, action, next_obs)
+        done = self._env.termination(obs, action, next_obs)
+
+        loss_fn = nn.MSELoss()
+        value = self.critics(obs, action)
+        with torch.no_grad():
+            target_value = self.critic_targets(reward, next_obs, done)
+        critic_loss = loss_fn(value, target_value)
+
+        stats = {
+            "q_mean": value.mean().item(),
+            "q_max": value.max().item(),
+            "q_min": value.min().item(),
+            "loss(critics)": critic_loss.item(),
+        }
+        return critic_loss, stats
