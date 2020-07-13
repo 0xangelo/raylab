@@ -1,10 +1,12 @@
 """Policy for Dyna-SAC in PyTorch."""
 from raylab.agents.sac import SACTorchPolicy
 from raylab.policy.losses import DynaSoftCDQLearning
+from raylab.policy.losses import ModelEnsembleMLE
+from raylab.policy.model_based import EnvFnMixin
 from raylab.policy.model_based import ModelTrainingMixin
 
 
-class DynaSACTorchPolicy(ModelTrainingMixin, SACTorchPolicy):
+class DynaSACTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
     """Model-based policy por Dyna-SAC."""
 
     # pylint:disable=abstract-method
@@ -12,6 +14,7 @@ class DynaSACTorchPolicy(ModelTrainingMixin, SACTorchPolicy):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.loss_models = ModelEnsembleMLE(self.module.models)
         self.loss_critic = DynaSoftCDQLearning(
             self.module.critics,
             self.module.models,
@@ -26,3 +29,9 @@ class DynaSACTorchPolicy(ModelTrainingMixin, SACTorchPolicy):
         from raylab.agents.sac.dyna import DynaSACTrainer
 
         return DynaSACTrainer._default_config
+
+    def _set_reward_hook(self):
+        self.loss_critic.set_reward_fn(self.reward_fn)
+
+    def _set_termination_hook(self):
+        self.loss_critic.set_termination_fn(self.termination_fn)
