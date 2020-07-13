@@ -35,8 +35,9 @@ def policy(policy_cls, obs_space, action_space, config):
 def test_init(policy, ensemble_size):
     for attr in "models actor critics".split():
         assert hasattr(policy.module, attr)
+        assert attr in policy.optimizers
     assert len(policy.module.models) == ensemble_size
 
-    assert isinstance(policy.loss_models, ModelEnsembleMLE)
+    assert isinstance(policy.loss_model, ModelEnsembleMLE)
     assert isinstance(policy.loss_actor, ReparameterizedSoftPG)
     assert isinstance(policy.loss_critic, DynaSoftCDQLearning)

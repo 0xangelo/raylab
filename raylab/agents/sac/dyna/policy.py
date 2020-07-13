@@ -4,6 +4,7 @@ from raylab.policy.losses import DynaSoftCDQLearning
 from raylab.policy.losses import ModelEnsembleMLE
 from raylab.policy.model_based import EnvFnMixin
 from raylab.policy.model_based import ModelTrainingMixin
+from raylab.pytorch.optim.utils import build_optimizer
 
 
 class DynaSACTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
@@ -14,7 +15,7 @@ class DynaSACTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.loss_models = ModelEnsembleMLE(self.module.models)
+        self.loss_model = ModelEnsembleMLE(self.module.models)
         self.loss_critic = DynaSoftCDQLearning(
             self.module.critics,
             self.module.models,
@@ -23,6 +24,10 @@ class DynaSACTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
         )
         self.loss_critic.gamma = self.config["gamma"]
         self.loss_critic.seed(self.config["seed"])
+
+        self.optimizers["models"] = build_optimizer(
+            self.module.models, config=self.config["torch_optimizer"]["models"]
+        )
 
     def get_default_config(self):
         # pylint:disable=cyclic-import,protected-access

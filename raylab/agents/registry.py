@@ -68,6 +68,12 @@ def _import_mage():
     return MAGETrainer
 
 
+def _import_dyna_sac():
+    from raylab.agents.sac.dyna import DynaSACTrainer
+
+    return DynaSACTrainer
+
+
 AGENTS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
@@ -80,6 +86,7 @@ AGENTS = {
     "ACKTR": _import_acktr,
     "MBPO": _import_mbpo,
     "MAGE": _import_mage,
+    "Dyna-SAC": _import_dyna_sac,
 }
 
 

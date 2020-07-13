@@ -8,7 +8,10 @@ from .policy import DynaSACTorchPolicy
 
 
 @trainer.config("module/type", "ModelBasedSAC")
+@trainer.config("torch_optimizer/models", {"type": "Adam", "lr": 1e-3})
 @trainer.config("model_training", TrainingSpec().to_dict(), info=TrainingSpec.__doc__)
+@trainer.config("model_rollouts", 0, override=True)
+@trainer.config("real_data_ratio", 1, override=True)
 @trainer.config("exploration_config/pure_exploration_steps", 1000)
 @trainer.config("evaluation_config/explore", False, override=True)
 @sac_config

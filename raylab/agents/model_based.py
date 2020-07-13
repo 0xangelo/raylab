@@ -6,6 +6,7 @@ from typing import Tuple
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
+import raylab.envs as envs
 from raylab.agents import trainer
 from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.utils.replay_buffer import NumpyReplayBuffer
@@ -56,8 +57,17 @@ class ModelBasedTrainer(OffPolicyTrainer):
     def _init(self, config, env_creator):
         super()._init(config, env_creator)
         policy = self.get_policy()
-        policy.set_reward_from_config(config["env"], config["env_config"])
-        policy.set_termination_from_config(config["env"], config["env_config"])
+        worker = self.workers.local_worker()
+
+        if envs.has_reward_fn(config["env"]):
+            policy.set_reward_from_config(config["env"], config["env_config"])
+        else:
+            policy.set_reward_from_callable(worker.env.reward_fn)
+
+        if envs.has_termination_fn(config["env"]):
+            policy.set_termination_from_config(config["env"], config["env_config"])
+        else:
+            policy.set_termination_from_callable(worker.env.termination_fn)
 
     @staticmethod
     @override(OffPolicyTrainer)

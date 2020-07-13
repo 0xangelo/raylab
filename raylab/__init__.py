@@ -22,3 +22,9 @@ def register_all_environments():
 
     for name, env_creator in ENVS.items():
         register_env(name, env_creator)
+
+
+def register_all():
+    """Register all trainers and environments in Tune."""
+    register_all_agents()
+    register_all_environments()
