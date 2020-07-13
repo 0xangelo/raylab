@@ -6,6 +6,11 @@ from raylab.agents.trainer import Trainer
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
+@trainer.config(
+    "policy_improvements",
+    1,
+    info="Number of policy improvement steps per real environment step",
+)
 @trainer.config("train_batch_size", 128, override=True)
 @trainer.config("batch_mode", "complete_episodes", override=True)
 @trainer.config("rollout_fragment_length", 1, override=True)
@@ -46,7 +51,7 @@ class OffPolicyTrainer(Trainer):
             stats.update(policy.get_exploration_info())
 
             self._before_replay_steps(policy)
-            for _ in range(samples.count):
+            for _ in range(int(samples.count * self.config["policy_improvements"])):
                 batch = self.replay.sample(self.config["train_batch_size"])
                 stats.update(policy.learn_on_batch(batch))
                 self.metrics.num_steps_trained += batch.count

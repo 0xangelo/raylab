@@ -13,11 +13,6 @@ from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
 @trainer.config(
-    "policy_improvements",
-    10,
-    info="Number of policy improvement steps per real environment step",
-)
-@trainer.config(
     "holdout_ratio",
     0.2,
     info="Fraction of replay buffer to use as validation dataset"
