@@ -151,13 +151,10 @@ class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLear
         critics: QValueEnsemble,
         models: StochasticModelEnsemble,
         target_critics: QValueEnsemble,
-        policy: StochasticPolicy,
+        actor: StochasticPolicy,
     ):
-        super().__init__()
-        self.critcs = critics
-        self.models = models
-        self.target_critics = target_critics
-        self.policy = policy
+        super().__init__(critics, target_critics, actor)
+        self._models = models
 
     @property
     def initialized(self) -> bool:
@@ -170,7 +167,7 @@ class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLear
             "Did you set reward and termination functions?"
         )
         obs = batch[SampleBatch.CUR_OBS]
-        action, _ = self.policy.sample(obs)
+        action, _ = self.actor.sample(obs)
         next_obs, _ = map(partial(torch.squeeze, dim=0), self.transition(obs, action))
         reward = self._env.reward(obs, action, next_obs)
         done = self._env.termination(obs, action, next_obs)

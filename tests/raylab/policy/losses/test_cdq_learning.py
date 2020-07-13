@@ -5,6 +5,7 @@ from ray.rllib import SampleBatch
 
 import raylab.utils.dictionaries as dutil
 from raylab.policy.losses import ClippedDoubleQLearning
+from raylab.policy.losses import DynaSoftCDQLearning
 from raylab.policy.losses import SoftCDQLearning
 
 
@@ -128,3 +129,23 @@ def test_soft_critic_loss(soft_cdq_loss, batch, critics, target_critics, actor):
         loss_fn(vals, targets),
         sum(loss_fn(val, tar) for val, tar in zip(vals, targets)) / len(vals),
     )
+
+
+@pytest.fixture
+def dyna_soft_cdq_loss(critics, models, target_critics, actor):
+    return DynaSoftCDQLearning(critics, models, target_critics, actor)
+
+
+def test_dyna_soft_cdq(dyna_soft_cdq_loss, reward_fn, termination_fn, batch, critics):
+    loss_fn = dyna_soft_cdq_loss
+    loss_fn.set_reward_fn(reward_fn)
+    loss_fn.set_termination_fn(termination_fn)
+
+    loss, info = loss_fn(batch)
+    assert torch.is_tensor(loss)
+    assert loss.shape == ()
+    assert isinstance(info, dict)
+    assert "loss(critics)" in info
+
+    loss.backward()
+    assert all([p.grad is not None for p in critics.parameters()])
