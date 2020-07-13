@@ -1,6 +1,6 @@
 """Trainer and configuration for MBPO."""
 from raylab.agents import trainer
-from raylab.agents.model_based import ModelBasedTrainer
+from raylab.agents.model_based import DynaLikeTrainer
 from raylab.agents.sac.trainer import sac_config
 from raylab.policy.model_based.sampling_mixin import SamplingSpec
 from raylab.policy.model_based.training_mixin import TrainingSpec
@@ -39,8 +39,8 @@ DEFAULT_MODULE = {
 @trainer.config("train_batch_size", 512, override=True)
 @trainer.config("compile_policy", True, override=True)
 @sac_config
-@ModelBasedTrainer.with_base_specs
-class MBPOTrainer(ModelBasedTrainer):
+@DynaLikeTrainer.with_base_specs
+class MBPOTrainer(DynaLikeTrainer):
     """Model-based trainer using SAC for policy improvement."""
 
     _name = "MBPO"

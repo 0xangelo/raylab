@@ -48,9 +48,6 @@ EXPLORATION_CONFIG = {
 @trainer.config("exploration_config", EXPLORATION_CONFIG, override=True)
 @trainer.config("holdout_ratio", 0, override=True)
 @trainer.config("max_holdout", 0, override=True)
-@trainer.config("virtual_buffer_size", 0, override=True)
-@trainer.config("model_rollouts", 0, override=True)
-@trainer.config("real_data_ratio", 1, override=True)
 @trainer.config("evaluation_config/explore", False, override=True)
 @ModelBasedTrainer.with_base_specs
 class MAGETrainer(ModelBasedTrainer):

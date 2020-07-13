@@ -55,23 +55,9 @@ DEFAULT_MODULE = {
 )
 @trainer.config("module", DEFAULT_MODULE, override=True)
 @trainer.config("torch_optimizer/models", {"type": "Adam", "lr": 1e-3})
-@trainer.config(
-    "model_training",
-    dict(
-        dataloader=dict(batch_size=256),
-        max_epochs=10,
-        max_grad_steps=120,
-        max_time=5,
-        improvement_threshold=0.01,
-        patience_epochs=5,
-    ),
-    info=TrainingSpec.__doc__,
-)
+@trainer.config("model_training", TrainingSpec().to_dict(), info=TrainingSpec.__doc__)
 @trainer.config("holdout_ratio", 0, override=True)
 @trainer.config("max_holdout", 0, override=True)
-@trainer.config("virtual_buffer_size", 0, override=True)
-@trainer.config("model_rollouts", 0, override=True)
-@trainer.config("real_data_ratio", 1, override=True)
 @trainer.config("evaluation_config/explore", False, override=True)
 @trainer.config("rollout_fragment_length", 25, override=True)
 @trainer.config("batch_mode", "truncate_episodes", override=True)
@@ -80,27 +66,14 @@ DEFAULT_MODULE = {
 class MAPOTrainer(ModelBasedTrainer):
     """Single agent trainer for Model-Aware Policy Optimization."""
 
-    # pylint:disable=attribute-defined-outside-init
-
     _name = "MAPO"
     _policy = MAPOTorchPolicy
-
-    @staticmethod
-    def validate_config(config):
-        constants = {
-            "holdout_ratio": 0,
-            "max_holdout": 0,
-            "virtual_buffer_size": 0,
-            "model_rollouts": 0,
-            "real_data_ratio": 1,
-        }
-        config.update(constants)
-        ModelBasedTrainer.validate_config(config)
 
     @override(ModelBasedTrainer)
     def _init(self, config, env_creator):
         super()._init(config, env_creator)
-        policy = self.get_policy()
+
         if config["losses"]["true_model"]:
+            policy = self.get_policy()
             worker = self.workers.local_worker()
             policy.set_dynamics_from_callable(worker.env.transition_fn)
