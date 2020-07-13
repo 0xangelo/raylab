@@ -14,8 +14,15 @@ class DynaSACTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._setup_model_loss()
+        self.optimizers["models"] = build_optimizer(
+            self.module.models, config=self.config["torch_optimizer"]["models"]
+        )
 
+    def _setup_model_loss(self):
         self.loss_model = ModelEnsembleMLE(self.module.models)
+
+    def _setup_critic_loss(self):
         self.loss_critic = DynaSoftCDQLearning(
             self.module.critics,
             self.module.models,
@@ -24,10 +31,6 @@ class DynaSACTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
         )
         self.loss_critic.gamma = self.config["gamma"]
         self.loss_critic.seed(self.config["seed"])
-
-        self.optimizers["models"] = build_optimizer(
-            self.module.models, config=self.config["torch_optimizer"]["models"]
-        )
 
     def get_default_config(self):
         # pylint:disable=cyclic-import,protected-access
