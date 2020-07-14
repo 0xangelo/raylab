@@ -42,7 +42,7 @@ def info_cli():
     "--rllib/--no-rllib",
     default=False,
     show_default=True,
-    help="Whether to display RLlib's common config parameters and defaults"
+    help="Whether to display RLlib's common config parameters and defaults. "
     "Warning: lots of parameters!",
 )
 @click.pass_context
@@ -94,9 +94,9 @@ def find_config_info(cls: type, key: str, separator: str) -> str:
 
     def check_help(k, i, seq):
         if k not in i:
-            k = separator.join(seq)
+            k_str = separator.join(seq)
             # pylint:disable=protected-access
-            raise UnknownConfigKeyError(key_, cls._name)
+            raise UnknownConfigKeyError(k_str, cls._name)
 
     for idx, key_ in enumerate(key_seq[:-1]):
         check_help(key_, info, key_seq[: idx + 1])
@@ -105,7 +105,17 @@ def find_config_info(cls: type, key: str, separator: str) -> str:
     key_ = key_seq[-1]
     check_help(key_, info, key_seq)
 
-    return parse_info(config, info, key_)
+    # Info documents a single value
+    if isinstance(info[key_], str):
+        return parse_info(config, info, key_)
+
+    # Info documents a nested config
+    config, info = config[key_], info[key_]
+    msg = info.get("__help__", "")
+    for subk in info.keys():
+        if subk != "__help__":
+            msg = msg + "\n" + parse_info(config, info, subk)
+    return msg.lstrip()
 
 
 def parse_info(config: dict, info: Dict[str, Union[str, dict]], key: str) -> str:
