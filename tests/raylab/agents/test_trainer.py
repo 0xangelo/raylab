@@ -1,4 +1,5 @@
 import contextlib
+import itertools
 
 import pytest
 from ray.rllib import Policy
@@ -13,6 +14,12 @@ from raylab.agents.trainer import Trainer
 def policy_cls():
     class DummyPolicy(Policy):
         # pylint:disable=abstract-method,too-many-arguments
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.param = 0
+            self.param_seq = itertools.count()
+            next(self.param_seq)
+
         def compute_actions(
             self,
             obs_batch,
@@ -27,13 +34,29 @@ def policy_cls():
         ):
             return [self.action_space.sample() for _ in obs_batch], [], {}
 
+        def learn_on_batch(self, _):
+            self.param = next(self.param_seq)
+            return {"improved": True}
+
         def get_weights(self):
-            return []
+            return {"param": self.param}
 
         def set_weights(self, weights):
-            pass
+            self.param = weights["param"]
 
     return DummyPolicy
+
+
+def test_dummy_policy(policy_cls, obs_space, action_space):
+    policy = policy_cls(obs_space, action_space, {})
+    assert policy.param == 0
+    info = policy.learn_on_batch(None)
+    assert "improved" in info
+    assert info["improved"]
+    assert policy.param == 1
+    weights = policy.get_weights()
+    assert "param" in weights
+    assert weights["param"] == 1
 
 
 @pytest.fixture(scope="module")
@@ -66,7 +89,12 @@ def trainer_cls(policy_cls):
                 self.workers = make_workers()
 
         def _train(self):
-            return {}
+            info = {}
+            if hasattr(self, "workers"):
+                policy = self.get_policy()
+                info.update(policy.learn_on_batch(None))
+
+            return info
 
     return MinimalTrainer
 
@@ -90,6 +118,58 @@ def test_metrics_creation(trainer_cls, workers, optim):
         trainer = trainer_cls(config=dict(workers=workers, optim=optim, num_workers=0))
 
     assert not should_have_workers or hasattr(trainer, "metrics")
+
+
+@pytest.fixture(scope="module")
+def trainable_info_keys():
+    """Keys returned on any call to a subclass of `ray.tune.Trainable`."""
+    return {
+        "experiment_id",
+        "date",
+        "timestamp",
+        "time_this_iter_s",
+        "time_total_s",
+        "pid",
+        "hostname",
+        "node_ip",
+        "config",
+        "time_since_restore",
+        "timesteps_since_restore",
+        "iterations_since_restore",
+    }
+
+
+@pytest.fixture
+def trainer(trainer_cls, workers, optim):
+    return trainer_cls(config=dict(workers=workers, optim=optim, num_workers=0))
+
+
+def test_has_optimizer_and_worker(trainer, workers, optim):
+    should_have_optimizer_and_worker = any([workers, optim])
+    assert not should_have_optimizer_and_worker or trainer._has_policy_optimizer()
+    assert not should_have_optimizer_and_worker or hasattr(trainer, "workers")
+
+
+def test_train(trainer, workers, optim, trainable_info_keys):
+    should_learn = any((workers, optim))
+    if should_learn:
+        info = trainer.train()
+        info_keys = set(info.keys())
+        assert all(key in info_keys for key in trainable_info_keys)
+
+        info_keys.difference_update(trainable_info_keys)
+        assert "improved" in info_keys
+        assert info["improved"] is True
+
+        assert trainer.get_policy().param == 1
+        checkpoint = trainer.save_to_object()
+        trainer.train()
+        assert trainer.get_policy().param == 2
+
+        trainer.restore_from_object(checkpoint)
+        weights = trainer.get_policy().get_weights()
+        assert "param" in weights
+        assert weights["param"] == 1
 
 
 def test_returns_metrics(trainer_cls, workers, optim):
