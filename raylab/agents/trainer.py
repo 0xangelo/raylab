@@ -124,9 +124,9 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     optimizer isn't being used by the algorithm.
     """
 
-    evaluation_metrics: Optional[dict] = None
     optimizer: Optional[PolicyOptimizer]
     workers: Optional[WorkerSet]
+
     _allow_unknown_subkeys: List[str] = copy.deepcopy(
         RLlibTrainer._allow_unknown_subkeys
     )
@@ -139,13 +139,14 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     @overrd(RLlibTrainer)
     def train(self):
         # Evaluate first, before any optimization is done
+        evaluation_metrics = None
         if self._iteration == 0 and self.config["evaluation_interval"]:
-            self.evaluation_metrics = self._evaluate()
+            evaluation_metrics = self._evaluate()
 
         result = super().train()
 
-        if self.evaluation_metrics:
-            result.update(self.evaluation_metrics)
+        if evaluation_metrics is not None:
+            result.update(evaluation_metrics)
         # Update global_vars after training so that they're saved if checkpointing
         self.global_vars["timestep"] = self.metrics.num_steps_sampled
         return result
