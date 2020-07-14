@@ -183,6 +183,10 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
                     "No worker set initialized; episodes summary will be unavailable."
                 )
 
+        # Always have a WorkerSet to get workers and policy
+        if hasattr(self, "optimizer") and not hasattr(self, "workers"):
+            self.workers = self.optimizer.workers
+
         if self.config["compile_policy"]:
             if not hasattr(self, "workers"):
                 raise RuntimeError(
