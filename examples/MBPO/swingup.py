@@ -6,7 +6,10 @@ def get_config():
         # === Environment ===
         "env": "CartPoleSwingUp-v1",
         "env_config": {"max_episode_steps": 500, "time_aware": False},
-        # === MBPOTorchPolicy ===
+        # === SACTorchPolicy ===
+        "target_entropy": "auto",
+        "polyak": 0.995,
+        # === Policy ===
         "module": {
             "type": "ModelBasedSAC",
             "model": {
@@ -33,9 +36,7 @@ def get_config():
             "critics": {"type": "Adam", "lr": 3e-4},
             "alpha": {"type": "Adam", "lr": 3e-4},
         },
-        # === SACTorchPolicy ===
-        "target_entropy": "auto",
-        "polyak": 0.995,
+        "exploration_config": {"pure_exploration_steps": 5000},
         # === ModelTrainingMixin ===
         "model_training": {
             "dataloader": {"batch_size": 256},
@@ -50,8 +51,6 @@ def get_config():
             "num_elites": 5,
             "rollout_schedule": [(0, 1), (20000, 1), (100000, 15)],
         },
-        # === Policy ===
-        "exploration_config": {"pure_exploration_steps": 5000},
         # === ModelBasedTrainer ===
         "virtual_buffer_size": int(4e5),
         "holdout_ratio": 0.2,

@@ -7,9 +7,6 @@ def get_config():
         "env": "Walker2DBulletEnv-v0",
         "env_config": {"max_episode_steps": 1000, "time_aware": True},
         # === Entropy ===
-        # Target entropy to optimize the temperature parameter towards
-        # If "auto", will use the heuristic provided in the SAC paper:
-        # H = -dim(A), where A is the action space
         "target_entropy": None,
         # === Replay Buffer ===
         "buffer_size": int(1e6),
@@ -23,7 +20,6 @@ def get_config():
         # === Network ===
         "module": {
             "type": "OffPolicyNFAC",
-            "torch_script": True,
             "actor": {
                 "conditional_prior": True,
                 "obs_encoder": {"units": (256,), "activation": "ReLU"},
@@ -41,6 +37,7 @@ def get_config():
             "critic": {"encoder": {"units": (256, 256)}},
             "entropy": {"initial_alpha": 0.05},
         },
+        "compile_policy": True,
         # === Trainer ===
         "train_batch_size": 256,
         "timesteps_per_iteration": 1000,

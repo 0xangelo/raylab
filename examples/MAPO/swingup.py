@@ -7,6 +7,30 @@ def get_config():
         "env": "TorchCartPoleSwingUp-v1",
         "env_config": {"max_episode_steps": 500, "time_aware": False},
         # === MAPOTorchPolicy ===
+        "losses": {
+            # Gradient estimator for optimizing expectations. Possible types include
+            # SF: score function
+            # PD: pathwise derivative
+            "grad_estimator": "PD",
+            # KL regularization to avoid degenerate solutions (needs tuning)
+            "lambda": 0.01,
+            # Number of next states to sample from the model when calculating the
+            # model-aware deterministic policy gradient
+            "model_samples": 1,
+        },
+        # === SACTorchPolicy ===
+        "target_entropy": "auto",
+        # === TargetNetworksMixin ===
+        "polyak": 0.995,
+        # === ModelTrainingMixin ===
+        "model_training": {
+            "dataloader": {"batch_size": 256, "replacement": True},
+            "max_epochs": 10,
+            "max_grad_steps": 120,
+            "max_time": 5,
+            "improvement_threshold": None,
+        },
+        # === Policy ===
         "module": {
             "type": "ModelBasedSAC",
             "model": {
@@ -26,19 +50,6 @@ def get_config():
             },
             "initializer": {"name": "xavier_uniform"},
         },
-        "losses": {
-            # Gradient estimator for optimizing expectations. Possible types include
-            # SF: score function
-            # PD: pathwise derivative
-            "grad_estimator": "PD",
-            # KL regularization to avoid degenerate solutions (needs tuning)
-            "lambda": 0.01,
-            # Number of next states to sample from the model when calculating the
-            # model-aware deterministic policy gradient
-            "model_samples": 1,
-            # Whether to use the environment's true model to sample states
-            "true_model": False,
-        },
         # PyTorch optimizers to use
         "torch_optimizer": {
             "models": {"type": "Adam", "lr": 1e-4},
@@ -46,28 +57,12 @@ def get_config():
             "critics": {"type": "Adam", "lr": 1e-4},
             "alpha": {"type": "Adam", "lr": 1e-4},
         },
-        # === SACTorchPolicy ===
-        "target_entropy": "auto",
-        # === TargetNetworksMixin ===
-        "polyak": 0.995,
-        # === ModelTrainingMixin ===
-        "model_training": {
-            "dataloader": {"batch_size": 256, "replacement": True},
-            "max_epochs": 10,
-            "max_grad_steps": 120,
-            "max_time": 5,
-            "improvement_threshold": None,
-        },
-        # === Policy ===
         "exploration_config": {"pure_exploration_steps": 5000},
         # === ModelBasedTrainer ===
-        "policy_improvements": 10,
         "holdout_ratio": 0,
         "max_holdout": 0,
-        "virtual_buffer_size": 0,
-        "model_rollouts": 0,
-        "real_data_ratio": 1,
         # === OffPolicyTrainer ===
+        "policy_improvements": 10,
         "buffer_size": int(1e5),
         "learning_starts": 5000,
         # === Trainer ===
