@@ -1,42 +1,52 @@
 """Registry of environment reward functions in PyTorch."""
 import math
+from typing import Callable
+from typing import Optional
 
 import torch
 import torch.nn as nn
-from ray.rllib.utils import override
-from ray.tune.registry import _global_registry
-from ray.tune.registry import ENV_CREATOR
+
+from raylab.tune.registry import _raylab_registry
+from raylab.tune.registry import RAYLAB_REWARD
 
 from .utils import get_env_parameters
+from .utils import has_env_creator
 
+# For testing purposes
 REWARDS = {}
 
 
-def get_reward_fn(env_id, env_config=None):
+def register(*ids: str) -> Callable[[type], type]:
+    """Register reward function class for environments with given ids."""
+
+    def librarian(cls):
+        for id_ in ids:
+            REWARDS[id_] = cls
+            _raylab_registry.register(RAYLAB_REWARD, id_, cls)
+
+        return cls
+
+    return librarian
+
+
+def has_reward_fn(env_id: str) -> bool:
+    """Whether the environment id has a reward function in the global registry."""
+    return _raylab_registry.contains(RAYLAB_REWARD, env_id)
+
+
+def get_reward_fn(env_id: str, env_config: Optional[dict] = None) -> "RewardFn":
     """Return the reward funtion for the given environment name and configuration.
 
     Only returns reward functions for environments which have been registered with Tune.
     """
-    assert env_id in REWARDS, f"{env_id} environment reward not registered."
-    assert _global_registry.contains(
-        ENV_CREATOR, env_id
-    ), f"{env_id} environment not registered with Tune."
+    assert has_env_creator(env_id), f"{env_id} environment not registered with Tune."
+    assert has_reward_fn(env_id), f"{env_id} environment reward not registered."
 
     env_config = env_config or {}
-    reward_fn = REWARDS[env_id](env_config)
+    reward_fn = _raylab_registry.get(RAYLAB_REWARD, env_id)(env_config)
     if env_config.get("time_aware", False):
         reward_fn = TimeAwareRewardFn(reward_fn)
     return reward_fn
-
-
-def register(*ids):
-    """Register reward function class for environments with given ids."""
-
-    def librarian(cls):
-        REWARDS.update({i: cls for i in ids})
-        return cls
-
-    return librarian
 
 
 class RewardFn(nn.Module):
@@ -45,7 +55,6 @@ class RewardFn(nn.Module):
     def __init__(self, _):
         super().__init__()
 
-    @override(nn.Module)
     def forward(self, state, action, next_state):  # pylint:disable=arguments-differ
         raise NotImplementedError
 
@@ -57,9 +66,13 @@ class TimeAwareRewardFn(RewardFn):
         super().__init__(None)
         self.reward_fn = reward_fn
 
-    @override(RewardFn)
     def forward(self, state, action, next_state):
         return self.reward_fn(state[..., :-1], action, next_state[..., :-1])
+
+
+################################################################################
+# Built-ins
+################################################################################
 
 
 @register("CartPoleSwingUp-v0", "TorchCartPoleSwingUp-v0")
@@ -69,7 +82,6 @@ class CartPoleSwingUpV0Reward(RewardFn):
     Assumes all but the last dimension are batch ones.
     """
 
-    @override(RewardFn)
     def forward(self, state, action, next_state):
         return next_state[..., 2]
 
@@ -81,7 +93,6 @@ class CartPoleSwingUpV1Reward(RewardFn):
     Assumes all but the last dimension are batch ones.
     """
 
-    @override(RewardFn)
     def forward(self, state, action, next_state):
         return (1 + next_state[..., 2]) / 2
 
@@ -108,7 +119,6 @@ class HalfCheetahReward(RewardFn):
         ), "Need x position for HalfCheetah-v3 reward function"
         self.delta_t = 0.05
 
-    @override(RewardFn)
     def forward(self, state, action, next_state):
         x_position_before = state[..., 0]
         x_position_after = next_state[..., 0]
@@ -137,7 +147,6 @@ class HVACReward(RewardFn):
         self.temp_up = torch.as_tensor(config["TEMP_UP"]).float()
         self.penalty = torch.as_tensor(config["PENALTY"]).float()
 
-    @override(RewardFn)
     def forward(self, state, action, next_state):
         air = action * self.air_max
         temp = next_state[..., :-1]
@@ -162,7 +171,6 @@ class IndustrialBenchmarkReward(RewardFn):
         super().__init__(config)
         self.reward_type = config.get("reward_type", "classic")
 
-    @override(RewardFn)
     def forward(self, state, action, next_state):
         con_coeff, fat_coeff = 1, 3
         consumption, fatigue = next_state[..., 4], next_state[..., 5]
@@ -187,7 +195,6 @@ class NavigationReward(RewardFn):
         config = {**DEFAULT_CONFIG, **config}
         self._end = torch.as_tensor(config["end"]).float()
 
-    @override(RewardFn)
     def forward(self, state, action, next_state):
         next_state = next_state[..., :2]
         goal = self._end
@@ -198,7 +205,6 @@ class NavigationReward(RewardFn):
 class ReacherReward(RewardFn):
     """Reacher-v3's reward function."""
 
-    @override(RewardFn)
     def forward(self, state, action, next_state):
         dist = state[..., -3:]
         reward_dist = -torch.norm(dist, dim=-1)
@@ -221,7 +227,6 @@ class ReservoirReward(RewardFn):
         self.low_penalty = torch.as_tensor(config["LOW_PENALTY"])
         self.high_penalty = torch.as_tensor(config["HIGH_PENALTY"])
 
-    @override(RewardFn)
     def forward(self, state, action, next_state):
         rlevel = next_state[..., :-1]
 
@@ -248,7 +253,6 @@ class MountainCarContinuousReward(RewardFn):
         goal_velocity = config.get("goal_velocity", 0.0)
         self.goal = torch.as_tensor([goal_position, goal_velocity])
 
-    @override(RewardFn)
     def forward(self, state, action, next_state):
         done = (next_state >= self.goal).all(-1)
         shape = state.shape[:-1]
@@ -261,7 +265,6 @@ class MountainCarContinuousReward(RewardFn):
 class ReacherBulletEnvReward(RewardFn):
     """ReacherBulletEnv-v0's reward function."""
 
-    @override(RewardFn)
     def forward(self, state, action, next_state):
         to_target_vec_old = state[..., 2:4]
         to_target_vec_new = next_state[..., 2:4]

@@ -20,12 +20,22 @@ class SACTorchPolicy(TorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
+
+        self._setup_actor_loss()
+        self._setup_critic_loss()
+        self._setup_alpha_loss()
+
+    def _setup_actor_loss(self):
         self.loss_actor = ReparameterizedSoftPG(self.module.actor, self.module.critics)
+
+    def _setup_critic_loss(self):
         self.loss_critic = SoftCDQLearning(
             self.module.critics, self.module.target_critics, self.module.actor
         )
         self.loss_critic.gamma = self.config["gamma"]
 
+    def _setup_alpha_loss(self):
+        action_space = self.action_space
         target_entropy = (
             -action_space.shape[0]
             if self.config["target_entropy"] == "auto"

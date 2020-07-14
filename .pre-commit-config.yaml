@@ -84,5 +84,5 @@ repos:
         language: system
         types: [python]
         stages: [commit]
-        args: [--rcfile=tests/pylintrc]
+        args: [--rcfile=tests/pylintrc, -d similarities]
         files: ^tests/

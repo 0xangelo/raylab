@@ -8,17 +8,6 @@ from raylab.agents.registry import AGENTS
 
 TRAINER_NAMES, TRAINER_IMPORTS = zip(*AGENTS.items())
 
-
-@pytest.fixture(scope="module", params=TRAINER_IMPORTS, ids=TRAINER_NAMES)
-def trainer_cls(request):
-    return request.param()
-
-
-@pytest.fixture
-def policy_cls(trainer_cls):
-    return trainer_cls._policy
-
-
 CONFIG = defaultdict(
     lambda: {
         "num_workers": 0,
@@ -31,11 +20,16 @@ CONFIG = defaultdict(
         "evaluation_num_workers": 0,
     }
 )
-CONFIG["MBPO"].update(
-    {"model_rollouts": 1, "policy_improvements": 1, "model_training": {"max_epochs": 1}}
-)
-CONFIG["MAGE"].update({"policy_improvements": 1, "model_training": {"max_epochs": 1}})
-CONFIG["MAPO"].update({"policy_improvements": 1, "model_training": {"max_epochs": 1}})
+
+
+@pytest.fixture(scope="module", params=TRAINER_IMPORTS, ids=TRAINER_NAMES)
+def trainer_cls(request):
+    return request.param()
+
+
+@pytest.fixture
+def policy_cls(trainer_cls):
+    return trainer_cls._policy
 
 
 @pytest.fixture(
@@ -49,8 +43,17 @@ def compile_policy(request):
 
 @pytest.fixture(scope="module")
 def trainer(trainer_cls, compile_policy):
-    config = CONFIG[trainer_cls._name].copy()
+    name = trainer_cls._name
+    default_config = trainer_cls._default_config
+    config = CONFIG[name].copy()
+
+    if "policy_improvements" in default_config:
+        config["policy_improvements"] = 1
+    if "model_training" in default_config:
+        config["model_training"] = {"max_epochs": 1}
+
     config["compile_policy"] = compile_policy
+
     return trainer_cls(env="MockEnv", config=config)
 
 

@@ -1,6 +1,7 @@
 """Modularized losses/procedures for RL algorithms."""
 
 from .cdq_learning import ClippedDoubleQLearning
+from .cdq_learning import DynaSoftCDQLearning
 from .cdq_learning import SoftCDQLearning
 from .daml import DPGAwareModelLearning
 from .isfv_iteration import ISFittedVIteration
@@ -38,5 +39,6 @@ __all__ = [
     "OneStepSoftSVG",
     "ReparameterizedSoftPG",
     "SoftCDQLearning",
+    "DynaSoftCDQLearning",
     "TrajectorySVG",
 ]

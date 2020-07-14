@@ -68,6 +68,24 @@ def _import_mage():
     return MAGETrainer
 
 
+def _import_dyna_sac():
+    from raylab.agents.sac.dyna import DynaSACTrainer
+
+    return DynaSACTrainer
+
+
+def _import_mapo_mle():
+    from raylab.agents.mapo.mle import MlMAPOTrainer
+
+    return MlMAPOTrainer
+
+
+def _import_dapo():
+    from raylab.agents.mapo.dapo import DAPOTrainer
+
+    return DAPOTrainer
+
+
 AGENTS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
@@ -80,6 +98,9 @@ AGENTS = {
     "ACKTR": _import_acktr,
     "MBPO": _import_mbpo,
     "MAGE": _import_mage,
+    "Dyna-SAC": _import_dyna_sac,
+    "MAPO-MLE": _import_mapo_mle,
+    "DAPO": _import_dapo,
 }
 
 
