@@ -241,7 +241,7 @@ def test_evaluate_first(eval_trainer):
     res = trainer.train()
     assert "evaluation" in res
     assert hasattr(trainer, "evaluation_metrics")
-    assert trainer.evaluation_metrics
+    assert not trainer.evaluation_metrics
 
     # Assert evaluation is not run again
     metrics = trainer.evaluation_metrics
