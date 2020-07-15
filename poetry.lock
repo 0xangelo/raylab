@@ -1249,6 +1249,17 @@ python-versions = "*"
 version = "0.3.3"
 
 [[package]]
+category = "main"
+description = "Python library for Apache Arrow"
+name = "pyarrow"
+optional = false
+python-versions = ">=3.5"
+version = "0.17.1"
+
+[package.dependencies]
+numpy = ">=1.14"
+
+[[package]]
 category = "dev"
 description = "Python style guide checker"
 name = "pycodestyle"
@@ -1735,11 +1746,11 @@ test = ["pytest"]
 
 [[package]]
 category = "main"
-description = "Frontend library for machine learning engineers"
+description = "The fastest way to build data apps in Python"
 name = "streamlit"
 optional = false
 python-versions = ">=3.6"
-version = "0.62.1"
+version = "0.63.0"
 
 [package.dependencies]
 altair = ">=3.2.0"
@@ -1756,6 +1767,7 @@ packaging = "*"
 pandas = ">=0.21.0"
 pillow = ">=6.2.0"
 protobuf = ">=3.6.0"
+pyarrow = "*"
 pydeck = ">=0.1.dev5"
 python-dateutil = "*"
 requests = "*"
@@ -2079,7 +2091,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "4fc872116ea746027f329c4de5fb4793bdee4b58a4d00b4826e72d64400807cb"
+content-hash = "7dc5c0cd8f9aebae65ffd75ca196caa47579ffd0a9eeba9615e9592830f87d9f"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -2834,6 +2846,29 @@ py-spy = [
     {file = "py_spy-0.3.3-py2.py3-none-manylinux1_x86_64.whl", hash = "sha256:e9d6946741c267fe82aef18d2fc1e095a90a83fb5f3d9fc89b0f20a39613a639"},
     {file = "py_spy-0.3.3-py2.py3-none-win_amd64.whl", hash = "sha256:a165d444cfbf24cdcdfe8cdaa858a179e1fae43adcb912e5efb3151362f67aa8"},
 ]
+pyarrow = [
+    {file = "pyarrow-0.17.1-cp35-cp35m-macosx_10_9_intel.whl", hash = "sha256:ea2dd2b55edd9b893e9b6ac2dc8a84fd66598636b933aece04768960a9dd1667"},
+    {file = "pyarrow-0.17.1-cp35-cp35m-manylinux1_x86_64.whl", hash = "sha256:b142cc9b42e9b87a2f0624b2bd176a84ec7f47d170de1c46eeb155eab1d08dbd"},
+    {file = "pyarrow-0.17.1-cp35-cp35m-manylinux2010_x86_64.whl", hash = "sha256:5a0f5279bee86310f8c02706e1c706ccc30d030b1febd844f2a269f3fc7cafae"},
+    {file = "pyarrow-0.17.1-cp35-cp35m-manylinux2014_x86_64.whl", hash = "sha256:d6b352da205d58aa1a5705075a5e547ff7fb610b182e38d211a17dccad88d72d"},
+    {file = "pyarrow-0.17.1-cp35-cp35m-win_amd64.whl", hash = "sha256:99b0fc309660fe1ff122d14c6b42f79f8e6cc5324223f85f1190c108e40c6e4a"},
+    {file = "pyarrow-0.17.1-cp36-cp36m-macosx_10_9_intel.whl", hash = "sha256:837a22f34b9c941ca7bdb6ff7ca7dd9381d590ea60de64c3829cdd2b90fafebb"},
+    {file = "pyarrow-0.17.1-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:b46c693dd766fc7cab41a803653e80930ec1b71ac51c7f42b5d62b7cae1c2efa"},
+    {file = "pyarrow-0.17.1-cp36-cp36m-manylinux2010_x86_64.whl", hash = "sha256:a1e19a532d4d8a46c2484d914670034f7ea3ef4884c1cd9600ecb1ac8aecd28d"},
+    {file = "pyarrow-0.17.1-cp36-cp36m-manylinux2014_x86_64.whl", hash = "sha256:2af53a80076ab802cbfcd97063645b45d81d1e5ca206c7edcf122fa4d36026d9"},
+    {file = "pyarrow-0.17.1-cp36-cp36m-win_amd64.whl", hash = "sha256:9508a0514b94068a9811608c2362393fb2de8308f4152fbc8572fa275759fbf7"},
+    {file = "pyarrow-0.17.1-cp37-cp37m-macosx_10_9_intel.whl", hash = "sha256:3562ac22b0647c212aa9c0b21a2caeeb21d02aa7ba2cb696a355893f50bc18b0"},
+    {file = "pyarrow-0.17.1-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:38d1ef84c66123dc9eb8514f32fa866652df204c9ce1e5930461ea8f2ba9bffb"},
+    {file = "pyarrow-0.17.1-cp37-cp37m-manylinux2010_x86_64.whl", hash = "sha256:ee45471f7929d8951b42b1b875dee2be56952f026057c920af6c213d1ae54ace"},
+    {file = "pyarrow-0.17.1-cp37-cp37m-manylinux2014_x86_64.whl", hash = "sha256:cc3fb951347993ad9d5aa38c3aabd9be8341994b35c2fcc307f507a298187196"},
+    {file = "pyarrow-0.17.1-cp37-cp37m-win_amd64.whl", hash = "sha256:59b200dd3344413f7f68a5745a30964b690c41c23d5e95475be865fd264550ff"},
+    {file = "pyarrow-0.17.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:e6f736df6c88836ce3eeb0fee1de939af56981f82aa9b3bdef2ab6f3201de05e"},
+    {file = "pyarrow-0.17.1-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:841b3780aee3cb307fecdfaaae94ca5f3e49b28634335da63d0e383053187149"},
+    {file = "pyarrow-0.17.1-cp38-cp38-manylinux2010_x86_64.whl", hash = "sha256:375641f817382c5562c204f7d355f134400de0a778642e419d69fe4d55d38917"},
+    {file = "pyarrow-0.17.1-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:21b4d31a2813e81ed6664c37decb548618fd93838f983c3d634e3eae1d91a597"},
+    {file = "pyarrow-0.17.1-cp38-cp38-win_amd64.whl", hash = "sha256:18f65739d1d8ed8ad0d88228fd9ab76558a9c808c01dca2f24be2c72b875f43b"},
+    {file = "pyarrow-0.17.1.tar.gz", hash = "sha256:278d11800c2e0f9bea6314ef718b2368b4046ba24b6c631c14edad5a1d351e49"},
+]
 pycodestyle = [
     {file = "pycodestyle-2.6.0-py2.py3-none-any.whl", hash = "sha256:2295e7b2f6b5bd100585ebcb1f616591b652db8a741695b3d8f5d28bdc934367"},
     {file = "pycodestyle-2.6.0.tar.gz", hash = "sha256:c58a7d2815e0e8d7972bf1803331fb0152f867bd89adf8a01dfd55085434192e"},
@@ -3077,7 +3112,7 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 streamlit = [
-    {file = "streamlit-0.62.1-py2.py3-none-any.whl", hash = "sha256:5b5e5219b103276bd2ad6005659de9381ed044e116bbaf5bdac7da5424f1a309"},
+    {file = "streamlit-0.63.0-py2.py3-none-any.whl", hash = "sha256:5abc51e46b5ce8b8d930e9996697ff531630ac8dfd8966e48216565e0537384d"},
 ]
 stringcase = [
     {file = "stringcase-1.2.0.tar.gz", hash = "sha256:48a06980661908efe8d9d34eab2b6c13aefa2163b3ced26972902e3bdfd87008"},
