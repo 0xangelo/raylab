@@ -2,11 +2,12 @@
 from typing import Tuple
 
 import torch
-import torch.nn as nn
 from ray.rllib import SampleBatch
+from torch import Tensor
 
-from raylab.policy.modules.v0.mixins.stochastic_actor_mixin import StochasticPolicy
-from raylab.utils.annotations import DetPolicy
+from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
+from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
+from raylab.policy.modules.critic.q_value import QValueEnsemble
 
 from .abstract import Loss
 
@@ -21,11 +22,11 @@ class DeterministicPolicyGradient(Loss):
 
     batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
 
-    def __init__(self, actor: DetPolicy, critics: nn.ModuleList):
+    def __init__(self, actor: DeterministicPolicy, critics: QValueEnsemble):
         self.actor = actor
         self.critics = critics
 
-    def __call__(self, batch):
+    def __call__(self, batch) -> Tuple[Tensor, dict]:
         obs = batch[SampleBatch.CUR_OBS]
 
         values = self.state_value(obs)
@@ -34,7 +35,7 @@ class DeterministicPolicyGradient(Loss):
         stats = {"loss(actor)": loss.item()}
         return loss, stats
 
-    def state_value(self, obs):
+    def state_value(self, obs: Tensor) -> Tensor:
         """Compute the state value by combining policy and action-value function."""
         actions = self.actor(obs)
         return self.critics(obs, actions, clip=True)[..., 0]
@@ -55,12 +56,12 @@ class ReparameterizedSoftPG(Loss):
     alpha: float = 0.05
 
     def __init__(
-        self, actor: StochasticPolicy, critics: nn.ModuleList,
+        self, actor: StochasticPolicy, critics: QValueEnsemble,
     ):
         self.actor = actor
         self.critics = critics
 
-    def __call__(self, batch):
+    def __call__(self, batch) -> Tuple[Tensor, dict]:
         obs = batch[SampleBatch.CUR_OBS]
 
         action_values, entropy = self.action_value_plus_entropy(obs)
@@ -69,7 +70,7 @@ class ReparameterizedSoftPG(Loss):
         stats = {"loss(actor)": loss.item(), "entropy": entropy.mean().item()}
         return loss, stats
 
-    def action_value_plus_entropy(self, obs):
+    def action_value_plus_entropy(self, obs: Tensor) -> Tuple[Tensor, Tensor]:
         """
         Compute the action-value and a single sample estimate of the policy's entropy.
         """
