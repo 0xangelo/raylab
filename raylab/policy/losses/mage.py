@@ -12,6 +12,7 @@ from torch import Tensor
 from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
 from raylab.policy.modules.critic.q_value import QValueEnsemble
 from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+from raylab.utils.annotations import TensorDict
 
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
@@ -91,7 +92,7 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         next_obs, _ = super().transition(obs, action)
         return next_obs.squeeze(dim=0)
 
-    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, Dict[str, float]]:
         assert self.initialized, (
             "Environment functions missing. "
             "Did you set reward, termination, and dynamics functions?"

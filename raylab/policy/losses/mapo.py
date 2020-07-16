@@ -11,6 +11,7 @@ from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 from raylab.policy.modules.critic.q_value import QValueEnsemble
 from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
 from raylab.utils.annotations import DynamicsFn
+from raylab.utils.annotations import TensorDict
 
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
@@ -61,7 +62,7 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
             {k: torch.jit.script(v) for k, v in self._modules.items() if k != "policy"}
         )
 
-    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, Dict[str, float]]:
         assert self.initialized, (
             "Environment functions missing. "
             "Did you set reward and termination functions?"
@@ -157,7 +158,7 @@ class DAPO(EnvFunctionsMixin, Loss):
         """Whether or not the loss function has all the necessary components."""
         return self._env.initialized
 
-    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, Dict[str, float]]:
         assert self.initialized, (
             "Environment functions missing. "
             "Did you set reward and termination functions?"

@@ -16,12 +16,12 @@ import torch
 import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from ray.rllib import SampleBatch
-from torch import Tensor
 from torch.utils.data import DataLoader
 from torch.utils.data import RandomSampler
 
 from raylab.policy.losses.abstract import Loss
 from raylab.pytorch.utils import TensorDictDataset
+from raylab.utils.annotations import TensorDict
 
 
 @dataclass(frozen=True)
@@ -110,7 +110,7 @@ class Evaluator:
 
     models: nn.ModuleList
     loss_fn: Loss
-    eval_tensors: Dict[str, Tensor]
+    eval_tensors: TensorDict
     improvement_threshold: float
     patience_epochs: Optional[int]
 

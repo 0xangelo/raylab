@@ -8,6 +8,7 @@ from torch import Tensor
 
 from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
 from raylab.policy.modules.model.stochastic.single import StochasticModel
+from raylab.utils.annotations import TensorDict
 from raylab.utils.dictionaries import get_keys
 
 from .abstract import Loss
@@ -29,7 +30,7 @@ class MaximumLikelihood(Loss):
     def __init__(self, model: StochasticModel):
         self.model = model
 
-    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, Dict[str, float]]:
         """Compute Maximum Likelihood Estimation (MLE) model loss.
 
         Returns:
@@ -59,7 +60,7 @@ class ModelEnsembleMLE(Loss):
     def __init__(self, models: StochasticModelEnsemble):
         self.models = models
 
-    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, Dict[str, float]]:
         """Compute Maximum Likelihood Estimation (MLE) loss for each model.
 
         Returns:
