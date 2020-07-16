@@ -5,7 +5,7 @@ import torch
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.utils.annotations import StochasticPolicy
+from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 
 from .abstract import Loss
 
