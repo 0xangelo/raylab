@@ -12,6 +12,7 @@ from .maximum_entropy import MaximumEntropyDual
 from .mle import MaximumLikelihood
 from .mle import ModelEnsembleMLE
 from .paml import SPAML
+from .policy_gradient import ActionDPG
 from .policy_gradient import DeterministicPolicyGradient
 from .policy_gradient import ReparameterizedSoftPG
 from .svg import OneStepSoftSVG
@@ -21,6 +22,7 @@ from .svg import TrajectorySVG
 
 __all__ = [
     "ClippedDoubleQLearning",
+    "ActionDPG",
     "DeterministicPolicyGradient",
     "ISFittedVIteration",
     "ISSoftVIteration",
