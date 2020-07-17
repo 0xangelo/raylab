@@ -42,9 +42,22 @@ def deterministic_actor(deterministic_policies):
     return policy
 
 
+@pytest.fixture(params=(None, 40), ids=lambda x: f"dQdaClip({x})")
+def dqda_clipping(request):
+    return request.param
+
+
+@pytest.fixture(params=(True, False), ids=lambda x: f"ClipNorm({x})")
+def clip_norm(request):
+    return request.param
+
+
 @pytest.fixture
-def action_dpg_loss(deterministic_actor, critics):
-    return ActionDPG(deterministic_actor, critics)
+def action_dpg_loss(deterministic_actor, critics, dqda_clipping, clip_norm):
+    loss_fn = ActionDPG(deterministic_actor, critics)
+    loss_fn.dqda_clipping = dqda_clipping
+    loss_fn.clip_norm = clip_norm
+    return loss_fn
 
 
 def test_acme_dpg(action_dpg_loss, deterministic_actor, critics, batch):
