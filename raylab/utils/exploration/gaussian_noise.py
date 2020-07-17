@@ -15,12 +15,12 @@ class GaussianNoise(RandomUniform):
     """Adds fixed additive gaussian exploration noise to actions.
 
     Args:
-        noise_stddev (float): Standard deviation of the Gaussian samples.
+        noise_stddev: Standard deviation of the Gaussian samples
     """
 
     valid_behavior_cls = DeterministicPolicy
 
-    def __init__(self, *args, noise_stddev=None, **kwargs):
+    def __init__(self, *args, noise_stddev: float = 0.3, **kwargs):
         super().__init__(*args, **kwargs)
         self._noise_stddev = noise_stddev
 
