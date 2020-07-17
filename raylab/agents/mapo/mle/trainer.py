@@ -12,7 +12,7 @@ from .policy import MlMAPOTorchPolicy
 @trainer.option(
     "losses/grad_estimator",
     "SF",
-    help="""\
+    help="""
     Gradient estimator for optimizing expectations. Possible types include
     SF: score function
     PD: pathwise derivative
@@ -21,7 +21,7 @@ from .policy import MlMAPOTorchPolicy
 @trainer.option(
     "losses/model_samples",
     4,
-    help="""\
+    help="""
     Number of next states to sample from the model when calculating the
     model-aware deterministic policy gradient
     """,

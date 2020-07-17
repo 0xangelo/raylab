@@ -38,7 +38,7 @@ from .policy import SVGOneTorchPolicy
 @trainer.option(
     "replay_kl",
     True,
-    help="""\
+    help="""
     Whether to penalize KL divergence with the current policy or past policies
     that generated the replay pool.
     """,

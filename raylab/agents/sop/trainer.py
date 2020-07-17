@@ -11,7 +11,7 @@ def sop_config(cls: type) -> type:
         trainer.option(
             "dpg_loss",
             "default",
-            help="""\
+            help="""
             Type of Deterministic Policy Gradient to use.
 
             'default' backpropagates Q-value gradients through the critic network.
@@ -23,14 +23,14 @@ def sop_config(cls: type) -> type:
         trainer.option(
             "dqda_clipping",
             None,
-            help="""\
+            help="""
             Optional value by which to clip the action gradients. Only used with
             dpg_loss='acme'.""",
         ),
         trainer.option(
             "clip_dqda_norm",
             False,
-            help="""\
+            help="""
             Whether to clip action grads by norm or value. Only used with
             dpg_loss='acme'.""",
         ),

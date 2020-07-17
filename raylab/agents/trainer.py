@@ -1,6 +1,6 @@
 """Primitives for all Trainers."""
 import copy
-import textwrap
+import inspect
 import warnings
 from abc import ABCMeta
 from collections import namedtuple
@@ -143,7 +143,7 @@ def _set_config(
     config_[key] = default
 
     if info is not None:
-        help_txt = textwrap.dedent(info).rstrip()
+        help_txt = inspect.cleandoc(info)
         if isinstance(config_[key], dict):
             info_[key] = {"__help__": help_txt}
         else:

@@ -15,9 +15,10 @@ def sac_config(cls: type) -> type:
         trainer.option(
             "target_entropy",
             None,
-            help="Target entropy to optimize the temperature parameter towards"
-            " If 'auto', will use the heuristic provided in the SAC paper,"
-            " H = -dim(A), where A is the action space",
+            help="""Target entropy for temperature parameter optimization.
+
+            If 'auto', will use the heuristic provided in the SAC paper,
+            H = -dim(A), where A is the action space""",
         ),
         trainer.option("torch_optimizer/actor", {"type": "Adam", "lr": 1e-3}),
         trainer.option("torch_optimizer/critics", {"type": "Adam", "lr": 1e-3}),

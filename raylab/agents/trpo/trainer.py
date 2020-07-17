@@ -40,7 +40,7 @@ LINESEARCH_OPTIONS = {
 @trainer.option(
     "line_search",
     True,
-    help="""\
+    help="""
     Whether to use a line search to calculate policy update.
     Effectively turns TRPO into Natural PG when turned off.
     """,

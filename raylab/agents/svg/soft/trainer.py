@@ -27,7 +27,7 @@ EXPLORATION_CONFIG = {
 @trainer.option(
     "target_entropy",
     None,
-    help="""\
+    help="""
 Target entropy to optimize the temperature parameter towards
 If "auto", will use the heuristic provided in the SAC paper,
 H = -dim(A), where A is the action space
