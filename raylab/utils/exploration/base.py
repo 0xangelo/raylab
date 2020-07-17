@@ -1,4 +1,5 @@
 """Base implementations for all exploration strategies."""
+import textwrap
 from abc import ABCMeta
 from abc import abstractmethod
 from typing import Optional
@@ -24,12 +25,12 @@ class IncompatibleExplorationError(Exception):
 
     def __init__(self, exp_cls: type, module: Model, err: Exception):
         # pylint:disable=unused-argument
-        msg = (
-            f"Exploration type {exp_cls} is incompatible with NN module of type"
-            " {type(module)}. Reason:\n"
-            "    {err}"
-        )
-        super().__init__(msg)
+        msg = f"""\
+        Exploration type {exp_cls} is incompatible with NN module of type
+        {type(module)}. Reason:
+            {err}
+        """
+        super().__init__(textwrap.dedent(msg))
         self.message = msg
 
 
