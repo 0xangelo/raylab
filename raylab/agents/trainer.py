@@ -40,8 +40,7 @@ def configure(cls: type) -> type:
 
     for conf_setter in sorted(cls._to_set, key=lambda x: x.key):
         conf_setter.setter(cls)
-    # Important: need to clear in-place since attribute is shared among subclasses
-    cls._to_set.clear()
+    cls._to_set = None
 
     return cls
 
@@ -101,6 +100,8 @@ def config(
 
     def add_setter(cls):
         # pylint:disable=protected-access
+        if cls._to_set is None:
+            cls._to_set = []
         cls._to_set += [setter]
         return cls
 
@@ -181,7 +182,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     optimizer: Optional[PolicyOptimizer]
     workers: Optional[WorkerSet]
 
-    _to_set: List[Callable[[type], None]] = []
+    _to_set: Optional[List[ConfSetter]] = None
     _config_info: Info = with_rllib_info({})
     _default_config: Config = with_rllib_config({})
 
@@ -189,7 +190,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         if self._to_set:
             raise RuntimeError(
                 f"{self._name} Trainer still has configs to set."
-                " Did you call :func:`trainer.configure` as the last decorator?"
+                " Did you call `trainer.configure` as the last decorator?"
             )
         super().__init__(*args, **kwargs)
 
