@@ -142,7 +142,7 @@ class ActionDPG(Loss):
         """
         # Fake a Jacobian-vector product to calculate grads w.r.t. to batch of actions
         dqda = grad(q_max, [a_max], grad_outputs=torch.ones_like(q_max))[0]
-        dqda_norm = torch.norm(dqda, dim=-1)
+        dqda_norm = torch.norm(dqda, dim=-1, keepdim=True)
 
         if dqda_clipping:
             if clip_norm:
