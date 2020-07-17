@@ -70,10 +70,12 @@ def config(
 
         config_, info_ = cls._default_config, cls._config_info
         for key in key_seq[:-1]:
-            config_ = config_[key]
-            if not isinstance(info_[key], dict):
-                info_[key] = {"__help__": info_[key]}
-            info_ = info_[key]
+            config_ = config_.setdefault(key, {})
+
+            _info = info_.setdefault(key, {})
+            if not isinstance(_info, dict):
+                info_[key] = _info = {"__help__": _info}
+            info_ = _info
         key = key_seq[-1]
 
         if key in config_ and not override:
