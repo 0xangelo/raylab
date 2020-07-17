@@ -14,12 +14,8 @@ BASE_CONFIG = {
         "target_gaussian_sigma": 0.3,
         "separate_target_policy": False,
         "perturbed_policy": False,
-        "encoder": {
-            "units": (32, 32),
-            "activation": "ReLU",
-            "initializer_options": {"name": "xavier_uniform"},
-            "layer_norm": False,
-        },
+        "initializer_options": {"name": "xavier_uniform"},
+        "encoder": {"units": (32, 32), "activation": "ReLU", "layer_norm": False},
     },
 }
 

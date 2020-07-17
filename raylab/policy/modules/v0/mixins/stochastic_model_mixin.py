@@ -7,6 +7,7 @@ from ray.rllib.utils import override
 
 import raylab.pytorch.nn as nnx
 import raylab.pytorch.nn.distributions as ptd
+from raylab.pytorch.nn.init import initialize_
 from raylab.utils.dictionaries import deep_merge
 
 
@@ -17,12 +18,8 @@ BASE_CONFIG = {
     # 'model' atribute. If greater than 0, return a nn.ModuleList of models accessible
     # via the 'models' attribute.
     "ensemble_size": 0,
-    "encoder": {
-        "units": (32, 32),
-        "activation": "ReLU",
-        "delay_action": True,
-        "initializer_options": {"name": "xavier_uniform"},
-    },
+    "encoder": {"units": (32, 32), "activation": "ReLU", "delay_action": True},
+    "initializer_options": {"name": "xavier_uniform"},
 }
 
 
@@ -69,6 +66,12 @@ class GaussianDynamicsParams(nn.Module):
         super().__init__()
         obs_size, act_size = obs_space.shape[0], action_space.shape[0]
         self.logits = nnx.StateActionEncoder(obs_size, act_size, **config["encoder"])
+        self.logits.apply(
+            initialize_(
+                activation=config["encoder"].get("activation"),
+                **config["initializer_options"]
+            )
+        )
         self.params = nnx.NormalParams(
             self.logits.out_features,
             obs_size,

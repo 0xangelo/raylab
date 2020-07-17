@@ -5,10 +5,8 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.pytorch.nn.init import initialize_
-from raylab.pytorch.nn.utils import get_activation
-
 from .linear import MaskedLinear
+from .utils import get_activation
 
 
 class FullyConnected(nn.Sequential):
@@ -20,7 +18,6 @@ class FullyConnected(nn.Sequential):
         units: Tuple[int, ...] = (),
         activation: str = None,
         layer_norm: bool = False,
-        **initializer_options
     ):
         super().__init__()
         self.in_features = in_features
@@ -35,9 +32,6 @@ class FullyConnected(nn.Sequential):
                 modules.append(activ())
         self.out_features = units[-1]
         self.sequential = nn.Sequential(*modules)
-
-        if "name" in initializer_options:
-            self.apply(initialize_(activation=activation, **initializer_options))
 
     @override(nn.Module)
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:

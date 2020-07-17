@@ -10,30 +10,20 @@ from .mixins import SVGModelMixin
 BASE_CONFIG = {
     "replay_kl": False,
     "actor": {
-        "encoder": {
-            "units": (100, 100),
-            "activation": "Tanh",
-            "initializer_options": {"name": "xavier_uniform"},
-        },
+        "encoder": {"units": (100, 100), "activation": "Tanh"},
+        "initializer_options": {"name": "xavier_uniform"},
         "input_dependent_scale": False,
     },
     "critic": {
         "target_vf": True,
-        "encoder": {
-            "units": (400, 200),
-            "activation": "Tanh",
-            "initializer_options": {"name": "xavier_uniform"},
-        },
+        "encoder": {"units": (400, 200), "activation": "Tanh"},
+        "initializer_options": {"name": "xavier_uniform"},
     },
     "model": {
         "residual": True,
         "input_dependent_scale": False,
-        "encoder": {
-            "units": (40, 40),
-            "activation": "Tanh",
-            "delay_action": True,
-            "initializer_options": {"name": "xavier_uniform"},
-        },
+        "encoder": {"units": (40, 40), "activation": "Tanh", "delay_action": True},
+        "initializer_options": {"name": "xavier_uniform"},
     },
 }
 

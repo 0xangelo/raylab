@@ -25,16 +25,9 @@ def layer_norm(request):
     return request.param
 
 
-@pytest.fixture(params=("xavier_uniform", "orthogonal"))
-def initializer_options(request):
-    return {"name": request.param}
-
-
 @pytest.fixture
-def kwargs(units, activation, layer_norm, initializer_options):
-    return dict(
-        units=units, activation=activation, layer_norm=layer_norm, **initializer_options
-    )
+def kwargs(units, activation, layer_norm):
+    return dict(units=units, activation=activation, layer_norm=layer_norm)
 
 
 @pytest.fixture

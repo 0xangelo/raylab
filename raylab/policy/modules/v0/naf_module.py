@@ -10,16 +10,14 @@ from raylab.pytorch.nn import FullyConnected
 from raylab.pytorch.nn import NormalizedLinear
 from raylab.pytorch.nn import TanhSquash
 from raylab.pytorch.nn import TrilMatrix
+from raylab.pytorch.nn.init import initialize_
 from raylab.utils.dictionaries import deep_merge
 
 
 BASE_CONFIG = {
     "double_q": False,
-    "encoder": {
-        "units": (32, 32),
-        "activation": "ELU",
-        "initializer_options": {"name": "orthogonal"},
-    },
+    "encoder": {"units": (32, 32), "activation": "ELU"},
+    "initializer_options": {"name": "orthogonal"},
     "perturbed_policy": False,
     # === SQUASHING EXPLORATION PROBLEM ===
     # Maximum l1 norm of the policy's output vector before the squashing
@@ -62,7 +60,14 @@ class NAFModule(nn.ModuleDict):
 
     @staticmethod
     def _make_encoder(obs_space, config):
-        return FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
+        mlp = FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
+        mlp.apply(
+            initialize_(
+                activation=config["encoder"].get("activation"),
+                **config["initializer_options"]
+            )
+        )
+        return mlp
 
     def _make_actor(self, obs_space, action_space, config):
         naf = self.critics[0]
