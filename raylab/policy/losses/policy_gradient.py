@@ -1,17 +1,17 @@
 """Losses for computing policy gradients."""
-from typing import Dict
 from typing import Optional
 from typing import Tuple
 
 import torch
-import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
+from torch.autograd import grad
 
-from raylab.policy.modules.v0.mixins.stochastic_actor_mixin import StochasticPolicy
-from raylab.utils.annotations import DetPolicy
-from raylab.utils.annotations import DynamicsFn
-from raylab.utils.annotations import RewardFn
+from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
+from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
+from raylab.policy.modules.critic.q_value import QValueEnsemble
+from raylab.utils.annotations import StatDict
+from raylab.utils.annotations import TensorDict
 
 from .abstract import Loss
 
@@ -26,11 +26,11 @@ class DeterministicPolicyGradient(Loss):
 
     batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
 
-    def __init__(self, actor: DetPolicy, critics: nn.ModuleList):
+    def __init__(self, actor: DeterministicPolicy, critics: QValueEnsemble):
         self.actor = actor
         self.critics = critics
 
-    def __call__(self, batch):
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         obs = batch[SampleBatch.CUR_OBS]
 
         values = self.state_value(obs)
@@ -39,7 +39,7 @@ class DeterministicPolicyGradient(Loss):
         stats = {"loss(actor)": loss.item()}
         return loss, stats
 
-    def state_value(self, obs):
+    def state_value(self, obs: Tensor) -> Tensor:
         """Compute the state value by combining policy and action-value function."""
         actions = self.actor(obs)
         return self.critics(obs, actions, clip=True)[..., 0]
@@ -60,12 +60,12 @@ class ReparameterizedSoftPG(Loss):
     alpha: float = 0.05
 
     def __init__(
-        self, actor: StochasticPolicy, critics: nn.ModuleList,
+        self, actor: StochasticPolicy, critics: QValueEnsemble,
     ):
         self.actor = actor
         self.critics = critics
 
-    def __call__(self, batch):
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         obs = batch[SampleBatch.CUR_OBS]
 
         action_values, entropy = self.action_value_plus_entropy(obs)
@@ -74,7 +74,7 @@ class ReparameterizedSoftPG(Loss):
         stats = {"loss(actor)": loss.item(), "entropy": entropy.mean().item()}
         return loss, stats
 
-    def action_value_plus_entropy(self, obs):
+    def action_value_plus_entropy(self, obs: Tensor) -> Tuple[Tensor, Tensor]:
         """
         Compute the action-value and a single sample estimate of the policy's entropy.
         """
@@ -83,81 +83,84 @@ class ReparameterizedSoftPG(Loss):
         return action_values, -logp
 
 
-class ModelAwareDPG:
-    """Loss function for Model-Aware Deterministic Policy Gradient.
+class ActionDPG(Loss):
+    # pylint:disable=line-too-long
+    """Deterministic Policy Gradient via an MSE action loss.
+
+    Implementation based on `Acmes's DPG`_.
+
+    .. _`Acme's DPG`: https://github.com/deepmind/acme/blob/51c4db7c8ec27e040ac52d65347f6f4ecfe04f81/acme/tf/losses/dpg.py#L21
 
     Args:
         actor: deterministic policy
-        critics: callables for action-values
+        critics: Q-value functions
 
     Attributes:
-        gamma: discount factor
-        num_model_samples: number of next states to draw from the model
-        grad_estimator: gradient estimator for expecations ('PD' or 'SF')
-        reward_fn: reward function for state, action, and
-            next state tuples
-        model: stochastic model that returns next state
-            and its log density
+        dqda_clipping: Optional value by which to clip the action gradients
+        clip_norm: Whether to clip action grads by norm or value
     """
+    # pylint:enable=line-too-long
 
     batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
-    gamma: float = 0.99
-    num_model_samples: int = 1
-    grad_estimator: str = "SF"
-    reward_fn: Optional[RewardFn] = None
-    model: Optional[DynamicsFn] = None
+    dqda_clipping: Optional[float] = None
+    clip_norm: bool = True
 
-    def __init__(
-        self, actor: DetPolicy, critics: nn.ModuleList,
-    ):
+    def __init__(self, actor: DeterministicPolicy, critics: QValueEnsemble):
         self.actor = actor
         self.critics = critics
 
-    def set_reward_fn(self, function: RewardFn):
-        """Set reward function to provided callable."""
-        self.reward_fn = function
+    def compile(self):
+        self.actor = torch.jit.script(self.actor)
+        self.critics = torch.jit.script(self.critics)
 
-    def set_model(self, function: DynamicsFn):
-        """Set model to provided callable."""
-        self.model = function
-
-    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
-        """Compute loss for Model-Aware Deterministic Policy Gradient."""
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         obs = batch[SampleBatch.CUR_OBS]
+        a_max = self.actor(obs)
+        q_max = self.critics(obs, a_max, clip=True)[..., 0]
 
-        actions = self.actor(obs)
-        action_values = self.one_step_action_value_surrogate(
-            obs, actions, self.num_model_samples
+        loss, dqda_norm = self.action_dpg(
+            q_max, a_max, self.dqda_clipping, self.clip_norm
         )
-        loss = -torch.mean(action_values)
+        loss = loss.mean()
+        return loss, {"loss(actor)": loss.item(), "dqda_norm": dqda_norm.mean().item()}
 
-        stats = {"loss(actor)": loss.item()}
-        return loss, stats
+    @staticmethod
+    def action_dpg(
+        q_max: Tensor, a_max: Tensor, dqda_clipping: Optional[float], clip_norm: bool
+    ) -> Tuple[Tensor, Tensor]:
+        """Deterministic policy gradient loss, similar to trfl.dpg.
 
-    def one_step_action_value_surrogate(self, obs, actions, num_samples=1):
+        Args:
+            q_max: Q-value of the approximate greedy action
+            a_max: Action from the policy's output
+            dqda_clipping: Optional value by which to clip the action gradients
+            clip_norm: Whether to clip action grads by norm or value
+
+        Returns:
+            The DPG loss and the norm of the action-value gradient, both for
+            each batch dimension
         """
-        Compute 1-step approximation of Q^{\\pi}(s, a) for Deterministic Policy Gradient
-        using target networks and model transitions.
-        """
-        next_obs, rewards, logp = self._generate_transition(obs, actions, num_samples)
-        # Next action grads shouldn't propagate
-        with torch.no_grad():
-            next_acts = self.actor(next_obs)
-        next_values = self.critics(next_obs, next_acts, clip=True)[..., 0]
-        values = rewards + self.gamma * next_values
+        # Fake a Jacobian-vector product to calculate grads w.r.t. to batch of actions
+        dqda = grad(q_max, [a_max], grad_outputs=torch.ones_like(q_max))[0]
+        dqda_norm = torch.norm(dqda, dim=-1, keepdim=True)
 
-        if self.grad_estimator == "SF":
-            surrogate = torch.mean(logp * values.detach(), dim=0)
-        elif self.grad_estimator == "PD":
-            surrogate = torch.mean(values, dim=0)
-        return surrogate
+        if dqda_clipping:
+            if clip_norm:
+                clip_coef = dqda_clipping / dqda_norm
+                dqda = torch.where(clip_coef < 1, dqda * clip_coef, dqda)
+            else:
+                dqda = torch.clamp(dqda, min=-dqda_clipping, max=dqda_clipping)
 
-    def _generate_transition(self, obs, actions, num_samples):
-        """Compute virtual transition and its log density."""
-        sample_shape = (num_samples,)
-        obs = obs.expand(sample_shape + obs.shape)
-        actions = actions.expand(sample_shape + actions.shape)
-
-        next_obs, logp = self.model(obs, actions)
-        rewards = self.reward_fn(obs, actions, next_obs)
-        return next_obs, rewards, logp
+        # Target_a ensures correct gradient calculated during backprop.
+        target_a = dqda + a_max
+        # Stop the gradient going through Q network when backprop.
+        target_a = target_a.detach()
+        # Gradient only go through actor network.
+        loss = 0.5 * torch.sum(torch.square(target_a - a_max), dim=-1)
+        # This recovers the DPG because (letting w be the actor network weights):
+        # d(loss)/dw = 0.5 * (2 * (target_a - a_max) * d(target_a - a_max)/dw)
+        #            = (target_a - a_max) * [d(target_a)/dw  - d(a_max)/dw]
+        #            = dq/da * [d(target_a)/dw  - d(a_max)/dw]  # by defn of target_a
+        #            = dq/da * [0 - d(a_max)/dw]                # by stop_gradient
+        #            = - dq/da * da/dw
+        return loss, dqda_norm

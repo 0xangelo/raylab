@@ -2,12 +2,15 @@
 from typing import Tuple
 
 import torch
+import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
+from torch import Tensor
 
 import raylab.utils.dictionaries as dutil
-from raylab.utils.annotations import StateValue
-from raylab.utils.annotations import StochasticPolicy
+from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
+from raylab.utils.annotations import StatDict
+from raylab.utils.annotations import TensorDict
 
 from .abstract import Loss
 
@@ -27,11 +30,11 @@ class ISFittedVIteration(Loss):
     batch_keys: Tuple[str, str] = (SampleBatch.CUR_OBS, "is_ratios")
     gamma: float = 0.99
 
-    def __init__(self, critic: StateValue, target_critic: StateValue):
+    def __init__(self, critic: nn.Module, target_critic: nn.Module):
         self.critic = critic
         self.target_critic = target_critic
 
-    def __call__(self, batch):
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         """Compute loss for importance sampled fitted V iteration."""
         obs, is_ratios = dutil.get_keys(batch, *self.batch_keys)
 
@@ -43,7 +46,7 @@ class ISFittedVIteration(Loss):
         )
         return value_loss, {"loss(critic)": value_loss.item()}
 
-    def sampled_one_step_state_values(self, batch):
+    def sampled_one_step_state_values(self, batch: TensorDict) -> Tensor:
         """Bootstrapped approximation of true state-value using sampled transition."""
         next_obs, rewards, dones = dutil.get_keys(
             batch, SampleBatch.NEXT_OBS, SampleBatch.REWARDS, SampleBatch.DONES,
@@ -74,13 +77,13 @@ class ISSoftVIteration(ISFittedVIteration):
     alpha: float = 0.05
 
     def __init__(
-        self, critic: StateValue, target_critic: StateValue, actor: StochasticPolicy,
+        self, critic: nn.Module, target_critic: nn.Module, actor: StochasticPolicy
     ):
         super().__init__(critic, target_critic)
         self.actor = actor
 
     @override(ISFittedVIteration)
-    def sampled_one_step_state_values(self, batch):
+    def sampled_one_step_state_values(self, batch: TensorDict) -> Tensor:
         """Bootstrapped approximation of true state-value using sampled transition."""
         if self.ENTROPY in batch:
             entropy = batch[self.ENTROPY]

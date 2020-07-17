@@ -1,6 +1,5 @@
 """Losses for Stochastic Value Gradients."""
 from typing import Callable
-from typing import Dict
 from typing import List
 from typing import Tuple
 
@@ -10,10 +9,11 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 from torch import Tensor
 
-from raylab.policy.modules.v0.mixins.stochastic_actor_mixin import StochasticPolicy
-from raylab.policy.modules.v0.mixins.stochastic_model_mixin import StochasticModel
+from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
+from raylab.policy.modules.model.stochastic.single import StochasticModel
 from raylab.utils.annotations import RewardFn
-from raylab.utils.annotations import StateValue
+from raylab.utils.annotations import StatDict
+from raylab.utils.annotations import TensorDict
 from raylab.utils.dictionaries import get_keys
 
 from .abstract import Loss
@@ -39,7 +39,7 @@ class OneStepSVG(Loss):
     gamma: float = 0.99
     batch_keys: Tuple[str, str, str, str, str]
 
-    def __init__(self, model: StateRepr, actor: ActionRepr, critic: StateValue):
+    def __init__(self, model: StateRepr, actor: ActionRepr, critic: nn.Module):
         self.model = model
         self.actor = actor
         self.critic = critic
@@ -57,7 +57,7 @@ class OneStepSVG(Loss):
         """Set reward function to provided callable."""
         self._reward_fn = function
 
-    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         """Compute bootstrapped Stochatic Value Gradient loss."""
         assert (
             self._reward_fn is not None
@@ -134,7 +134,7 @@ class TrajectorySVG(Loss):
     )
 
     def __init__(
-        self, model: StochasticModel, actor: StochasticPolicy, critic: StateValue,
+        self, model: StochasticModel, actor: StochasticPolicy, critic: nn.Module
     ):
         self.model = model
         self.actor = actor
@@ -150,9 +150,7 @@ class TrajectorySVG(Loss):
         """Compile the rollout module to TorchScript."""
         self._rollout = torch.jit.script(self._rollout)
 
-    def __call__(
-        self, episodes: List[Dict[str, Tensor]]
-    ) -> Tuple[Tensor, Dict[str, float]]:
+    def __call__(self, episodes: List[TensorDict]) -> Tuple[Tensor, StatDict]:
         """Compute Stochatic Value Gradient loss given full trajectories."""
         assert (
             self._rollout is not None

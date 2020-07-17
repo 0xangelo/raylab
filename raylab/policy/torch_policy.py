@@ -23,6 +23,8 @@ from torch import Tensor
 from torch.optim import Optimizer
 
 from raylab.pytorch.utils import convert_to_tensor
+from raylab.utils.annotations import StatDict
+from raylab.utils.annotations import TensorDict
 from raylab.utils.dictionaries import deep_merge
 
 from .modules import get_module
@@ -201,8 +203,8 @@ class TorchPolicy(Policy):
         return restored
 
     def compute_module_output(
-        self, input_dict: Dict[str, Tensor], state: List[Tensor], seq_lens: Tensor
-    ) -> Tuple[Dict[str, Tensor], List[Tensor]]:
+        self, input_dict: TensorDict, state: List[Tensor], seq_lens: Tensor
+    ) -> Tuple[TensorDict, List[Tensor]]:
         """Call the module with the given input tensors and state.
 
         This mirrors the method used by RLlib to execute the forward pass. Nested
@@ -227,11 +229,11 @@ class TorchPolicy(Policy):
 
     def extra_action_out(
         self,
-        input_dict: Dict[str, Tensor],
+        input_dict: TensorDict,
         state_batches: List[Tensor],
         module: nn.Module,
         action_dist: ActionDistribution,
-    ) -> Dict[str, float]:
+    ) -> StatDict:
         """Returns dict of extra info to include in experience batch.
 
         Args:
