@@ -10,7 +10,7 @@ from gym.spaces import Box
 from .policy.deterministic import DeterministicPolicy
 from .policy.deterministic import MLPDeterministicPolicy
 
-MLPSpec = MLPDeterministicPolicy.spec_cls
+NetworkSpec = MLPDeterministicPolicy.spec_cls
 
 
 @dataclass
@@ -18,10 +18,7 @@ class DeterministicActorSpec(DataClassJsonMixin):
     """Specifications for policy, behavior, and target policy.
 
     Args:
-        encoder: Specifications for creating the multilayer perceptron mapping
-            states to pre-action linear features
-        norm_beta: Maximum l1 norm of the unconstrained actions. If None, won't
-            normalize actions before squashing function
+        network: Specifications for deterministic mlp policy network
         separate_behavior: Whether to create a separate behavior policy. Usually
             for parameter noise exploration, in which case it is recommended to
             enable encoder.layer_norm alongside this option.
@@ -36,8 +33,7 @@ class DeterministicActorSpec(DataClassJsonMixin):
             keyword arguments.
     """
 
-    encoder: MLPSpec = field(default_factory=MLPSpec)
-    norm_beta: float = 1.2
+    network: NetworkSpec = field(default_factory=NetworkSpec)
     separate_behavior: bool = False
     smooth_target_policy: bool = True
     target_gaussian_sigma: float = 0.3
@@ -46,7 +42,6 @@ class DeterministicActorSpec(DataClassJsonMixin):
 
     def __post_init__(self):
         cls_name = type(self).__name__
-        assert self.norm_beta > 0, f"{cls_name}.norm_beta must be positive"
         assert (
             self.target_gaussian_sigma > 0
         ), f"{cls_name}.target_gaussian_sigma must be positive"
@@ -77,16 +72,14 @@ class DeterministicActor(nn.Module):
         super().__init__()
 
         def make_policy():
-            return MLPDeterministicPolicy(
-                obs_space, action_space, spec.encoder, spec.norm_beta
-            )
+            return MLPDeterministicPolicy(obs_space, action_space, spec.network)
 
         policy = make_policy()
         policy.initialize_parameters(spec.initializer)
 
         behavior = policy
         if spec.separate_behavior:
-            if not spec.encoder.layer_norm:
+            if not spec.network.layer_norm:
                 warnings.warn(
                     "Separate behavior policy requested and layer normalization"
                     " deactivated. If using parameter noise exploration, enable"

@@ -1,5 +1,6 @@
 """Parameterized deterministic policies."""
 import warnings
+from dataclasses import dataclass
 from typing import Optional
 
 import torch
@@ -83,6 +84,26 @@ class DeterministicPolicy(nn.Module):
         return cls(policy.encoder, policy.action_linear, policy.squashing, noise=noise)
 
 
+@dataclass
+class MLPDeterministicPolicySpec(StateMLP.spec_cls):
+    """Specifications for deterministic mlp policy network.
+
+    Args:
+        units: Number of units in each hidden layer
+        activation: Nonlinearity following each linear layer
+        layer_norm: Whether to apply layer normalization between each linear layer
+            and following activation
+        norm_beta: Maximum l1 norm of the unconstrained actions. If None, won't
+            normalize actions before squashing function
+    """
+
+    norm_beta: float = 1.2
+
+    def __post_init__(self):
+        cls_name = type(self).__name__
+        assert self.norm_beta > 0, f"{cls_name}.norm_beta must be positive"
+
+
 class MLPDeterministicPolicy(DeterministicPolicy):
     """DeterministicPolicy with multilayer perceptron encoder.
 
@@ -100,21 +121,17 @@ class MLPDeterministicPolicy(DeterministicPolicy):
         spec_cls: Expected class of `spec` init argument
     """
 
-    spec_cls = StateMLP.spec_cls
+    spec_cls = MLPDeterministicPolicySpec
 
     def __init__(
-        self,
-        obs_space: Box,
-        action_space: Box,
-        mlp_spec: StateMLP.spec_cls,
-        norm_beta: float,
+        self, obs_space: Box, action_space: Box, spec: MLPDeterministicPolicySpec,
     ):
-        encoder = StateMLP(obs_space, mlp_spec)
+        encoder = StateMLP(obs_space, spec)
 
         action_size = action_space.shape[0]
-        if norm_beta:
+        if spec.norm_beta:
             action_linear = nnx.NormalizedLinear(
-                encoder.out_features, action_size, beta=norm_beta
+                encoder.out_features, action_size, beta=spec.norm_beta
             )
         else:
             action_linear = nn.Linear(encoder.out_features, action_size)
