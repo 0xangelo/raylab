@@ -24,32 +24,32 @@ EXPLORATION_CONFIG = {
 
 
 @trainer.configure
-@trainer.config(
+@trainer.option(
     "target_entropy",
     None,
-    info="""\
+    help="""\
 Target entropy to optimize the temperature parameter towards
 If "auto", will use the heuristic provided in the SAC paper,
 H = -dim(A), where A is the action space
 """,
 )
-@trainer.config("torch_optimizer", TORCH_OPTIMIZERS, override=True)
-@trainer.config(
+@trainer.option("torch_optimizer", TORCH_OPTIMIZERS, override=True)
+@trainer.option(
     "vf_loss_coeff",
     1.0,
-    info="Weight of the fitted V loss in the joint model-value loss",
+    help="Weight of the fitted V loss in the joint model-value loss",
 )
-@trainer.config(
-    "max_is_ratio", 5.0, info="Clip importance sampling weights by this value"
+@trainer.option(
+    "max_is_ratio", 5.0, help="Clip importance sampling weights by this value"
 )
-@trainer.config(
+@trainer.option(
     "polyak",
     0.995,
-    info="Interpolation factor in polyak averaging for target networks.",
+    help="Interpolation factor in polyak averaging for target networks.",
 )
-@trainer.config("module", DEFAULT_MODULE, override=True)
-@trainer.config("exploration_config", EXPLORATION_CONFIG, override=True)
-@trainer.config("evaluation_config/explore", False, override=True)
+@trainer.option("module", DEFAULT_MODULE, override=True)
+@trainer.option("exploration_config", EXPLORATION_CONFIG, override=True)
+@trainer.option("evaluation_config/explore", False, override=True)
 class SoftSVGTrainer(OffPolicyTrainer):
     """Single agent trainer for SoftSVG."""
 

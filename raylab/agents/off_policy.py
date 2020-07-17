@@ -7,19 +7,19 @@ from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
 @trainer.configure
-@trainer.config(
+@trainer.option(
     "policy_improvements",
     1,
-    info="Number of policy improvement steps per real environment step",
+    help="Number of policy improvement steps per real environment step",
 )
-@trainer.config("train_batch_size", 128, override=True)
-@trainer.config("batch_mode", "complete_episodes", override=True)
-@trainer.config("rollout_fragment_length", 1, override=True)
-@trainer.config("num_workers", 0, override=True)
-@trainer.config(
-    "learning_starts", 0, info="Sample this many steps before starting optimization."
+@trainer.option("train_batch_size", 128, override=True)
+@trainer.option("batch_mode", "complete_episodes", override=True)
+@trainer.option("rollout_fragment_length", 1, override=True)
+@trainer.option("num_workers", 0, override=True)
+@trainer.option(
+    "learning_starts", 0, help="Sample this many steps before starting optimization."
 )
-@trainer.config("buffer_size", 500000, info="Size of the replay buffer")
+@trainer.option("buffer_size", 500000, help="Size of the replay buffer")
 class OffPolicyTrainer(Trainer):
     """Generic trainer for off-policy agents."""
 
@@ -95,7 +95,7 @@ class OffPolicyTrainer(Trainer):
         res = self.collect_metrics()
         res.update(
             timesteps_this_iter=timesteps_this_iter,
-            info=dict(learner=learner_stats, **res.get("info", {})),
+            help=dict(learner=learner_stats, **res.get("info", {})),
         )
         return res
 

@@ -8,17 +8,17 @@ from .policy import MAGETorchPolicy
 
 
 @trainer.configure
-@trainer.config("lambda", 0.05, info="TD error regularization for MAGE loss")
-@trainer.config("model_training", TrainingSpec().to_dict(), info=TrainingSpec.__doc__)
+@trainer.option("lambda", 0.05, help="TD error regularization for MAGE loss")
+@trainer.option("model_training", TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
 @sop_config
-@trainer.config("module/type", "ModelBasedDDPG")
-@trainer.config("torch_optimizer/models", {"type": "Adam"})
-@trainer.config(
+@trainer.option("module/type", "ModelBasedDDPG")
+@trainer.option("torch_optimizer/models", {"type": "Adam"})
+@trainer.option(
     "exploration_config/type", "raylab.utils.exploration.GaussianNoise", override=True
 )
-@trainer.config("holdout_ratio", 0, override=True)
-@trainer.config("max_holdout", 0, override=True)
-@trainer.config("evaluation_config/explore", False, override=True)
+@trainer.option("holdout_ratio", 0, override=True)
+@trainer.option("max_holdout", 0, override=True)
+@trainer.option("evaluation_config/explore", False, override=True)
 class MAGETrainer(ModelBasedTrainer):
     """Single agent trainer for MAGE."""
 

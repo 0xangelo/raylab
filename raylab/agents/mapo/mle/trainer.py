@@ -9,32 +9,32 @@ from .policy import MlMAPOTorchPolicy
 
 
 @trainer.configure
-@trainer.config(
+@trainer.option(
     "losses/grad_estimator",
     "SF",
-    info="""\
+    help="""\
     Gradient estimator for optimizing expectations. Possible types include
     SF: score function
     PD: pathwise derivative
     """,
 )
-@trainer.config(
+@trainer.option(
     "losses/model_samples",
     4,
-    info="""\
+    help="""\
     Number of next states to sample from the model when calculating the
     model-aware deterministic policy gradient
     """,
 )
-@trainer.config(
-    "losses", {}, info="Configurations for model, actor, and critic loss functions"
+@trainer.option(
+    "losses", {}, help="Configurations for model, actor, and critic loss functions"
 )
-@trainer.config("module", DEFAULT_MODULE, override=True)
-@trainer.config("torch_optimizer/models", {"type": "Adam", "lr": 1e-3})
-@trainer.config("model_training", TrainingSpec().to_dict(), info=TrainingSpec.__doc__)
-@trainer.config("evaluation_config/explore", False, override=True)
-@trainer.config("rollout_fragment_length", 25, override=True)
-@trainer.config("batch_mode", "truncate_episodes", override=True)
+@trainer.option("module", DEFAULT_MODULE, override=True)
+@trainer.option("torch_optimizer/models", {"type": "Adam", "lr": 1e-3})
+@trainer.option("model_training", TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
+@trainer.option("evaluation_config/explore", False, override=True)
+@trainer.option("rollout_fragment_length", 25, override=True)
+@trainer.option("batch_mode", "truncate_episodes", override=True)
 @sac_config
 class MlMAPOTrainer(ModelBasedTrainer):
     """Single agent trainer for MAPO-MLE."""

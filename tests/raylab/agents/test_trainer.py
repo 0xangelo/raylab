@@ -6,8 +6,8 @@ from ray.rllib import Policy
 from ray.rllib.agents.trainer import Trainer as RLlibTrainer
 from ray.rllib.optimizers import PolicyOptimizer
 
-from raylab.agents.trainer import config
 from raylab.agents.trainer import configure
+from raylab.agents.trainer import option
 from raylab.agents.trainer import Trainer
 
 
@@ -63,9 +63,9 @@ def test_dummy_policy(policy_cls, obs_space, action_space):
 @pytest.fixture(scope="module")
 def trainer_cls(policy_cls):
     @configure
-    @config("workers", False)
-    @config("optim", False)
-    @config(
+    @option("workers", False)
+    @option("optim", False)
+    @option(
         "arbitrary",
         {"type": "one", "key": "value"},
         allow_unknown_subkeys=True,

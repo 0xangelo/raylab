@@ -16,38 +16,38 @@ LINESEARCH_OPTIONS = {
 
 
 @trainer.configure
-@trainer.config("delta", 0.01, info="Trust region constraint")
-@trainer.config(
+@trainer.option("delta", 0.01, help="Trust region constraint")
+@trainer.option(
     "fvp_samples",
     10,
-    info="Number of actions to sample per state for Fisher vector-product calculation",
+    help="Number of actions to sample per state for Fisher vector-product calculation",
 )
-@trainer.config("lambda", 0.97, info=r"For GAE(\gamma, \lambda)")
-@trainer.config("val_iters", 80, info="Number of iterations to fit value function")
-@trainer.config(
+@trainer.option("lambda", 0.97, help=r"For GAE(\gamma, \lambda)")
+@trainer.option("val_iters", 80, help="Number of iterations to fit value function")
+@trainer.option(
     "torch_optimizer",
     {"type": "Adam", "lr": 1e-3},
     override=True,
-    info="Options for the critic's optimizer",
+    help="Options for the critic's optimizer",
 )
-@trainer.config("use_gae", True, info="Whether to use Generalized Advantage Estimation")
-@trainer.config("cg_iters", 10, info="Number of iterations for Conjugate Gradient")
-@trainer.config(
+@trainer.option("use_gae", True, help="Whether to use Generalized Advantage Estimation")
+@trainer.option("cg_iters", 10, help="Number of iterations for Conjugate Gradient")
+@trainer.option(
     "cg_damping",
     1e-3,
-    info="Damping factor to avoid singular matrix multiplication in Conjugate Gradient",
+    help="Damping factor to avoid singular matrix multiplication in Conjugate Gradient",
 )
-@trainer.config(
+@trainer.option(
     "line_search",
     True,
-    info="""\
+    help="""\
     Whether to use a line search to calculate policy update.
     Effectively turns TRPO into Natural PG when turned off.
     """,
 )
-@trainer.config("line_search_options", LINESEARCH_OPTIONS)
-@trainer.config("module/type", "OnPolicyActorCritic-v0")
-@trainer.config(
+@trainer.option("line_search_options", LINESEARCH_OPTIONS)
+@trainer.option("module/type", "OnPolicyActorCritic-v0")
+@trainer.option(
     "exploration_config/type",
     "raylab.utils.exploration.StochasticActor",
     override=True,
@@ -82,5 +82,5 @@ class TRPOTrainer(Trainer):
 
         res = self.collect_metrics()
         timesteps = self.optimizer.num_steps_sampled - init_timesteps
-        res.update(timesteps_this_iter=timesteps, info=res.get("info", {}))
+        res.update(timesteps_this_iter=timesteps, help=res.get("info", {}))
         return res

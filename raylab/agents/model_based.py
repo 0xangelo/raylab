@@ -13,14 +13,14 @@ from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
 @trainer.configure
-@trainer.config(
+@trainer.option(
     "holdout_ratio",
     0.2,
-    info="Fraction of replay buffer to use as validation dataset"
+    help="Fraction of replay buffer to use as validation dataset"
     " (hence not for training)",
 )
-@trainer.config(
-    "max_holdout", 5000, info="Maximum number of samples to use as validation dataset"
+@trainer.option(
+    "max_holdout", 5000, help="Maximum number of samples to use as validation dataset"
 )
 class ModelBasedTrainer(OffPolicyTrainer):
     """Generic trainer for model-based agents.
@@ -139,18 +139,18 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
 
 @trainer.configure
-@trainer.config(
-    "virtual_buffer_size", int(1e6), info="Size of the buffer for virtual samples"
+@trainer.option(
+    "virtual_buffer_size", int(1e6), help="Size of the buffer for virtual samples"
 )
-@trainer.config(
+@trainer.option(
     "model_rollouts",
     40,
-    info="Populate virtual replay with this many model rollouts per environment step",
+    help="Populate virtual replay with this many model rollouts per environment step",
 )
-@trainer.config(
+@trainer.option(
     "real_data_ratio",
     0.1,
-    info="Fraction of each policy minibatch to sample from environment replay pool",
+    help="Fraction of each policy minibatch to sample from environment replay pool",
 )
 class DynaLikeTrainer(ModelBasedTrainer):
     """Generic trainer for model-based agents with dyna-like data augmentation.

@@ -45,11 +45,11 @@ def configure(cls: type) -> type:
     return cls
 
 
-def config(
+def option(
     key: str,
     default: Json,
     *,
-    info: Optional[str] = None,
+    help: Optional[str] = None,
     override: bool = False,
     allow_unknown_subkeys: bool = False,
     override_all_if_type_changes: bool = False,
@@ -77,7 +77,7 @@ def config(
         RuntimeError: If attempting to enable `allow_unknown_subkeys` or
             `override_all_if_type_changes` options for non-toplevel keys
     """
-    # pylint:disable=too-many-arguments
+    # pylint:disable=too-many-arguments,redefined-builtin
     if (allow_unknown_subkeys or override_all_if_type_changes) and separator in key:
         raise RuntimeError(
             "Cannot use 'allow_unknown_subkeys' or 'override_all_if_type_changes'"
@@ -90,7 +90,7 @@ def config(
             _set_config,
             key=key,
             default=default,
-            info=info,
+            info=help,
             override=override,
             allow_unknown_subkeys=allow_unknown_subkeys,
             override_all_if_type_changes=override_all_if_type_changes,
@@ -151,18 +151,18 @@ def _set_config(
 
 
 @configure
-@config("compile_policy", False, info="Whether to optimize the policy's backend")
-@config(
+@option("compile_policy", False, help="Whether to optimize the policy's backend")
+@option(
     "module",
     {},
-    info="Type and config of the PyTorch NN module.",
+    help="Type and config of the PyTorch NN module.",
     allow_unknown_subkeys=True,
     override_all_if_type_changes=True,
 )
-@config(
+@option(
     "torch_optimizer",
     {},
-    info="Config dict for PyTorch optimizers.",
+    help="Config dict for PyTorch optimizers.",
     allow_unknown_subkeys=True,
 )
 class Trainer(RLlibTrainer, metaclass=ABCMeta):
@@ -189,7 +189,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     def __init__(self, *args, **kwargs):
         if self._to_set:
             raise RuntimeError(
-                f"{self._name} Trainer still has configs to set."
+                f"{self._name} Trainer still has configs to be set."
                 " Did you call `trainer.configure` as the last decorator?"
             )
         super().__init__(*args, **kwargs)
