@@ -7,6 +7,7 @@ from raylab.policy.model_based.training_mixin import TrainingSpec
 from .policy import MAGETorchPolicy
 
 
+@trainer.configure
 @trainer.config("lambda", 0.05, info="TD error regularization for MAGE loss")
 @trainer.config("model_training", TrainingSpec().to_dict(), info=TrainingSpec.__doc__)
 @sop_config
@@ -18,7 +19,6 @@ from .policy import MAGETorchPolicy
 @trainer.config("holdout_ratio", 0, override=True)
 @trainer.config("max_holdout", 0, override=True)
 @trainer.config("evaluation_config/explore", False, override=True)
-@ModelBasedTrainer.with_base_specs
 class MAGETrainer(ModelBasedTrainer):
     """Single agent trainer for MAGE."""
 

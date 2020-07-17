@@ -28,6 +28,7 @@ DEFAULT_MODULE = {
 }
 
 
+@trainer.configure
 @trainer.config("module", DEFAULT_MODULE, override=True)
 @trainer.config(
     "torch_optimizer/models", {"type": "Adam", "lr": 3e-4, "weight_decay": 0.0001}
@@ -39,7 +40,6 @@ DEFAULT_MODULE = {
 @trainer.config("train_batch_size", 512, override=True)
 @trainer.config("compile_policy", True, override=True)
 @sac_config
-@DynaLikeTrainer.with_base_specs
 class MBPOTrainer(DynaLikeTrainer):
     """Model-based trainer using SAC for policy improvement."""
 

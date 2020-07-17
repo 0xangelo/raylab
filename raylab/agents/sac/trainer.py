@@ -38,11 +38,11 @@ def sac_config(cls: type) -> type:
     return cls
 
 
+@trainer.configure
 @sac_config
 @trainer.config("module", {"type": "SAC", "critic": {"double_q": True}}, override=True)
 @trainer.config("exploration_config/pure_exploration_steps", 1000)
 @trainer.config("evaluation_config/explore", False, override=True)
-@OffPolicyTrainer.with_base_specs
 class SACTrainer(OffPolicyTrainer):
     """Single agent trainer for SAC."""
 

@@ -19,6 +19,7 @@ DEFAULT_MODULE = {
 }
 
 
+@trainer.configure
 @trainer.config(
     "losses/grad_estimator",
     "SF",
@@ -55,7 +56,6 @@ DEFAULT_MODULE = {
 @trainer.config("rollout_fragment_length", 25, override=True)
 @trainer.config("batch_mode", "truncate_episodes", override=True)
 @sac_config
-@ModelBasedTrainer.with_base_specs
 class MAPOTrainer(ModelBasedTrainer):
     """Single agent trainer for Model-Aware Policy Optimization."""
 

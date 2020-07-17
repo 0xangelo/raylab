@@ -8,6 +8,7 @@ from raylab.policy.model_based.training_mixin import TrainingSpec
 from .policy import MlMAPOTorchPolicy
 
 
+@trainer.configure
 @trainer.config(
     "losses/grad_estimator",
     "SF",
@@ -35,7 +36,6 @@ from .policy import MlMAPOTorchPolicy
 @trainer.config("rollout_fragment_length", 25, override=True)
 @trainer.config("batch_mode", "truncate_episodes", override=True)
 @sac_config
-@ModelBasedTrainer.with_base_specs
 class MlMAPOTrainer(ModelBasedTrainer):
     """Single agent trainer for MAPO-MLE."""
 

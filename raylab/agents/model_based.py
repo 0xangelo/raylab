@@ -12,6 +12,7 @@ from raylab.utils.annotations import StatDict
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
+@trainer.configure
 @trainer.config(
     "holdout_ratio",
     0.2,
@@ -21,7 +22,6 @@ from raylab.utils.replay_buffer import NumpyReplayBuffer
 @trainer.config(
     "max_holdout", 5000, info="Maximum number of samples to use as validation dataset"
 )
-@OffPolicyTrainer.with_base_specs
 class ModelBasedTrainer(OffPolicyTrainer):
     """Generic trainer for model-based agents.
 
@@ -138,6 +138,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
         return stats
 
 
+@trainer.configure
 @trainer.config(
     "virtual_buffer_size", int(1e6), info="Size of the buffer for virtual samples"
 )
@@ -151,7 +152,6 @@ class ModelBasedTrainer(OffPolicyTrainer):
     0.1,
     info="Fraction of each policy minibatch to sample from environment replay pool",
 )
-@ModelBasedTrainer.with_base_specs
 class DynaLikeTrainer(ModelBasedTrainer):
     """Generic trainer for model-based agents with dyna-like data augmentation.
 

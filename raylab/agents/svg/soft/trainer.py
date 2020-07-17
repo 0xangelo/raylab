@@ -23,6 +23,7 @@ EXPLORATION_CONFIG = {
 }
 
 
+@trainer.configure
 @trainer.config(
     "target_entropy",
     None,
@@ -49,7 +50,6 @@ H = -dim(A), where A is the action space
 @trainer.config("module", DEFAULT_MODULE, override=True)
 @trainer.config("exploration_config", EXPLORATION_CONFIG, override=True)
 @trainer.config("evaluation_config/explore", False, override=True)
-@OffPolicyTrainer.with_base_specs
 class SoftSVGTrainer(OffPolicyTrainer):
     """Single agent trainer for SoftSVG."""
 

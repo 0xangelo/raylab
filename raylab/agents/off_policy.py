@@ -6,6 +6,7 @@ from raylab.agents.trainer import Trainer
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
+@trainer.configure
 @trainer.config(
     "policy_improvements",
     1,
@@ -19,7 +20,6 @@ from raylab.utils.replay_buffer import NumpyReplayBuffer
     "learning_starts", 0, info="Sample this many steps before starting optimization."
 )
 @trainer.config("buffer_size", 500000, info="Size of the replay buffer")
-@Trainer.with_base_specs
 class OffPolicyTrainer(Trainer):
     """Generic trainer for off-policy agents."""
 

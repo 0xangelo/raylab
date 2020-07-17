@@ -7,6 +7,7 @@ from raylab.agents.sac.trainer import sac_config
 from .policy import DAPOTorchPolicy
 
 
+@trainer.configure
 @trainer.config(
     "losses/grad_estimator",
     "PD",
@@ -29,7 +30,6 @@ from .policy import DAPOTorchPolicy
 )
 @trainer.config("module/type", "SAC")
 @sac_config
-@OffPolicyTrainer.with_base_specs
 class DAPOTrainer(OffPolicyTrainer):
     """Single-agent trainer for Dynamics-Aware Policy Optimization"""
 

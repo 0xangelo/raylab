@@ -52,6 +52,7 @@ def sop_config(cls: type) -> type:
     return cls
 
 
+@trainer.configure
 @sop_config
 @trainer.config("module/type", "DDPG")
 @trainer.config("module/actor/separate_behavior", True)
@@ -65,7 +66,6 @@ def sop_config(cls: type) -> type:
 )
 @trainer.config("exploration_config/pure_exploration_steps", 1000)
 @trainer.config("evaluation_config/explore", False, override=True)
-@OffPolicyTrainer.with_base_specs
 class SOPTrainer(OffPolicyTrainer):
     """Single agent trainer for the Streamlined Off-Policy algorithm."""
 

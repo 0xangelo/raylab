@@ -6,8 +6,8 @@ from .policy import ACKTRTorchPolicy
 from .policy import DEFAULT_OPTIM_CONFIG
 
 
+@trainer.configure
 @trainer.config("torch_optimizer", DEFAULT_OPTIM_CONFIG, override=True)
-@TRPOTrainer.with_base_specs
 class ACKTRTrainer(TRPOTrainer):
     """Single agent trainer for ACKTR."""
 

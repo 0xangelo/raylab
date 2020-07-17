@@ -7,6 +7,7 @@ from ray.rllib.agents.trainer import Trainer as RLlibTrainer
 from ray.rllib.optimizers import PolicyOptimizer
 
 from raylab.agents.trainer import config
+from raylab.agents.trainer import configure
 from raylab.agents.trainer import Trainer
 
 
@@ -61,6 +62,7 @@ def test_dummy_policy(policy_cls, obs_space, action_space):
 
 @pytest.fixture(scope="module")
 def trainer_cls(policy_cls):
+    @configure
     @config("workers", False)
     @config("optim", False)
     @config(
@@ -69,7 +71,6 @@ def trainer_cls(policy_cls):
         allow_unknown_subkeys=True,
         override_all_if_type_changes=True,
     )
-    @Trainer.with_base_specs
     class MinimalTrainer(Trainer):
         _name = "MinimalTrainer"
         _policy = policy_cls

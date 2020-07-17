@@ -9,6 +9,7 @@ from raylab.utils.replay_buffer import ReplayField
 from .policy import SVGOneTorchPolicy
 
 
+@trainer.configure
 @trainer.config(
     "torch_optimizer/type", "Adam", info="Optimizer type for model, actor, and critic"
 )
@@ -48,7 +49,6 @@ from .policy import SVGOneTorchPolicy
 )
 @trainer.config("exploration_config/pure_exploration_steps", 1000)
 @trainer.config("evaluation_config/explore", False)
-@OffPolicyTrainer.with_base_specs
 class SVGOneTrainer(OffPolicyTrainer):
     """Single agent trainer for SVG(1)."""
 

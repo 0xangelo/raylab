@@ -15,6 +15,7 @@ LINESEARCH_OPTIONS = {
 }
 
 
+@trainer.configure
 @trainer.config("delta", 0.01, info="Trust region constraint")
 @trainer.config(
     "fvp_samples",
@@ -51,7 +52,6 @@ LINESEARCH_OPTIONS = {
     "raylab.utils.exploration.StochasticActor",
     override=True,
 )
-@Trainer.with_base_specs
 class TRPOTrainer(Trainer):
     """Single agent trainer for TRPO."""
 

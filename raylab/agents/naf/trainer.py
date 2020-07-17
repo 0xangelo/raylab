@@ -5,6 +5,7 @@ from raylab.agents.off_policy import OffPolicyTrainer
 from .policy import NAFTorchPolicy
 
 
+@trainer.configure
 @trainer.config(
     "clipped_double_q", False, info="Whether to use Clipped Double Q-Learning"
 )
@@ -24,7 +25,6 @@ from .policy import NAFTorchPolicy
 )
 @trainer.config("exploration_config/pure_exploration_steps", 1000)
 @trainer.config("evaluation_config/explore", False, override=True)
-@OffPolicyTrainer.with_base_specs
 class NAFTrainer(OffPolicyTrainer):
     """Single agent trainer for NAF."""
 

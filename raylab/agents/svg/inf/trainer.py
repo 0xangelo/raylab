@@ -10,6 +10,7 @@ from raylab.utils.replay_buffer import ReplayField
 from .policy import SVGInfTorchPolicy
 
 
+@trainer.configure
 @trainer.config(
     "vf_loss_coeff",
     1.0,
@@ -46,7 +47,6 @@ from .policy import SVGInfTorchPolicy
 @trainer.config("rollout_fragment_length", 1, override=True)
 @trainer.config("batch_mode", "complete_episodes", override=True)
 @trainer.config("train_batch_size", 128, override=True)
-@Trainer.with_base_specs
 class SVGInfTrainer(Trainer):
     """Single agent trainer for SVG(inf)."""
 
