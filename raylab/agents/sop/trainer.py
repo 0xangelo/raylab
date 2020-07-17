@@ -12,6 +12,32 @@ DEFAULT_MODULE = {
 }
 
 
+@trainer.config(
+    "dpg_loss",
+    "default",
+    info="""\
+    Type of Deterministic Policy Gradient to use.
+
+    'default' backpropagates Q-value gradients through the critic network.
+
+    'acme' uses Acme's implementation which recovers DPG via a MSE loss between
+    the actor's action and the action + Q-value gradient. Allows monitoring the
+    magnitude of the action-value gradient.""",
+)
+@trainer.config(
+    "dqda_clipping",
+    None,
+    info="""\
+    Optional value by which to clip the action gradients. Only used with
+    dpg_loss='acme'.""",
+)
+@trainer.config(
+    "clip_dqda_norm",
+    False,
+    info="""\
+    Whether to clip action grads by norm or value. Only used with
+    dpg_loss='acme'.""",
+)
 @trainer.config("torch_optimizer/actor", {"type": "Adam", "lr": 1e-3})
 @trainer.config("torch_optimizer/critics", {"type": "Adam", "lr": 1e-3})
 @trainer.config(
@@ -37,7 +63,7 @@ DEFAULT_MODULE = {
 @trainer.config("evaluation_config/explore", False, override=True)
 @OffPolicyTrainer.with_base_specs
 class SOPTrainer(OffPolicyTrainer):
-    """Single agent trainer for Streamlined Off-Policy Algorithm."""
+    """Single agent trainer for the Streamlined Off-Policy algorithm."""
 
     _name = "SOP"
     _policy = SOPTorchPolicy
