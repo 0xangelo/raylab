@@ -2,13 +2,17 @@
 from typing import Callable
 from typing import Dict
 from typing import Tuple
+from typing import Union
 
 from torch import Tensor
 
-TensorDict = Dict[str, Tensor]
+
+DynamicsFn = Callable[[Tensor, Tensor], Tuple[Tensor, Tensor]]
 
 RewardFn = Callable[[Tensor, Tensor, Tensor], Tensor]
 
-TerminationFn = Callable[[Tensor, Tensor, Tensor], Tensor]
+StatDict = Dict[str, Union[float, int]]
 
-DynamicsFn = Callable[[Tensor, Tensor], Tuple[Tensor, Tensor]]
+TensorDict = Dict[str, Tensor]
+
+TerminationFn = Callable[[Tensor, Tensor, Tensor], Tensor]

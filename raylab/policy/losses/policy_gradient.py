@@ -8,6 +8,8 @@ from torch import Tensor
 from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
 from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 from raylab.policy.modules.critic.q_value import QValueEnsemble
+from raylab.utils.annotations import StatDict
+from raylab.utils.annotations import TensorDict
 
 from .abstract import Loss
 
@@ -26,7 +28,7 @@ class DeterministicPolicyGradient(Loss):
         self.actor = actor
         self.critics = critics
 
-    def __call__(self, batch) -> Tuple[Tensor, dict]:
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         obs = batch[SampleBatch.CUR_OBS]
 
         values = self.state_value(obs)
@@ -61,7 +63,7 @@ class ReparameterizedSoftPG(Loss):
         self.actor = actor
         self.critics = critics
 
-    def __call__(self, batch) -> Tuple[Tensor, dict]:
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         obs = batch[SampleBatch.CUR_OBS]
 
         action_values, entropy = self.action_value_plus_entropy(obs)

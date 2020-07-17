@@ -23,6 +23,7 @@ from torch import Tensor
 from torch.optim import Optimizer
 
 from raylab.pytorch.utils import convert_to_tensor
+from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 from raylab.utils.dictionaries import deep_merge
 
@@ -232,7 +233,7 @@ class TorchPolicy(Policy):
         state_batches: List[Tensor],
         module: nn.Module,
         action_dist: ActionDistribution,
-    ) -> Dict[str, float]:
+    ) -> StatDict:
         """Returns dict of extra info to include in experience batch.
 
         Args:

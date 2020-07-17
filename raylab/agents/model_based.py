@@ -1,5 +1,4 @@
 """Generic Trainer and base configuration for model-based agents."""
-from typing import Dict
 from typing import List
 from typing import Tuple
 
@@ -9,6 +8,7 @@ from ray.rllib.utils import override
 import raylab.envs as envs
 from raylab.agents import trainer
 from raylab.agents.off_policy import OffPolicyTrainer
+from raylab.utils.annotations import StatDict
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
@@ -91,7 +91,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
         self.metrics.num_steps_sampled += timesteps_this_iter
         return self._log_metrics(stats, timesteps_this_iter + pre_learning_steps)
 
-    def train_dynamics_model(self) -> Tuple[List[float], Dict[str, float]]:
+    def train_dynamics_model(self) -> Tuple[List[float], StatDict]:
         """Implements the model training step.
 
         Calls the policy to optimize the model on the environment replay buffer.
@@ -114,7 +114,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
         return eval_losses, stats
 
-    def improve_policy(self, num_improvements: int) -> Dict[str, float]:
+    def improve_policy(self, num_improvements: int) -> StatDict:
         """Improve the policy on previously collected environment data.
 
         Calls the policy to learn on batches samples from the replay buffer.
@@ -232,7 +232,7 @@ class DynaLikeTrainer(ModelBasedTrainer):
         for row in virtual_samples.rows():
             self.virtual_replay.add(row)
 
-    def improve_policy(self, num_improvements: int) -> Dict[str, float]:
+    def improve_policy(self, num_improvements: int) -> StatDict:
         """Improve the policy on a mixture of environment and model data.
 
         Calls the policy to learn on batches sampled from the environment and

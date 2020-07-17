@@ -1,5 +1,4 @@
 """Losses for Policy-Aware Model Learning."""
-from typing import Dict
 from typing import Tuple
 
 import torch
@@ -10,6 +9,7 @@ from torch import Tensor
 from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 from raylab.policy.modules.critic.q_value import QValueEnsemble
 from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
 from .abstract import Loss
@@ -79,7 +79,7 @@ class SPAML(EnvFunctionsMixin, Loss):
         )
         self._loss_mle.compile()
 
-    def __call__(self, batch: TensorDict) -> Tuple[Tensor, Dict[str, float]]:
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         assert self.initialized, (
             "Environment functions missing. "
             "Did you set reward and termination functions?"

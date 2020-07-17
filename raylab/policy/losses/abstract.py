@@ -6,6 +6,7 @@ from typing import Tuple
 
 from torch import Tensor
 
+from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
 __all__ = [
@@ -28,7 +29,7 @@ class Loss(metaclass=ABCMeta):
     batch_keys: Tuple[str, ...]
 
     @abstractmethod
-    def __call__(self, batch: TensorDict) -> Tuple[Tensor, Dict[str, float]]:
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         """Computes the loss function and stats dict for the given batch.
 
         Subclasses should override this to implement their respective loss
