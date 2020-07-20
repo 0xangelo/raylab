@@ -1750,7 +1750,7 @@ description = "The fastest way to build data apps in Python"
 name = "streamlit"
 optional = false
 python-versions = ">=3.6"
-version = "0.63.0"
+version = "0.63.1"
 
 [package.dependencies]
 altair = ">=3.2.0"
@@ -3112,7 +3112,7 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 streamlit = [
-    {file = "streamlit-0.63.0-py2.py3-none-any.whl", hash = "sha256:5abc51e46b5ce8b8d930e9996697ff531630ac8dfd8966e48216565e0537384d"},
+    {file = "streamlit-0.63.1-py2.py3-none-any.whl", hash = "sha256:70ec08585810db692b46b1376a8b4b9f9184a11faf1e3d157efb746256d75b65"},
 ]
 stringcase = [
     {file = "stringcase-1.2.0.tar.gz", hash = "sha256:48a06980661908efe8d9d34eab2b6c13aefa2163b3ced26972902e3bdfd87008"},
