@@ -1,6 +1,5 @@
 import pytest
 import torch
-from ray.rllib import SampleBatch
 
 from raylab.policy.modules.critic.q_value import MLPQValue
 from raylab.policy.modules.critic.q_value import QValueEnsemble
@@ -20,15 +19,14 @@ def q_value_ensemble(obs_space, action_space, n_critics):
     return QValueEnsemble(q_values)
 
 
-def test_forward(q_value_ensemble, batch, n_critics):
+def test_forward(q_value_ensemble, obs, action, n_critics):
     critics = q_value_ensemble
-    obs, act = batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS]
-    values = critics(obs, act)
+    values = critics(obs, action)
     assert torch.is_tensor(values)
     assert values.dtype == torch.float32
     assert values.shape == (len(obs), n_critics)
 
-    clipped = critics(obs, act, clip=True)
+    clipped = critics(obs, action).min(dim=-1)[0]
     assert torch.is_tensor(clipped)
     assert clipped.dtype == torch.float32
-    assert clipped.shape == (len(obs), n_critics)
+    assert clipped.shape == (len(obs),)

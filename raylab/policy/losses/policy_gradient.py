@@ -42,7 +42,7 @@ class DeterministicPolicyGradient(Loss):
     def state_value(self, obs: Tensor) -> Tensor:
         """Compute the state value by combining policy and action-value function."""
         actions = self.actor(obs)
-        return self.critics(obs, actions, clip=True)[..., 0]
+        return self.critics(obs, actions).min(dim=-1)[0]
 
 
 class ReparameterizedSoftPG(Loss):
@@ -79,7 +79,7 @@ class ReparameterizedSoftPG(Loss):
         Compute the action-value and a single sample estimate of the policy's entropy.
         """
         actions, logp = self.actor.rsample(obs)
-        action_values = self.critics(obs, actions, clip=True)[..., 0]
+        action_values = self.critics(obs, actions).min(dim=-1)[0]
         return action_values, -logp
 
 
@@ -116,7 +116,7 @@ class ActionDPG(Loss):
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         obs = batch[SampleBatch.CUR_OBS]
         a_max = self.actor(obs)
-        q_max = self.critics(obs, a_max, clip=True)[..., 0]
+        q_max = self.critics(obs, a_max).min(dim=-1)[0]
 
         loss, dqda_norm = self.action_dpg(
             q_max, a_max, self.dqda_clipping, self.clip_norm

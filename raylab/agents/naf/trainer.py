@@ -6,9 +6,6 @@ from .policy import NAFTorchPolicy
 
 
 @trainer.configure
-@trainer.option(
-    "clipped_double_q", False, help="Whether to use Clipped Double Q-Learning"
-)
 @trainer.option("torch_optimizer/type", "Adam")
 @trainer.option("torch_optimizer/lr", 3e-4)
 @trainer.option(
@@ -16,6 +13,8 @@ from .policy import NAFTorchPolicy
     0.995,
     help="Interpolation factor in polyak averaging for target networks.",
 )
+@trainer.option("module/type", "NAF")
+@trainer.option("module/separate_behavior", True)
 @trainer.option(
     "exploration_config/type", "raylab.utils.exploration.ParameterNoise", override=True
 )

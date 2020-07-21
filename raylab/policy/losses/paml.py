@@ -138,7 +138,8 @@ class SPAML(EnvFunctionsMixin, Loss):
         Returns:
             The action-value tensor of shape `(N, *)`
         """
-        return self._modules["critics"](obs, action, clip=True)[..., 0]
+        unclipped_qval = self._modules["critics"](obs, action)
+        return unclipped_qval.min(dim=-1)[0]
 
     def one_step_action_value_surrogate(self, obs: Tensor, action: Tensor) -> Tensor:
         """Surrogate loss for gradient estimation of action values.
@@ -177,7 +178,8 @@ class SPAML(EnvFunctionsMixin, Loss):
         next_act, logp = self._modules["policy"].rsample(next_obs)
         self._modules["policy"].requires_grad_(True)
 
-        next_qval = self._modules["critics"](next_obs, next_act, clip=True)[..., 0]
+        unclipped_qval = self._modules["critics"](next_obs, next_act)
+        next_qval, _ = unclipped_qval.min(dim=-1)
 
         reward = self._env.reward(obs, action, next_obs)
         done = self._env.termination(obs, action, next_obs)
