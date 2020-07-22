@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from raylab.envs import get_env_creator
-from raylab.envs.wrappers import RandomIrrelevant
+from raylab.envs.wrappers import CorrelatedIrrelevant
 
 
 @pytest.fixture(scope="module")
@@ -21,18 +21,8 @@ def size():
 
 
 @pytest.fixture(scope="module")
-def loc():
-    return 0.0
-
-
-@pytest.fixture(scope="module")
-def scale():
-    return 1.0
-
-
-@pytest.fixture(scope="module")
-def wrapped(env, size, loc, scale):
-    return RandomIrrelevant(env, size, loc, scale)
+def wrapped(env, size):
+    return CorrelatedIrrelevant(env, size)
 
 
 def test_observation_space(wrapped, size):
