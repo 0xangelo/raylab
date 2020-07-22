@@ -1,4 +1,7 @@
 # pylint:disable=missing-module-docstring
+from typing import List
+from typing import Optional
+
 import gym
 import gym.utils.seeding as seeding
 import numpy as np
@@ -33,7 +36,7 @@ class RandomIrrelevant(gym.ObservationWrapper):
 
         self.np_random, _ = seeding.np_random()
 
-    def seed(self, seed=None):
+    def seed(self, seed: Optional[int] = None) -> List[int]:
         seeds = super().seed(seed) or []
         self.np_random, seed_ = seeding.np_random(seed)
         return seeds + [seed_]
