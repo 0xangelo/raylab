@@ -7,13 +7,13 @@ from raylab.policy.model_based.training_mixin import TrainingSpec
 from .policy import DynaSACTorchPolicy
 
 
-@trainer.config("module/type", "ModelBasedSAC")
-@trainer.config("torch_optimizer/models", {"type": "Adam", "lr": 1e-3})
-@trainer.config("model_training", TrainingSpec().to_dict(), info=TrainingSpec.__doc__)
-@trainer.config("exploration_config/pure_exploration_steps", 1000)
-@trainer.config("evaluation_config/explore", False, override=True)
+@trainer.configure
+@trainer.option("module/type", "ModelBasedSAC")
+@trainer.option("torch_optimizer/models", {"type": "Adam", "lr": 1e-3})
+@trainer.option("model_training", TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
+@trainer.option("exploration_config/pure_exploration_steps", 1000)
+@trainer.option("evaluation_config/explore", False, override=True)
 @sac_config
-@ModelBasedTrainer.with_base_specs
 class DynaSACTrainer(ModelBasedTrainer):
     """Single agent trainer for Dyna-SAC."""
 

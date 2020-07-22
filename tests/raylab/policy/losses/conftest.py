@@ -61,8 +61,10 @@ def action_critics(request, obs_space, action_space):
 
 @pytest.fixture
 def deterministic_policies(obs_space, action_space):
-    mlp_spec = MLPDeterministicPolicy.spec_cls(units=(32,), activation="ReLU")
-    policy = MLPDeterministicPolicy(obs_space, action_space, mlp_spec, norm_beta=1.2)
+    spec = MLPDeterministicPolicy.spec_cls(
+        units=(32,), activation="ReLU", norm_beta=1.2
+    )
+    policy = MLPDeterministicPolicy(obs_space, action_space, spec)
     target_policy = DeterministicPolicy.add_gaussian_noise(policy, noise_stddev=0.3)
     return policy, target_policy
 

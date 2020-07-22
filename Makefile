@@ -69,6 +69,11 @@ test-all: ## run tests on every Python version with tox
 changelog:
 	auto-changelog --tag-prefix v --unreleased --stdout --starting-commit HEAD
 
+push-release:
+	git push origin master
+	git push origin develop
+	git push --tags
+
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source raylab -m pytest
 	coverage report -m

@@ -9,6 +9,7 @@ from raylab.pytorch.nn import FullyConnected
 from raylab.pytorch.nn import GaussianNoise
 from raylab.pytorch.nn import NormalizedLinear
 from raylab.pytorch.nn import TanhSquash
+from raylab.pytorch.nn.init import initialize_
 from raylab.utils.dictionaries import deep_merge
 
 
@@ -25,12 +26,8 @@ BASE_CONFIG = {
     # Maximum l1 norm of the policy's output vector before the squashing
     # function
     "beta": 1.2,
-    "encoder": {
-        "units": (32, 32),
-        "activation": "ReLU",
-        "initializer_options": {"name": "xavier_uniform"},
-        "layer_norm": False,
-    },
+    "initializer_options": {"name": "xavier_uniform"},
+    "encoder": {"units": (32, 32), "activation": "ReLU", "layer_norm": False},
 }
 
 
@@ -94,6 +91,12 @@ class DeterministicPolicy(nn.Module):
     def from_scratch(cls, obs_space, action_space, config, *, noise=None):
         """Create a policy using new modules."""
         logits = FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
+        logits.apply(
+            initialize_(
+                activation=config["encoder"].get("activation"),
+                **config["initializer_options"]
+            )
+        )
         normalize = NormalizedLinear(
             in_features=logits.out_features,
             out_features=action_space.shape[0],

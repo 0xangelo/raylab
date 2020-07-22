@@ -1,5 +1,4 @@
 """Generic Trainer and base configuration for model-based agents."""
-from typing import Dict
 from typing import List
 from typing import Tuple
 
@@ -9,19 +8,20 @@ from ray.rllib.utils import override
 import raylab.envs as envs
 from raylab.agents import trainer
 from raylab.agents.off_policy import OffPolicyTrainer
+from raylab.utils.annotations import StatDict
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
-@trainer.config(
+@trainer.configure
+@trainer.option(
     "holdout_ratio",
     0.2,
-    info="Fraction of replay buffer to use as validation dataset"
+    help="Fraction of replay buffer to use as validation dataset"
     " (hence not for training)",
 )
-@trainer.config(
-    "max_holdout", 5000, info="Maximum number of samples to use as validation dataset"
+@trainer.option(
+    "max_holdout", 5000, help="Maximum number of samples to use as validation dataset"
 )
-@OffPolicyTrainer.with_base_specs
 class ModelBasedTrainer(OffPolicyTrainer):
     """Generic trainer for model-based agents.
 
@@ -91,7 +91,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
         self.metrics.num_steps_sampled += timesteps_this_iter
         return self._log_metrics(stats, timesteps_this_iter + pre_learning_steps)
 
-    def train_dynamics_model(self) -> Tuple[List[float], Dict[str, float]]:
+    def train_dynamics_model(self) -> Tuple[List[float], StatDict]:
         """Implements the model training step.
 
         Calls the policy to optimize the model on the environment replay buffer.
@@ -114,7 +114,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
         return eval_losses, stats
 
-    def improve_policy(self, num_improvements: int) -> Dict[str, float]:
+    def improve_policy(self, num_improvements: int) -> StatDict:
         """Improve the policy on previously collected environment data.
 
         Calls the policy to learn on batches samples from the replay buffer.
@@ -138,20 +138,20 @@ class ModelBasedTrainer(OffPolicyTrainer):
         return stats
 
 
-@trainer.config(
-    "virtual_buffer_size", int(1e6), info="Size of the buffer for virtual samples"
+@trainer.configure
+@trainer.option(
+    "virtual_buffer_size", int(1e6), help="Size of the buffer for virtual samples"
 )
-@trainer.config(
+@trainer.option(
     "model_rollouts",
     40,
-    info="Populate virtual replay with this many model rollouts per environment step",
+    help="Populate virtual replay with this many model rollouts per environment step",
 )
-@trainer.config(
+@trainer.option(
     "real_data_ratio",
     0.1,
-    info="Fraction of each policy minibatch to sample from environment replay pool",
+    help="Fraction of each policy minibatch to sample from environment replay pool",
 )
-@ModelBasedTrainer.with_base_specs
 class DynaLikeTrainer(ModelBasedTrainer):
     """Generic trainer for model-based agents with dyna-like data augmentation.
 
@@ -232,7 +232,7 @@ class DynaLikeTrainer(ModelBasedTrainer):
         for row in virtual_samples.rows():
             self.virtual_replay.add(row)
 
-    def improve_policy(self, num_improvements: int) -> Dict[str, float]:
+    def improve_policy(self, num_improvements: int) -> StatDict:
         """Improve the policy on a mixture of environment and model data.
 
         Calls the policy to learn on batches sampled from the environment and

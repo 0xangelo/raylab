@@ -1,5 +1,4 @@
-# pylint:disable=missing-docstring
-# pylint: enable=missing-docstring
+# pylint:disable=missing-module-docstring
 import gym
 import numpy as np
 import torch

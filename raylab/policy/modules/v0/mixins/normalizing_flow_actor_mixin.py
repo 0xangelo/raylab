@@ -9,6 +9,7 @@ from ray.rllib.utils import override
 import raylab.policy.modules.networks as networks
 import raylab.pytorch.nn as nnx
 import raylab.pytorch.nn.distributions as ptd
+from raylab.pytorch.nn.init import initialize_
 from raylab.utils.dictionaries import deep_merge
 
 from .stochastic_actor_mixin import StochasticPolicy
@@ -17,6 +18,7 @@ from .stochastic_actor_mixin import StochasticPolicy
 BASE_CONFIG = {
     "conditional_prior": True,
     "obs_encoder": {"units": (64, 64), "activation": "ReLU"},
+    "initializer_options": {},
     "num_flows": 4,
     "conditional_flow": False,
     "flow": {
@@ -36,7 +38,7 @@ class NormalizingFlowActorMixin:
             BASE_CONFIG,
             config.get("actor", {}),
             False,
-            ["obs_encoder", "flow"],
+            ["obs_encoder", "flow", "initalizer_options"],
             ["flow"],
         )
         assert isinstance(
@@ -67,6 +69,13 @@ class NormalizingFlowActorMixin:
         else:
             warnings.warn("Policy is blind to the observations")
             obs_encoder = nnx.FullyConnected(obs_space.shape[0], units=())
+
+        obs_encoder.apply(
+            initialize_(
+                activation=config["obs_encoder"].get("activation"),
+                **config["initializer_options"],
+            )
+        )
 
         params_module = NFNormalParams(obs_encoder, action_space, config)
         base_dist = ptd.Independent(ptd.Normal(), reinterpreted_batch_ndims=1)

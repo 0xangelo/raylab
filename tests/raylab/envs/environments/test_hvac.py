@@ -3,13 +3,20 @@ import numpy as np
 import pytest
 import torch
 
+from raylab.envs import get_env_creator
+
 
 BATCH_SIZE = 32
 
 
 @pytest.fixture
-def env(hvac_env):
-    return hvac_env({})
+def env_creator():
+    return get_env_creator("HVAC")
+
+
+@pytest.fixture
+def env(env_creator):
+    return env_creator({})
 
 
 def test_observation_space(env):

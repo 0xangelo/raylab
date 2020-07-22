@@ -9,46 +9,46 @@ from raylab.utils.replay_buffer import ReplayField
 from .policy import SVGOneTorchPolicy
 
 
-@trainer.config(
-    "torch_optimizer/type", "Adam", info="Optimizer type for model, actor, and critic"
+@trainer.configure
+@trainer.option(
+    "torch_optimizer/type", "Adam", help="Optimizer type for model, actor, and critic"
 )
-@trainer.config("torch_optimizer/model", {"lr": 1e-3})
-@trainer.config("torch_optimizer/actor", {"lr": 1e-3})
-@trainer.config("torch_optimizer/critic", {"lr": 1e-3})
-@trainer.config(
+@trainer.option("torch_optimizer/model", {"lr": 1e-3})
+@trainer.option("torch_optimizer/actor", {"lr": 1e-3})
+@trainer.option("torch_optimizer/critic", {"lr": 1e-3})
+@trainer.option(
     "vf_loss_coeff",
     1.0,
-    info="Weight of the fitted V loss in the joint model-value loss",
+    help="Weight of the fitted V loss in the joint model-value loss",
 )
-@trainer.config("max_grad_norm", 10.0, info="Clip gradient norms by this value")
-@trainer.config(
-    "max_is_ratio", 5.0, info="Clip importance sampling weights by this value"
+@trainer.option("max_grad_norm", 10.0, help="Clip gradient norms by this value")
+@trainer.option(
+    "max_is_ratio", 5.0, help="Clip importance sampling weights by this value"
 )
-@trainer.config(
+@trainer.option(
     "polyak",
     0.995,
-    info="Interpolation factor in polyak averaging for target networks.",
+    help="Interpolation factor in polyak averaging for target networks.",
 )
-@trainer.config(
+@trainer.option(
     "kl_schedule",
     {"initial_coeff": 0},
-    info="Options for adaptive KL coefficient. See raylab.utils.adaptive_kl",
+    help="Options for adaptive KL coefficient. See raylab.utils.adaptive_kl",
 )
-@trainer.config(
+@trainer.option(
     "replay_kl",
     True,
-    info="""\
+    help="""
     Whether to penalize KL divergence with the current policy or past policies
     that generated the replay pool.
     """,
 )
-@trainer.config("module", {"type": "SVGModule-v0"}, override=True)
-@trainer.config(
+@trainer.option("module", {"type": "SVGModule-v0"}, override=True)
+@trainer.option(
     "exploration_config/type", "raylab.utils.exploration.StochasticActor", override=True
 )
-@trainer.config("exploration_config/pure_exploration_steps", 1000)
-@trainer.config("evaluation_config/explore", False)
-@OffPolicyTrainer.with_base_specs
+@trainer.option("exploration_config/pure_exploration_steps", 1000)
+@trainer.option("evaluation_config/explore", False)
 class SVGOneTrainer(OffPolicyTrainer):
     """Single agent trainer for SVG(1)."""
 

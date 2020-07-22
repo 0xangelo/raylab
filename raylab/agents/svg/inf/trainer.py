@@ -10,43 +10,43 @@ from raylab.utils.replay_buffer import ReplayField
 from .policy import SVGInfTorchPolicy
 
 
-@trainer.config(
+@trainer.configure
+@trainer.option(
     "vf_loss_coeff",
     1.0,
-    info="Weight of the fitted V loss in the joint model-value loss",
+    help="Weight of the fitted V loss in the joint model-value loss",
 )
-@trainer.config("max_grad_norm", 10.0, info="Clip gradient norms by this value")
-@trainer.config(
-    "max_is_ratio", 5.0, info="Clip importance sampling weights by this value"
+@trainer.option("max_grad_norm", 10.0, help="Clip gradient norms by this value")
+@trainer.option(
+    "max_is_ratio", 5.0, help="Clip importance sampling weights by this value"
 )
-@trainer.config(
+@trainer.option(
     "polyak",
     0.995,
-    info="Interpolation factor in polyak averaging for target networks.",
+    help="Interpolation factor in polyak averaging for target networks.",
 )
-@trainer.config("torch_optimizer/on_policy", {"type": "Adam", "lr": 1e-3})
-@trainer.config("torch_optimizer/off_policy", {"type": "Adam", "lr": 1e-3})
-@trainer.config(
+@trainer.option("torch_optimizer/on_policy", {"type": "Adam", "lr": 1e-3})
+@trainer.option("torch_optimizer/off_policy", {"type": "Adam", "lr": 1e-3})
+@trainer.option(
     "updates_per_step",
     1.0,
-    info="Model and Value function updates per step in the environment",
+    help="Model and Value function updates per step in the environment",
 )
-@trainer.config("buffer_size", 500000, info="Size of the replay buffer")
-@trainer.config(
+@trainer.option("buffer_size", 500000, help="Size of the replay buffer")
+@trainer.option(
     "kl_schedule",
     {},
-    info="Options for adaptive KL coefficient. See raylab.utils.adaptive_kl",
+    help="Options for adaptive KL coefficient. See raylab.utils.adaptive_kl",
 )
-@trainer.config("module", {"type": "SVGModule-v0"}, override=True)
-@trainer.config(
+@trainer.option("module", {"type": "SVGModule-v0"}, override=True)
+@trainer.option(
     "exploration_config/type", "raylab.utils.exploration.StochasticActor", override=True
 )
-@trainer.config("evaluation_config/explore", True)
-@trainer.config("num_workers", 0, override=True)
-@trainer.config("rollout_fragment_length", 1, override=True)
-@trainer.config("batch_mode", "complete_episodes", override=True)
-@trainer.config("train_batch_size", 128, override=True)
-@Trainer.with_base_specs
+@trainer.option("evaluation_config/explore", True)
+@trainer.option("num_workers", 0, override=True)
+@trainer.option("rollout_fragment_length", 1, override=True)
+@trainer.option("batch_mode", "complete_episodes", override=True)
+@trainer.option("train_batch_size", 128, override=True)
 class SVGInfTrainer(Trainer):
     """Single agent trainer for SVG(inf)."""
 
@@ -98,6 +98,6 @@ class SVGInfTrainer(Trainer):
         res = self.collect_metrics()
         res.update(
             timesteps_this_iter=timesteps_this_iter,
-            info=dict(learner=learner_stats, **res.get("info", {})),
+            help=dict(learner=learner_stats, **res.get("info", {})),
         )
         return res

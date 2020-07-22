@@ -20,10 +20,10 @@ class StateMLPSpec(DataClassJsonMixin):
     """Specifications for creating a multilayer perceptron.
 
     Args:
-    units: Number of units in each hidden layer
-    activation: Nonlinearity following each linear layer
-    layer_norm: Whether to apply layer normalization between each linear layer
-        and following activation
+        units: Number of units in each hidden layer
+        activation: Nonlinearity following each linear layer
+        layer_norm: Whether to apply layer normalization between each linear layer
+            and following activation
     """
 
     units: List[int] = field(default_factory=list)

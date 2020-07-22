@@ -1,7 +1,8 @@
-# pylint:disable=missing-docstring
-# pylint: enable=missing-docstring
+# pylint:disable=missing-module-docstring
 import gym
 import numpy as np
+
+from .utils import assert_box_observation_space
 
 
 class AddRelativeTimestep(gym.ObservationWrapper):
@@ -11,6 +12,7 @@ class AddRelativeTimestep(gym.ObservationWrapper):
     """
 
     def __init__(self, env=None):
+        assert_box_observation_space(env, self)
         super().__init__(env)
 
         _env = env

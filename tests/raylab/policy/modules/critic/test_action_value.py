@@ -1,6 +1,5 @@
 import pytest
 import torch
-from ray.rllib import SampleBatch
 
 
 @pytest.fixture(scope="module")
@@ -30,7 +29,7 @@ def module(module_cls, obs_space, action_space, spec):
     return module_cls(obs_space, action_space, spec)
 
 
-def test_module_creation(module, batch, spec):
+def test_module_creation(module, obs, action, spec):
     double_q = spec.double_q
 
     for attr in "q_values target_q_values".split():
@@ -39,11 +38,7 @@ def test_module_creation(module, batch, spec):
     assert len(module.q_values) == expected_n_critics
 
     q_values, targets = module.q_values, module.target_q_values
-    vals = [
-        m(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
-        for ensemble in (q_values, targets)
-        for m in ensemble
-    ]
+    vals = [m(obs, action) for ensemble in (q_values, targets) for m in ensemble]
     for val in vals:
         assert val.shape[-1] == 1
         assert val.dtype == torch.float32

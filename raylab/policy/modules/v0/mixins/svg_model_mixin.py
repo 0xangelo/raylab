@@ -5,6 +5,7 @@ from ray.rllib.utils import override
 
 import raylab.pytorch.nn as nnx
 import raylab.pytorch.nn.distributions as ptd
+from raylab.pytorch.nn.init import initialize_
 from raylab.utils.dictionaries import deep_merge
 
 from .stochastic_model_mixin import StochasticModel
@@ -13,12 +14,8 @@ from .stochastic_model_mixin import StochasticModel
 BASE_CONFIG = {
     "residual": True,
     "input_dependent_scale": False,
-    "encoder": {
-        "units": (40, 40),
-        "activation": "Tanh",
-        "delay_action": True,
-        "initializer_options": {"name": "xavier_uniform"},
-    },
+    "encoder": {"units": (40, 40), "activation": "Tanh", "delay_action": True},
+    "initializer_options": {"name": "xavier_uniform"},
 }
 
 
@@ -46,7 +43,14 @@ class SVGDynamicsParams(nn.Module):
         obs_size, act_size = obs_space.shape[0], action_space.shape[0]
 
         def make_encoder():
-            return nnx.StateActionEncoder(obs_size, act_size, **config["encoder"])
+            mlp = nnx.StateActionEncoder(obs_size, act_size, **config["encoder"])
+            mlp.apply(
+                initialize_(
+                    activation=config["encoder"].get("activation"),
+                    **config["initializer_options"],
+                )
+            )
+            return mlp
 
         self.logits = nn.ModuleList([make_encoder() for _ in range(obs_space.shape[0])])
 

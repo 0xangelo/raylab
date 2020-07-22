@@ -5,6 +5,7 @@ from ray.rllib.utils import override
 
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
+from raylab.policy.losses import ActionDPG
 from raylab.policy.losses import ClippedDoubleQLearning
 from raylab.policy.losses import DeterministicPolicyGradient
 from raylab.pytorch.nn.utils import update_polyak
@@ -19,14 +20,29 @@ class SOPTorchPolicy(TorchPolicy):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.loss_actor = DeterministicPolicyGradient(
-            self.module.actor, self.module.critics,
-        )
+
+        self._make_actor_loss()
         self.loss_critic = ClippedDoubleQLearning(
             self.module.critics, self.module.target_critics, self.module.target_actor,
         )
         self.loss_critic.gamma = self.config["gamma"]
         self._grad_step = 0
+
+    def _make_actor_loss(self):
+        if self.config["dpg_loss"] == "default":
+            self.loss_actor = DeterministicPolicyGradient(
+                self.module.actor, self.module.critics,
+            )
+        elif self.config["dpg_loss"] == "acme":
+            self.loss_actor = ActionDPG(self.module.actor, self.module.critics)
+            self.loss_actor.dqda_clipping = self.config["dqda_clipping"]
+            self.loss_actor.clip_norm = self.config["clip_dqda_norm"]
+        else:
+            dpg_loss = self.config["dpg_loss"]
+            raise ValueError(
+                f"Invalid config for 'dpg_loss': {dpg_loss}."
+                " Choose between 'default' and 'acme'"
+            )
 
     @staticmethod
     @override(TorchPolicy)

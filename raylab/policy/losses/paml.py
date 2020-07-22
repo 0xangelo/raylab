@@ -1,5 +1,4 @@
 """Losses for Policy-Aware Model Learning."""
-from typing import Dict
 from typing import Tuple
 
 import torch
@@ -10,6 +9,8 @@ from torch import Tensor
 from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 from raylab.policy.modules.critic.q_value import QValueEnsemble
 from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+from raylab.utils.annotations import StatDict
+from raylab.utils.annotations import TensorDict
 
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
@@ -78,7 +79,7 @@ class SPAML(EnvFunctionsMixin, Loss):
         )
         self._loss_mle.compile()
 
-    def __call__(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, float]]:
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         assert self.initialized, (
             "Environment functions missing. "
             "Did you set reward and termination functions?"
@@ -137,7 +138,8 @@ class SPAML(EnvFunctionsMixin, Loss):
         Returns:
             The action-value tensor of shape `(N, *)`
         """
-        return self._modules["critics"](obs, action, clip=True)[..., 0]
+        unclipped_qval = self._modules["critics"](obs, action)
+        return unclipped_qval.min(dim=-1)[0]
 
     def one_step_action_value_surrogate(self, obs: Tensor, action: Tensor) -> Tensor:
         """Surrogate loss for gradient estimation of action values.
@@ -176,7 +178,8 @@ class SPAML(EnvFunctionsMixin, Loss):
         next_act, logp = self._modules["policy"].rsample(next_obs)
         self._modules["policy"].requires_grad_(True)
 
-        next_qval = self._modules["critics"](next_obs, next_act, clip=True)[..., 0]
+        unclipped_qval = self._modules["critics"](next_obs, next_act)
+        next_qval, _ = unclipped_qval.min(dim=-1)
 
         reward = self._env.reward(obs, action, next_obs)
         done = self._env.termination(obs, action, next_obs)
@@ -240,7 +243,7 @@ class SPAML(EnvFunctionsMixin, Loss):
         # Return mean action gradient loss along batch dimension
         return grad_norms.mean(dim=-1)
 
-    def maximum_likelihood_loss(self, batch: Dict[str, Tensor]) -> Tensor:
+    def maximum_likelihood_loss(self, batch: TensorDict) -> Tensor:
         """Model regularization through Maximum Likelihood.
 
         Args:

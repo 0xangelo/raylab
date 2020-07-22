@@ -28,18 +28,18 @@ DEFAULT_MODULE = {
 }
 
 
-@trainer.config("module", DEFAULT_MODULE, override=True)
-@trainer.config(
+@trainer.configure
+@trainer.option("module", DEFAULT_MODULE, override=True)
+@trainer.option(
     "torch_optimizer/models", {"type": "Adam", "lr": 3e-4, "weight_decay": 0.0001}
 )
-@trainer.config("model_training", TrainingSpec().to_dict(), info=TrainingSpec.__doc__)
-@trainer.config("model_sampling", SamplingSpec().to_dict(), info=SamplingSpec.__doc__)
-@trainer.config("model_rollouts", 20, override=True)
-@trainer.config("learning_starts", 5000, override=True)
-@trainer.config("train_batch_size", 512, override=True)
-@trainer.config("compile_policy", True, override=True)
+@trainer.option("model_training", TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
+@trainer.option("model_sampling", SamplingSpec().to_dict(), help=SamplingSpec.__doc__)
+@trainer.option("model_rollouts", 20, override=True)
+@trainer.option("learning_starts", 5000, override=True)
+@trainer.option("train_batch_size", 512, override=True)
+@trainer.option("compile_policy", True, override=True)
 @sac_config
-@DynaLikeTrainer.with_base_specs
 class MBPOTrainer(DynaLikeTrainer):
     """Model-based trainer using SAC for policy improvement."""
 

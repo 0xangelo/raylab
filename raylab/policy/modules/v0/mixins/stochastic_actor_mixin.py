@@ -8,11 +8,19 @@ from ray.rllib.utils import override
 
 import raylab.pytorch.nn as nnx
 import raylab.pytorch.nn.distributions as ptd
+from raylab.pytorch.nn.init import initialize_
 from raylab.utils.dictionaries import deep_merge
 
 
 def _build_fully_connected(obs_space, config):
-    return nnx.FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
+    mlp = nnx.FullyConnected(in_features=obs_space.shape[0], **config["encoder"])
+    mlp.apply(
+        initialize_(
+            activation=config["encoder"].get("activation"),
+            **config["initializer_options"],
+        )
+    )
+    return mlp
 
 
 class StochasticActorMixin:
@@ -20,11 +28,8 @@ class StochasticActorMixin:
 
     # pylint:disable=too-few-public-methods
     BASE_CONFIG = {
-        "encoder": {
-            "units": (32, 32),
-            "activation": "Tanh",
-            "initializer_options": {"name": "xavier_uniform"},
-        },
+        "encoder": {"units": (32, 32), "activation": "Tanh"},
+        "initializer_options": {"name": "xavier_uniform"},
         "input_dependent_scale": False,
     }
 

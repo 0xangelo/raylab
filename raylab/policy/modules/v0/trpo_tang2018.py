@@ -27,11 +27,8 @@ from .mixins import StochasticPolicy
 BASE_CONFIG = {
     "actor": {"num_flows": 4, "hidden_size": 3},
     "critic": {
-        "encoder": {
-            "units": (32, 32),
-            "activation": "Tanh",
-            "initializer_options": {"name": "normal", "std": 1.0},
-        },
+        "initializer_options": {"name": "normal", "std": 1.0},
+        "encoder": {"units": (32, 32), "activation": "Tanh"},
         "target_vf": False,
     },
 }

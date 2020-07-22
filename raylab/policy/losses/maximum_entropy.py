@@ -1,11 +1,14 @@
 """Loss functions for dual variables in maximum entropy RL."""
 from typing import Callable
+from typing import Tuple
 
 import torch
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.utils.annotations import StochasticPolicy
+from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
+from raylab.utils.annotations import StatDict
+from raylab.utils.annotations import TensorDict
 
 from .abstract import Loss
 
@@ -32,7 +35,7 @@ class MaximumEntropyDual(Loss):
         self.actor = actor
         self.target_entropy = target_entropy
 
-    def __call__(self, batch):
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         """Compute entropy coefficient loss."""
 
         if self.ENTROPY in batch:

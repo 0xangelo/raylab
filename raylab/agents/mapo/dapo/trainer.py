@@ -7,29 +7,29 @@ from raylab.agents.sac.trainer import sac_config
 from .policy import DAPOTorchPolicy
 
 
-@trainer.config(
+@trainer.configure
+@trainer.option(
     "losses/grad_estimator",
     "PD",
-    info="""\
+    help="""
     Gradient estimator for optimizing expectations. Possible types include
     SF: score function
     PD: pathwise derivative
     """,
 )
-@trainer.config(
+@trainer.option(
     "losses/model_samples",
     4,
-    info="""\
+    help="""
     Number of next states to sample from the model when calculating the
     model-aware deterministic policy gradient
     """,
 )
-@trainer.config(
-    "losses", {}, info="Configurations for model, actor, and critic loss functions"
+@trainer.option(
+    "losses", {}, help="Configurations for model, actor, and critic loss functions"
 )
-@trainer.config("module/type", "SAC")
+@trainer.option("module/type", "SAC")
 @sac_config
-@OffPolicyTrainer.with_base_specs
 class DAPOTrainer(OffPolicyTrainer):
     """Single-agent trainer for Dynamics-Aware Policy Optimization"""
 

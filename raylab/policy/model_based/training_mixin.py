@@ -5,7 +5,6 @@ import itertools
 import time
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Dict
 from typing import Iterator
 from typing import List
 from typing import Optional
@@ -16,12 +15,13 @@ import torch
 import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from ray.rllib import SampleBatch
-from torch import Tensor
 from torch.utils.data import DataLoader
 from torch.utils.data import RandomSampler
 
 from raylab.policy.losses.abstract import Loss
 from raylab.pytorch.utils import TensorDictDataset
+from raylab.utils.annotations import StatDict
+from raylab.utils.annotations import TensorDict
 
 
 @dataclass(frozen=True)
@@ -110,7 +110,7 @@ class Evaluator:
 
     models: nn.ModuleList
     loss_fn: Loss
-    eval_tensors: Dict[str, Tensor]
+    eval_tensors: TensorDict
     improvement_threshold: float
     patience_epochs: Optional[int]
 
@@ -123,7 +123,7 @@ class Evaluator:
         ]
 
     @torch.no_grad()
-    def validate(self, epoch: int) -> Tuple[bool, Dict[str, float]]:
+    def validate(self, epoch: int) -> Tuple[bool, StatDict]:
         """Evaluate models on holdout data and update snapshots.
 
         Args:
@@ -196,7 +196,7 @@ class ModelTrainingMixin:
 
     def optimize_model(
         self, train_samples: SampleBatch, eval_samples: SampleBatch = None
-    ) -> Tuple[List[float], Dict[str, float]]:
+    ) -> Tuple[List[float], StatDict]:
         """Update models with samples.
 
         If `spec.max_epochs` is set, training will be cut off after this many
@@ -272,7 +272,7 @@ class ModelTrainingMixin:
 
     def _train_model_epochs(
         self, dataloader: DataLoader, evaluator: Optional[Evaluator],
-    ) -> Dict[str, float]:
+    ) -> StatDict:
 
         spec = self.model_training_spec
         info = {}
@@ -315,7 +315,7 @@ class ModelTrainingMixin:
         return time.time() - start_time >= max_time or model_steps >= max_grad_steps
 
     @torch.no_grad()
-    def model_grad_info(self) -> Dict[str, float]:
+    def model_grad_info(self) -> StatDict:
         """Returns the average gradient norm accross models."""
         grad_norms = [
             torch.nn.utils.clip_grad_norm_(m.parameters(), float("inf")).item()

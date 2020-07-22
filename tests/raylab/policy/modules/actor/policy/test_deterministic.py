@@ -16,8 +16,8 @@ def norm_beta(request):
 
 
 @pytest.fixture
-def spec(module_cls):
-    return module_cls.spec_cls()
+def spec(module_cls, norm_beta):
+    return module_cls.spec_cls(norm_beta=norm_beta)
 
 
 @pytest.fixture
@@ -26,8 +26,8 @@ def action_space(cont_space):
 
 
 @pytest.fixture
-def module(module_cls, obs_space, action_space, spec, norm_beta):
-    return module_cls(obs_space, action_space, spec, norm_beta)
+def module(module_cls, obs_space, action_space, spec):
+    return module_cls(obs_space, action_space, spec)
 
 
 def test_unconstrained_action(module, batch, action_space, norm_beta):

@@ -50,7 +50,7 @@ class NormalizingFlowModelMixin(StochasticModelMixin):
             BASE_CONFIG,
             config.get("model", {}),
             False,
-            ["input_encoder", "flow"],
+            ["input_encoder", "flow", "initializer_options"],
             ["flow"],
         )
 
