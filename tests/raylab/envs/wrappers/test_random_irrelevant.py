@@ -1,18 +1,7 @@
 import numpy as np
 import pytest
 
-from raylab.envs import get_env_creator
 from raylab.envs.wrappers import RandomIrrelevant
-
-
-@pytest.fixture(scope="module")
-def env_creator(env_name):
-    return get_env_creator(env_name)
-
-
-@pytest.fixture(scope="module")
-def env(env_creator):
-    return env_creator({})
 
 
 @pytest.fixture(scope="module")
@@ -30,7 +19,7 @@ def scale():
     return 1.0
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def wrapped(env, size, loc, scale):
     return RandomIrrelevant(env, size, loc, scale)
 
@@ -63,6 +52,7 @@ def test_reset(wrapped, size):
 
 
 def test_step(wrapped, size):
+    wrapped.reset()
     base = wrapped.env.observation_space
 
     action = wrapped.action_space.sample()

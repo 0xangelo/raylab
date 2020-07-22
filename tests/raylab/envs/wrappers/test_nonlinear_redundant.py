@@ -1,21 +1,10 @@
 import numpy as np
 import pytest
 
-from raylab.envs import get_env_creator
 from raylab.envs.wrappers import NonlinearRedundant
 
 
-@pytest.fixture(scope="module")
-def env_creator(env_name):
-    return get_env_creator(env_name)
-
-
-@pytest.fixture(scope="module")
-def env(env_creator):
-    return env_creator({})
-
-
-@pytest.fixture(scope="module")
+@pytest.fixture
 def wrapped(env):
     return NonlinearRedundant(env)
 
@@ -37,6 +26,7 @@ def test_reset(wrapped):
 
 
 def test_step(wrapped):
+    wrapped.reset()
     base = wrapped.env.observation_space
 
     action = wrapped.action_space.sample()
