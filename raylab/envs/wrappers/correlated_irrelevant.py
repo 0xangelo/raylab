@@ -1,16 +1,13 @@
 # pylint:disable=missing-module-docstring
-from typing import List
-from typing import Optional
-
 import gym
-import gym.utils.seeding as seeding
 import numpy as np
 from gym.spaces import Box
 
+from .mixins import RNGMixin
 from .utils import assert_box_observation_space
 
 
-class CorrelatedIrrelevant(gym.ObservationWrapper):
+class CorrelatedIrrelevant(RNGMixin, gym.ObservationWrapper):
     """Add correlated random variables to the environment's observations.
 
     Samples :math:`Uniform(0, 1)` random variables on reset and appends them to
@@ -35,13 +32,6 @@ class CorrelatedIrrelevant(gym.ObservationWrapper):
         self.observation_space = Box(
             low=low.astype(original.dtype), high=high.astype(original.dtype)
         )
-
-        self.np_random, _ = seeding.np_random()
-
-    def seed(self, seed: Optional[int] = None) -> List[int]:
-        seeds = super().seed(seed) or []
-        self.np_random, seed_ = seeding.np_random(seed)
-        return seeds + [seed_]
 
     def reset(self, **kwargs):
         self._uvars = self.np_random.uniform(size=self._size)
