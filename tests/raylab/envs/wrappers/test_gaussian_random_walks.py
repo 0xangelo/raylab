@@ -3,13 +3,14 @@ from functools import partial
 import numpy as np
 import pytest
 
+from raylab.envs import get_env_creator
 from raylab.envs.wrappers import GaussianRandomWalks
 from raylab.pytorch.utils import convert_to_tensor
 
 
 @pytest.fixture(params=(1, 2, 4))
-def env(request, env_creator):
-    return GaussianRandomWalks(env_creator({}), num_walks=request.param)
+def env(request, env_name):
+    return GaussianRandomWalks(get_env_creator(env_name)({}), num_walks=request.param)
 
 
 def test_spaces(env):

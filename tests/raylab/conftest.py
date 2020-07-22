@@ -26,12 +26,8 @@ def envs():
     Reservoir
     HVAC
     MountainCarContinuous-v0
-    """.split()
+    """.split(),
+    scope="module",
 )
 def env_name(request):
     return request.param
-
-
-@pytest.fixture
-def env_creator(envs, env_name):
-    return envs[env_name]

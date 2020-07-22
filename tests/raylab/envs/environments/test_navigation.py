@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import torch
 
+from raylab.envs import get_env_creator
 from raylab.pytorch.utils import convert_to_tensor
 
 DECELERATION_ZONES = (
@@ -18,8 +19,13 @@ def env_config(request):
 
 
 @pytest.fixture
-def env(navigation_env, env_config):
-    return navigation_env(env_config)
+def env_creator():
+    return get_env_creator("Navigation")
+
+
+@pytest.fixture
+def env(env_creator, env_config):
+    return env_creator(env_config)
 
 
 @pytest.fixture(params=(1, 4))

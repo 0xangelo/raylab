@@ -2,13 +2,19 @@ import numpy as np
 import pytest
 import torch
 
+from raylab.envs import get_env_creator
 
 BATCH_SIZE = 32
 
 
 @pytest.fixture
-def env(reservoir_env):
-    return reservoir_env({})
+def env_creator():
+    return get_env_creator("Reservoir")
+
+
+@pytest.fixture
+def env(env_creator):
+    return env_creator({})
 
 
 @pytest.fixture(params=((), (1,), (2,)))
