@@ -2,10 +2,12 @@ import numpy as np
 import pytest
 import torch
 
+from raylab.envs import get_env_creator
+
 
 @pytest.fixture
-def env(env_creator):
-    return env_creator({})
+def env(env_name):
+    return get_env_creator(env_name)({})
 
 
 def test_env_interaction_loop(env):

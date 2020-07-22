@@ -5,6 +5,7 @@ from ray.rllib import RolloutWorker
 from ray.rllib import SampleBatch
 
 from raylab.agents.registry import AGENTS
+from raylab.envs import get_env_creator
 
 TRAINER_NAMES, TRAINER_IMPORTS = zip(*AGENTS.items())
 
@@ -80,9 +81,9 @@ def worker_kwargs():
 
 
 @pytest.fixture
-def worker(envs, env_name, policy_cls, worker_kwargs):
+def worker(env_name, policy_cls, worker_kwargs):
     return RolloutWorker(
-        env_creator=envs[env_name],
+        env_creator=get_env_creator(env_name),
         policy=policy_cls,
         policy_config={"env": env_name},
         **worker_kwargs,
