@@ -32,3 +32,17 @@ class NonlinearRedundant(gym.ObservationWrapper):
         sin = np.sin(observation)
         observation = np.concatenate([observation, cos, sin])
         return observation.astype(self.observation_space.dtype)
+
+    @staticmethod
+    def wrap_env_function(func: callable) -> callable:
+        """Wrap base env reward/termination function to ignore added variables.
+
+        Args:
+            func: Callable for reward/termination function
+        """
+
+        def env_fn(state, action, next_state):
+            size = (state.size(-1) // 3) * 2
+            return func(state[..., :-size], action, next_state[..., :-size])
+
+        return env_fn

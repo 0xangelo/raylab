@@ -9,5 +9,10 @@ def env_creator(env_name):
 
 
 @pytest.fixture(scope="function")
-def env(env_creator):
-    return env_creator({})
+def env_config():
+    return {}
+
+
+@pytest.fixture(scope="function")
+def env(env_creator, env_config):
+    return env_creator(env_config)

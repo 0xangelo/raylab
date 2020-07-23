@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
+import torch
 
+import raylab.envs as envs
 from raylab.envs.wrappers import NonlinearRedundant
 
 
@@ -36,3 +38,33 @@ def test_step(wrapped):
     assert isinstance(done, bool)
     assert isinstance(info, dict)
     assert obs.shape == (base.shape[0] * 3,)
+
+
+@pytest.fixture
+def reward_fn(env_name, env_config):
+    base = envs.get_reward_fn(env_name, env_config)
+    wrapped = NonlinearRedundant.wrap_env_function(base)
+    return wrapped
+
+
+@pytest.fixture
+def termination_fn(env_name, env_config):
+    base = envs.get_termination_fn(env_name, env_config)
+    wrapped = NonlinearRedundant.wrap_env_function(base)
+    return wrapped
+
+
+def test_wrapped_reward_fn(wrapped, reward_fn):
+    done = True
+    for _ in range(10):
+        if done:
+            obs = wrapped.reset()
+            done = False
+
+        action = wrapped.action_space.sample()
+        new_obs, rew, done, _ = wrapped.step(action)
+
+        rew_ = reward_fn(*map(torch.from_numpy, (obs, action, new_obs))).item()
+        assert np.allclose(rew, rew_, atol=1e-5)
+
+        obs = new_obs
