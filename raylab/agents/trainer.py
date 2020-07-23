@@ -9,6 +9,11 @@ from typing import Callable
 from typing import List
 from typing import Optional
 
+try:
+    import wandb
+except ImportError:
+    wandb = None
+
 from ray.rllib.agents import with_common_config as with_rllib_config
 from ray.rllib.agents.trainer import Trainer as RLlibTrainer
 from ray.rllib.evaluation.worker_set import WorkerSet
@@ -21,6 +26,9 @@ from .config import Json
 from .config import with_rllib_info
 
 
+# ==============================================================================
+# Programatic config setting
+# ==============================================================================
 ConfSetter = namedtuple("ConfSetter", "key setter")
 
 
@@ -150,7 +158,50 @@ def _set_config(
             info_[key] = help_txt
 
 
+# ==============================================================================
+# Base Raylab Trainer
+# ==============================================================================
+Jsonable = (dict, list, str, int, float, bool, type(None))
+
+
 @configure
+@option(
+    "wandb",
+    {},
+    help="""Configs for integration with Weights & Biases.
+
+    Don't forget to:
+      * install `wandb` via pip
+      * login to W&B with the appropriate API key for your
+        team/project.
+
+    Check out the Quickstart for more information:
+    `https://docs.wandb.com/quickstart`
+    """,
+)
+@option(
+    "wandb/project", None, help="The name of the project to which this run will belong"
+)
+@option(
+    "wandb/entity",
+    None,
+    help="""The team posting this run (default: your username or your default team).
+
+    This should be set if the project does not belong to the default team set
+    via `wandb init` in the command line.
+    """,
+)
+@option(
+    "wandb/config_exclude_keys",
+    (),
+    help="""String keys to exclude storing in W&B when specifying config.
+
+    Only works for toplevel config keys. Can be used to avoid raising errors
+    when trying to log unJsonable hyperparameters to W&B.
+
+    Always ignores `wandb` and `callbacks` configs.
+    """,
+)
 @option("compile_policy", False, help="Whether to optimize the policy's backend")
 @option(
     "module",
@@ -174,9 +225,15 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     Always creates a PolicyOptimizer instance as the `optimizer` attribute to
     log episode metrics (to be removed in the future).
 
-    Accessing `metrics` returns the optimizer so as to avoid confusion when
-    updating metrics (e.g., `optimizer.num_steps_sampled`) even though a policy
-    optimizer isn't being used by the algorithm.
+    Accessing `metrics` returns the optimizer, which is useful when using an
+    optimizer only to log metrics. This way, the user can update
+    `self.metrics.num_steps_sampled` and the results will be logged via RLlib's
+    framework.
+
+    Integration with `Weights & Biases`_ is available. The user must install
+    `wandb` and set a project name in the `wandb` subconfig dict.
+
+    .. _`Weights & Biases`: https://docs.wandb.com/
     """
 
     optimizer: Optional[PolicyOptimizer]
@@ -188,23 +245,34 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
 
     @overrd(RLlibTrainer)
     def train(self):
-        # Evaluate first, before any optimization is done
-        evaluation_metrics = None
+        result = {}
+
+        # Run evaluation once before any optimization is done
         if self._iteration == 0 and self.config["evaluation_interval"]:
-            evaluation_metrics = self._evaluate()
+            result.update(self._evaluate())
 
-        result = super().train()
+        result.update(super().train())
 
-        if evaluation_metrics is not None:
-            result.update(evaluation_metrics)
         # Update global_vars after training so that they're saved if checkpointing
         self.global_vars["timestep"] = self.metrics.num_steps_sampled
+
+        if self.config["wandb"]["project"]:
+            self._wandb_log_result(result)
         return result
+
+    @staticmethod
+    def _wandb_log_result(result: dict):
+        # Avoid logging the config every iteration
+        # Only log Jsonable objects
+        filtered = {
+            k: v for k, v in result.items() if k != "config" and isinstance(v, Jsonable)
+        }
+        wandb.log(filtered)
 
     def _setup(self, *args, **kwargs):
         if self._to_set:
             raise RuntimeError(
-                f"{self._name} Trainer still has configs to be set."
+                f"{type(self).__name__} still has configs to be set."
                 " Did you call `trainer.configure` as the last decorator?"
             )
 
@@ -239,11 +307,30 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
                 )
             self.workers.foreach_policy(lambda p, _: p.compile())
 
+        if self.config["wandb"]["project"]:
+            self._setup_wandb()
+
+    def _setup_wandb(self):
+        assert wandb is not None, "Unable to import wandb, did you install it via pip?"
+
+        config_exclude_keys = {"wandb", "callbacks"}
+        config_exclude_keys.update(self.config["wandb"]["config_exclude_keys"])
+        wandb.init(
+            name=self._name,
+            project=self.config["wandb"]["project"],
+            entity=self.config["wandb"]["entity"],
+            config_exclude_keys=config_exclude_keys,
+            config=self.config,
+            # Allow calling init twice if creating more than one trainer in the
+            # same process
+            reinit=True,
+        )
+
     def __getattr__(self, attr):
         if attr == "metrics":
             return self.optimizer
 
-        raise AttributeError(f"{type(self)} has no {attr} attribute")
+        raise AttributeError(f"{type(self).__name__} has no '{attr}' attribute")
 
     @overrd(RLlibTrainer)
     def __getstate__(self):
@@ -258,3 +345,9 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
             self.workers.foreach_worker(lambda w: w.set_global_vars(self.global_vars))
 
         super().__setstate__(state)
+
+    @overrd(RLlibTrainer)
+    def _stop(self):
+        super()._stop()
+        if self.config["wandb"]["project"] and wandb:
+            wandb.join()
