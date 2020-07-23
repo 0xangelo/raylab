@@ -93,10 +93,7 @@ class OffPolicyTrainer(Trainer):
 
     def _log_metrics(self, learner_stats, timesteps_this_iter):
         res = self.collect_metrics()
-        res.update(
-            timesteps_this_iter=timesteps_this_iter,
-            help=dict(learner=learner_stats, **res.get("info", {})),
-        )
+        res.update(timesteps_this_iter=timesteps_this_iter, learner=learner_stats)
         return res
 
     @staticmethod
