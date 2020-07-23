@@ -14,8 +14,7 @@ def initialize_raylab(func):
     def wrapped(*args, **kwargs):
         import raylab
 
-        raylab.register_all_agents()
-        raylab.register_all_environments()
+        raylab.register_all()
 
         return func(*args, **kwargs)
 
@@ -58,7 +57,14 @@ def tune_experiment(func):
 
 
 def tune_options(func):
-    """Wrap cli to add and parse arguments for `tune.run`."""
+    """Wrap cli to add and parse arguments for `tune.run`.
+
+    Arguments for `tune.run` will be accessible as a dictionary through the
+    `tune_kwargs` kwarg in the wrapped function.
+
+    `tune-log-level` and `--custom-loggers` are already handled by this wrapper.
+    No need to process these in the wrapped function.
+    """
 
     @click.option("--name", default=None, help="Name of experiment")
     @click.option(
