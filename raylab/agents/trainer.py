@@ -186,14 +186,6 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     _config_info: Info = with_rllib_info({})
     _default_config: Config = with_rllib_config({})
 
-    def __init__(self, *args, **kwargs):
-        if self._to_set:
-            raise RuntimeError(
-                f"{self._name} Trainer still has configs to be set."
-                " Did you call `trainer.configure` as the last decorator?"
-            )
-        super().__init__(*args, **kwargs)
-
     @overrd(RLlibTrainer)
     def train(self):
         # Evaluate first, before any optimization is done
@@ -210,6 +202,12 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         return result
 
     def _setup(self, *args, **kwargs):
+        if self._to_set:
+            raise RuntimeError(
+                f"{self._name} Trainer still has configs to be set."
+                " Did you call `trainer.configure` as the last decorator?"
+            )
+
         cls_attrs = ("_allow_unknown_subkeys", "_override_all_subkeys_if_type_changes")
         attr_cache = ((attr, getattr(RLlibTrainer, attr)) for attr in cls_attrs)
         for attr in cls_attrs:
