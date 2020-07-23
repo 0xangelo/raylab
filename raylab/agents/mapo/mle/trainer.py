@@ -26,11 +26,9 @@ from .policy import MlMAPOTorchPolicy
     model-aware deterministic policy gradient
     """,
 )
-@trainer.option(
-    "losses", {}, help="Configurations for model, actor, and critic loss functions"
-)
+@trainer.option("losses", {}, help="Configurations for model and actor loss functions")
 @trainer.option("module", DEFAULT_MODULE, override=True)
-@trainer.option("torch_optimizer/models", {"type": "Adam", "lr": 1e-3})
+@trainer.option("torch_optimizer/models/type", "Adam")
 @trainer.option("model_training", TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
 @trainer.option("evaluation_config/explore", False, override=True)
 @trainer.option("rollout_fragment_length", 25, override=True)

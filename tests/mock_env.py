@@ -25,7 +25,7 @@ class MockEnv(gym.Env):  # pylint:disable=abstract-method
         action_dim = 3
         self.action_space = Box(high=1, low=-1, shape=(action_dim,), dtype=np.float32)
 
-        self.goal = torch.randn(*self.observation_space.shape)[..., :-1]
+        self.goal = torch.zeros(*self.observation_space.shape)[..., :-1]
         self.state = None
 
     @override(gym.Env)
