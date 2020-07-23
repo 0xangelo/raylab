@@ -128,3 +128,6 @@ local/
 
 # npm
 node_modules/
+
+# Weights & Biases
+wandb/
