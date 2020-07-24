@@ -34,7 +34,7 @@ def configure(cls: type) -> type:
 
 def option(
     key: str,
-    default: Json,
+    default: Json = None,
     *,
     help: Optional[str] = None,
     override: bool = False,
@@ -43,6 +43,9 @@ def option(
     separator: str = "/",
 ) -> Callable[[type], type]:
     """Returns a decorator for adding/overriding a Trainer class config.
+
+    If `key` ends in a separator and `default` is None, treats the option as a
+    nested dict of options and sets the default to an empty dictionary.
 
     Args:
         key: Name of the config paremeter which the use can tune
@@ -84,8 +87,7 @@ Jsonable = (dict, list, str, int, float, bool, type(None))
 
 @configure
 @option(
-    "wandb",
-    {},
+    "wandb/",
     help="""Configs for integration with Weights & Biases.
 
     Don't forget to:
@@ -122,15 +124,13 @@ Jsonable = (dict, list, str, int, float, bool, type(None))
 )
 @option("compile_policy", False, help="Whether to optimize the policy's backend")
 @option(
-    "module",
-    {},
+    "module/",
     help="Type and config of the PyTorch NN module.",
     allow_unknown_subkeys=True,
     override_all_if_type_changes=True,
 )
 @option(
-    "torch_optimizer",
-    {},
+    "torch_optimizer/",
     help="Config dict for PyTorch optimizers.",
     allow_unknown_subkeys=True,
 )

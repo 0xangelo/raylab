@@ -8,11 +8,13 @@ from .policy import DAPOTorchPolicy
 
 
 @trainer.configure
+@trainer.option("losses/", help="Configurations for actor loss function")
 @trainer.option(
     "losses/grad_estimator",
     "PD",
-    help="""
-    Gradient estimator for optimizing expectations. Possible types include
+    help="""Gradient estimator for optimizing expectations.
+
+    Possible types include
     SF: score function
     PD: pathwise derivative
     """,
@@ -20,13 +22,8 @@ from .policy import DAPOTorchPolicy
 @trainer.option(
     "losses/model_samples",
     4,
-    help="""
-    Number of next states to sample from the model when calculating the
-    model-aware deterministic policy gradient
-    """,
-)
-@trainer.option(
-    "losses", {}, help="Configurations for model, actor, and critic loss functions"
+    help="Number of next states to sample from the model when calculating the"
+    " model-aware deterministic policy gradient",
 )
 @trainer.option("module/type", "SAC")
 @sac_config

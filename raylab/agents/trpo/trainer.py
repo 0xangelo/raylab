@@ -78,9 +78,9 @@ class TRPOTrainer(Trainer):
         while (
             self.optimizer.num_steps_sampled - init_timesteps < timesteps_per_iteration
         ):
-            _ = self.optimizer.step()
+            learner_stats = self.optimizer.step()
 
         res = self.collect_metrics()
         timesteps = self.optimizer.num_steps_sampled - init_timesteps
-        res.update(timesteps_this_iter=timesteps, help=res.get("info", {}))
+        res.update(timesteps_this_iter=timesteps, learner_stats=learner_stats)
         return res

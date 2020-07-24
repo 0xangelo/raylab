@@ -65,12 +65,9 @@ def trainer_cls(policy_cls):
     @configure
     @option("workers", False)
     @option("optim", False)
-    @option(
-        "arbitrary",
-        {"type": "one", "key": "value"},
-        allow_unknown_subkeys=True,
-        override_all_if_type_changes=True,
-    )
+    @option("arbitrary/", allow_unknown_subkeys=True, override_all_if_type_changes=True)
+    @option("arbitrary/type", "one")
+    @option("arbitrary/key", "value")
     class MinimalTrainer(Trainer):
         _name = "MinimalTrainer"
         _policy = policy_cls

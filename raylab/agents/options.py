@@ -72,7 +72,7 @@ class RaylabOptions:
     def add_option_to_queue(
         self,
         key: str,
-        default: Json,
+        default: Json = None,
         info: Optional[str] = None,
         override: bool = False,
         allow_unknown_subkeys: bool = False,
@@ -98,7 +98,8 @@ class RaylabOptions:
                 `override_all_if_type_changes` options for non-toplevel keys
         """
         # pylint:disable=too-many-arguments
-        if (allow_unknown_subkeys or override_all_if_type_changes) and separator in key:
+        should_be_toplevel = allow_unknown_subkeys or override_all_if_type_changes
+        if should_be_toplevel and separator in key.rstrip(separator):
             raise RuntimeError(
                 "Cannot use 'allow_unknown_subkeys' or 'override_all_if_type_changes'"
                 f" for non-toplevel key: '{key}'"
@@ -159,7 +160,7 @@ class RaylabOptions:
     def set_option(
         self,
         key: str,
-        default: Json,
+        default: Json = None,
         info: Optional[str] = None,
         override: bool = False,
         allow_unknown_subkeys: bool = False,
@@ -168,13 +169,26 @@ class RaylabOptions:
     ):
         """Set an option in-place for this config.
 
+        If `key` ends in a separator and `default` is None, treats the option as
+        a nested dict of options and sets the default to an empty dictionary
+        (unless overriding an existing option).
+
         Raises:
-            RuntimeError: If attempting to set an existing option with `override`
+            ValueError: If attempting to set an existing option with `override`
                 set to `False`.
-            RuntimeError: If attempting to override an existing option with its
+            ValueError: If attempting to override an existing option with its
                 same default value.
         """
         # pylint:disable=too-many-arguments
+        if key.endswith(separator):
+            if not override and not isinstance(default, (dict, type(None))):
+                raise ValueError(
+                    f"Key '{key}' ends in a separator by default is neither None or"
+                    f" a dictionary: {default}"
+                )
+            key = key.rstrip(separator)
+            default = {} if not override else default
+
         key_seq = key.split(separator)
 
         if allow_unknown_subkeys and not override:
@@ -186,24 +200,24 @@ class RaylabOptions:
         for key_ in key_seq[:-1]:
             config_ = config_.setdefault(key_, {})
             info_ = info_.setdefault(key_, {})
-        key = key_seq[-1]
+        key_ = key_seq[-1]
 
-        if key in config_ and not override:
-            raise RuntimeError(
-                f"Attempted to override config key '{key}' but override=False."
+        if key_ in config_ and not override:
+            raise ValueError(
+                f"Attempted to override config key '{key_}' but override=False."
             )
-        if key in config_ and default == config_[key]:
-            raise RuntimeError(
+        if key_ in config_ and default == config_[key_]:
+            raise ValueError(
                 f"Attempted to override config key {key} with the same value: {default}"
             )
-        config_[key] = default
+        config_[key_] = default
 
         if info is not None:
             help_txt = inspect.cleandoc(info)
-            if isinstance(config_[key], dict):
-                info_[key] = {self.dict_info_key: help_txt}
+            if isinstance(config_[key_], dict):
+                info_[key_] = {self.dict_info_key: help_txt}
             else:
-                info_[key] = help_txt
+                info_[key_] = help_txt
 
     def rllib_subconfig(self, config: dict) -> dict:
         """Get the rllib subconfig from `config`."""
