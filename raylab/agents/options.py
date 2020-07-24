@@ -1,4 +1,4 @@
-"""Utilities for default configurations and info messages."""
+"""Utilities for default trainer configurations and descriptions."""
 import copy
 import inspect
 from collections import namedtuple
@@ -17,6 +17,17 @@ from ray.rllib.agents.trainer import COMMON_CONFIG
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.trainer import with_base_config
 from ray.rllib.utils import deep_update
+
+__all__ = [
+    "COMMON_INFO",
+    "Config",
+    "Info",
+    "Json",
+    "Option",
+    "RaylabOptions",
+    "recursive_check_info",
+    "with_rllib_info",
+]
 
 COMMON_INFO = {
     # === Settings for Rollout Worker processes ===
@@ -524,6 +535,9 @@ class RaylabOptions:
         return {k: v for k, v in config.items() if k in self._rllib_keys}
 
 
+# ==============================================================================
+# Debuggin utilities
+# ==============================================================================
 class MissingConfigInfoError(Exception):
     """Exception raised for undocumented config parameter.
 

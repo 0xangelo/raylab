@@ -15,8 +15,8 @@ from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils import override as overrides
 
 from . import compat
-from .config import Json
-from .config import RaylabOptions
+from .options import Json
+from .options import RaylabOptions
 
 
 # ==============================================================================
