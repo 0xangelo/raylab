@@ -3,6 +3,7 @@ import math
 import pytest
 import torch
 
+from raylab.agents.options import RaylabOptions
 from raylab.envs import get_reward_fn
 from raylab.policy import EnvFnMixin
 from raylab.utils.debug import fake_space_samples
@@ -11,9 +12,11 @@ from raylab.utils.debug import fake_space_samples
 @pytest.fixture
 def policy_cls(base_policy_cls):
     class Policy(EnvFnMixin, base_policy_cls):
-        @staticmethod
-        def get_default_config():
-            return {"module": {"type": "SimpleModelBased-v0"}}
+        @property
+        def options(self):
+            options = RaylabOptions()
+            options.set_option("module/type", "SimpleModelBased-v0")
+            return options
 
     return Policy
 

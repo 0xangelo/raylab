@@ -28,6 +28,14 @@ class SOPTorchPolicy(TorchPolicy):
         self.loss_critic.gamma = self.config["gamma"]
         self._grad_step = 0
 
+    @property
+    @override(TorchPolicy)
+    def options(self):
+        # pylint:disable=cyclic-import
+        from raylab.agents.sop import SOPTrainer
+
+        return SOPTrainer.options
+
     def _make_actor_loss(self):
         if self.config["dpg_loss"] == "default":
             self.loss_actor = DeterministicPolicyGradient(
@@ -44,24 +52,19 @@ class SOPTorchPolicy(TorchPolicy):
                 " Choose between 'default' and 'acme'"
             )
 
-    @staticmethod
     @override(TorchPolicy)
-    def get_default_config():
-        """Return the default configuration for SOP."""
-        # pylint:disable=cyclic-import
-        from raylab.agents.sop import SOPTrainer
-
-        return SOPTrainer.options.defaults
-
-    @override(TorchPolicy)
-    def make_optimizers(self):
+    def _make_optimizers(self):
+        optimizers = super()._make_optimizers()
         config = self.config["torch_optimizer"]
         components = "actor critics".split()
 
-        return {
+        mapping = {
             name: build_optimizer(getattr(self.module, name), config[name])
             for name in components
         }
+
+        optimizers.update(mapping)
+        return optimizers
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):

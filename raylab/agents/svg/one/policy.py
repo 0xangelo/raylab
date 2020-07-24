@@ -28,27 +28,35 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
         )
         self.loss_actor.gamma = self.config["gamma"]
 
+    @property
+    @override(SVGTorchPolicy)
+    def options(self):
+        # pylint:disable=cyclic-import
+        from raylab.agents.svg.one import SVGOneTrainer
+
+        return SVGOneTrainer.options
+
+    @override(TorchPolicy)
+    def compile(self):
+        warnings.warn(f"{type(self).__name__} is incompatible with TorchScript")
+
+    def update_old_policy(self):
+        """Copy params of current policy into old one for future KL computation."""
+        self.module.old_actor.load_state_dict(self.module.actor.state_dict())
+
     @override(EnvFnMixin)
     def _set_reward_hook(self):
         self.loss_actor.set_reward_fn(self.reward_fn)
 
-    @staticmethod
     @override(SVGTorchPolicy)
-    def get_default_config():
-        """Return the default config for SVG(1)"""
-        # pylint:disable=cyclic-import
-        from raylab.agents.svg.one import SVGOneTrainer
-
-        return SVGOneTrainer.options.defaults
-
-    @override(SVGTorchPolicy)
-    def make_module(self, obs_space, action_space, config):
+    def _make_module(self, obs_space, action_space, config):
         config["module"]["replay_kl"] = config["replay_kl"]
-        return super().make_module(obs_space, action_space, config)
+        return super()._make_module(obs_space, action_space, config)
 
     @override(SVGTorchPolicy)
-    def make_optimizers(self):
+    def _make_optimizers(self):
         """PyTorch optimizer to use."""
+        optimizers = super()._make_optimizers()
         cls = get_optimizer_class(self.config["torch_optimizer"]["type"], wrap=True)
         options = self.config["torch_optimizer"]
         modules = {
@@ -60,15 +68,8 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             dict(params=mod.parameters(), **options[name])
             for name, mod in modules.items()
         ]
-        return {"all": cls(param_groups)}
-
-    @override(TorchPolicy)
-    def compile(self):
-        warnings.warn(f"{type(self).__name__} is incompatible with TorchScript")
-
-    def update_old_policy(self):
-        """Copy params of current policy into old one for future KL computation."""
-        self.module.old_actor.load_state_dict(self.module.actor.state_dict())
+        optimizers["all"] = cls(param_groups)
+        return optimizers
 
     @override(SVGTorchPolicy)
     def learn_on_batch(self, samples):

@@ -37,12 +37,17 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
         self.loss_critic.gamma = self.config["gamma"]
         self.loss_critic.lambda_ = self.config["lambda"]
 
-    @staticmethod
-    def get_default_config():
+    @property
+    def options(self):
         # pylint:disable=cyclic-import
         from raylab.agents.mage import MAGETrainer
 
-        return MAGETrainer.options.defaults
+        return MAGETrainer.options
+
+    def compile(self):
+        super().compile()
+        for loss in (self.loss_model, self.loss_actor, self.loss_critic):
+            loss.compile()
 
     def _set_reward_hook(self):
         self.loss_critic.set_reward_fn(self.reward_fn)
@@ -50,14 +55,9 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
     def _set_termination_hook(self):
         self.loss_critic.set_termination_fn(self.termination_fn)
 
-    def make_optimizers(self):
-        optimizers = super().make_optimizers()
+    def _make_optimizers(self):
+        optimizers = super()._make_optimizers()
         optimizers["models"] = build_optimizer(
             self.module.models, self.config["torch_optimizer"]["models"]
         )
         return optimizers
-
-    def compile(self):
-        super().compile()
-        for loss in (self.loss_model, self.loss_actor, self.loss_critic):
-            loss.compile()

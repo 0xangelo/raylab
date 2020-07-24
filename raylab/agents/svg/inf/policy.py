@@ -27,32 +27,34 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             self.module.model, self.module.actor, self.module.critic,
         )
 
+    @property
+    @override(SVGTorchPolicy)
+    def options(self):
+        # pylint:disable=cyclic-import
+        from raylab.agents.svg.inf import SVGInfTrainer
+
+        return SVGInfTrainer.options
+
     @override(EnvFnMixin)
     def _set_reward_hook(self):
         self.loss_actor.set_reward_fn(self.reward_fn)
 
-    @staticmethod
     @override(SVGTorchPolicy)
-    def get_default_config():
-        """Return the default config for SVG(inf)"""
-        # pylint:disable=cyclic-import
-        from raylab.agents.svg.inf import SVGInfTrainer
-
-        return SVGInfTrainer.options.defaults
-
-    @override(SVGTorchPolicy)
-    def make_optimizers(self):
-        """PyTorch optimizers to use."""
+    def _make_optimizers(self):
+        optimizers = super()._make_optimizers()
         config = self.config["torch_optimizer"]
         component_map = {
             "on_policy": self.module.actor,
             "off_policy": nn.ModuleList([self.module.model, self.module.critic]),
         }
 
-        return {
+        mapping = {
             name: build_optimizer(module, config[name])
             for name, module in component_map.items()
         }
+
+        optimizers.update(mapping)
+        return optimizers
 
     @override(SVGTorchPolicy)
     def compile(self):

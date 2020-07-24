@@ -5,6 +5,7 @@ import pytest
 import torch
 from ray.rllib import SampleBatch
 
+from raylab.agents.options import RaylabOptions
 from raylab.policy import ModelTrainingMixin
 from raylab.policy import OptimizerCollection
 from raylab.policy.model_based.training_mixin import Evaluator
@@ -42,15 +43,19 @@ def policy_cls(base_policy_cls):
             loss.ensemble_size = len(self.module.models)
             self.loss_model = loss
 
-        @staticmethod
-        def get_default_config():
-            return {
-                "model_training": ModelTrainingMixin.model_training_defaults(),
-                "module": {"type": "ModelBasedSAC"},
-            }
+        @property
+        def options(self):
+            options = RaylabOptions()
+            options.set_option(
+                "model_training", ModelTrainingMixin.model_training_defaults()
+            )
+            options.set_option("model/type", "ModelBasedSAC")
+            return options
 
-        def make_optimizers(self):
-            return {"models": build_optimizer(self.module.models, {"type": "Adam"})}
+        def _make_optimizers(self):
+            optimizers = super()._make_optimizers()
+            optimizers["models"] = build_optimizer(self.module.models, {"type": "Adam"})
+            return optimizers
 
     return Policy
 

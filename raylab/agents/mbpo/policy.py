@@ -1,6 +1,4 @@
 """Policy for MBPO using PyTorch."""
-from ray.rllib.utils import override
-
 from raylab.agents.sac import SACTorchPolicy
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelSamplingMixin
@@ -23,21 +21,15 @@ class MBPOTorchPolicy(
         models = self.module.models
         self.loss_model = ModelEnsembleMLE(models)
 
-    @staticmethod
-    @override(SACTorchPolicy)
-    def get_default_config():
-        """Return the default config for MBPO."""
+    @property
+    def options(self):
         # pylint:disable=cyclic-import
         from raylab.agents.mbpo import MBPOTrainer
 
-        return MBPOTrainer.options.defaults
+        return MBPOTrainer.options
 
-    @override(SACTorchPolicy)
-    def make_optimizers(self):
+    def _make_optimizers(self):
+        optimizers = super()._make_optimizers()
         config = self.config["torch_optimizer"]
-        components = "models actor critics alpha".split()
-
-        return {
-            name: build_optimizer(getattr(self.module, name), config[name])
-            for name in components
-        }
+        optimizers["models"] = build_optimizer(self.module.models, config["models"])
+        return optimizers

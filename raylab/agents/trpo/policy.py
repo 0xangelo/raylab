@@ -27,22 +27,21 @@ class TRPOTorchPolicy(TorchPolicy):
     # pylint:disable=abstract-method
     dist_class = WrapStochasticPolicy
 
-    @staticmethod
+    @property
     @override(TorchPolicy)
-    def get_default_config():
-        """Return the default configuration for TRPO."""
+    def options(self):
         # pylint:disable=cyclic-import
         from raylab.agents.trpo import TRPOTrainer
 
-        return TRPOTrainer.options.defaults
+        return TRPOTrainer.options
 
     @override(TorchPolicy)
-    def make_optimizers(self):
-        return {
-            "critic": build_optimizer(
-                self.module.critic, self.config["torch_optimizer"]
-            )
-        }
+    def _make_optimizers(self):
+        optimizers = super()._make_optimizers()
+        optimizers.update(
+            critic=build_optimizer(self.module.critic, self.config["torch_optimizer"])
+        )
+        return optimizers
 
     @torch.no_grad()
     @override(TorchPolicy)

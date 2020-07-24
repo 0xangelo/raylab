@@ -15,9 +15,22 @@ class DynaSACTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._setup_model_loss()
-        self.optimizers["models"] = build_optimizer(
-            self.module.models, config=self.config["torch_optimizer"]["models"]
+
+    @property
+    def options(self):
+        # pylint:disable=cyclic-import
+        from raylab.agents.sac.dyna import DynaSACTrainer
+
+        return DynaSACTrainer.options
+
+    def _make_optimizers(self):
+        optimizers = super()._make_optimizers()
+        optimizers.update(
+            models=build_optimizer(
+                self.module.models, config=self.config["torch_optimizer"]["models"]
+            )
         )
+        return optimizers
 
     def _setup_model_loss(self):
         self.loss_model = ModelEnsembleMLE(self.module.models)
@@ -31,12 +44,6 @@ class DynaSACTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
         )
         self.loss_critic.gamma = self.config["gamma"]
         self.loss_critic.seed(self.config["seed"])
-
-    def get_default_config(self):
-        # pylint:disable=cyclic-import
-        from raylab.agents.sac.dyna import DynaSACTrainer
-
-        return DynaSACTrainer.options.defaults
 
     def _set_reward_hook(self):
         self.loss_critic.set_reward_fn(self.reward_fn)

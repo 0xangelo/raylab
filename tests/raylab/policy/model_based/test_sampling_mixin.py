@@ -6,6 +6,7 @@ import pytest
 import torch
 from ray.rllib import SampleBatch
 
+from raylab.agents.options import RaylabOptions
 from raylab.policy import ModelSamplingMixin
 from raylab.policy import TorchPolicy
 from raylab.utils.debug import fake_batch
@@ -31,13 +32,15 @@ def policy_cls(base_policy_cls):
             self.reward_fn = reward_fn
             self.termination_fn = termination_fn
 
-        @staticmethod
-        def get_default_config():
-            return {
-                "model_sampling": ModelSamplingMixin.model_sampling_defaults(),
-                "module": {"type": "ModelBasedSAC"},
-                "seed": None,
-            }
+        @property
+        def options(self):
+            options = RaylabOptions()
+            options.set_option(
+                "model_sampling", ModelSamplingMixin.model_sampling_defaults()
+            )
+            options.set_option("module/type", "ModelBasedSAC")
+            options.set_option("seed", 1, override=True)
+            return options
 
     return Policy
 
