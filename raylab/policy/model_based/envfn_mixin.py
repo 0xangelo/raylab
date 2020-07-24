@@ -1,8 +1,10 @@
 """Mixins to add environment mimicking functions."""
+import inspect
+import warnings
 from typing import Optional
+from typing import Union
 
-from raylab.envs import get_reward_fn
-from raylab.envs import get_termination_fn
+import raylab.envs as envs
 from raylab.utils.annotations import DynamicsFn
 from raylab.utils.annotations import RewardFn
 from raylab.utils.annotations import TerminationFn
@@ -32,6 +34,51 @@ class EnvFnMixin:
         self.termination_fn = None
         self.dynamics_fn = None
 
+    def set_reward_from_config(self):
+        """Build and set the reward function from environment configurations."""
+        env_id, env_config = self.config["env"], self.config["env_config"]
+        self.reward_fn = envs.get_reward_fn(env_id, env_config)
+        self._set_reward_hook()
+
+    def set_reward_from_callable(self, function: RewardFn):
+        """Set the reward function from an external callable.
+
+        Args:
+            function: A callable that reproduces the environment's reward
+                function
+        """
+        self._check_not_instance_method(function)
+        self.reward_fn = function
+        self._set_reward_hook()
+
+    def set_termination_from_config(self):
+        """Build and set a termination function from environment configurations."""
+        env_id, env_config = self.config["env"], self.config["env_config"]
+        self.termination_fn = envs.get_termination_fn(env_id, env_config)
+        self._set_termination_hook()
+
+    def set_termination_from_callable(self, function: TerminationFn):
+        """Set the termination function from an external callable.
+
+        Args:
+            function: A callable that reproduces the environment's termination
+                function
+        """
+        self._check_not_instance_method(function)
+        self.termination_fn = function
+        self._set_termination_hook()
+
+    def set_dynamics_from_callable(self, function: DynamicsFn):
+        """Set the dynamics function from an external callable.
+
+        Args:
+            function: A callable that reproduces the environment's dynamics
+                function
+        """
+        self._check_not_instance_method(function)
+        self.dynamics_fn = function
+        self._set_dynamics_hook()
+
     def _set_reward_hook(self):
         """Procedure to run upon setting the reward function.
 
@@ -58,52 +105,12 @@ class EnvFnMixin:
         set up losses which assume access to environment functions.
         """
 
-    def set_reward_from_config(self, env_name: str, env_config: dict):
-        """Build and set the reward function from environment configurations.
-
-        Args:
-            env_name: the environment's id
-            env_config: the environment's configuration
-        """
-        self.reward_fn = get_reward_fn(env_name, env_config)
-        self._set_reward_hook()
-
-    def set_reward_from_callable(self, function: RewardFn):
-        """Set the reward function from an external callable.
-
-        Args:
-            function: A callable that reproduces the environment's reward
-                function
-        """
-        self.reward_fn = function
-        self._set_reward_hook()
-
-    def set_termination_from_config(self, env_name: str, env_config: dict):
-        """Build and set the termination function from environment configurations.
-
-        Args:
-            env_name: the environment's id
-            env_config: the environment's configuration
-        """
-        self.termination_fn = get_termination_fn(env_name, env_config)
-        self._set_termination_hook()
-
-    def set_termination_from_callable(self, function: TerminationFn):
-        """Set the termination function from an external callable.
-
-        Args:
-            function: A callable that reproduces the environment's termination
-                function
-        """
-        self.termination_fn = function
-        self._set_termination_hook()
-
-    def set_dynamics_from_callable(self, function: DynamicsFn):
-        """Set the dynamics function from an external callable.
-
-        Args:
-            function: A callable that reproduces the environment's dynamics
-                function
-        """
-        self.dynamics_fn = function
-        self._set_dynamics_hook()
+    @staticmethod
+    def _check_not_instance_method(env_fn: Union[RewardFn, TerminationFn]):
+        if inspect.ismethod(env_fn):
+            warnings.warn(
+                f"{env_fn.__name__} function is a bound instance method of"
+                f" {env_fn.__self__}. Prefer static environment functions"
+                " with markovian states that are not bounded to a particular"
+                " instance"
+            )

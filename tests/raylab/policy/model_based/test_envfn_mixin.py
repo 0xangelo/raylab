@@ -52,7 +52,7 @@ def dynamics_fn():
 
 @pytest.fixture
 def policy(policy_cls):
-    return policy_cls({})
+    return policy_cls({"env": "MockEnv", "env_config": {}})
 
 
 def test_init(policy):
@@ -71,7 +71,7 @@ def test_set_reward_from_config(policy, mocker):
     obs, act, new_obs = map(policy.convert_to_tensor, (obs, act, new_obs))
 
     hook = mocker.spy(EnvFnMixin, "_set_reward_hook")
-    policy.set_reward_from_config("MockEnv", {})
+    policy.set_reward_from_config()
     assert hook.called
 
     original_fn = get_reward_fn("MockEnv", {})
@@ -90,7 +90,7 @@ def test_set_termination_from_config(policy, mocker):
     obs, act, new_obs = map(policy.convert_to_tensor, (obs, act, new_obs))
 
     hook = mocker.spy(EnvFnMixin, "_set_termination_hook")
-    policy.set_termination_from_config("MockEnv", {})
+    policy.set_termination_from_config()
     assert hook.called
 
     done = policy.termination_fn(obs, act, new_obs)

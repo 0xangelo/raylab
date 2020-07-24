@@ -4,6 +4,7 @@ from ray.rllib.utils import override
 
 from raylab.agents import Trainer
 from raylab.agents import trainer
+from raylab.agents.model_based import set_policy_with_env_fn
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 from raylab.utils.replay_buffer import ReplayField
 
@@ -61,9 +62,9 @@ class SVGInfTrainer(Trainer):
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=config["num_workers"]
         )
-        policy = self.get_policy()
-        policy.set_reward_from_config(config["env"], config["env_config"])
+        set_policy_with_env_fn(self.workers, fn_type="reward")
 
+        policy = self.get_policy()
         self.replay = NumpyReplayBuffer(
             policy.observation_space, policy.action_space, config["buffer_size"]
         )

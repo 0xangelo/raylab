@@ -6,7 +6,7 @@ from ray.rllib import SampleBatch
 @pytest.fixture
 def policy_and_batch(policy_and_batch_fn, svg_inf_policy):
     policy, batch = policy_and_batch_fn(svg_inf_policy, {})
-    policy.set_reward_from_config(policy.config["env"], policy.config["env_config"])
+    policy.set_reward_from_config()
     return policy, batch
 
 
