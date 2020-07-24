@@ -8,8 +8,8 @@ from ray.rllib import SampleBatch
 
 from raylab.policy.modules.v0.mixins import StochasticActorMixin
 
+from .utils import _make_module
 from .utils import make_batch
-from .utils import make_module
 
 
 class DummyModule(StochasticActorMixin, nn.ModuleDict):
@@ -50,7 +50,7 @@ def input_dependent_scale(request):
 
 
 def test_discrete_sampler(agent, obs_space, disc_space, torch_script):
-    module = make_module(agent, obs_space, disc_space, {}, torch_script)
+    module = _make_module(agent, obs_space, disc_space, {}, torch_script)
     batch = make_batch(obs_space, disc_space, batch_size=100)
     action = batch[SampleBatch.ACTIONS]
 
@@ -65,7 +65,7 @@ def test_discrete_sampler(agent, obs_space, disc_space, torch_script):
 
 
 def test_continuous_sampler(agent, obs_space, cont_space, torch_script):
-    module = make_module(
+    module = _make_module(
         agent,
         obs_space,
         cont_space,
@@ -86,7 +86,7 @@ def test_continuous_sampler(agent, obs_space, cont_space, torch_script):
 
 
 def test_discrete_params(agent, obs_space, disc_space, torch_script):
-    module = make_module(agent, obs_space, disc_space, {}, torch_script)
+    module = _make_module(agent, obs_space, disc_space, {}, torch_script)
     batch = make_batch(obs_space, disc_space)
 
     params = module.actor(batch[SampleBatch.CUR_OBS])
@@ -105,7 +105,7 @@ def test_discrete_params(agent, obs_space, disc_space, torch_script):
 def test_continuous_params(
     agent, obs_space, cont_space, input_dependent_scale, torch_script
 ):
-    module = make_module(
+    module = _make_module(
         agent,
         obs_space,
         cont_space,
@@ -139,7 +139,7 @@ def test_continuous_params(
 
 
 def test_reproduce(agent, obs_space, cont_space, input_dependent_scale, torch_script):
-    module = make_module(
+    module = _make_module(
         agent,
         obs_space,
         cont_space,

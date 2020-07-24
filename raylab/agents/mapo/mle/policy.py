@@ -12,14 +12,15 @@ class MlMAPOTorchPolicy(MAPOTorchPolicy):
 
     # pylint:disable=abstract-method
 
-    def _setup_model_loss(self):
-        self.loss_model = ModelEnsembleMLE(self.module.models)
-
-    def get_default_config(self):
+    @property
+    def options(self):
         # pylint:disable=cyclic-import
         from raylab.agents.mapo.mle import MlMAPOTrainer
 
-        return MlMAPOTrainer.options.defaults
+        return MlMAPOTrainer.options
+
+    def _setup_model_loss(self):
+        self.loss_model = ModelEnsembleMLE(self.module.models)
 
     def _set_reward_hook(self):
         self.loss_actor.set_reward_fn(self.reward_fn)

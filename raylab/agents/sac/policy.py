@@ -45,24 +45,27 @@ class SACTorchPolicy(TorchPolicy):
             self.module.alpha, self.module.actor.sample, target_entropy
         )
 
-    @staticmethod
+    @property
     @override(TorchPolicy)
-    def get_default_config():
-        """Return the default config for SAC."""
+    def options(self):
         # pylint:disable=cyclic-import
         from raylab.agents.sac import SACTrainer
 
-        return SACTrainer.options.defaults
+        return SACTrainer.options
 
     @override(TorchPolicy)
-    def make_optimizers(self):
+    def _make_optimizers(self):
+        optimizers = super()._make_optimizers()
         config = self.config["torch_optimizer"]
-        components = "actor critics alpha".split()
 
-        return {
+        components = "actor critics alpha".split()
+        mapping = {
             name: build_optimizer(getattr(self.module, name), config[name])
             for name in components
         }
+
+        optimizers.update(mapping)
+        return optimizers
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):

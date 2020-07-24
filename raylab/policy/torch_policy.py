@@ -1,8 +1,6 @@
 """Base for all PyTorch policies."""
-import copy
 import textwrap
 from abc import abstractmethod
-from typing import Dict
 from typing import List
 from typing import Tuple
 
@@ -12,16 +10,17 @@ import torch.nn as nn
 from gym.spaces import Space
 from ray.rllib import Policy
 from ray.rllib import SampleBatch
-from ray.rllib.agents import Trainer
 from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.model import flatten
 from ray.rllib.models.model import restore_original_dimensions
 from ray.rllib.utils import override
+from ray.rllib.utils.torch_ops import convert_to_non_torch_type
+from ray.rllib.utils.torch_ops import convert_to_torch_tensor
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.tune.logger import pretty_print
 from torch import Tensor
-from torch.optim import Optimizer
 
+from raylab.agents.options import RaylabOptions
 from raylab.pytorch.utils import convert_to_tensor
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
@@ -49,29 +48,34 @@ class TorchPolicy(Policy):
     optimizers: OptimizerCollection
 
     def __init__(self, observation_space: Space, action_space: Space, config: dict):
+        options = self.options
         config = deep_merge(
-            {**self.get_default_config(), "worker_index": None},
+            options.defaults,
             config,
             new_keys_allowed=True,
-            override_all_if_type_changes=self._override_all_subkeys_if_type_changes,
+            whitelist=options.allow_unknown_subkeys,
+            override_all_if_type_changes=options.override_all_if_type_changes,
         )
+
         # Allow subclasses to set `dist_class` before calling init
         action_dist = getattr(self, "dist_class", None)
         super().__init__(observation_space, action_space, config)
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.module = self.make_module(observation_space, action_space, self.config)
+        self.module = self._make_module(observation_space, action_space, self.config)
         self.module.to(self.device)
 
-        self.optimizers = OptimizerCollection()
-        for name, optimizer in self.make_optimizers().items():
-            self.optimizers[name] = optimizer
+        self.optimizers = self._make_optimizers()
 
         # === Policy attributes ===
         self.dist_class = action_dist
         self.dist_class.check_model_compat(self.module)
         self.framework = "torch"  # Needed to create exploration
         self.exploration = self._create_exploration()
+
+    # ==========================================================================
+    # PublicAPI
+    # ==========================================================================
 
     @property
     def model(self):
@@ -82,46 +86,9 @@ class TorchPolicy(Policy):
         return self.module
 
     @property
-    def _override_all_subkeys_if_type_changes(self) -> List[str]:
-        """Nested config dictionaries with special "type" keys.
-
-        Returns:
-            List of top level keys with value=dict, for which we always simply
-            override the entire value (dict), iff the "type" key in that value
-            dict changes.
-        """
-        # pylint:disable=protected-access
-        return Trainer._override_all_subkeys_if_type_changes + ["module"]
-
-    @staticmethod
     @abstractmethod
-    def get_default_config() -> dict:
-        """Return the default configuration for this policy class."""
-
-    def make_optimizers(self) -> Dict[str, Optimizer]:
-        """PyTorch optimizers to use.
-
-        The result will be added to the policy's optimizer collection.
-
-        Returns:
-            A mapping from names to optimizer instances.
-        """
-        # pylint:disable=no-self-use
-        return {}
-
-    @staticmethod
-    def make_module(obs_space: Space, action_space: Space, config: dict) -> nn.Module:
-        """Build the PyTorch nn.Module to be used by this policy.
-
-        Args:
-            obs_space: the observation space for this policy
-            action_space: the action_space for this policy
-            config: the user config containing the 'module' key
-
-        Returns:
-            A neural network module.
-        """
-        return get_module(obs_space, action_space, config["module"])
+    def options(self) -> RaylabOptions:
+        """Return the options for this policy class."""
 
     def compile(self):
         """Optimize modules with TorchScript.
@@ -156,12 +123,12 @@ class TorchPolicy(Policy):
             input_dict[SampleBatch.PREV_ACTIONS] = prev_action_batch
         if prev_reward_batch:
             input_dict[SampleBatch.PREV_REWARDS] = prev_reward_batch
-        state_batches = [self.convert_to_tensor(s) for s in (state_batches or [])]
+        state_batches = convert_to_torch_tensor(state_batches or [], device=self.device)
 
         # Call the exploration before_compute_actions hook.
         self.exploration.before_compute_actions(timestep=timestep)
 
-        dist_inputs, state_out = self.compute_module_output(
+        dist_inputs, state_out = self._compute_module_output(
             self._unpack_observations(input_dict),
             state_batches,
             self.convert_to_tensor([1]),
@@ -176,75 +143,15 @@ class TorchPolicy(Policy):
         input_dict[SampleBatch.ACTIONS] = actions
 
         # Add default and custom fetches.
-        extra_fetches = self.extra_action_out(
+        extra_fetches = self._extra_action_out(
             input_dict, state_batches, self.module, action_dist
         )
 
         if logp is not None:
-            prob, logp = map(lambda x: x.cpu().numpy(), (logp.exp(), logp))
-            extra_fetches[SampleBatch.ACTION_PROB] = prob
+            extra_fetches[SampleBatch.ACTION_PROB] = logp.exp()
             extra_fetches[SampleBatch.ACTION_LOGP] = logp
 
-        return (
-            actions.cpu().numpy(),
-            [s.cpu().numpy() for s in state_out],
-            extra_fetches,
-        )
-
-    def _unpack_observations(self, input_dict):
-        restored = input_dict.copy()
-        restored["obs"] = restore_original_dimensions(
-            input_dict["obs"], self.observation_space, self.framework
-        )
-        if len(input_dict["obs"].shape) > 2:
-            restored["obs_flat"] = flatten(input_dict["obs"], self.framework)
-        else:
-            restored["obs_flat"] = input_dict["obs"]
-        return restored
-
-    def compute_module_output(
-        self, input_dict: TensorDict, state: List[Tensor], seq_lens: Tensor
-    ) -> Tuple[TensorDict, List[Tensor]]:
-        """Call the module with the given input tensors and state.
-
-        This mirrors the method used by RLlib to execute the forward pass. Nested
-        observation tensors are unpacked before this function is called.
-
-        Subclasses should override this for custom forward passes (e.g., for recurrent
-        networks).
-
-        Args:
-            input_dict: dictionary of input tensors, including "obs",
-                "prev_action", "prev_reward", "is_training"
-            state: list of state tensors with sizes matching those returned
-                by get_initial_state + the batch dimension
-            seq_lens: 1d tensor holding input sequence lengths
-
-        Returns:
-            A tuple containg an input dictionary to the policy's `dist_class`
-            and a list of rnn state tensors
-        """
-        # pylint:disable=unused-argument,no-self-use
-        return {"obs": input_dict["obs"]}, state
-
-    def extra_action_out(
-        self,
-        input_dict: TensorDict,
-        state_batches: List[Tensor],
-        module: nn.Module,
-        action_dist: ActionDistribution,
-    ) -> StatDict:
-        """Returns dict of extra info to include in experience batch.
-
-        Args:
-            input_dict: Dict of model input tensors.
-            state_batches: List of state tensors.
-            model: Reference to the model.
-            action_dist: Action dist object
-                to get log-probs (e.g. for already sampled actions).
-        """
-        # pylint:disable=unused-argument,no-self-use
-        return {}
+        return convert_to_non_torch_type((actions, state_out, extra_fetches))
 
     @torch.no_grad()
     @override(Policy)
@@ -288,21 +195,19 @@ class TorchPolicy(Policy):
 
     @override(Policy)
     def get_weights(self) -> dict:
-        state = {
-            "module": copy.deepcopy(self.module.state_dict()),
-            "optimizers": copy.deepcopy(self.optimizers.state_dict()),
+        return {
+            "module": convert_to_non_torch_type(self.module.state_dict()),
+            # Optimizer state dicts don't store tensors, only ids
+            "optimizers": self.optimizers.state_dict(),
         }
-
-        _to_numpy_state_dict(state)
-        return state
 
     @override(Policy)
     def set_weights(self, weights: dict):
-        state = weights
-        _from_numpy_state_dict(state)
-
-        self.module.load_state_dict(state["module"])
-        self.optimizers.load_state_dict(state["optimizers"])
+        self.module.load_state_dict(
+            convert_to_torch_tensor(weights["module"], device=self.device)
+        )
+        # Optimizer state dicts don't store tensors, only ids
+        self.optimizers.load_state_dict(weights["optimizers"])
 
     def convert_to_tensor(self, arr) -> Tensor:
         """Convert an array to a PyTorch tensor in this policy's device.
@@ -328,6 +233,93 @@ class TorchPolicy(Policy):
         tensor_batch = UsageTrackingDict(sample_batch)
         tensor_batch.set_get_interceptor(self.convert_to_tensor)
         return tensor_batch
+
+    # ==========================================================================
+    # InternalAPI
+    # ==========================================================================
+
+    @staticmethod
+    def _make_module(obs_space: Space, action_space: Space, config: dict) -> nn.Module:
+        """Build the PyTorch nn.Module to be used by this policy.
+
+        Args:
+            obs_space: the observation space for this policy
+            action_space: the action_space for this policy
+            config: the user config containing the 'module' key
+
+        Returns:
+            A neural network module.
+        """
+        return get_module(obs_space, action_space, config["module"])
+
+    def _make_optimizers(self) -> OptimizerCollection:
+        """Build PyTorch optimizers to use.
+
+        The result will be set as the policy's optimizer collection.
+
+        The user should update the optimizer collection (mutable mapping)
+        returned by the base implementation.
+
+        Returns:
+            A mapping from names to optimizer instances
+        """
+        # pylint:disable=no-self-use
+        return OptimizerCollection()
+
+    def _unpack_observations(self, input_dict):
+        restored = input_dict.copy()
+        restored["obs"] = restore_original_dimensions(
+            input_dict["obs"], self.observation_space, self.framework
+        )
+        if len(input_dict["obs"].shape) > 2:
+            restored["obs_flat"] = flatten(input_dict["obs"], self.framework)
+        else:
+            restored["obs_flat"] = input_dict["obs"]
+        return restored
+
+    def _compute_module_output(
+        self, input_dict: TensorDict, state: List[Tensor], seq_lens: Tensor
+    ) -> Tuple[TensorDict, List[Tensor]]:
+        """Call the module with the given input tensors and state.
+
+        This mirrors the method used by RLlib to execute the forward pass. Nested
+        observation tensors are unpacked before this function is called.
+
+        Subclasses should override this for custom forward passes (e.g., for recurrent
+        networks).
+
+        Args:
+            input_dict: dictionary of input tensors, including "obs",
+                "prev_action", "prev_reward", "is_training"
+            state: list of state tensors with sizes matching those returned
+                by get_initial_state + the batch dimension
+            seq_lens: 1d tensor holding input sequence lengths
+
+        Returns:
+            A tuple containg an input dictionary to the policy's `dist_class`
+            and a list of rnn state tensors
+        """
+        # pylint:disable=unused-argument,no-self-use
+        return {"obs": input_dict["obs"]}, state
+
+    def _extra_action_out(
+        self,
+        input_dict: TensorDict,
+        state_batches: List[Tensor],
+        module: nn.Module,
+        action_dist: ActionDistribution,
+    ) -> StatDict:
+        """Returns dict of extra info to include in experience batch.
+
+        Args:
+            input_dict: Dict of model input tensors.
+            state_batches: List of state tensors.
+            model: Reference to the model.
+            action_dist: Action dist object
+                to get log-probs (e.g. for already sampled actions).
+        """
+        # pylint:disable=unused-argument,no-self-use
+        return {}
 
     def __repr__(self):
         name = self.__class__.__name__

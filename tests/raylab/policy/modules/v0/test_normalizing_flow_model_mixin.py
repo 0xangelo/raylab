@@ -8,8 +8,8 @@ from ray.rllib import SampleBatch
 
 from raylab.policy.modules.v0.mixins import NormalizingFlowModelMixin
 
+from .utils import _make_module
 from .utils import make_batch
-from .utils import make_module
 
 
 class DummyModule(NormalizingFlowModelMixin, nn.ModuleDict):
@@ -60,7 +60,7 @@ def config(conditional_prior, conditional_flow, residual):
 
 
 def test_sampler(agent, obs_space, action_space, config, torch_script):
-    module = make_module(agent, obs_space, action_space, config, torch_script)
+    module = _make_module(agent, obs_space, action_space, config, torch_script)
     batch = make_batch(obs_space, action_space)
 
     obs = batch[SampleBatch.CUR_OBS]
@@ -77,7 +77,7 @@ def test_sampler(agent, obs_space, action_space, config, torch_script):
 
 
 def test_params(agent, obs_space, action_space, config, torch_script):
-    module = make_module(agent, obs_space, action_space, config, torch_script)
+    module = _make_module(agent, obs_space, action_space, config, torch_script)
     batch = make_batch(obs_space, action_space)
 
     obs = batch[SampleBatch.CUR_OBS]
@@ -109,7 +109,7 @@ def test_params(agent, obs_space, action_space, config, torch_script):
 
 
 def test_reproduce(agent, obs_space, action_space, config, torch_script):
-    module = make_module(agent, obs_space, action_space, config, torch_script)
+    module = _make_module(agent, obs_space, action_space, config, torch_script)
     batch = make_batch(obs_space, action_space)
 
     obs = batch[SampleBatch.CUR_OBS]

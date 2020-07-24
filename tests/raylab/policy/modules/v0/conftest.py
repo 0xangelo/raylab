@@ -19,7 +19,7 @@ def torch_script(request):
 
 @pytest.fixture(scope="module")
 def module_and_batch_fn(obs_space, action_space, torch_script):
-    def make_module_and_batch(module_cls, config):
+    def _make_module_and_batch(module_cls, config):
         module = module_cls(obs_space, action_space, config)
 
         batch = UsageTrackingDict(fake_batch(obs_space, action_space, batch_size=10))
@@ -27,4 +27,4 @@ def module_and_batch_fn(obs_space, action_space, torch_script):
 
         return torch.jit.script(module) if torch_script else module, batch
 
-    return make_module_and_batch
+    return _make_module_and_batch

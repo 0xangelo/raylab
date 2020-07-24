@@ -23,27 +23,28 @@ class NAFTorchPolicy(TorchPolicy):
         )
         self.loss_fn.gamma = self.config["gamma"]
 
-    @staticmethod
+    @property
     @override(TorchPolicy)
-    def get_default_config():
-        """Return the default config for NAF."""
+    def options(self):
         # pylint:disable=cyclic-import
         from raylab.agents.naf import NAFTrainer
 
-        return NAFTrainer.options.defaults
+        return NAFTrainer.options
 
     @override(TorchPolicy)
-    def make_module(self, obs_space, action_space, config):
+    def _make_module(self, obs_space, action_space, config):
         module_config = config["module"]
         module_config["type"] = "NAF"
         # pylint:disable=no-member
-        return super().make_module(obs_space, action_space, config)
+        return super()._make_module(obs_space, action_space, config)
 
     @override(TorchPolicy)
-    def make_optimizers(self):
-        return {
-            "naf": build_optimizer(self.module.critics, self.config["torch_optimizer"])
-        }
+    def _make_optimizers(self):
+        optimizers = super()._make_optimizers()
+        optimizers.update(
+            naf=build_optimizer(self.module.critics, self.config["torch_optimizer"])
+        )
+        return optimizers
 
     @override(TorchPolicy)
     def learn_on_batch(self, samples):

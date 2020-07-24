@@ -74,6 +74,9 @@ push-release:
 	git push origin develop
 	git push --tags
 
+reorder-imports-staged:
+	git diff --cached --name-only | xargs grep -rl --include "*.py" 'import' | xargs reorder-python-imports --separate-relative
+
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source raylab -m pytest
 	coverage report -m

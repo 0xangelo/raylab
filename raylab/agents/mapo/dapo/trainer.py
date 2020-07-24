@@ -1,6 +1,6 @@
 # pylint:disable=missing-module-docstring
-import raylab.envs as envs
 from raylab.agents import trainer
+from raylab.agents.model_based import set_policy_with_env_fn
 from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.agents.sac.trainer import sac_config
 
@@ -35,18 +35,6 @@ class DAPOTrainer(OffPolicyTrainer):
 
     def _init(self, config, env_creator):
         super()._init(config, env_creator)
-
-        policy = self.get_policy()
-        worker = self.workers.local_worker()
-
-        if envs.has_reward_fn(config["env"]):
-            policy.set_reward_from_config(config["env"], config["env_config"])
-        else:
-            policy.set_reward_from_callable(worker.env.reward_fn)
-
-        if envs.has_termination_fn(config["env"]):
-            policy.set_termination_from_config(config["env"], config["env_config"])
-        else:
-            policy.set_termination_from_callable(worker.env.termination_fn)
-
-        policy.set_dynamics_from_callable(worker.env.transition_fn)
+        set_policy_with_env_fn(self.workers, fn_type="reward")
+        set_policy_with_env_fn(self.workers, fn_type="termination")
+        set_policy_with_env_fn(self.workers, fn_type="dynamics")

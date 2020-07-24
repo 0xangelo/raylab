@@ -54,17 +54,18 @@ class ACKTRTorchPolicy(TorchPolicy):
     # pylint:disable=abstract-method
     dist_class = WrapStochasticPolicy
 
-    @staticmethod
+    @property
     @override(TorchPolicy)
-    def get_default_config():
+    def options(self):
         """Return the default configuration for ACKTR."""
         # pylint:disable=cyclic-import
         from raylab.agents.acktr import ACKTRTrainer
 
-        return ACKTRTrainer.options.defaults
+        return ACKTRTrainer.options
 
     @override(TorchPolicy)
-    def make_optimizers(self):
+    def _make_optimizers(self):
+        optimizers = super()._make_optimizers()
         config = dutil.deep_merge(
             DEFAULT_OPTIM_CONFIG,
             self.config["torch_optimizer"],
@@ -77,10 +78,13 @@ class ACKTRTorchPolicy(TorchPolicy):
             "EKFAC",
         ], "ACKTR must use optimizer with Kronecker Factored curvature estimation."
 
-        return {
+        mapping = {
             "actor": build_optimizer(self.module.actor, config["actor"]),
             "critic": build_optimizer(self.module.critic, config["critic"]),
         }
+
+        optimizers.update(mapping)
+        return optimizers
 
     @override(TorchPolicy)
     def compile(self):

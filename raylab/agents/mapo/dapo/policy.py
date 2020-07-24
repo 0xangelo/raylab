@@ -13,6 +13,14 @@ class DAPOTorchPolicy(EnvFnMixin, SACTorchPolicy):
 
     # pylint:disable=abstract-method,attribute-defined-outside-init
 
+    @property
+    def options(self):
+        """Return the default configuration for MAPO."""
+        # pylint:disable=cyclic-import
+        from raylab.agents.mapo.dapo import DAPOTrainer
+
+        return DAPOTrainer.options
+
     def _setup_actor_loss(self):
         # Can only be defined once we have access to the env dynamics
         self.loss_actor = None
@@ -35,11 +43,3 @@ class DAPOTorchPolicy(EnvFnMixin, SACTorchPolicy):
             self.loss_actor.set_reward_fn(self.reward_fn)
         if self.termination_fn:
             self.loss_actor.set_termination_fn(self.termination_fn)
-
-    @staticmethod
-    def get_default_config():
-        """Return the default configuration for MAPO."""
-        # pylint:disable=cyclic-import
-        from raylab.agents.mapo.dapo import DAPOTrainer
-
-        return DAPOTrainer.options.defaults

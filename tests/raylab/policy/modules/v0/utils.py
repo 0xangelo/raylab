@@ -8,7 +8,7 @@ from raylab.pytorch.utils import convert_to_tensor
 from raylab.utils.debug import fake_batch
 
 
-def make_module(module_cls, obs_space, action_space, config, torch_script):
+def _make_module(module_cls, obs_space, action_space, config, torch_script):
     mod = module_cls(obs_space, action_space, config)
     return torch.jit.script(mod) if torch_script else mod
 

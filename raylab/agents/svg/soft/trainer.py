@@ -3,6 +3,7 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
 from raylab.agents import trainer
+from raylab.agents.model_based import set_policy_with_env_fn
 from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.utils.replay_buffer import ReplayField
 
@@ -60,7 +61,7 @@ class SoftSVGTrainer(OffPolicyTrainer):
     @override(OffPolicyTrainer)
     def _init(self, config, env_creator):
         super()._init(config, env_creator)
-        self.get_policy().set_reward_from_config(config["env"], config["env_config"])
+        set_policy_with_env_fn(self.workers, fn_type="reward")
 
     @override(OffPolicyTrainer)
     def build_replay_buffer(self, config):

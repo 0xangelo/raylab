@@ -42,21 +42,21 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
             self.module.alpha, self.module.actor.sample, target_entropy
         )
 
+    @property
+    @override(SVGTorchPolicy)
+    def options(self):
+        # pylint:disable=cyclic-import
+        from raylab.agents.svg.soft import SoftSVGTrainer
+
+        return SoftSVGTrainer.options
+
     @override(EnvFnMixin)
     def _set_reward_hook(self):
         self.loss_actor.set_reward_fn(self.reward_fn)
 
-    @staticmethod
     @override(SVGTorchPolicy)
-    def get_default_config():
-        """Return the default config for SoftSVG"""
-        # pylint:disable=cyclic-import
-        from raylab.agents.svg.soft import SoftSVGTrainer
-
-        return SoftSVGTrainer.options.defaults
-
-    @override(SVGTorchPolicy)
-    def make_optimizers(self):
+    def _make_optimizers(self):
+        optimizers = super()._make_optimizers()
         config = self.config["torch_optimizer"]
         components = {
             "model": self.module.model,
@@ -65,10 +65,13 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
             "alpha": self.module.alpha,
         }
 
-        return {
+        mapping = {
             name: build_optimizer(module, config[name])
             for name, module in components.items()
         }
+
+        optimizers.update(mapping)
+        return optimizers
 
     @torch.no_grad()
     @override(SVGTorchPolicy)

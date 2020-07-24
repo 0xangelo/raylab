@@ -47,11 +47,12 @@ class MockEnv(gym.Env):  # pylint:disable=abstract-method
         reward = np.linalg.norm((self.state[:3] - self.goal.numpy()), axis=-1)
         return self.state, reward, self.time >= self.horizon, {}
 
-    def reward_fn(self, state, action, next_state):
+    @staticmethod
+    def reward_fn(state, action, next_state):
         # pylint:disable=missing-docstring,unused-argument
-        return torch.norm(next_state[..., :3] - self.goal, dim=-1)
+        return torch.norm(next_state[..., :3], dim=-1)
 
-    def transition_fn(self, state, action):
+    def dynamics_fn(self, state, action):
         state, time = state[..., :3], state[..., 3:]
         new_state = state + action
         new_state = torch.max(

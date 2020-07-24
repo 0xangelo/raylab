@@ -6,8 +6,8 @@ from ray.rllib import SampleBatch
 
 from raylab.policy.modules.v0.trpo_tang2018 import TRPOTang2018
 
+from .utils import _make_module
 from .utils import make_batch
-from .utils import make_module
 
 
 ACTION_SPACES = (Box(-1, 1, shape=(2,)), Box(-1, 1, shape=(3,)))
@@ -24,7 +24,7 @@ def nf_agent(request):
 
 
 def test_sampler(nf_agent, obs_space, action_space, torch_script):
-    module = make_module(nf_agent, obs_space, action_space, {}, torch_script)
+    module = _make_module(nf_agent, obs_space, action_space, {}, torch_script)
     batch = make_batch(obs_space, action_space)
     action = batch[SampleBatch.ACTIONS]
 
@@ -42,14 +42,14 @@ def test_sampler(nf_agent, obs_space, action_space, torch_script):
 
 
 def test_flow_params(nf_agent, obs_space, action_space, torch_script):
-    module = make_module(nf_agent, obs_space, action_space, {}, torch_script,)
+    module = _make_module(nf_agent, obs_space, action_space, {}, torch_script,)
     batch = make_batch(obs_space, action_space)
     params = module.actor(batch[SampleBatch.CUR_OBS])
     assert "state" in params
 
 
 def test_reproduce(nf_agent, obs_space, action_space, torch_script):
-    module = make_module(nf_agent, obs_space, action_space, {}, torch_script)
+    module = _make_module(nf_agent, obs_space, action_space, {}, torch_script)
     batch = make_batch(obs_space, action_space)
 
     acts = batch[SampleBatch.ACTIONS]
