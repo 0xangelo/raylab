@@ -63,8 +63,8 @@ def list_(ctx, agent, key, separator, rllib):
         click.echo(msg)
         ctx.exit()
 
-    config = cls._default_config  # pylint:disable=protected-access
-    info = cls._config_info  # pylint:disable=protected-access
+    config = cls.options.defaults
+    info = cls.options.infos
     toplevel_keys = set(info.keys())
     if not rllib:
         toplevel_keys.difference_update(set(COMMON_INFO.keys()))
@@ -89,8 +89,8 @@ def find_config_info(cls: type, key: str, separator: str) -> str:
             sequence
     """
     key_seq = key.split(separator)
-    config = cls._default_config  # pylint:disable=protected-access
-    info = cls._config_info  # pylint:disable=protected-access
+    config = cls.options.defaults
+    info = cls.options.infos
 
     def check_help(k, i, seq):
         if k not in i:

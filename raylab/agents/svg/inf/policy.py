@@ -35,10 +35,10 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def get_default_config():
         """Return the default config for SVG(inf)"""
-        # pylint:disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import
         from raylab.agents.svg.inf import SVGInfTrainer
 
-        return SVGInfTrainer._default_config
+        return SVGInfTrainer.options.defaults
 
     @override(SVGTorchPolicy)
     def make_optimizers(self):

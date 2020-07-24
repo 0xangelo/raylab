@@ -1,12 +1,7 @@
 """Primitives for all Trainers."""
-import copy
-import inspect
 import warnings
 from abc import ABCMeta
-from collections import namedtuple
-from functools import partial
 from typing import Callable
-from typing import List
 from typing import Optional
 
 try:
@@ -14,42 +9,26 @@ try:
 except ImportError:
     wandb = None
 
-from ray.rllib.agents import with_common_config as with_rllib_config
 from ray.rllib.agents.trainer import Trainer as RLlibTrainer
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.optimizers import PolicyOptimizer
-from ray.rllib.utils import override as overrd
+from ray.rllib.utils import override as overrides
 
-from .config import Config
-from .config import Info
+from . import compat
 from .config import Json
-from .config import with_rllib_info
+from .config import RaylabOptions
 
 
 # ==============================================================================
 # Programatic config setting
 # ==============================================================================
-ConfSetter = namedtuple("ConfSetter", "key setter")
-
-
 def configure(cls: type) -> type:
     """Decorator for finishing the configuration setup for a Trainer class.
 
     Should be called after all :func:`config` decorators have been applied,
     i.e., as the top-most decorator.
     """
-    # pylint:disable=protected-access
-    cls._default_config = copy.deepcopy(cls._default_config)
-    cls._config_info = copy.deepcopy(cls._config_info)
-    cls._allow_unknown_subkeys = copy.deepcopy(cls._allow_unknown_subkeys)
-    cls._override_all_subkeys_if_type_changes = copy.deepcopy(
-        cls._override_all_subkeys_if_type_changes
-    )
-
-    for conf_setter in sorted(cls._to_set, key=lambda x: x.key):
-        conf_setter.setter(cls)
-    cls._to_set = None
-
+    cls.options = cls.options.copy_and_set_queued_options()
     return cls
 
 
@@ -80,22 +59,10 @@ def option(
     Raises:
         RuntimeError: If attempting to set an existing parameter with `override`
             set to `False`.
-        RuntimeError: If attempting to override an existing parameter with its
-            same default value.
-        RuntimeError: If attempting to enable `allow_unknown_subkeys` or
-            `override_all_if_type_changes` options for non-toplevel keys
     """
     # pylint:disable=too-many-arguments,redefined-builtin
-    if (allow_unknown_subkeys or override_all_if_type_changes) and separator in key:
-        raise RuntimeError(
-            "Cannot use 'allow_unknown_subkeys' or 'override_all_if_type_changes'"
-            f" for non-toplevel key: '{key}'"
-        )
-
-    setter = ConfSetter(
-        key=key,
-        setter=partial(
-            _set_config,
+    def _queue(cls):
+        cls.options.add_option_to_queue(
             key=key,
             default=default,
             info=help,
@@ -103,59 +70,10 @@ def option(
             allow_unknown_subkeys=allow_unknown_subkeys,
             override_all_if_type_changes=override_all_if_type_changes,
             separator=separator,
-        ),
-    )
-
-    def add_setter(cls):
-        # pylint:disable=protected-access
-        if cls._to_set is None:
-            cls._to_set = []
-        cls._to_set += [setter]
+        )
         return cls
 
-    return add_setter
-
-
-def _set_config(
-    cls: type,
-    key: str,
-    default: Json,
-    info: Optional[str] = None,
-    override: bool = False,
-    allow_unknown_subkeys: bool = False,
-    override_all_if_type_changes: bool = False,
-    separator: str = "/",
-):
-    # pylint:disable=too-many-arguments,protected-access
-    key_seq = key.split(separator)
-
-    if allow_unknown_subkeys and not override:
-        cls._allow_unknown_subkeys += [key]
-    if override_all_if_type_changes and not override:
-        cls._override_all_subkeys_if_type_changes += [key]
-
-    config_, info_ = cls._default_config, cls._config_info
-    for key_ in key_seq[:-1]:
-        config_ = config_.setdefault(key_, {})
-        info_ = info_.setdefault(key_, {})
-    key = key_seq[-1]
-
-    if key in config_ and not override:
-        raise RuntimeError(
-            f"Attempted to override config key '{key}' but override=False."
-        )
-    if key in config_ and default == config_[key]:
-        raise RuntimeError(
-            f"Attempted to override config key {key} with the same value: {default}"
-        )
-    config_[key] = default
-
-    if info is not None:
-        help_txt = inspect.cleandoc(info)
-        if isinstance(config_[key], dict):
-            info_[key] = {"__help__": help_txt}
-        else:
-            info_[key] = help_txt
+    return _queue
 
 
 # ==============================================================================
@@ -238,12 +156,10 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
 
     optimizer: Optional[PolicyOptimizer]
     workers: Optional[WorkerSet]
+    # Handle all config merging in RaylabOptions
+    options: RaylabOptions = RaylabOptions()
 
-    _to_set: Optional[List[ConfSetter]] = None
-    _config_info: Info = with_rllib_info({})
-    _default_config: Config = with_rllib_config({})
-
-    @overrd(RLlibTrainer)
+    @overrides(RLlibTrainer)
     def train(self):
         result = {}
 
@@ -269,24 +185,53 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         }
         wandb.log(filtered)
 
-    def _setup(self, *args, **kwargs):
-        if self._to_set:
+    @property
+    @overrides(RLlibTrainer)
+    def _default_config(self):
+        return self.options.defaults
+
+    @overrides(RLlibTrainer)
+    def _setup(self, config: dict):
+        if not self.options.all_options_set:
             raise RuntimeError(
                 f"{type(self).__name__} still has configs to be set."
                 " Did you call `trainer.configure` as the last decorator?"
             )
 
-        cls_attrs = ("_allow_unknown_subkeys", "_override_all_subkeys_if_type_changes")
-        attr_cache = ((attr, getattr(RLlibTrainer, attr)) for attr in cls_attrs)
-        for attr in cls_attrs:
-            setattr(RLlibTrainer, attr, getattr(self, attr))
-        try:
-            super()._setup(*args, **kwargs)
-        finally:
-            for attr, cache in attr_cache:
-                setattr(RLlibTrainer, attr, cache)
+        self.config = config = self.options.merge_defaults_with(config)
 
-        # Always have a PolicyOptimizer to collect metrics
+        self.env_creator = compat.make_env_creator(self._env_id, config)
+
+        compat.check_and_resolve_framework_settings(config)
+
+        RLlibTrainer._validate_config(config)
+
+        self.callbacks = compat.validate_callbacks(config)
+
+        compat.set_rllib_log_level(config)
+
+        self._init(config, self.env_creator)
+
+        # Evaluation setup.
+        if config.get("evaluation_interval"):
+            evaluation_config = compat.setup_evaluation_config(config)
+            self.evaluation_workers = self._make_workers(
+                self.env_creator,
+                self._policy,
+                evaluation_config,
+                num_workers=config["evaluation_num_workers"],
+            )
+
+        self._setup_optimizer_placeholder()
+
+        if self.config["compile_policy"]:
+            self._optimize_policy_backend()
+
+        if self.config["wandb"]["project"]:
+            self._setup_wandb()
+
+    def _setup_optimizer_placeholder(self):
+        # Always have a PolicyOptimizer if possible to collect metrics
         if not hasattr(self, "optimizer"):
             if hasattr(self, "workers"):
                 self.optimizer = PolicyOptimizer(self.workers)
@@ -294,21 +239,17 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
                 warnings.warn(
                     "No worker set initialized; episodes summary will be unavailable."
                 )
-
-        # Always have a WorkerSet to get workers and policy
+        # Always have a WorkerSet if possible to get workers and policy
         if hasattr(self, "optimizer") and not hasattr(self, "workers"):
             self.workers = self.optimizer.workers
 
-        if self.config["compile_policy"]:
-            if not hasattr(self, "workers"):
-                raise RuntimeError(
-                    f"{type(self).__name__} has no worker set. "
-                    "Cannot access policies for compilation."
-                )
-            self.workers.foreach_policy(lambda p, _: p.compile())
-
-        if self.config["wandb"]["project"]:
-            self._setup_wandb()
+    def _optimize_policy_backend(self):
+        if not hasattr(self, "workers"):
+            raise RuntimeError(
+                f"{type(self).__name__} has no worker set. "
+                "Cannot access policies for compilation."
+            )
+        self.workers.foreach_policy(lambda p, _: p.compile())
 
     def _setup_wandb(self):
         assert wandb is not None, "Unable to import wandb, did you install it via pip?"
@@ -332,13 +273,13 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
 
         raise AttributeError(f"{type(self).__name__} has no '{attr}' attribute")
 
-    @overrd(RLlibTrainer)
+    @overrides(RLlibTrainer)
     def __getstate__(self):
         state = super().__getstate__()
         state["global_vars"] = self.global_vars
         return state
 
-    @overrd(RLlibTrainer)
+    @overrides(RLlibTrainer)
     def __setstate__(self, state):
         self.global_vars = state["global_vars"]
         if hasattr(self, "workers"):
@@ -346,7 +287,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
 
         super().__setstate__(state)
 
-    @overrd(RLlibTrainer)
+    @overrides(RLlibTrainer)
     def _stop(self):
         super()._stop()
         if self.config["wandb"]["project"] and wandb:

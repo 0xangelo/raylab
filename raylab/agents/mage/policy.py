@@ -39,10 +39,10 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
 
     @staticmethod
     def get_default_config():
-        # pylint:disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import
         from raylab.agents.mage import MAGETrainer
 
-        return MAGETrainer._default_config
+        return MAGETrainer.options.defaults
 
     def _set_reward_hook(self):
         self.loss_critic.set_reward_fn(self.reward_fn)

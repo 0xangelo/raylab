@@ -1,13 +1,22 @@
 """Utilities for default configurations and info messages."""
-from textwrap import dedent
+import copy
+import inspect
+from collections import namedtuple
+from dataclasses import dataclass
+from dataclasses import field
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Set
 from typing import Union
 
 import tree
 from dataclasses_json.core import Json
+from ray.rllib.agents import with_common_config as with_rllib_config
+from ray.rllib.agents.trainer import COMMON_CONFIG
+from ray.rllib.agents.trainer import Trainer
 from ray.rllib.agents.trainer import with_base_config
+from ray.rllib.utils import deep_update
 
 COMMON_INFO = {
     # === Settings for Rollout Worker processes ===
@@ -328,27 +337,191 @@ COMMON_INFO = {
         transitions are replayed independently per policy.
         """,
     },
-    "use_pytorch": """\
-    Deprecated; replaced by `framework=torch`.""",
-    "eager": """\
-    Deprecated; replaced by `framework=tfe`.""",
+    "use_pytorch": "Deprecated; replaced by `framework=torch`.",
+    "eager": "Deprecated; replaced by `framework=tfe`.",
 }
 
 Config = Dict[str, Union[Json, "Config"]]
 Info = Dict[str, Union[str, "Info"]]
-
-
-def dedent_info_dict(info: Info) -> Info:
-    """Remove any common leading whitespaces from every help text in info."""
-    return tree.map_structure(
-        (lambda x: dedent(x).rstrip() if isinstance(x, str) else x), info
-    )
+Option = namedtuple("Option", "key parameters")
 
 
 def with_rllib_info(info: Info) -> Info:
     """Merge info with RLlib's common parameters' info."""
     info = with_base_config(COMMON_INFO, info)
-    return dedent_info_dict(info)
+    info = tree.map_structure(
+        (lambda x: inspect.cleandoc(x) if isinstance(x, str) else x), info
+    )
+    return info
+
+
+@dataclass
+class RaylabOptions:
+    """Configuration object for Raylab trainers.
+
+    Attributes:
+        rllib_keys: Common config keys for RLlib trainers
+    """
+
+    defaults: Config = field(default_factory=lambda: with_rllib_config({}))
+    infos: Info = field(default_factory=lambda: with_rllib_info({}))
+    # pylint:disable=protected-access
+    allow_unknown_subkeys: Set[str] = field(
+        default_factory=lambda: set(Trainer._allow_unknown_subkeys)
+    )
+    override_all_if_type_changes: Set[str] = field(
+        default_factory=lambda: set(Trainer._override_all_subkeys_if_type_changes)
+    )
+    # pylint:enable=protected-access
+    _rllib_keys: Set[str] = field(default_factory=lambda: set(COMMON_CONFIG.keys()))
+    _options_to_set: List[Option] = field(default_factory=list)
+
+    @property
+    def all_options_set(self) -> bool:
+        """Whether all queued options have been set and returned as a new config."""
+        return not bool(self._options_to_set)
+
+    @property
+    def rllib_defaults(self) -> Config:
+        """Default configurations for RLlib trainers."""
+        return {k: v for k, v in self.defaults.items() if k in self._rllib_keys}
+
+    def add_option_to_queue(
+        self,
+        key: str,
+        default: Json,
+        info: Optional[str] = None,
+        override: bool = False,
+        allow_unknown_subkeys: bool = False,
+        override_all_if_type_changes: bool = False,
+        separator: str = "/",
+    ):
+        """Queues an option with the given parameters to be set for a new config.
+
+        Args:
+            key: Name of the config option which the user can tune
+            default: Default Jsonable value to set for the option
+            info: Help text explaining what the option does
+            override: Whether to override an existing option default
+            allow_unknown_subkeys: Whether to allow new keys for dict options.
+                This is only at the top level
+            override_all_if_type_changes: Whether to override the entire value
+                (dict) iff the 'type' key in this value dict changes. This is
+                only at the top level
+            separator: String token separating nested keys
+
+        Raises:
+            RuntimeError: If attempting to enable `allow_unknown_subkeys` or
+                `override_all_if_type_changes` options for non-toplevel keys
+        """
+        # pylint:disable=too-many-arguments
+        if (allow_unknown_subkeys or override_all_if_type_changes) and separator in key:
+            raise RuntimeError(
+                "Cannot use 'allow_unknown_subkeys' or 'override_all_if_type_changes'"
+                f" for non-toplevel key: '{key}'"
+            )
+
+        self._options_to_set.append(
+            Option(
+                key=key,
+                parameters=dict(
+                    default=default,
+                    info=info,
+                    override=override,
+                    allow_unknown_subkeys=allow_unknown_subkeys,
+                    override_all_if_type_changes=override_all_if_type_changes,
+                    separator=separator,
+                ),
+            )
+        )
+
+    def copy_and_set_queued_options(self) -> "RaylabOptions":
+        """Create a new RaylabOptions and set all queued options.
+
+        Returns:
+            A new RaylabOptions instance with this instance's defaults and all
+            options queued via :meth:`add_option_to_queue`.
+        """
+        new = type(self)(
+            defaults=copy.deepcopy(self.defaults),
+            infos=copy.deepcopy(self.infos),
+            allow_unknown_subkeys=copy.deepcopy(self.allow_unknown_subkeys),
+            override_all_if_type_changes=copy.deepcopy(
+                self.override_all_if_type_changes
+            ),
+        )
+
+        to_set = self._options_to_set
+        self._options_to_set = []
+        for option in sorted(to_set, key=lambda x: x.key):
+            new.set_option(key=option.key, **option.parameters)
+
+        return new
+
+    def merge_defaults_with(self, config: Config) -> Config:
+        """Deep merge the given config with the defaults."""
+        defaults = copy.deepcopy(self.defaults)
+        new = deep_update(
+            defaults,
+            config,
+            new_keys_allowed=False,
+            whitelist=self.allow_unknown_subkeys,
+            override_all_if_type_changes=self.override_all_if_type_changes,
+        )
+        return new
+
+    def set_option(
+        self,
+        key: str,
+        default: Json,
+        info: Optional[str] = None,
+        override: bool = False,
+        allow_unknown_subkeys: bool = False,
+        override_all_if_type_changes: bool = False,
+        separator: str = "/",
+    ):
+        """Set an option in-place for this config.
+
+        Raises:
+            RuntimeError: If attempting to set an existing option with `override`
+                set to `False`.
+            RuntimeError: If attempting to override an existing option with its
+                same default value.
+        """
+        # pylint:disable=too-many-arguments
+        key_seq = key.split(separator)
+
+        if allow_unknown_subkeys and not override:
+            self.allow_unknown_subkeys.add(key)
+        if override_all_if_type_changes and not override:
+            self.override_all_if_type_changes.add(key)
+
+        config_, info_ = self.defaults, self.infos
+        for key_ in key_seq[:-1]:
+            config_ = config_.setdefault(key_, {})
+            info_ = info_.setdefault(key_, {})
+        key = key_seq[-1]
+
+        if key in config_ and not override:
+            raise RuntimeError(
+                f"Attempted to override config key '{key}' but override=False."
+            )
+        if key in config_ and default == config_[key]:
+            raise RuntimeError(
+                f"Attempted to override config key {key} with the same value: {default}"
+            )
+        config_[key] = default
+
+        if info is not None:
+            help_txt = inspect.cleandoc(info)
+            if isinstance(config_[key], dict):
+                info_[key] = {"__help__": help_txt}
+            else:
+                info_[key] = help_txt
+
+    def rllib_subconfig(self, config: dict) -> dict:
+        """Get the rllib subconfig from `config`."""
+        return {k: v for k, v in config.items() if k in self._rllib_keys}
 
 
 class MissingConfigInfoError(Exception):

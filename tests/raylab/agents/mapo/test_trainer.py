@@ -16,14 +16,13 @@ def trainer(trainer_cls):
 
 
 def test_default_config(trainer_cls):
-    assert trainer_cls._default_config is not None
-    config = trainer_cls._default_config
-    assert "polyak" in config
-    assert "model_training" in config
-    assert "model_sampling" not in config
-    assert "virtual_buffer_size" not in config
-    assert "model_rollouts" not in config
-    assert "real_data_ratio" not in config
+    defaults = trainer_cls.options.defaults
+    assert "polyak" in defaults
+    assert "model_training" in defaults
+    assert "model_sampling" not in defaults
+    assert "virtual_buffer_size" not in defaults
+    assert "model_rollouts" not in defaults
+    assert "real_data_ratio" not in defaults
 
     assert trainer_cls._name == "MAPO"
 

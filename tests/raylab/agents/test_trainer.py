@@ -110,6 +110,14 @@ def optim(request):
     return request.param
 
 
+def test_default_config(trainer_cls):
+    assert "workers" in trainer_cls.options.defaults
+    assert "optim" in trainer_cls.options.defaults
+    assert "arbitrary" in trainer_cls.options.defaults
+    assert "arbitrary" in trainer_cls.options.allow_unknown_subkeys
+    assert "arbitrary" in trainer_cls.options.override_all_if_type_changes
+
+
 def test_metrics_creation(trainer_cls, workers, optim):
     should_have_workers = any((workers, optim))
     context = (
@@ -206,8 +214,8 @@ def arbitrary(request):
 
 
 def test_override_all_if_type_changes(trainer_cls, arbitrary):
-    assert "arbitrary" in trainer_cls._allow_unknown_subkeys
-    assert "arbitrary" in trainer_cls._override_all_subkeys_if_type_changes
+    assert "arbitrary" in trainer_cls.options.allow_unknown_subkeys
+    assert "arbitrary" in trainer_cls.options.override_all_if_type_changes
     trainer = trainer_cls(config=dict(arbitrary=arbitrary))
 
     subconfig = trainer.config["arbitrary"]
@@ -236,16 +244,14 @@ def eval_trainer(trainer_cls):
 
 def test_evaluate_first(eval_trainer):
     trainer = eval_trainer
-    assert hasattr(trainer, "evaluation_metrics")
-    assert not trainer.evaluation_metrics
+    assert not hasattr(trainer, "evaluation_metrics")
 
     res = trainer.train()
     assert "evaluation" in res
-    assert hasattr(trainer, "evaluation_metrics")
-    assert not trainer.evaluation_metrics
+    assert not hasattr(trainer, "evaluation_metrics")
 
     # Assert evaluation is not run again
-    metrics = trainer.evaluation_metrics
-    trainer.train()
-    assert set(metrics.keys()) == set(trainer.evaluation_metrics.keys())
-    assert all(metrics[k] == trainer.evaluation_metrics[k] for k in metrics.keys())
+    old = res["evaluation"]
+    new = trainer.train().get("evaluation", {})
+    assert not new or set(old.keys()) == set(new.keys())
+    assert not new or all(old[k] == new[k] for k in old.keys())

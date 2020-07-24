@@ -27,10 +27,10 @@ class NAFTorchPolicy(TorchPolicy):
     @override(TorchPolicy)
     def get_default_config():
         """Return the default config for NAF."""
-        # pylint:disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import
         from raylab.agents.naf import NAFTrainer
 
-        return NAFTrainer._default_config
+        return NAFTrainer.options.defaults
 
     @override(TorchPolicy)
     def make_module(self, obs_space, action_space, config):
