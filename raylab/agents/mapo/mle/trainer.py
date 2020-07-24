@@ -9,11 +9,13 @@ from .policy import MlMAPOTorchPolicy
 
 
 @trainer.configure
+@trainer.option("losses/", help="Configurations for model and actor loss functions")
 @trainer.option(
     "losses/grad_estimator",
     "SF",
-    help="""
-    Gradient estimator for optimizing expectations. Possible types include
+    help="""Gradient estimator for optimizing expectations.
+
+    Possible types include
     SF: score function
     PD: pathwise derivative
     """,
@@ -21,12 +23,9 @@ from .policy import MlMAPOTorchPolicy
 @trainer.option(
     "losses/model_samples",
     4,
-    help="""
-    Number of next states to sample from the model when calculating the
-    model-aware deterministic policy gradient
-    """,
+    help="Number of next states to sample from the model when calculating the"
+    " model-aware deterministic policy gradient",
 )
-@trainer.option("losses", {}, help="Configurations for model and actor loss functions")
 @trainer.option("module", DEFAULT_MODULE, override=True)
 @trainer.option("torch_optimizer/models/type", "Adam")
 @trainer.option("model_training", TrainingSpec().to_dict(), help=TrainingSpec.__doc__)

@@ -34,9 +34,9 @@ from .policy import SVGInfTorchPolicy
 )
 @trainer.option("buffer_size", 500000, help="Size of the replay buffer")
 @trainer.option(
-    "kl_schedule",
-    {},
+    "kl_schedule/",
     help="Options for adaptive KL coefficient. See raylab.utils.adaptive_kl",
+    allow_unknown_subkeys=True,
 )
 @trainer.option("module", {"type": "SVGModule-v0"}, override=True)
 @trainer.option(
@@ -96,8 +96,5 @@ class SVGInfTrainer(Trainer):
 
     def _log_metrics(self, learner_stats, timesteps_this_iter):
         res = self.collect_metrics()
-        res.update(
-            timesteps_this_iter=timesteps_this_iter,
-            help=dict(learner=learner_stats, **res.get("info", {})),
-        )
+        res.update(timesteps_this_iter=timesteps_this_iter, learner=learner_stats)
         return res

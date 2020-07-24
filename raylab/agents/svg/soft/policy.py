@@ -50,10 +50,10 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def get_default_config():
         """Return the default config for SoftSVG"""
-        # pylint:disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import
         from raylab.agents.svg.soft import SoftSVGTrainer
 
-        return SoftSVGTrainer._default_config
+        return SoftSVGTrainer.options.defaults
 
     @override(SVGTorchPolicy)
     def make_optimizers(self):

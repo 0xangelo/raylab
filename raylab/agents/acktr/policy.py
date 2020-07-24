@@ -58,10 +58,10 @@ class ACKTRTorchPolicy(TorchPolicy):
     @override(TorchPolicy)
     def get_default_config():
         """Return the default configuration for ACKTR."""
-        # pylint:disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import
         from raylab.agents.acktr import ACKTRTrainer
 
-        return ACKTRTrainer._default_config
+        return ACKTRTrainer.options.defaults
 
     @override(TorchPolicy)
     def make_optimizers(self):

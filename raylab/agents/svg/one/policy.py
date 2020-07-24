@@ -36,10 +36,10 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def get_default_config():
         """Return the default config for SVG(1)"""
-        # pylint:disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import
         from raylab.agents.svg.one import SVGOneTrainer
 
-        return SVGOneTrainer._default_config
+        return SVGOneTrainer.options.defaults
 
     @override(SVGTorchPolicy)
     def make_module(self, obs_space, action_space, config):

@@ -49,10 +49,10 @@ class SACTorchPolicy(TorchPolicy):
     @override(TorchPolicy)
     def get_default_config():
         """Return the default config for SAC."""
-        # pylint:disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import
         from raylab.agents.sac import SACTrainer
 
-        return SACTrainer._default_config
+        return SACTrainer.options.defaults
 
     @override(TorchPolicy)
     def make_optimizers(self):

@@ -33,10 +33,10 @@ class DynaSACTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
         self.loss_critic.seed(self.config["seed"])
 
     def get_default_config(self):
-        # pylint:disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import
         from raylab.agents.sac.dyna import DynaSACTrainer
 
-        return DynaSACTrainer._default_config
+        return DynaSACTrainer.options.defaults
 
     def _set_reward_hook(self):
         self.loss_critic.set_reward_fn(self.reward_fn)

@@ -31,10 +31,10 @@ class TRPOTorchPolicy(TorchPolicy):
     @override(TorchPolicy)
     def get_default_config():
         """Return the default configuration for TRPO."""
-        # pylint:disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import
         from raylab.agents.trpo import TRPOTrainer
 
-        return TRPOTrainer._default_config
+        return TRPOTrainer.options.defaults
 
     @override(TorchPolicy)
     def make_optimizers(self):

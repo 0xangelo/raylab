@@ -27,10 +27,10 @@ class MBPOTorchPolicy(
     @override(SACTorchPolicy)
     def get_default_config():
         """Return the default config for MBPO."""
-        # pylint:disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import
         from raylab.agents.mbpo import MBPOTrainer
 
-        return MBPOTrainer._default_config
+        return MBPOTrainer.options.defaults
 
     @override(SACTorchPolicy)
     def make_optimizers(self):

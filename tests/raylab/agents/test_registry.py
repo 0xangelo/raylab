@@ -45,12 +45,12 @@ def compile_policy(request):
 @pytest.fixture(scope="module")
 def trainer(trainer_cls, compile_policy):
     name = trainer_cls._name
-    default_config = trainer_cls._default_config
+    defaults = trainer_cls.options.defaults
     config = CONFIG[name].copy()
 
-    if "policy_improvements" in default_config:
+    if "policy_improvements" in defaults:
         config["policy_improvements"] = 1
-    if "model_training" in default_config:
+    if "model_training" in defaults:
         config["model_training"] = {"max_epochs": 1}
 
     config["compile_policy"] = compile_policy

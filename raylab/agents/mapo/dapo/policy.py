@@ -39,7 +39,7 @@ class DAPOTorchPolicy(EnvFnMixin, SACTorchPolicy):
     @staticmethod
     def get_default_config():
         """Return the default configuration for MAPO."""
-        # pylint:disable=cyclic-import,protected-access
+        # pylint:disable=cyclic-import
         from raylab.agents.mapo.dapo import DAPOTrainer
 
-        return DAPOTrainer._default_config
+        return DAPOTrainer.options.defaults

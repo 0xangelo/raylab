@@ -20,29 +20,27 @@ DEFAULT_MODULE = {
 
 
 @trainer.configure
+@trainer.option("losses/", help="Configurations for model and actor loss functions")
 @trainer.option(
     "losses/grad_estimator",
     "SF",
-    help="""
-    Gradient estimator for optimizing expectations. Possible types include
+    help="""Gradient estimator for optimizing expectations.
+
+    Possible types include
     SF: score function
-    PD: pathwise derivative""",
+    PD: pathwise derivative
+    """,
 )
 @trainer.option(
     "losses/lambda",
     0.0,
-    help="""
-    Model KL regularization to avoid degenerate solutions (needs tuning)""",
+    help="Model KL regularization to avoid degenerate solutions (needs tuning)",
 )
 @trainer.option(
     "losses/model_samples",
     4,
-    help="""
-    Number of next states to sample from the model when calculating the
-    model-aware deterministic policy gradient""",
-)
-@trainer.option(
-    "losses", {}, help="Configurations for model, actor, and critic loss functions"
+    help="Number of next states to sample from the model when calculating the"
+    " model-aware deterministic policy gradient",
 )
 @trainer.option("module", DEFAULT_MODULE, override=True)
 @trainer.option("torch_optimizer/models/type", "Adam")
