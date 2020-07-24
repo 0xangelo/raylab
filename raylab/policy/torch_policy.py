@@ -1,5 +1,4 @@
 """Base for all PyTorch policies."""
-import copy
 import textwrap
 from abc import abstractmethod
 from typing import List
@@ -15,6 +14,8 @@ from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.model import flatten
 from ray.rllib.models.model import restore_original_dimensions
 from ray.rllib.utils import override
+from ray.rllib.utils.torch_ops import convert_to_non_torch_type
+from ray.rllib.utils.torch_ops import convert_to_torch_tensor
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.tune.logger import pretty_print
 from torch import Tensor
@@ -122,7 +123,7 @@ class TorchPolicy(Policy):
             input_dict[SampleBatch.PREV_ACTIONS] = prev_action_batch
         if prev_reward_batch:
             input_dict[SampleBatch.PREV_REWARDS] = prev_reward_batch
-        state_batches = [self.convert_to_tensor(s) for s in (state_batches or [])]
+        state_batches = convert_to_torch_tensor(state_batches or [], device=self.device)
 
         # Call the exploration before_compute_actions hook.
         self.exploration.before_compute_actions(timestep=timestep)
@@ -147,15 +148,10 @@ class TorchPolicy(Policy):
         )
 
         if logp is not None:
-            prob, logp = map(lambda x: x.cpu().numpy(), (logp.exp(), logp))
-            extra_fetches[SampleBatch.ACTION_PROB] = prob
+            extra_fetches[SampleBatch.ACTION_PROB] = logp.exp()
             extra_fetches[SampleBatch.ACTION_LOGP] = logp
 
-        return (
-            actions.cpu().numpy(),
-            [s.cpu().numpy() for s in state_out],
-            extra_fetches,
-        )
+        return convert_to_non_torch_type((actions, state_out, extra_fetches))
 
     @torch.no_grad()
     @override(Policy)
@@ -199,21 +195,19 @@ class TorchPolicy(Policy):
 
     @override(Policy)
     def get_weights(self) -> dict:
-        state = {
-            "module": copy.deepcopy(self.module.state_dict()),
-            "optimizers": copy.deepcopy(self.optimizers.state_dict()),
+        return {
+            "module": convert_to_non_torch_type(self.module.state_dict()),
+            # Optimizer state dicts don't store tensors, only ids
+            "optimizers": self.optimizers.state_dict(),
         }
-
-        _to_numpy_state_dict(state)
-        return state
 
     @override(Policy)
     def set_weights(self, weights: dict):
-        state = weights
-        _from_numpy_state_dict(state)
-
-        self.module.load_state_dict(state["module"])
-        self.optimizers.load_state_dict(state["optimizers"])
+        self.module.load_state_dict(
+            convert_to_torch_tensor(weights["module"], device=self.device)
+        )
+        # Optimizer state dicts don't store tensors, only ids
+        self.optimizers.load_state_dict(weights["optimizers"])
 
     def convert_to_tensor(self, arr) -> Tensor:
         """Convert an array to a PyTorch tensor in this policy's device.
