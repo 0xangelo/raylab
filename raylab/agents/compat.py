@@ -7,6 +7,7 @@ from typing import Callable
 from typing import Optional
 
 from ray.rllib.agents.callbacks import DefaultCallbacks
+from ray.rllib.agents.trainer import Trainer
 from ray.rllib.env.normalize_actions import NormalizeActionWrapper
 from ray.rllib.utils import merge_dicts
 from ray.rllib.utils.deprecation import DEPRECATED_VALUE
@@ -15,11 +16,15 @@ from ray.rllib.utils.framework import try_import_tf
 from ray.rllib.utils.from_config import from_config
 from ray.tune.registry import _global_registry
 from ray.tune.registry import ENV_CREATOR
+from ray.tune.resources import Resources
 
 logger = logging.getLogger(__name__)
 tf = try_import_tf()
 
 
+# ==============================================================================
+# Trainer setup
+# ==============================================================================
 def make_env_creator(env_id: Optional[str], config: dict) -> Callable[[dict], Any]:
     if env_id:
         config["env"] = env_id
@@ -127,3 +132,22 @@ def setup_evaluation_config(config: dict) -> dict:
     )
     logger.debug("using evaluation_config: {}".format(extra_config))
     return merge_dicts(config, extra_config)
+
+
+# ==============================================================================
+# Trainer resource requests
+# ==============================================================================
+def default_resource_request(cls, config: dict) -> Resources:
+    cf = dict(cls.options.defaults, **config)  # pylint:disable=invalid-name
+    Trainer._validate_config(cf)  # pylint:disable=protected-access
+    num_workers = cf["num_workers"] + cf["evaluation_num_workers"]
+    return Resources(
+        cpu=cf["num_cpus_for_driver"],
+        gpu=cf["num_gpus"],
+        memory=cf["memory"],
+        object_store_memory=cf["object_store_memory"],
+        extra_cpu=cf["num_cpus_per_worker"] * num_workers,
+        extra_gpu=cf["num_gpus_per_worker"] * num_workers,
+        extra_memory=cf["memory_per_worker"] * num_workers,
+        extra_object_store_memory=cf["object_store_memory_per_worker"] * num_workers,
+    )
