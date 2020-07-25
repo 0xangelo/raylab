@@ -119,13 +119,13 @@ def tensorfy(request):
     return request.param
 
 
-def test_transition_fn(env, tensorfy, sample_shape):
+def test_dynamics_fn(env, tensorfy, sample_shape):
     state = env.observation_space.sample()
     action = env.action_space.sample()
     if tensorfy:
         state, action = map(torch.as_tensor, (state, action))
 
-    next_state, logp = env.transition_fn(state, action, sample_shape=sample_shape)
+    next_state, logp = env.dynamics_fn(state, action, sample_shape=sample_shape)
     assert (
         next_state.numpy() if sample_shape == () else next_state[0].numpy()
     ) in env.observation_space
