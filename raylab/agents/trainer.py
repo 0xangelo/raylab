@@ -273,6 +273,11 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
 
         raise AttributeError(f"{type(self).__name__} has no '{attr}' attribute")
 
+    @classmethod
+    @overrides(RLlibTrainer)
+    def default_resource_request(cls, config: dict) -> compat.Resources:
+        return compat.default_resource_request(cls, config)
+
     @overrides(RLlibTrainer)
     def __getstate__(self):
         state = super().__getstate__()
