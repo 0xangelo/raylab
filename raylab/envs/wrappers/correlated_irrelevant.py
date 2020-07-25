@@ -3,11 +3,12 @@ import gym
 import numpy as np
 from gym.spaces import Box
 
+from .mixins import IrrelevantRedundantMixin
 from .mixins import RNGMixin
-from .utils import assert_box_observation_space
+from .utils import assert_flat_box_space
 
 
-class CorrelatedIrrelevant(RNGMixin, gym.ObservationWrapper):
+class CorrelatedIrrelevant(IrrelevantRedundantMixin, RNGMixin, gym.ObservationWrapper):
     """Add correlated random variables to the environment's observations.
 
     Samples :math:`Uniform(0, 1)` random variables on reset and appends them to
@@ -20,7 +21,7 @@ class CorrelatedIrrelevant(RNGMixin, gym.ObservationWrapper):
     """
 
     def __init__(self, env: gym.Env, size: int):
-        assert_box_observation_space(env, self)
+        assert_flat_box_space(env.observation_space, self)
         super().__init__(env)
         self._size = size
         self._timestep: int = 0
@@ -33,6 +34,13 @@ class CorrelatedIrrelevant(RNGMixin, gym.ObservationWrapper):
             low=low.astype(original.dtype), high=high.astype(original.dtype)
         )
 
+        self._set_reward_if_possible()
+        self._set_termination_if_possible()
+
+    @property
+    def added_size(self):
+        return self._size
+
     def reset(self, **kwargs):
         self._uvars = self.np_random.uniform(size=self._size)
         self._timestep = 0
@@ -42,21 +50,5 @@ class CorrelatedIrrelevant(RNGMixin, gym.ObservationWrapper):
         self._timestep += 1
         return super().step(action)
 
-    def observation(self, observation: np.ndarray) -> np.ndarray:
-        irrelevant = self._uvars ** self._timestep
-        observation = np.concatenate([observation, irrelevant])
-        return observation.astype(self.observation_space.dtype)
-
-    @staticmethod
-    def wrap_env_function(func: callable, size: int) -> callable:
-        """Wrap base env reward/termination function to ignore added variables.
-
-        Args:
-            func: Callable for reward/termination function
-            size: Number of irrelevant/redundant variables
-        """
-
-        def env_fn(state, action, next_state):
-            return func(state[..., :-size], action, next_state[..., :-size])
-
-        return env_fn
+    def _added_vars(self, _) -> np.ndarray:
+        return self._uvars ** self._timestep

@@ -2,6 +2,7 @@
 import gym
 import numpy as np
 import torch
+from torch import Tensor
 
 
 DEFAULT_CONFIG = {
@@ -102,18 +103,22 @@ class NavigationEnv(gym.Env):
         time = time.expand_as(position[..., -1:])
         return torch.cat([position, time], dim=-1), logp
 
-    def _deceleration(self, position):
+    def _deceleration(self, position: Tensor) -> Tensor:
+        # Decay is a tensor of shape (n)
         decay = torch.from_numpy(self._deceleration_decay)
+        # Center is a matrix with rows as center positions (n, d)
         center = torch.from_numpy(self._deceleration_center)
-        # Consider positions as row vectors
-        # Resulting difference is matrix with diff vectors as rows
-        # Calculate the norm of each row
-        distance = torch.norm(position.unsqueeze(-2) - center, dim=-1)
-        # distance is a vector with distances to each center
-        # Calculate the product of all corresponding decelerations
-        deceleration = torch.prod(
-            2 / (1.0 + torch.exp(-decay * distance)) - 1.0, dim=-1, keepdim=True
-        )
+        # Consider position as a batched row vector (*, d)
+        # Unsqueeze position to form a (*, 1, d) matrix
+        position = position.unsqueeze(-2)
+        # Broadcasting will reshape position and center to (*, n, d)
+        # Leverage broadcasting rules to compute batched distances
+        # distance is a vector with distances to each center (*, n)
+        distance = self.distance(position, center)
+        # Compute decelerations for each zone (*, n)
+        unreduced_decel = 2 / (1.0 + torch.exp(-decay * distance)) - 1.0
+        # Reduce by computing the product of decelerations (*, 1)
+        deceleration = torch.prod(unreduced_decel, dim=-1, keepdim=True)
         return deceleration
 
     def _sample_noise(self, position, sample_shape):
@@ -127,7 +132,7 @@ class NavigationEnv(gym.Env):
         timestep = torch.round(self._horizon * time)
         return torch.clamp((timestep + 1) / self._horizon, 0, 1)
 
-    def reward_fn(self, state, action, next_state):
+    def reward_fn(self, state: Tensor, action: Tensor, next_state: Tensor) -> Tensor:
         # pylint:disable=unused-argument,missing-docstring
         position, _ = self._unpack_state(next_state)
         goal = torch.from_numpy(self._end)
@@ -136,6 +141,25 @@ class NavigationEnv(gym.Env):
     def _terminal(self):
         position, time = self._unpack_state(self._state)
         return np.allclose(position, self._end, atol=1e-1) or time.item() >= 1.0
+
+    def termination_fn(
+        self, state: Tensor, action: Tensor, next_state: Tensor
+    ) -> Tensor:
+        # pylint:disable=unused-argument,missing-docstring
+        position, time = self._unpack_state(next_state)
+        goal = torch.from_numpy(self._end)
+        hit_goal = self.distance(position, goal) <= 1e-1
+        timeout = time[..., 0] >= 1.0
+        return hit_goal | timeout
+
+    @staticmethod
+    def distance(pos1: Tensor, pos2: Tensor) -> Tensor:
+        """Batched distance computation between positions.
+
+        Returns:
+            Tensor with distances for each batch dimension
+        """
+        return torch.norm(pos1 - pos2, dim=-1)
 
     @staticmethod
     def _unpack_state(state):

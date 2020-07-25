@@ -3,11 +3,12 @@ import gym
 import numpy as np
 from gym.spaces import Box
 
+from .mixins import IrrelevantRedundantMixin
 from .mixins import RNGMixin
-from .utils import assert_box_observation_space
+from .utils import assert_flat_box_space
 
 
-class RandomIrrelevant(RNGMixin, gym.ObservationWrapper):
+class RandomIrrelevant(IrrelevantRedundantMixin, RNGMixin, gym.ObservationWrapper):
     """Add Normal random variables to the environment's observations.
 
     Args:
@@ -18,7 +19,7 @@ class RandomIrrelevant(RNGMixin, gym.ObservationWrapper):
     """
 
     def __init__(self, env: gym.Env, size: int, loc: float = 0.0, scale: float = 1.0):
-        assert_box_observation_space(env, self)
+        assert_flat_box_space(env.observation_space, self)
         super().__init__(env)
         self._size = size
         self._loc = loc
@@ -31,23 +32,12 @@ class RandomIrrelevant(RNGMixin, gym.ObservationWrapper):
             low=low.astype(original.dtype), high=high.astype(original.dtype)
         )
 
-    def observation(self, observation: np.ndarray) -> np.ndarray:
-        irrelevant = self.np_random.normal(
-            loc=self._loc, scale=self._scale, size=self._size
-        )
-        observation = np.concatenate([observation, irrelevant])
-        return observation.astype(self.observation_space.dtype)
+        self._set_reward_if_possible()
+        self._set_termination_if_possible()
 
-    @staticmethod
-    def wrap_env_function(func: callable, size: int) -> callable:
-        """Wrap base env reward/termination function to ignore added variables.
+    @property
+    def added_size(self):
+        return self._size
 
-        Args:
-            func: Callable for reward/termination function
-            size: Number of irrelevant/redundant variables
-        """
-
-        def env_fn(state, action, next_state):
-            return func(state[..., :-size], action, next_state[..., :-size])
-
-        return env_fn
+    def _added_vars(self, observation: np.ndarray) -> np.ndarray:
+        return self.np_random.normal(loc=self._loc, scale=self._scale, size=self._size)

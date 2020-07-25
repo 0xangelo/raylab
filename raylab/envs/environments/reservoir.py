@@ -1,7 +1,12 @@
 # pylint:disable=missing-docstring,invalid-name
+from typing import List
+from typing import Tuple
+from typing import Union
+
 import gym
 import numpy as np
 import torch
+from torch import Tensor
 
 
 DEFAULT_CONFIG = {
@@ -58,14 +63,16 @@ class ReservoirEnv(gym.Env):
         return self._state
 
     @torch.no_grad()
-    def step(self, action):
+    def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, dict]:
         state, action = map(torch.as_tensor, (self._state, action))
-        next_state, _ = self.transition_fn(state, action)
+        next_state, _ = self.dynamics_fn(state, action)
         reward = self.reward_fn(state, action, next_state).item()
         self._state = next_state.numpy()
         return self._state, reward, self._terminal(), {}
 
-    def transition_fn(self, state, action, sample_shape=()):
+    def dynamics_fn(
+        self, state: Tensor, action: Tensor, sample_shape: List[int] = ()
+    ) -> Tuple[Tensor, Tensor]:
         # pylint:disable=missing-docstring
         state, time = self._unpack_state(state)
         rain, logp = self._rainfall(state, sample_shape)
@@ -75,7 +82,7 @@ class ReservoirEnv(gym.Env):
         time = time.expand_as(next_state[..., -1:])
         return torch.cat([next_state, time], dim=-1), logp
 
-    def _rlevel(self, rlevel, action, rain):
+    def _rlevel(self, rlevel: Tensor, action: Tensor, rain: Tensor) -> Tensor:
         MIN_RES_CAP = torch.zeros(self._num_reservoirs)
         outflow = torch.as_tensor(action)
         rlevel = rlevel + rain - self._evaporated(rlevel)
@@ -87,7 +94,9 @@ class ReservoirEnv(gym.Env):
         )
         return torch.max(MIN_RES_CAP, rlevel)
 
-    def _rainfall(self, rlevel, sample_shape=()):
+    def _rainfall(
+        self, rlevel: Tensor, sample_shape: List[int] = ()
+    ) -> Tuple[Tensor, Tensor]:
         concentration = torch.as_tensor(self._config["RAIN_SHAPE"]).expand_as(rlevel)
         rate = 1.0 / torch.as_tensor(self._config["RAIN_SCALE"]).expand_as(rlevel)
         dist = torch.distributions.Independent(
@@ -97,19 +106,19 @@ class ReservoirEnv(gym.Env):
         logp = dist.log_prob(sample.detach())
         return sample, logp
 
-    def _inflow(self, rlevel, action):
+    def _inflow(self, rlevel: Tensor, action: Tensor) -> Tensor:
         DOWNSTREAM = torch.as_tensor(self._config["DOWNSTREAM"], dtype=torch.float32)
         overflow = self._overflow(rlevel, action)
         outflow = action
         return (overflow + outflow).matmul(DOWNSTREAM.t())
 
-    def _overflow(self, rlevel, action):
+    def _overflow(self, rlevel: Tensor, action: Tensor) -> Tensor:
         MIN_RES_CAP = torch.zeros(self._num_reservoirs)
         MAX_RES_CAP = torch.as_tensor(self._config["MAX_RES_CAP"])
         outflow = torch.as_tensor(action)
         return torch.max(MIN_RES_CAP, rlevel - outflow - MAX_RES_CAP)
 
-    def _evaporated(self, rlevel):
+    def _evaporated(self, rlevel: Tensor) -> Tensor:
         EVAP_PER_TIME_UNIT = self._config["MAX_WATER_EVAP_FRAC_PER_TIME_UNIT"]
         MAX_RES_CAP = torch.as_tensor(self._config["MAX_RES_CAP"])
         return (
@@ -119,11 +128,11 @@ class ReservoirEnv(gym.Env):
             / (MAX_RES_CAP ** 2)
         )
 
-    def _step_time(self, time):
+    def _step_time(self, time: Tensor) -> Tensor:
         timestep = torch.round(self._horizon * time)
         return torch.clamp((timestep + 1) / self._horizon, 0, 1)
 
-    def reward_fn(self, state, action, next_state):
+    def reward_fn(self, state: Tensor, action: Tensor, next_state: Tensor) -> Tensor:
         # pylint:disable=unused-argument,missing-docstring
         rlevel, _ = self._unpack_state(next_state)
 
@@ -149,8 +158,15 @@ class ReservoirEnv(gym.Env):
         _, time = self._unpack_state(self._state)
         return time.item() >= 1.0
 
+    def termination_fn(
+        self, state: Tensor, action: Tensor, next_state: Tensor
+    ) -> Tensor:
+        # pylint:disable=unused-argument,missing-docstring
+        _, time = self._unpack_state(next_state)
+        return time[..., 0] >= 1.0
+
     @staticmethod
-    def _unpack_state(state):
+    def _unpack_state(state: Union[np.ndarray, Tensor]) -> Tuple[Tensor, Tensor]:
         obs = torch.as_tensor(state[..., :-1], dtype=torch.float32)
         time = torch.as_tensor(state[..., -1:], dtype=torch.float32)
         return obs, time
