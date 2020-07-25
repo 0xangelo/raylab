@@ -234,6 +234,25 @@ class TorchPolicy(Policy):
         tensor_batch.set_get_interceptor(self.convert_to_tensor)
         return tensor_batch
 
+    def __repr__(self):
+        name = self.__class__.__name__
+        args = [f"{self.observation_space},", f"{self.action_space},"]
+
+        config = pretty_print(self.config).rstrip("\n")
+        if "\n" in config:
+            config = textwrap.indent(config, " " * 2)
+            config = "{\n" + config + "\n}"
+
+            args += [config]
+            args_repr = "\n".join(args)
+            args_repr = textwrap.indent(args_repr, " " * 2)
+            constructor = f"{name}(\n{args_repr}\n)"
+        else:
+            args += [config]
+            args_repr = " ".join(args[1:-1])
+            constructor = f"{name}({args_repr})"
+        return constructor
+
     # ==========================================================================
     # InternalAPI
     # ==========================================================================
@@ -321,24 +340,18 @@ class TorchPolicy(Policy):
         # pylint:disable=unused-argument,no-self-use
         return {}
 
-    def __repr__(self):
-        name = self.__class__.__name__
-        args = [f"{self.observation_space},", f"{self.action_space},"]
+    # ==========================================================================
+    # Unimplemented Policy methods
+    # ==========================================================================
 
-        config = pretty_print(self.config).rstrip("\n")
-        if "\n" in config:
-            config = textwrap.indent(config, " " * 2)
-            config = "{\n" + config + "\n}"
+    def export_model(self, export_dir):
+        pass
 
-            args += [config]
-            args_repr = "\n".join(args)
-            args_repr = textwrap.indent(args_repr, " " * 2)
-            constructor = f"{name}(\n{args_repr}\n)"
-        else:
-            args += [config]
-            args_repr = " ".join(args[1:-1])
-            constructor = f"{name}({args_repr})"
-        return constructor
+    def export_checkpoint(self, export_dir):
+        pass
+
+    def import_model_from_h5(self, import_file):
+        pass
 
 
 def _to_numpy_state_dict(mapping):
