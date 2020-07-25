@@ -2,7 +2,8 @@
 import gym
 import numpy as np
 
-from .utils import assert_box_observation_space
+from .utils import assert_flat_box_space
+from .utils import ignore_rightmost_variables
 
 
 class AddRelativeTimestep(gym.ObservationWrapper):
@@ -12,7 +13,7 @@ class AddRelativeTimestep(gym.ObservationWrapper):
     """
 
     def __init__(self, env=None):
-        assert_box_observation_space(env, self)
+        assert_flat_box_space(env.observation_space, self)
         super().__init__(env)
 
         _env = env
@@ -29,14 +30,20 @@ class AddRelativeTimestep(gym.ObservationWrapper):
         )
 
         if hasattr(self.env, "reward_fn"):
+            self.reward_fn = ignore_rightmost_variables(self.env.reward_fn, 1)
 
-            def reward_fn(state, action, next_state):
-                return self.env.reward_fn(state[..., :-1], action, next_state[..., :-1])
+        if hasattr(self.env, "termination_fn"):
 
-            self.reward_fn = reward_fn
+            def termination_fn(state, action, next_state):
+                env_done = self.env.termination_fn(
+                    state[..., :-1], action, next_state[..., :-1]
+                )
+                timeout = next_state[..., -1] >= 1.0
+                return timeout | env_done
+
+            self.termination_fn = termination_fn
 
     def observation(self, observation):
         # pylint:disable=protected-access
-        return np.append(
-            observation, (self._env._elapsed_steps / self._env._max_episode_steps)
-        )
+        relative_time = self._env._elapsed_steps / self._env._max_episode_steps
+        return np.append(observation, relative_time)

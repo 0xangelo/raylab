@@ -3,7 +3,7 @@ import gym
 import numpy as np
 from ray.rllib.utils import override
 
-from .utils import assert_box_observation_space
+from .utils import assert_flat_box_space
 
 
 class GaussianRandomWalks(gym.Wrapper):
@@ -17,7 +17,7 @@ class GaussianRandomWalks(gym.Wrapper):
     """
 
     def __init__(self, env, num_walks, loc=0.0, scale=1.0):
-        assert_box_observation_space(env, self)
+        assert_flat_box_space(env.observation_space, self)
         super().__init__(env)
         self._num_walks = num_walks
         self._loc = loc

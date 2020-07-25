@@ -3,10 +3,11 @@ import gym
 import numpy as np
 from gym.spaces import Box
 
-from .utils import assert_box_observation_space
+from .mixins import IrrelevantRedundantMixin
+from .utils import assert_flat_box_space
 
 
-class NonlinearRedundant(gym.ObservationWrapper):
+class NonlinearRedundant(IrrelevantRedundantMixin, gym.ObservationWrapper):
     r"""Adds nonlinear redundant variables to the environment's observations.
 
     Computes redundant variables as nonlinear functions.
@@ -18,7 +19,7 @@ class NonlinearRedundant(gym.ObservationWrapper):
     """
 
     def __init__(self, env: gym.Env):
-        assert_box_observation_space(env, self)
+        assert_flat_box_space(env.observation_space, self)
         super().__init__(env)
 
         original = self.env.observation_space
@@ -27,11 +28,17 @@ class NonlinearRedundant(gym.ObservationWrapper):
         high = np.concatenate([original.high, [1] * 2 * size]).astype(original.dtype)
         self.observation_space = Box(low=low, high=high)
 
-    def observation(self, observation: np.ndarray) -> np.ndarray:
+        self._set_reward_if_possible()
+        self._set_termination_if_possible()
+
+    @property
+    def added_size(self):
+        return 2 * self.env.observation_space.shape[0]
+
+    def _added_vars(self, observation: np.ndarray) -> np.ndarray:
         cos = np.cos(observation)
         sin = np.sin(observation)
-        observation = np.concatenate([observation, cos, sin])
-        return observation.astype(self.observation_space.dtype)
+        return np.concatenate([cos, sin])
 
     @staticmethod
     def wrap_env_function(func: callable) -> callable:
@@ -40,6 +47,7 @@ class NonlinearRedundant(gym.ObservationWrapper):
         Args:
             func: Callable for reward/termination function
         """
+        # pylint:disable=arguments-differ
 
         def env_fn(state, action, next_state):
             size = (state.size(-1) // 3) * 2

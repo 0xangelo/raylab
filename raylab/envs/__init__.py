@@ -1,4 +1,5 @@
 """OpenAI Gym environments and utilities."""
+from ray.tune import register_env
 
 from .rewards import get_reward_fn
 from .rewards import has_reward_fn
@@ -16,6 +17,7 @@ __all__ = [
     "get_termination_fn",
     "has_termination_fn",
     "register_termination_fn",
+    "register_env",
     "get_env_creator",
     "has_env_creator",
 ]

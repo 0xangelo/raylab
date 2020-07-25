@@ -3,11 +3,12 @@ import gym
 import numpy as np
 from gym.spaces import Box
 
+from .mixins import IrrelevantRedundantMixin
 from .mixins import RNGMixin
-from .utils import assert_box_observation_space
+from .utils import assert_flat_box_space
 
 
-class LinearRedundant(RNGMixin, gym.ObservationWrapper):
+class LinearRedundant(IrrelevantRedundantMixin, RNGMixin, gym.ObservationWrapper):
     """Adds linear redundant variables to the environment's observations.
 
     Computes redundant variables as a linear function, with weight matrix
@@ -20,9 +21,9 @@ class LinearRedundant(RNGMixin, gym.ObservationWrapper):
     """
 
     def __init__(self, env: gym.Env):
-        assert_box_observation_space(env, self)
+        assert_flat_box_space(env.observation_space, self)
         super().__init__(env)
-        self._wmat = None
+        self._wmat: np.ndarray = None
 
         original = self.env.observation_space
         size = original.shape[0]
@@ -30,24 +31,29 @@ class LinearRedundant(RNGMixin, gym.ObservationWrapper):
         high = np.concatenate([original.high, [np.inf] * size]).astype(original.dtype)
         self.observation_space = Box(low=low, high=high)
 
+        self._set_reward_if_possible()
+        self._set_termination_if_possible()
+
+    @property
+    def added_size(self):
+        return self.env.observation_space.shape[0]
+
     def reset(self, **kwargs) -> np.ndarray:
         size = self.env.observation_space.shape[0]
         self._wmat = self.np_random.uniform(low=0.0, high=1.0, size=(size, size))
         return super().reset(**kwargs)
 
-    def observation(self, observation: np.ndarray) -> np.ndarray:
-        redundant = self._wmat @ observation
-        observation = np.concatenate([observation, redundant])
-        return observation.astype(self.observation_space.dtype)
+    def _added_vars(self, observation: np.ndarray) -> np.ndarray:
+        return self._wmat @ observation
 
     @staticmethod
-    def wrap_env_function(func: callable) -> callable:
+    def wrap_env_function(func: callable,) -> callable:
         """Wrap base env reward/termination function to ignore added variables.
 
         Args:
             func: Callable for reward/termination function
         """
-
+        # pylint:disable=arguments-differ
         def env_fn(state, action, next_state):
             size = state.size(-1) // 2
             return func(state[..., :-size], action, next_state[..., :-size])
