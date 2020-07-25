@@ -68,6 +68,6 @@ class IrrelevantRedundantMixin(ABC):
 
     def _set_termination_if_possible(self):
         if hasattr(self.env, "termination_fn"):
-            self.reward_fn = ignore_rightmost_variables(
+            self.termination_fn = ignore_rightmost_variables(
                 self.env.termination_fn, self.added_size
             )
