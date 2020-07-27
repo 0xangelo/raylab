@@ -24,7 +24,7 @@ jobs:
     - name: Install package
       run: |
         poetry install --no-dev
-        poetry run pip install pytest pytest-mock
+        poetry run pip install pytest pytest-mock gym-cartpole-swingup
     - name: Run pytest
       run: poetry run pytest
 
