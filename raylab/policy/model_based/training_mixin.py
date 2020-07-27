@@ -122,7 +122,6 @@ class Evaluator:
             for m, loss in zip(self.models, eval_losses)
         ]
 
-    @torch.no_grad()
     def validate(self, epoch: int) -> Tuple[bool, StatDict]:
         """Evaluate models on holdout data and update snapshots.
 
