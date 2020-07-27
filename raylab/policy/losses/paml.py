@@ -251,8 +251,7 @@ class SPAML(EnvFunctionsMixin, Loss):
                 SampleBatch.ACTIONS, and SampleBatch.NEXT_OBS keys
 
         Returns:
-            The loss tensor of shape `(N,)`, where `N` is the number of models
-            the ensemble
+            The loss tensor of shape `(N,)`
         """
         loss, _ = self._loss_mle(batch)
         return loss

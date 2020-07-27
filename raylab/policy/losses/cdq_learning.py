@@ -1,7 +1,6 @@
 """Modularized Q-Learning procedures."""
 from abc import ABC
 from abc import abstractmethod
-from functools import partial
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -47,12 +46,8 @@ class QLearningMixin(ABC):
         values = self.critics(obs, actions)
         critic_loss = loss_fn(values, target_values)
 
-        stats = {
-            "q_mean": values.mean().item(),
-            "q_max": values.max().item(),
-            "q_min": values.min().item(),
-            "loss(critics)": critic_loss.item(),
-        }
+        stats = {"loss(critics)": critic_loss.item()}
+        stats.update(self.q_value_info(values))
         return critic_loss, stats
 
     @abstractmethod
@@ -60,6 +55,16 @@ class QLearningMixin(ABC):
         self, rewards: Tensor, next_obs: Tensor, dones: Tensor
     ) -> Tensor:
         """Compute clipped 1-step approximation of Q^{\\pi}(s, a)."""
+
+    @staticmethod
+    def q_value_info(value: Tensor) -> StatDict:
+        """Return the average, min, and max Q-values in a batch."""
+        info = {
+            "q_mean": value.mean().item(),
+            "q_max": value.max().item(),
+            "q_min": value.min().item(),
+        }
+        return info
 
 
 class ClippedDoubleQLearning(QLearningMixin, Loss):
@@ -171,8 +176,9 @@ class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLear
         return self._env.initialized
 
     def transition(self, obs, action):
-        next_obs, logp, _ = super().transition(obs, action)
-        return next_obs, logp
+        next_obs, logp, dist_params = super().transition(obs, action)
+        # Squeeze the model samples dimension
+        return next_obs.squeeze(dim=0), logp.squeeze(dim=0), dist_params
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         assert self.initialized, (
@@ -181,7 +187,8 @@ class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLear
         )
         obs = batch[SampleBatch.CUR_OBS]
         action, _ = self.actor.sample(obs)
-        next_obs, _ = map(partial(torch.squeeze, dim=0), self.transition(obs, action))
+        next_obs, _, dist_params = self.transition(obs, action)
+
         reward = self._env.reward(obs, action, next_obs)
         done = self._env.termination(obs, action, next_obs)
 
@@ -189,12 +196,9 @@ class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLear
         value = self.critics(obs, action)
         with torch.no_grad():
             target_value = self.critic_targets(reward, next_obs, done)
-        critic_loss = loss_fn(value, target_value)
+        loss = loss_fn(value, target_value)
 
-        stats = {
-            "q_mean": value.mean().item(),
-            "q_max": value.max().item(),
-            "q_min": value.min().item(),
-            "loss(critics)": critic_loss.item(),
-        }
-        return critic_loss, stats
+        stats = {"loss(critics)": loss.item()}
+        stats.update(self.q_value_info(value))
+        stats.update(self.model_dist_info(dist_params))
+        return loss, stats

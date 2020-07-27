@@ -78,9 +78,7 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         loss = -torch.mean(action_value) - self.alpha * entropy
 
         stats = {"loss(actor)": loss.item(), "entropy": entropy.item()}
-        stats.update(
-            {"mean_model_" + k: v.mean().item() for k, v in dist_params.items()}
-        )
+        stats.update(self.model_dist_info(dist_params))
         return loss, stats
 
     def one_step_action_value_surrogate(

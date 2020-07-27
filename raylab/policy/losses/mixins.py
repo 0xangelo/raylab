@@ -8,6 +8,8 @@ import torch
 from torch import Tensor
 
 from raylab.utils.annotations import RewardFn
+from raylab.utils.annotations import StatDict
+from raylab.utils.annotations import TensorDict
 from raylab.utils.annotations import TerminationFn
 
 
@@ -85,10 +87,30 @@ class UniformModelPriorMixin:
         model = self._rng.choice(self._models)
         dist_params = model.params(obs, action)
         if self.grad_estimator == "SF":
-            next_obs, logp = model.dist.sample(obs, action, sample_shape)
+            next_obs, logp = model.dist.sample(dist_params, sample_shape)
         elif self.grad_estimator == "PD":
-            next_obs, logp = model.dist.rsample(obs, action, sample_shape)
+            next_obs, logp = model.dist.rsample(dist_params, sample_shape)
         return next_obs, logp, dist_params
+
+    @staticmethod
+    def model_dist_info(dist_params: TensorDict) -> StatDict:
+        """Computes average, min, and max of model distribution parameters.
+
+        Args:
+            dist_params: Dictionary mapping names to dynamics model distribution
+                parameters
+
+        Returns:
+            Dictionary with average, minimum, and maximum of each parameter as
+                floats
+        """
+        info = {}
+        info.update({"min_model_" + k: v.min().item() for k, v in dist_params.items()})
+        info.update(
+            {"mean_model_" + k: v.mean().item() for k, v in dist_params.items()}
+        )
+        info.update({"max_model_" + k: v.max().item() for k, v in dist_params.items()})
+        return info
 
     def verify_model(self, obs: Tensor, act: Tensor):
         """Verify model suitability for the current gradient estimator.
