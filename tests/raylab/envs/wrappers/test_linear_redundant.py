@@ -6,17 +6,29 @@ import raylab.envs as envs
 from raylab.envs.wrappers import LinearRedundant
 
 
+@pytest.fixture(params=(True, False), ids="HalfSize FullSize".split())
+def size(request, env):
+    original = env.observation_space.shape[0]
+    return original // 2 if request.param else original
+
+
 @pytest.fixture
-def wrapped(env):
-    return LinearRedundant(env)
+def wrapped(env, size):
+    return LinearRedundant(env, size)
 
 
-def test_observation_space(wrapped):
+@pytest.fixture
+def expected_shape(env, size):
+    original = env.observation_space.shape[0]
+    return (original + size,)
+
+
+def test_observation_space(wrapped, expected_shape):
     base = wrapped.env.observation_space
     wrap = wrapped.observation_space
 
     assert wrap.dtype == base.dtype
-    assert wrap.shape == (base.shape[0] * 2,)
+    assert wrap.shape == expected_shape
 
 
 def test_seed(wrapped):
@@ -31,37 +43,32 @@ def test_seed(wrapped):
 
 
 def test_reset(wrapped):
-    base = wrapped.env.observation_space
-
     obs = wrapped.reset()
     assert obs in wrapped.observation_space
-    assert obs.shape == (base.shape[0] * 2,)
 
 
 def test_step(wrapped):
     wrapped.reset()
-    base = wrapped.env.observation_space
-
     action = wrapped.action_space.sample()
     obs, rew, done, info = wrapped.step(action)
+
     assert obs in wrapped.observation_space
     assert np.isscalar(rew)
     assert isinstance(done, bool)
     assert isinstance(info, dict)
-    assert obs.shape == (base.shape[0] * 2,)
 
 
 @pytest.fixture
-def reward_fn(env_name, env_config):
+def reward_fn(env_name, env_config, size):
     base = envs.get_reward_fn(env_name, env_config)
-    wrapped = LinearRedundant.wrap_env_function(base)
+    wrapped = LinearRedundant.wrap_env_function(base, size)
     return wrapped
 
 
 @pytest.fixture
-def termination_fn(env_name, env_config):
+def termination_fn(env_name, env_config, size):
     base = envs.get_termination_fn(env_name, env_config)
-    wrapped = LinearRedundant.wrap_env_function(base)
+    wrapped = LinearRedundant.wrap_env_function(base, size)
     return wrapped
 
 
