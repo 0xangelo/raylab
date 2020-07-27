@@ -24,7 +24,7 @@ from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
 
-@dataclass(frozen=True)
+@dataclass
 class DataloaderSpec(DataClassJsonMixin):
     """Specifications for creating the data loader.
 
@@ -40,7 +40,7 @@ class DataloaderSpec(DataClassJsonMixin):
         assert self.batch_size > 0, "Model batch size must be positive"
 
 
-@dataclass(frozen=True)
+@dataclass
 class TrainingSpec(DataClassJsonMixin):
     """Specifications for training the model.
 
