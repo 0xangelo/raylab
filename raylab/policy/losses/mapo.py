@@ -59,9 +59,7 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         return self._modules["models"]
 
     def compile(self):
-        self._modules.update(
-            {k: torch.jit.script(v) for k, v in self._modules.items() if k != "policy"}
-        )
+        self._modules.update({k: torch.jit.script(m) for k, m in self._modules.items()})
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         assert self.initialized, (

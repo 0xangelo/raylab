@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
+from torch.autograd import grad
 
 from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 from raylab.policy.modules.critic.q_value import QValueEnsemble
@@ -74,9 +75,7 @@ class SPAML(EnvFunctionsMixin, Loss):
         return len(self._modules["models"])
 
     def compile(self):
-        self._modules.update(
-            {k: torch.jit.script(self._modules[k]) for k in "models critics".split()}
-        )
+        self._modules.update({k: torch.jit.script(m) for k, m in self._modules.items()})
         self._loss_mle.compile()
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
@@ -152,14 +151,8 @@ class SPAML(EnvFunctionsMixin, Loss):
             A tensor of shape `(N, *)` for estimating the gradient of the 1-step
             action-value function.
         """
-        next_obs, log_prob = self.transition(obs, action)
-
-        # Next action grads shouldn't propagate
-        # Only gradients through the next state, model, and current action
-        # should propagate to policy parameters
-        self._modules["policy"].requires_grad_(False)
-        next_act, logp = self._modules["policy"].rsample(next_obs)
-        self._modules["policy"].requires_grad_(True)
+        next_obs, next_obs_logp = self.transition(obs, action)
+        next_act, next_act_logp = self._modules["policy"].rsample(next_obs)
 
         unclipped_qval = self._modules["critics"](next_obs, next_act)
         next_qval, _ = unclipped_qval.min(dim=-1)
@@ -169,11 +162,11 @@ class SPAML(EnvFunctionsMixin, Loss):
 
         next_vval = (
             torch.where(done, reward, reward + self.gamma * next_qval)
-            - self.alpha * logp
+            - self.alpha * next_act_logp
         )
 
         if self.grad_estimator == "SF":
-            surrogate = log_prob * next_vval.detach()
+            surrogate = next_obs_logp * next_vval.detach()
         elif self.grad_estimator == "PD":
             surrogate = next_vval
         return surrogate
@@ -217,9 +210,7 @@ class SPAML(EnvFunctionsMixin, Loss):
             The loss tensor of shape `(N,)`
         """
         temporal_diff = value_target - value_pred
-        (action_gradient,) = torch.autograd.grad(
-            temporal_diff.sum(), action, create_graph=True
-        )
+        (action_gradient,) = grad(temporal_diff.sum(), action, create_graph=True)
 
         # First compute action gradient norms by reducing along action dimension
         grad_norms = action_gradient.abs().sum(dim=-1)

@@ -28,7 +28,7 @@ def action_dpg(
 
     Returns:
         The DPG loss of shape `(*,)` and the norm of the action-value gradient
-        of shape `(*, )`
+        of shape `(*,)`
 
     Note:
         This is a loss, so it's already supposed to be minimized, i.e., its
