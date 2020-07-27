@@ -70,9 +70,7 @@ changelog:
 	auto-changelog --tag-prefix v --unreleased --stdout --starting-commit HEAD
 
 push-release:
-	git push origin master
-	git push origin develop
-	git push --tags
+	git push origin master develop --tags
 
 reorder-imports-staged:
 	git diff --cached --name-only | xargs grep -rl --include "*.py" 'import' | xargs reorder-python-imports --separate-relative
