@@ -22,7 +22,7 @@ jobs:
     - name: Install Poetry
       uses: dschep/install-poetry-action@v1.3
     - name: Install package
-      run: poetry install
+      run: poetry install --no-dev -E pytest pytest-mock
     - name: Run pytest
       run: poetry run pytest
 
@@ -41,6 +41,6 @@ jobs:
     - name: Install Poetry
       uses: dschep/install-poetry-action@v1.3
     - name: Install package
-      run: poetry install
+      run: poetry install --no-dev
     - name: Build and publish
       run: poetry publish --build --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}
