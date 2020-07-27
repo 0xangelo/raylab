@@ -69,7 +69,7 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         )
         obs = batch[SampleBatch.CUR_OBS]
         action, action_logp = self._modules["policy"].rsample(obs)
-        next_obs, obs_logp = self.transition(obs, action)
+        next_obs, obs_logp, dist_params = self.transition(obs, action)
         action_value = self.one_step_action_value_surrogate(
             obs, action, next_obs, obs_logp
         )
@@ -78,6 +78,7 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         loss = -torch.mean(action_value) - self.alpha * entropy
 
         stats = {"loss(actor)": loss.item(), "entropy": entropy.item()}
+        stats.update(self.model_dist_info(dist_params))
         return loss, stats
 
     def one_step_action_value_surrogate(
