@@ -84,12 +84,7 @@ class ReparameterizedSoftPG(Loss):
 
 
 class ActionDPG(Loss):
-    # pylint:disable=line-too-long
-    """Deterministic Policy Gradient via an MSE action loss.
-
-    Implementation based on `Acmes's DPG`_.
-
-    .. _`Acme's DPG`: https://github.com/deepmind/acme/blob/51c4db7c8ec27e040ac52d65347f6f4ecfe04f81/acme/tf/losses/dpg.py#L21
+    """Deterministic Policy Gradient by separating action and Q-value grads.
 
     Args:
         actor: deterministic policy
@@ -99,7 +94,6 @@ class ActionDPG(Loss):
         dqda_clipping: Optional value by which to clip the action gradients
         clip_norm: Whether to clip action grads by norm or value
     """
-    # pylint:enable=line-too-long
 
     batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
     dqda_clipping: Optional[float] = None
