@@ -1,57 +1,75 @@
-from functools import partial
-
 import numpy as np
 import pytest
+from ray.rllib.utils.torch_ops import convert_to_torch_tensor
 
-from raylab.envs import get_env_creator
 from raylab.envs.wrappers import GaussianRandomWalks
-from raylab.pytorch.utils import convert_to_tensor
 
 
 @pytest.fixture(params=(1, 2, 4))
-def env(request, env_name):
-    return GaussianRandomWalks(get_env_creator(env_name)({}), num_walks=request.param)
+def size(request):
+    return request.param
 
 
-def test_spaces(env):
-    base_env = env.env
-    walks = env._num_walks
+@pytest.fixture
+def loc():
+    return 0.0
 
-    assert env.observation_space.shape[0] == base_env.observation_space.shape[0] + walks
-    assert env.action_space.shape == base_env.action_space.shape
-    assert env.observation_space.dtype == base_env.observation_space.dtype
-    assert env.action_space.dtype == base_env.action_space.dtype
+
+@pytest.fixture
+def scale():
+    return 1.0
+
+
+@pytest.fixture
+def wrapped(env, size, loc, scale):
+    return GaussianRandomWalks(env, size=size, loc=loc, scale=scale)
+
+
+def test_spaces(wrapped, size):
+    base = wrapped.env
+
+    assert wrapped.observation_space.shape[0] == base.observation_space.shape[0] + size
+    assert wrapped.action_space.shape == base.action_space.shape
+    assert wrapped.observation_space.dtype == base.observation_space.dtype
+    assert wrapped.action_space.dtype == base.action_space.dtype
     assert np.allclose(
-        env.observation_space.low[:-walks], base_env.observation_space.low
+        wrapped.observation_space.low[:-size], base.observation_space.low
     )
     assert np.allclose(
-        env.observation_space.high[:-walks], base_env.observation_space.high
+        wrapped.observation_space.high[:-size], base.observation_space.high
     )
 
 
-def test_basic(env):
-    obs = env.reset()
-    assert obs in env.observation_space
+def test_basic(wrapped):
+    obs = wrapped.reset()
+    assert obs in wrapped.observation_space
 
-    act = env.action_space.sample()
-
-    next_obs, rew, done, info = env.step(act)
-    assert next_obs in env.observation_space
+    act = wrapped.action_space.sample()
+    next_obs, rew, done, info = wrapped.step(act)
+    assert next_obs in wrapped.observation_space
     assert np.isscalar(rew)
     assert isinstance(done, bool)
     assert isinstance(info, dict)
 
 
-def test_reward_fn(env):
-    if not hasattr(env, "reward_fn"):
-        pytest.skip("Environment does not have a reward function. Skipping...")
-    obs = env.reset()
-    act = env.action_space.sample()
-    _obs, rew, _, _ = env.step(act)
+def test_environment_fns(wrapped):
+    obs, done = wrapped.reset(), False
 
-    obs_t, act_t, _obs_t = map(
-        partial(convert_to_tensor, device="cpu"), (obs, act, _obs)
-    )
-    rew_t = env.reward_fn(obs_t, act_t, _obs_t)
+    for _ in range(10):
+        act = wrapped.action_space.sample()
+        new_obs, rew, done, _ = wrapped.step(act)
 
-    assert np.allclose(rew, rew_t.numpy())
+        obs_t, act_t, new_obs_t = convert_to_torch_tensor((obs, act, new_obs))
+
+        if hasattr(wrapped, "reward_fn"):
+            rew_t = wrapped.reward_fn(obs_t, act_t, new_obs_t)
+            assert np.allclose(rew, rew_t.numpy())
+
+        if hasattr(wrapped, "termination_fn"):
+            done_t = wrapped.termination_fn(obs_t, act_t, new_obs_t)
+            assert done == done_t.item()
+
+        obs = new_obs
+        if done:
+            obs = wrapped.reset()
+            done = False
