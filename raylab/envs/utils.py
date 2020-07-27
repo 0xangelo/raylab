@@ -11,7 +11,6 @@ from ray.tune.registry import _global_registry
 from ray.tune.registry import ENV_CREATOR
 
 from .wrappers import AddRelativeTimestep
-from .wrappers import GaussianRandomWalks
 
 
 def has_env_creator(env_id: str) -> bool:
@@ -33,12 +32,8 @@ def wrap_if_needed(env_creator):
     def wrapped(config):
         tmp = config.copy()
         time_limit = [tmp.pop(k, None) for k in ("time_aware", "max_episode_steps")]
-        random_walks = tmp.pop("random_walks", None)
-
         env = env_creator(tmp)
-
         env = wrap_time_limit(env, *time_limit)
-        env = wrap_gaussian_random_walks(env, random_walks)
         return env
 
     return wrapped
@@ -75,21 +70,6 @@ def wrap_time_limit(env, time_aware, max_episode_steps):
     if time_aware:
         env = AddRelativeTimestep(env)
 
-    return env
-
-
-def wrap_gaussian_random_walks(env, walks_kwargs):
-    """Add gaussian random walk variables to the observations, if specified.
-
-    Arguments:
-        env (gym.Env): a gym environment instance
-        walks_kwargs (dict): arguments to pass to GaussianRandomWalks wrapper.
-
-    Returns:
-        A wrapped environment with the desired number of random walks
-    """
-    if walks_kwargs:
-        env = GaussianRandomWalks(env, **walks_kwargs)
     return env
 
 
