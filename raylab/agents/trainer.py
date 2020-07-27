@@ -122,6 +122,9 @@ Jsonable = (dict, list, str, int, float, bool, type(None))
     Always ignores `wandb` and `callbacks` configs.
     """,
 )
+@option(
+    "wandb/file_paths", (), help="Sequence of file names to pass to `wandb.save`.",
+)
 @option("compile_policy", False, help="Whether to optimize the policy's backend")
 @option(
     "module/",
@@ -266,6 +269,9 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
             # same process
             reinit=True,
         )
+        file_paths = self.config["wandb"]["file_paths"]
+        for path in file_paths:
+            wandb.save(path)
 
     def __getattr__(self, attr):
         if attr == "metrics":
