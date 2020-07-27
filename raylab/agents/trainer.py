@@ -94,17 +94,22 @@ Jsonable = (dict, list, str, int, float, bool, type(None))
       * install `wandb` via pip
       * login to W&B with the appropriate API key for your
         team/project.
+      * set the `wandb/project` name in the config dict
 
     Check out the Quickstart for more information:
     `https://docs.wandb.com/quickstart`
     """,
 )
 @option(
-    "wandb/project", None, help="The name of the project to which this run will belong"
+    "wandb/name",
+    help="""A display name for this run
+
+    By default, the run name will be set to the `_name` property of the trainer.
+    """,
 )
+@option("wandb/project", help="The name of the project to which this run will belong")
 @option(
     "wandb/entity",
-    None,
     help="""The team posting this run (default: your username or your default team).
 
     This should be set if the project does not belong to the default team set
@@ -260,7 +265,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         config_exclude_keys = {"wandb", "callbacks"}
         config_exclude_keys.update(self.config["wandb"]["config_exclude_keys"])
         wandb.init(
-            name=self._name,
+            name=self.config["wandb"]["name"] or self._name,
             project=self.config["wandb"]["project"],
             entity=self.config["wandb"]["entity"],
             config_exclude_keys=config_exclude_keys,
