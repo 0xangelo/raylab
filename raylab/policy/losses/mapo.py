@@ -16,6 +16,7 @@ from raylab.utils.annotations import TensorDict
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
 from .mixins import UniformModelPriorMixin
+from .utils import action_dpg
 
 
 class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
@@ -73,11 +74,18 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         action_value = self.one_step_action_value_surrogate(
             obs, action, next_obs, obs_logp
         )
-        entropy = -action_logp.mean()
-        # Important to minimize the negative entropy
-        loss = -torch.mean(action_value) - self.alpha * entropy
 
-        stats = {"loss(actor)": loss.item(), "entropy": entropy.item()}
+        dpg_loss, dqda_norm = action_dpg(action_value, action)
+        entropy = -action_logp.mean()
+
+        # Important to minimize the negative entropy
+        loss = dpg_loss.mean() - self.alpha * entropy
+
+        stats = {
+            "loss(actor)": loss.item(),
+            "entropy": entropy.item(),
+            "dqda_norm": dqda_norm.mean().item(),
+        }
         stats.update(self.model_dist_info(dist_params))
         return loss, stats
 
@@ -99,12 +107,7 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
             A tensor for estimating the gradient of the 1-step action-value
             function.
         """
-        # Next action grads shouldn't propagate
-        # Only gradients through the next state, model, and current action
-        # should propagate to policy parameters
-        self._modules["policy"].requires_grad_(False)
         next_act, logp = self._modules["policy"].rsample(next_obs)
-        self._modules["policy"].requires_grad_(True)
 
         unclipped_qval = self._modules["critics"](next_obs, next_act)
         next_qval, _ = unclipped_qval.min(dim=-1)
@@ -171,11 +174,17 @@ class DAPO(EnvFunctionsMixin, Loss):
         action_value = self.one_step_action_value_surrogate(
             obs, action, next_obs, obs_logp
         )
+
+        dpg_loss, dqda_norm = action_dpg(action_value, action)
         entropy = -action_logp.mean()
         # Important to minimize the negative entropy
-        loss = -torch.mean(action_value) - self.alpha * entropy
+        loss = dpg_loss.mean() - self.alpha * entropy
 
-        stats = {"loss(actor)": loss.item(), "entropy": entropy.item()}
+        stats = {
+            "loss(actor)": loss.item(),
+            "entropy": entropy.item(),
+            "dqda_norm": dqda_norm.mean().item(),
+        }
         return loss, stats
 
     def transition(self, obs: Tensor, action: Tensor) -> Tuple[Tensor, Tensor]:
@@ -212,12 +221,7 @@ class DAPO(EnvFunctionsMixin, Loss):
             A tensor for estimating the gradient of the 1-step action-value
             function.
         """
-        # Next action grads shouldn't propagate
-        # Only gradients through the next state, model, and current action
-        # should propagate to policy parameters
-        self._modules["policy"].requires_grad_(False)
         next_act, logp = self._modules["policy"].rsample(next_obs)
-        self._modules["policy"].requires_grad_(True)
 
         unclipped_qval = self._modules["critics"](next_obs, next_act)
         next_qval, _ = unclipped_qval.min(dim=-1)

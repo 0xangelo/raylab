@@ -5,7 +5,6 @@ from typing import Tuple
 import torch
 from ray.rllib import SampleBatch
 from torch import Tensor
-from torch.autograd import grad
 
 from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
 from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
@@ -14,6 +13,7 @@ from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
 from .abstract import Loss
+from .utils import action_dpg
 
 
 class DeterministicPolicyGradient(Loss):
@@ -118,49 +118,6 @@ class ActionDPG(Loss):
         a_max = self.actor(obs)
         q_max = self.critics(obs, a_max).min(dim=-1)[0]
 
-        loss, dqda_norm = self.action_dpg(
-            q_max, a_max, self.dqda_clipping, self.clip_norm
-        )
+        loss, dqda_norm = action_dpg(q_max, a_max, self.dqda_clipping, self.clip_norm)
         loss = loss.mean()
         return loss, {"loss(actor)": loss.item(), "dqda_norm": dqda_norm.mean().item()}
-
-    @staticmethod
-    def action_dpg(
-        q_max: Tensor, a_max: Tensor, dqda_clipping: Optional[float], clip_norm: bool
-    ) -> Tuple[Tensor, Tensor]:
-        """Deterministic policy gradient loss, similar to trfl.dpg.
-
-        Args:
-            q_max: Q-value of the approximate greedy action
-            a_max: Action from the policy's output
-            dqda_clipping: Optional value by which to clip the action gradients
-            clip_norm: Whether to clip action grads by norm or value
-
-        Returns:
-            The DPG loss and the norm of the action-value gradient, both for
-            each batch dimension
-        """
-        # Fake a Jacobian-vector product to calculate grads w.r.t. to batch of actions
-        dqda = grad(q_max, [a_max], grad_outputs=torch.ones_like(q_max))[0]
-        dqda_norm = torch.norm(dqda, dim=-1, keepdim=True)
-
-        if dqda_clipping:
-            if clip_norm:
-                clip_coef = dqda_clipping / dqda_norm
-                dqda = torch.where(clip_coef < 1, dqda * clip_coef, dqda)
-            else:
-                dqda = torch.clamp(dqda, min=-dqda_clipping, max=dqda_clipping)
-
-        # Target_a ensures correct gradient calculated during backprop.
-        target_a = dqda + a_max
-        # Stop the gradient going through Q network when backprop.
-        target_a = target_a.detach()
-        # Gradient only go through actor network.
-        loss = 0.5 * torch.sum(torch.square(target_a - a_max), dim=-1)
-        # This recovers the DPG because (letting w be the actor network weights):
-        # d(loss)/dw = 0.5 * (2 * (target_a - a_max) * d(target_a - a_max)/dw)
-        #            = (target_a - a_max) * [d(target_a)/dw  - d(a_max)/dw]
-        #            = dq/da * [d(target_a)/dw  - d(a_max)/dw]  # by defn of target_a
-        #            = dq/da * [0 - d(a_max)/dw]                # by stop_gradient
-        #            = - dq/da * da/dw
-        return loss, dqda_norm

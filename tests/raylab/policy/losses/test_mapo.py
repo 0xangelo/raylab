@@ -46,6 +46,7 @@ def test_mapo_call(mapo, batch):
     assert all(isinstance(v, (float, int)) for v in info.values())
     assert "loss(actor)" in info
     assert "entropy" in info
+    assert "dqda_norm" in info
 
 
 def test_mapo_compile(mapo, batch):
@@ -55,10 +56,11 @@ def test_mapo_compile(mapo, batch):
 
 @pytest.fixture
 def dynamics_fn():
-    def func(obs, _):
-        sample = torch.randn_like(obs)
+    def func(obs, act):
+        loc = obs + act.mean(dim=-1, keepdim=True)
+        sample = torch.randn_like(obs) + loc
         log_prob = torch.sum(
-            -(sample ** 2) / 2
+            -((sample - loc) ** 2) / 2
             - torch.ones_like(obs).log()
             - math.log(math.sqrt(2 * math.pi)),
             dim=-1,
@@ -100,6 +102,7 @@ def test_dapo_call(dapo, batch):
     assert all(isinstance(v, (float, int)) for v in info.values())
     assert "loss(actor)" in info
     assert "entropy" in info
+    assert "dqda_norm" in info
 
 
 def test_dapo_compile(dapo, batch):
