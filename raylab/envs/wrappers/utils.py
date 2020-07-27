@@ -1,4 +1,5 @@
 # pylint:disable=missing-module-docstring
+import textwrap
 from typing import Any
 
 from gym.spaces import Box
@@ -22,6 +23,17 @@ def assert_flat_box_space(space: Space, obj: Any):
     assert len(space.shape) == 1, (
         f"{type(obj).__name__} only compatible with 1D Box spaces."
         f" Got Box space with shape {space.shape}"
+    )
+
+
+def check_redundant_size_compat(size: int, space: Box):
+    """Check that `size` is less or equal to the size of the observations."""
+    assert size <= space.shape[0], textwrap.dedent(
+        f"""\
+        Can only compute redundant variables from a subset of observation features.
+        `size` must be less or equal to the size of the base env observations.
+        Got '{size}', whereas the observation shape is {space.shape}
+        """
     )
 
 
