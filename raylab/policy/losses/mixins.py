@@ -83,11 +83,12 @@ class UniformModelPriorMixin:
         sample_shape = (self.model_samples,)
 
         model = self._rng.choice(self._models)
+        dist_params = model.params(obs, action)
         if self.grad_estimator == "SF":
-            next_obs, logp = model.sample(obs, action, sample_shape)
+            next_obs, logp = model.dist.sample(obs, action, sample_shape)
         elif self.grad_estimator == "PD":
-            next_obs, logp = model.rsample(obs, action, sample_shape)
-        return next_obs, logp
+            next_obs, logp = model.dist.rsample(obs, action, sample_shape)
+        return next_obs, logp, dist_params
 
     def verify_model(self, obs: Tensor, act: Tensor):
         """Verify model suitability for the current gradient estimator.
