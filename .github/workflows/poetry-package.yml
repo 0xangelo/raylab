@@ -22,7 +22,9 @@ jobs:
     - name: Install Poetry
       uses: dschep/install-poetry-action@v1.3
     - name: Install package
-      run: poetry install --no-dev -E pytest -E pytest-mock
+      run: |
+        poetry install --no-dev
+        poetry run pip install pytest pytest-mock
     - name: Run pytest
       run: poetry run pytest
 
