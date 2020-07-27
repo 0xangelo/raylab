@@ -144,23 +144,6 @@ class SPAML(EnvFunctionsMixin, Loss):
     def one_step_action_value_surrogate(self, obs: Tensor, action: Tensor) -> Tensor:
         """Surrogate loss for gradient estimation of action values.
 
-        Computes :math::
-
-            Q^{\\pi}(s, a) =
-                \\rewardfn(\\state, \\action)
-                + \\gamma
-                \\EXV_{
-                    \\substack{
-                        \\state'\\sim\\model(\\state, \\action)
-                        \\ \\xi' \\sim p_{\\xi}
-                    }
-                } \\bkt*{
-                    \\evalat{\\action'=\\detpol(\\state'; \\xi')}{
-                    \\Qval(\\state', \action')
-                    - \\log \\pitheta(\\action' \\given \\state')
-                    }
-                }
-
         Args:
             obs: The observation tensor of shape `(N, *, O)`
             action: The action Tensor of shape `(N, *, A)`
