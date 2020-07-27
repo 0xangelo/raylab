@@ -89,8 +89,9 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         self._modules.update({k: torch.jit.script(v) for k, v in self._modules.items()})
 
     def transition(self, obs, action):
-        next_obs, _ = super().transition(obs, action)
-        return next_obs.squeeze(dim=0)
+        next_obs, _, dist_params = super().transition(obs, action)
+        # Squeeze the model sample_shape dimension
+        return next_obs.squeeze(dim=0), dist_params
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         assert self.initialized, (
@@ -100,7 +101,7 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
 
         obs = batch[SampleBatch.CUR_OBS]
         action = self._modules["policy"](obs)
-        next_obs = self.transition(obs, action)
+        next_obs, dist_params = self.transition(obs, action)
 
         delta = self.temporal_diff_error(obs, action, next_obs)
         grad_loss = self.gradient_loss(delta, action)
@@ -112,6 +113,7 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
             "loss(MAGE)": grad_loss.item(),
             "loss(TD)": td_reg.item(),
         }
+        info.update(self.model_dist_info(dist_params))
         return loss, info
 
     def temporal_diff_error(
