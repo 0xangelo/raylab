@@ -7,6 +7,7 @@ from ray.rllib import Policy
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.utils import override
+from ray.rllib.utils.timer import TimerStat
 
 from raylab.agents import trainer
 from raylab.agents.off_policy import OffPolicyTrainer
@@ -109,9 +110,12 @@ class ModelBasedTrainer(OffPolicyTrainer):
     @override(OffPolicyTrainer)
     def _init(self, config, env_creator):
         super()._init(config, env_creator)
-        self._sample_calls: int = 0
+        self.model_timer = TimerStat()
+        self.policy_timer = TimerStat()
         set_policy_with_env_fn(self.workers, fn_type="reward")
         set_policy_with_env_fn(self.workers, fn_type="termination")
+
+        self._sample_calls: int = 0
 
     @staticmethod
     @override(OffPolicyTrainer)
@@ -144,17 +148,36 @@ class ModelBasedTrainer(OffPolicyTrainer):
                 self.replay.add(row)
 
             if self._sample_calls % config["model_update_interval"] == 0:
-                _, model_train_info = self.train_dynamics_model()
-                stats.update(model_train_info)
+                with self.model_timer:
+                    _, model_info = self.train_dynamics_model()
+                    self.model_timer.push_units_processed(model_info["model_epochs"])
+                stats.update(model_info)
 
             if self._sample_calls % config["policy_improvement_interval"] == 0:
-                policy_train_info = self.improve_policy(
-                    times=config["policy_improvements"]
-                )
-                stats.update(policy_train_info)
+                with self.policy_timer:
+                    policy_info = self.improve_policy(
+                        times=config["policy_improvements"]
+                    )
+                    self.policy_timer.push_units_processed(
+                        config["policy_improvements"]
+                    )
+                stats.update(policy_info)
 
         self.metrics.num_steps_sampled += timesteps_this_iter
         return self._log_metrics(stats, timesteps_this_iter + pre_learning_steps)
+
+    @override(OffPolicyTrainer)
+    def _log_metrics(self, learner_stats, timesteps_this_iter):
+        metrics = super()._log_metrics(learner_stats, timesteps_this_iter)
+        metrics.update(
+            model_time_s=round(self.model_timer.mean, 3),
+            policy_time_s=round(self.policy_timer.mean, 3),
+            # Get mean number of model epochs per second spent updating the model
+            model_update_throughput=round(self.model_timer.mean_throughput, 3),
+            # Get mean number of policy updates per second spent updating the policy
+            policy_update_throughput=round(self.policy_timer.mean_throughput, 3),
+        )
+        return metrics
 
     def train_dynamics_model(self) -> Tuple[List[float], StatDict]:
         """Implements the model training step.
