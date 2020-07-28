@@ -295,16 +295,22 @@ class DynaLikeTrainer(ModelBasedTrainer):
                 self.replay.add(row)
 
             if self._sample_calls % config["model_update_interval"] == 0:
-                eval_losses, model_train_info = self.train_dynamics_model()
+                with self.model_timer:
+                    eval_losses, model_info = self.train_dynamics_model()
+                    self.model_timer.push_units_processed(model_info["model_epochs"])
                 policy.set_new_elite(eval_losses)
-                stats.update(model_train_info)
+                stats.update(model_info)
 
             if self._sample_calls % config["policy_improvement_interval"] == 0:
                 self.populate_virtual_buffer(config["model_rollouts"])
-                policy_train_info = self.improve_policy(
-                    times=config["policy_improvements"]
-                )
-                stats.update(policy_train_info)
+                with self.policy_timer:
+                    policy_info = self.improve_policy(
+                        times=config["policy_improvements"]
+                    )
+                    self.policy_timer.push_units_processed(
+                        config["policy_improvements"]
+                    )
+                stats.update(policy_info)
 
         self.metrics.num_steps_sampled += timesteps_this_iter
         return self._log_metrics(stats, timesteps_this_iter + pre_learning_steps)
