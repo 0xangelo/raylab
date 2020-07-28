@@ -13,6 +13,7 @@ from ray.rllib.agents.trainer import Trainer as RLlibTrainer
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils import override as overrides
+from ray.tune import Trainable
 
 from . import compat
 from .options import Json
@@ -88,7 +89,15 @@ Jsonable = (dict, list, str, int, float, bool, type(None))
 @configure
 @option(
     "wandb/",
+    allow_unknown_subkeys=True,
     help="""Configs for integration with Weights & Biases.
+
+    Accepts arbitrary keyword arguments to pass to `wandb.init`.
+    The defaults for `wandb.init` are:
+    * name: `_name` property of the trainer.
+    * config: full `config` attribute of the trainer
+    * config_exclude_keys: `wandb` and `callbacks` configs
+    * reinit: True
 
     Don't forget to:
       * install `wandb` via pip
@@ -101,34 +110,19 @@ Jsonable = (dict, list, str, int, float, bool, type(None))
     """,
 )
 @option(
-    "wandb/name",
-    help="""A display name for this run
-
-    By default, the run name will be set to the `_name` property of the trainer.
-    """,
-)
-@option("wandb/project", help="The name of the project to which this run will belong")
-@option(
-    "wandb/entity",
-    help="""The team posting this run (default: your username or your default team).
-
-    This should be set if the project does not belong to the default team set
-    via `wandb init` in the command line.
-    """,
+    "wandb/enabled",
+    default=False,
+    help="""Whether to sync logs and files with `wandb`.""",
 )
 @option(
-    "wandb/config_exclude_keys",
-    (),
-    help="""String keys to exclude storing in W&B when specifying config.
-
-    Only works for toplevel config keys. Can be used to avoid raising errors
-    when trying to log unJsonable hyperparameters to W&B.
-
-    Always ignores `wandb` and `callbacks` configs.
-    """,
+    "wandb/file_paths",
+    default=(),
+    help="Sequence of file names to pass to `wandb.save` on trainer setup.",
 )
 @option(
-    "wandb/file_paths", (), help="Sequence of file names to pass to `wandb.save`.",
+    "wandb/save_checkpoints",
+    default=False,
+    help="Whether to sync trainer checkpoints to W&B via `wandb.save`.",
 )
 @option("compile_policy", False, help="Whether to optimize the policy's backend")
 @option(
@@ -180,7 +174,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         # Update global_vars after training so that they're saved if checkpointing
         self.global_vars["timestep"] = self.metrics.num_steps_sampled
 
-        if self.config["wandb"]["project"]:
+        if self.config["wandb"]["enabled"]:
             self._wandb_log_result(result)
         return result
 
@@ -235,7 +229,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         if self.config["compile_policy"]:
             self._optimize_policy_backend()
 
-        if self.config["wandb"]["project"]:
+        if self.config["wandb"]["enabled"]:
             self._setup_wandb()
 
     def _setup_optimizer_placeholder(self):
@@ -262,18 +256,20 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     def _setup_wandb(self):
         assert wandb is not None, "Unable to import wandb, did you install it via pip?"
 
-        config_exclude_keys = {"wandb", "callbacks"}
-        config_exclude_keys.update(self.config["wandb"]["config_exclude_keys"])
-        wandb.init(
-            name=self.config["wandb"]["name"] or self._name,
-            project=self.config["wandb"]["project"],
-            entity=self.config["wandb"]["entity"],
-            config_exclude_keys=config_exclude_keys,
+        wandb_kwargs = dict(
+            name=self._name,
+            config_exclude_keys={"wandb", "callbacks"},
             config=self.config,
             # Allow calling init twice if creating more than one trainer in the
             # same process
             reinit=True,
         )
+        special_keys = {"enabled", "file_paths", "save_checkpoints"}
+        wandb_kwargs.update(
+            {k: v for k, v in self.config["wandb"].items() if k not in special_keys}
+        )
+        wandb.init(**wandb_kwargs)
+
         file_paths = self.config["wandb"]["file_paths"]
         for path in file_paths:
             wandb.save(path)
@@ -288,6 +284,16 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     @overrides(RLlibTrainer)
     def default_resource_request(cls, config: dict) -> compat.Resources:
         return compat.default_resource_request(cls, config)
+
+    @overrides(Trainable)
+    def save(self, checkpoint_dir=None):
+        checkpoint_path = super().save(checkpoint_dir)
+
+        config = self.config
+        if config["wandb"]["enabled"] and config["wandb"]["save_checkpoints"]:
+            wandb.save(checkpoint_path)
+
+        return checkpoint_path
 
     @overrides(RLlibTrainer)
     def __getstate__(self):
@@ -306,5 +312,5 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     @overrides(RLlibTrainer)
     def _stop(self):
         super()._stop()
-        if self.config["wandb"]["project"] and wandb:
+        if self.config["wandb"]["enabled"] and wandb:
             wandb.join()
