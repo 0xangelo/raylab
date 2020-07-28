@@ -16,7 +16,6 @@ from raylab.utils.annotations import TensorDict
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
 from .mixins import UniformModelPriorMixin
-from .utils import action_dpg
 
 
 class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
@@ -73,16 +72,14 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
             obs, action, next_obs, obs_logp
         )
 
-        dpg_loss, dqda_norm = action_dpg(action_value, action)
         entropy = -action_logp.mean()
 
         # Important to minimize the negative entropy
-        loss = dpg_loss.mean() - self.alpha * entropy
+        loss = -action_value.mean() - self.alpha * entropy
 
         stats = {
             "loss(actor)": loss.item(),
             "entropy": entropy.item(),
-            "dqda_norm": dqda_norm.mean().item(),
         }
         stats.update(self.model_dist_info(dist_params))
         return loss, stats
@@ -173,15 +170,13 @@ class DAPO(EnvFunctionsMixin, Loss):
             obs, action, next_obs, obs_logp
         )
 
-        dpg_loss, dqda_norm = action_dpg(action_value, action)
         entropy = -action_logp.mean()
         # Important to minimize the negative entropy
-        loss = dpg_loss.mean() - self.alpha * entropy
+        loss = -action_value.mean() - self.alpha * entropy
 
         stats = {
             "loss(actor)": loss.item(),
             "entropy": entropy.item(),
-            "dqda_norm": dqda_norm.mean().item(),
         }
         return loss, stats
 
