@@ -46,7 +46,6 @@ def test_mapo_call(mapo, batch):
     assert all(isinstance(v, (float, int)) for v in info.values())
     assert "loss(actor)" in info
     assert "entropy" in info
-    assert "dqda_norm" in info
 
 
 def test_mapo_compile(mapo, batch):
@@ -102,7 +101,6 @@ def test_dapo_call(dapo, batch):
     assert all(isinstance(v, (float, int)) for v in info.values())
     assert "loss(actor)" in info
     assert "entropy" in info
-    assert "dqda_norm" in info
 
 
 def test_dapo_compile(dapo, batch):
