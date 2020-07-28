@@ -9,17 +9,24 @@ from raylab.utils.replay_buffer import NumpyReplayBuffer
 @trainer.configure
 @trainer.option(
     "policy_improvements",
-    1,
-    help="Number of policy improvement steps per real environment step",
+    default=1,
+    help="""Policy improvement steps after each sample call to the rollout worker.
+
+    Example:
+        With a 'rollout_fragment_length' of 1 and 'policy_improvement' equal to 10,
+        will perform 10 policy updates with minibatch size 'train_batch_size' per
+        environment step.
+    """,
 )
-@trainer.option("train_batch_size", 128, override=True)
-@trainer.option("batch_mode", "complete_episodes", override=True)
-@trainer.option("rollout_fragment_length", 1, override=True)
-@trainer.option("num_workers", 0, override=True)
 @trainer.option(
-    "learning_starts", 0, help="Sample this many steps before starting optimization."
+    "learning_starts",
+    default=0,
+    help="Sample this many steps before starting optimization.",
 )
-@trainer.option("buffer_size", 500000, help="Size of the replay buffer")
+@trainer.option("train_batch_size", default=128, override=True)
+@trainer.option("rollout_fragment_length", default=1, override=True)
+@trainer.option("num_workers", default=0, override=True)
+@trainer.option("buffer_size", default=500000, help="Size of the replay buffer")
 class OffPolicyTrainer(Trainer):
     """Generic trainer for off-policy agents."""
 
@@ -51,7 +58,7 @@ class OffPolicyTrainer(Trainer):
             stats.update(policy.get_exploration_info())
 
             self._before_replay_steps(policy)
-            for _ in range(int(samples.count * self.config["policy_improvements"])):
+            for _ in range(int(self.config["policy_improvements"])):
                 batch = self.replay.sample(self.config["train_batch_size"])
                 stats.update(policy.learn_on_batch(batch))
                 self.metrics.num_steps_trained += batch.count

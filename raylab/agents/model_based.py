@@ -57,12 +57,36 @@ def _set_from_env_if_possible(policy: Policy, env: Any, fn_type: str = "reward")
 @trainer.configure
 @trainer.option(
     "holdout_ratio",
-    0.2,
+    default=0.2,
     help="Fraction of replay buffer to use as validation dataset"
     " (hence not for training)",
 )
 @trainer.option(
-    "max_holdout", 5000, help="Maximum number of samples to use as validation dataset"
+    "max_holdout",
+    default=5000,
+    help="Maximum number of samples to use as validation dataset",
+)
+@trainer.option(
+    "model_update_interval",
+    default=1,
+    help="""Number of calls to rollout worker between each model update run.
+
+    Will collect this many rollout fragments of length 'rollout_fragment_length'
+    between calls to `train_dynamics_model`
+
+    Example:
+        With a 'rollout_fragment_length' of 1 and 'model_update_interval' of 25,
+        will collect 25 environment transitions between each model optimization
+        loop.
+    """,
+)
+@trainer.option(
+    "policy_improvement_interval",
+    default=1,
+    help="""Number of rollout worker calls between each `policy.learn_on_batch` call.
+
+    Uses the same semantics as 'model_update_interval'.
+    """,
 )
 class ModelBasedTrainer(OffPolicyTrainer):
     """Generic trainer for model-based agents.
@@ -80,9 +104,12 @@ class ModelBasedTrainer(OffPolicyTrainer):
     `raylab.policy:ModelTrainingMixin`
     """
 
+    # pylint:disable=attribute-defined-outside-init
+
     @override(OffPolicyTrainer)
     def _init(self, config, env_creator):
         super()._init(config, env_creator)
+        self._sample_calls: int = 0
         set_policy_with_env_fn(self.workers, fn_type="reward")
         set_policy_with_env_fn(self.workers, fn_type="termination")
 
@@ -108,19 +135,23 @@ class ModelBasedTrainer(OffPolicyTrainer):
         config = self.config
         worker = self.workers.local_worker()
         stats = {}
-        while timesteps_this_iter < max(self.config["timesteps_per_iteration"], 1):
+
+        while timesteps_this_iter < max(config["timesteps_per_iteration"], 1):
             samples = worker.sample()
+            self._sample_calls += 1
             timesteps_this_iter += samples.count
             for row in samples.rows():
                 self.replay.add(row)
 
-            _, model_train_info = self.train_dynamics_model()
-            policy_train_info = self.improve_policy(
-                config["policy_improvements"] * samples.count
-            )
+            if self._sample_calls % config["model_update_interval"] == 0:
+                _, model_train_info = self.train_dynamics_model()
+                stats.update(model_train_info)
 
-            stats.update(model_train_info)
-            stats.update(policy_train_info)
+            if self._sample_calls % config["policy_improvement_interval"] == 0:
+                policy_train_info = self.improve_policy(
+                    times=config["policy_improvements"]
+                )
+                stats.update(policy_train_info)
 
         self.metrics.num_steps_sampled += timesteps_this_iter
         return self._log_metrics(stats, timesteps_this_iter + pre_learning_steps)
@@ -148,13 +179,13 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
         return eval_losses, stats
 
-    def improve_policy(self, num_improvements: int) -> StatDict:
+    def improve_policy(self, times: int) -> StatDict:
         """Improve the policy on previously collected environment data.
 
         Calls the policy to learn on batches samples from the replay buffer.
 
         Args:
-            num_improvements: number of times to call `policy.learn_on_batch`
+            times: number of times to call `policy.learn_on_batch`
 
         Returns:
             A dictionary of training and exploration statistics
@@ -163,7 +194,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
         batch_size = self.config["train_batch_size"]
 
         stats = {}
-        for _ in range(num_improvements):
+        for _ in range(times):
             batch = self.replay.sample(batch_size)
             stats.update(policy.learn_on_batch(batch))
             self.metrics.num_steps_trained += batch.count
@@ -174,16 +205,22 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
 @trainer.configure
 @trainer.option(
-    "virtual_buffer_size", int(1e6), help="Size of the buffer for virtual samples"
+    "virtual_buffer_size",
+    default=int(1e6),
+    help="Size of the buffer for virtual samples",
 )
 @trainer.option(
     "model_rollouts",
-    40,
-    help="Populate virtual replay with this many model rollouts per environment step",
+    default=40,
+    help="""Number of model rollouts to add to virtual buffer each policy interval.
+
+    Populates virtual replay with this many model rollouts before each policy
+    improvement.
+    """,
 )
 @trainer.option(
     "real_data_ratio",
-    0.1,
+    default=0.1,
     help="Fraction of each policy minibatch to sample from environment replay pool",
 )
 class DynaLikeTrainer(ModelBasedTrainer):
@@ -225,55 +262,54 @@ class DynaLikeTrainer(ModelBasedTrainer):
 
         config = self.config
         worker = self.workers.local_worker()
+        policy = self.get_policy()
         stats = {}
-        while timesteps_this_iter < max(self.config["timesteps_per_iteration"], 1):
+        while timesteps_this_iter < max(config["timesteps_per_iteration"], 1):
             samples = worker.sample()
+            self._sample_calls += 1
             timesteps_this_iter += samples.count
             for row in samples.rows():
                 self.replay.add(row)
 
-            eval_losses, model_train_info = self.train_dynamics_model()
-            self.populate_virtual_buffer(
-                eval_losses, config["model_rollouts"] * samples.count
-            )
-            policy_train_info = self.improve_policy(
-                config["policy_improvements"] * samples.count
-            )
+            if self._sample_calls % config["model_update_interval"] == 0:
+                eval_losses, model_train_info = self.train_dynamics_model()
+                policy.set_new_elite(eval_losses)
+                stats.update(model_train_info)
 
-            stats.update(model_train_info)
-            stats.update(policy_train_info)
+            if self._sample_calls % config["policy_improvement_interval"] == 0:
+                self.populate_virtual_buffer(config["model_rollouts"])
+                policy_train_info = self.improve_policy(
+                    times=config["policy_improvements"]
+                )
+                stats.update(policy_train_info)
 
         self.metrics.num_steps_sampled += timesteps_this_iter
         return self._log_metrics(stats, timesteps_this_iter + pre_learning_steps)
 
-    def populate_virtual_buffer(self, eval_losses: List[float], num_rollouts: int):
+    def populate_virtual_buffer(self, num_rollouts: int):
         """Add model rollouts branched from real data to the virtual pool.
 
         Args:
-            eval_losses: the latest validation losses for each model in the
-                ensemble
             num_rollouts: number of initial states to samples from the
                 environment replay buffer
         """
         if not (num_rollouts and self.config["real_data_ratio"] < 1.0):
             return
 
-        policy = self.get_policy()
-        policy.setup_sampling_models(eval_losses)
-
         real_samples = self.replay.sample(num_rollouts)
+        policy = self.get_policy()
         virtual_samples = policy.generate_virtual_sample_batch(real_samples)
         for row in virtual_samples.rows():
             self.virtual_replay.add(row)
 
-    def improve_policy(self, num_improvements: int) -> StatDict:
+    def improve_policy(self, times: int) -> StatDict:
         """Improve the policy on a mixture of environment and model data.
 
         Calls the policy to learn on batches sampled from the environment and
         model rollouts.
 
         Args:
-            num_improvements: number of times to call `policy.learn_on_batch`
+            times: number of times to call `policy.learn_on_batch`
 
         Returns:
             A dictionary of training and exploration statistics
@@ -284,7 +320,7 @@ class DynaLikeTrainer(ModelBasedTrainer):
         model_batch_size = batch_size - env_batch_size
 
         stats = {}
-        for _ in range(num_improvements):
+        for _ in range(times):
             samples = []
             if env_batch_size:
                 samples += [self.replay.sample(env_batch_size)]

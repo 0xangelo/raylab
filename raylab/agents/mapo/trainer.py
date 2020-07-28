@@ -49,7 +49,6 @@ DEFAULT_MODULE = {
 @trainer.option("max_holdout", 0, override=True)
 @trainer.option("evaluation_config/explore", False, override=True)
 @trainer.option("rollout_fragment_length", 25, override=True)
-@trainer.option("batch_mode", "truncate_episodes", override=True)
 @sac_config
 class MAPOTrainer(ModelBasedTrainer):
     """Single agent trainer for Model-Aware Policy Optimization."""
