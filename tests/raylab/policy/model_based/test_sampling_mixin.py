@@ -97,8 +97,8 @@ def losses(request, ensemble_size):
     return [request.param() for _ in range(ensemble_size)]
 
 
-def test_setup_sampling_models(policy, losses):
-    policy.setup_sampling_models(losses)
+def test_set_new_elite(policy, losses):
+    policy.set_new_elite(losses)
 
     expected_elites = [policy.module.models[i] for i in np.argsort(losses)]
     assert all(ee is em for ee, em in zip(expected_elites, policy.elite_models))

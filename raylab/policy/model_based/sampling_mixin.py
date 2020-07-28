@@ -83,7 +83,7 @@ class ModelSamplingMixin:
 
         self.rng = np.random.default_rng(self.config["seed"])
 
-    def setup_sampling_models(self, losses: List[float]):
+    def set_new_elite(self, losses: List[float]):
         """Update the elite models based on model losses.
 
         Args:

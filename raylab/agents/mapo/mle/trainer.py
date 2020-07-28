@@ -31,7 +31,6 @@ from .policy import MlMAPOTorchPolicy
 @trainer.option("model_training", TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
 @trainer.option("evaluation_config/explore", False, override=True)
 @trainer.option("rollout_fragment_length", 25, override=True)
-@trainer.option("batch_mode", "truncate_episodes", override=True)
 @sac_config
 class MlMAPOTrainer(ModelBasedTrainer):
     """Single agent trainer for MAPO-MLE."""
