@@ -26,13 +26,8 @@ class DummyLoss:
 
 
 @pytest.fixture
-def train_samples(obs_space, action_space):
-    return fake_batch(obs_space, action_space, batch_size=80)
-
-
-@pytest.fixture
-def eval_samples(obs_space, action_space):
-    return fake_batch(obs_space, action_space, batch_size=20)
+def samples(obs_space, action_space):
+    return fake_batch(obs_space, action_space, batch_size=256)
 
 
 @pytest.fixture(scope="module")
@@ -87,6 +82,7 @@ def config(ensemble_size):
             "max_time": None,
             "improvement_threshold": 0,
             "patience_epochs": None,
+            "holdout_ratio": 0.2,
         },
         "model_warmup": {
             "dataloader": {"batch_size": 64, "replacement": True},
@@ -94,6 +90,7 @@ def config(ensemble_size):
             "max_grad_steps": None,
             "max_time": None,
             "improvement_threshold": None,
+            "holdout_ratio": 0.2,
         },
         "module": {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}},
     }
@@ -104,15 +101,15 @@ def policy(policy_cls, config):
     return policy_cls(config)
 
 
-def test_optimize_model(policy, mocker, train_samples, eval_samples):
+def test_optimize_model(policy, mocker, samples):
     init = mocker.spy(Evaluator, "__init__")
     # train_loss = mocker.spy(DummyLoss, "__call__")
     # _train_model_epochs = mocker.spy(ModelTrainingMixin, "_train_model_epochs")
 
-    losses, info = policy.optimize_model(train_samples, eval_samples)
+    losses, info = policy.optimize_model(samples, warmup=False)
 
     assert init.called
-    # assert policy.loss_train in train_loss.call_args.args
+    # assert policy.loss_train is train_loss.call_args.args[1][0]
     # assert policy.model_training_spec is _train_model_epochs.call_args.kwargs["spec"]
 
     assert isinstance(losses, list)
@@ -126,15 +123,15 @@ def test_optimize_model(policy, mocker, train_samples, eval_samples):
     assert "grad_norm(models)" in info
 
 
-def test_warmup_model(policy, mocker, train_samples, eval_samples):
+def test_warmup_model(policy, mocker, samples):
     init = mocker.spy(Evaluator, "__init__")
     # warmup_loss = mocker.spy(DummyLoss, "__call__")
     # _train_model_epochs = mocker.spy(ModelTrainingMixin, "_train_model_epochs")
 
-    losses, info = policy.optimize_model(train_samples, eval_samples, warmup=True)
+    losses, info = policy.optimize_model(samples, warmup=True)
 
     assert not init.called
-    # assert policy.loss_warmup in warmup_loss.call_args.args
+    # assert policy.loss_warmup is warmup_loss.call_args.args[1][0]
     # assert policy.model_warmup_spec is _train_model_epochs.call_args.kwargs["spec"]
 
     assert isinstance(losses, list)
@@ -148,9 +145,10 @@ def test_warmup_model(policy, mocker, train_samples, eval_samples):
     assert "grad_norm(models)" in info
 
 
-def test_optimize_with_no_eval(policy, mocker, train_samples):
+def test_optimize_with_no_eval(policy, mocker, samples):
     init = mocker.spy(Evaluator, "__init__")
-    losses, info = policy.optimize_model(train_samples)
+    policy.model_training_spec.holdout_ratio = 0.0
+    losses, info = policy.optimize_model(samples, warmup=False)
     assert not init.called
 
     assert isinstance(losses, list)
@@ -180,19 +178,18 @@ def patient_policy(patience_epochs, policy_cls, config):
         "max_time": None,
         "improvement_threshold": 0,
         "patience_epochs": patience_epochs,
+        "holdout_ratio": 0.2,
+        "max_holdout": None,
     }
     config["model_training"].update(model_training)
     return policy_cls(config)
 
 
-def test_early_stop(
-    patient_policy, patience_epochs, ensemble_size, mocker, train_samples, eval_samples
-):
+def test_early_stop(patient_policy, patience_epochs, ensemble_size, mocker, samples):
     mock = mocker.patch.object(DummyLoss, "__call__")
     mock.side_effect = lambda _: (torch.ones(ensemble_size).requires_grad_(), {})
 
-    _, info = patient_policy.optimize_model(train_samples, eval_samples)
+    _, info = patient_policy.optimize_model(samples, warmup=False)
 
     assert mock.called
-
     assert info["model_epochs"] == patience_epochs
