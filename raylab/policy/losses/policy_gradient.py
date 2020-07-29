@@ -14,6 +14,7 @@ from raylab.utils.annotations import TensorDict
 
 from .abstract import Loss
 from .utils import action_dpg
+from .utils import policy_dist_params_stats
 
 
 class DeterministicPolicyGradient(Loss):
@@ -68,19 +69,22 @@ class ReparameterizedSoftPG(Loss):
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         obs = batch[SampleBatch.CUR_OBS]
 
-        action_values, entropy = self.action_value_plus_entropy(obs)
+        action_values, entropy, stats = self.action_value_plus_entropy(obs)
         loss = -torch.mean(action_values + self.alpha * entropy)
 
-        stats = {"loss(actor)": loss.item(), "entropy": entropy.mean().item()}
+        stats.update({"loss(actor)": loss.item(), "entropy": entropy.mean().item()})
         return loss, stats
 
-    def action_value_plus_entropy(self, obs: Tensor) -> Tuple[Tensor, Tensor]:
+    def action_value_plus_entropy(self, obs: Tensor) -> Tuple[Tensor, Tensor, StatDict]:
         """
         Compute the action-value and a single sample estimate of the policy's entropy.
         """
-        actions, logp = self.actor.rsample(obs)
+        dist_params = self.actor(obs)
+        info = policy_dist_params_stats(dist_params)
+
+        actions, logp = self.actor.dist.rsample(dist_params)
         action_values = self.critics(obs, actions).min(dim=-1)[0]
-        return action_values, -logp
+        return action_values, -logp, info
 
 
 class ActionDPG(Loss):
