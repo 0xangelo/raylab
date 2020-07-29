@@ -50,20 +50,25 @@ class TrainingSpec(DataClassJsonMixin):
         dataloader: specifications for creating the data loader
         max_epochs: Maximum number of full model passes through the data
         max_grad_steps: Maximum number of model gradient steps
+        max_time: Maximum time in seconds for training the model. We
+            check this after each epoch (not minibatch)
         improvement_threshold: Minimum expected relative improvement in model
             validation loss
         patience_epochs: Number of epochs to wait for any of the models to
             improve on the validation dataset before early stopping
-        max_time: Maximum time in seconds for training the model. We
-            check this after each epoch (not minibatch)
+        holdout_ratio: Fraction of replay buffer to use as validation dataset
+        max_holdout: Maximum number of samples to use as validation dataset
     """
 
+    # pylint:disable=too-many-instance-attributes
     dataloader: DataloaderSpec = field(default_factory=DataloaderSpec, repr=True)
     max_epochs: Optional[int] = 120
     max_grad_steps: Optional[int] = 120
     max_time: Optional[float] = 20
     patience_epochs: Optional[int] = 5
     improvement_threshold: Optional[float] = 0.01
+    holdout_ratio: float = 0.0
+    max_holdout: Optional[int] = None
 
     def __post_init__(self):
         assert (
@@ -74,16 +79,20 @@ class TrainingSpec(DataClassJsonMixin):
             not self.max_time or self.max_time > 0
         ), "Maximum training time must be positive"
         assert (
+            self.max_epochs
+            or self.max_grad_steps
+            or (self.improvement_threshold is not None and self.patience_epochs)
+        ), "Need at least one stopping criterion"
+        assert (
             not self.patience_epochs or self.patience_epochs > 0
         ), "Must wait a positive number of epochs for any model to improve"
         assert (
             self.improvement_threshold is None or self.improvement_threshold >= 0
         ), "Improvement threshold must be nonnegative"
+        assert self.holdout_ratio < 1.0, "Holdout data cannot be the entire dataset"
         assert (
-            self.max_epochs
-            or self.max_grad_steps
-            or (self.improvement_threshold is not None and self.patience_epochs)
-        ), "Need at least one stopping criterion"
+            not self.max_holdout or self.max_holdout >= 0
+        ), "Maximum number of holdout samples must be non-negative"
 
 
 ModelSnapshot = collections.namedtuple("ModelSnapshot", "epoch loss state_dict")
@@ -213,10 +222,7 @@ class ModelTrainingMixin(ABC):
         return self.model_training_loss
 
     def optimize_model(
-        self,
-        train_samples: SampleBatch,
-        eval_samples: SampleBatch = None,
-        warmup: bool = False,
+        self, samples: SampleBatch, warmup: bool = False,
     ) -> Tuple[List[float], StatDict]:
         """Update models with samples.
 
@@ -239,8 +245,7 @@ class ModelTrainingMixin(ABC):
         will stop training.
 
         Args:
-            train_samples: Training data
-            eval_samples: Holdout data
+            samples: Dataset as sample batches. Usually the entire replay buffer
             warmup: Whether to train with warm-up loss and spec
 
         Returns:
@@ -250,6 +255,7 @@ class ModelTrainingMixin(ABC):
         loss_fn = self.model_warmup_loss if warmup else self.model_training_loss
         spec = self.model_warmup_spec if warmup else self.model_training_spec
 
+        train_samples, eval_samples = self._train_eval_split(samples, spec)
         dataloader = self._build_dataloader(train_samples, loss_fn=loss_fn, spec=spec)
         evaluator = self._setup_evaluator(eval_samples, loss_fn=loss_fn, spec=spec)
 
@@ -267,6 +273,21 @@ class ModelTrainingMixin(ABC):
 
         info.update(self.model_grad_info())
         return eval_losses, info
+
+    @staticmethod
+    def _train_eval_split(
+        samples: SampleBatch, spec: TrainingSpec
+    ) -> Tuple[SampleBatch, Optional[SampleBatch]]:
+        total_count = samples.count
+        holdout = int(total_count * spec.holdout_ratio)
+        if spec.max_holdout is not None:
+            holdout = min(holdout, spec.max_holdout)
+
+        samples.shuffle()
+        train_data, eval_data = samples.slice(holdout, None), samples.slice(0, holdout)
+        eval_data = None if eval_data.count == 0 else eval_data
+
+        return train_data, eval_data
 
     def _build_dataloader(
         self, train_samples: SampleBatch, loss_fn: Loss, spec: TrainingSpec
