@@ -3,6 +3,8 @@ import collections
 import copy
 import itertools
 import time
+from abc import ABC
+from abc import abstractmethod
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Iterator
@@ -173,18 +175,18 @@ class Evaluator:
         return losses
 
 
-class ModelTrainingMixin:
+class ModelTrainingMixin(ABC):
     """Adds model training behavior to a TorchPolicy class.
 
     Expects:
     * A `models` attribute in `self.module`
     * A `model_training` dict in `self.config`
+    * A `model_warmup` dict in `self.config`
     * A 'models' optimizer in `self.optimizers`
-    * A `loss_model` callable attribute that returns a 1d Tensor with each
-      model's losses and an info dict
 
     Attributes:
         model_training_spec: Specifications for training the model
+        model_warmup_spec: Specifications for model warm-up
     """
 
     model_training_spec: TrainingSpec
@@ -192,9 +194,29 @@ class ModelTrainingMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model_training_spec = TrainingSpec.from_dict(self.config["model_training"])
+        self.model_warmup_spec = TrainingSpec.from_dict(self.config["model_warmup"])
+
+    @property
+    @abstractmethod
+    def model_training_loss(self) -> Loss:
+        """Loss function used for normal model training and evaluation.
+
+        Must return a 1d Tensor with each model's losses and an info dict.
+        """
+
+    @property
+    def model_warmup_loss(self) -> Loss:
+        """Loss function used for model warm-up.
+
+        Must return a 1d Tensor with each model's losses and an info dict.
+        """
+        return self.model_training_loss
 
     def optimize_model(
-        self, train_samples: SampleBatch, eval_samples: SampleBatch = None
+        self,
+        train_samples: SampleBatch,
+        eval_samples: SampleBatch = None,
+        warmup: bool = False,
     ) -> Tuple[List[float], StatDict]:
         """Update models with samples.
 
@@ -217,17 +239,23 @@ class ModelTrainingMixin:
         will stop training.
 
         Args:
-            train_samples: training data
-            eval_samples: holdout data
+            train_samples: Training data
+            eval_samples: Holdout data
+            warmup: Whether to train with warm-up loss and spec
 
         Returns:
             A tuple with a list of each model's evaluation loss and a dictionary
             with training statistics
         """
-        dataloader = self._build_dataloader(train_samples)
-        evaluator = self._setup_evaluator(eval_samples)
+        loss_fn = self.model_warmup_loss if warmup else self.model_training_loss
+        spec = self.model_warmup_spec if warmup else self.model_training_spec
 
-        info = self._train_model_epochs(dataloader, evaluator)
+        dataloader = self._build_dataloader(train_samples, loss_fn=loss_fn, spec=spec)
+        evaluator = self._setup_evaluator(eval_samples, loss_fn=loss_fn, spec=spec)
+
+        info = self._train_model_epochs(
+            dataloader, loss_fn=loss_fn, spec=spec, evaluator=evaluator
+        )
 
         if evaluator:
             eval_losses = evaluator.restore_models()
@@ -240,40 +268,41 @@ class ModelTrainingMixin:
         info.update(self.model_grad_info())
         return eval_losses, info
 
-    def _build_dataloader(self, train_samples: SampleBatch) -> DataLoader:
-        spec = self.model_training_spec.dataloader
+    def _build_dataloader(
+        self, train_samples: SampleBatch, loss_fn: Loss, spec: TrainingSpec
+    ) -> DataLoader:
+        spec = spec.dataloader
         train_tensors = {
-            k: self.convert_to_tensor(train_samples[k])
-            for k in self.loss_model.batch_keys
+            k: self.convert_to_tensor(train_samples[k]) for k in loss_fn.batch_keys
         }
         dataset = TensorDictDataset(train_tensors)
         sampler = RandomSampler(dataset, replacement=spec.replacement)
         return DataLoader(dataset, sampler=sampler, batch_size=spec.batch_size)
 
     def _setup_evaluator(
-        self, eval_samples: Optional[SampleBatch]
+        self, eval_samples: Optional[SampleBatch], loss_fn: Loss, spec: TrainingSpec
     ) -> Optional[Evaluator]:
-        spec = self.model_training_spec
         if not (eval_samples and spec.improvement_threshold is not None):
             return None
 
         eval_tensors = {
-            k: self.convert_to_tensor(eval_samples[k])
-            for k in self.loss_model.batch_keys
+            k: self.convert_to_tensor(eval_samples[k]) for k in loss_fn.batch_keys
         }
         return Evaluator(
-            self.module.models,
-            self.loss_model,
-            eval_tensors,
-            spec.improvement_threshold,
-            spec.patience_epochs,
+            models=self.module.models,
+            loss_fn=loss_fn,
+            eval_tensors=eval_tensors,
+            improvement_threshold=spec.improvement_threshold,
+            patience_epochs=spec.patience_epochs,
         )
 
     def _train_model_epochs(
-        self, dataloader: DataLoader, evaluator: Optional[Evaluator],
+        self,
+        dataloader: DataLoader,
+        loss_fn: Loss,
+        spec: TrainingSpec,
+        evaluator: Optional[Evaluator],
     ) -> StatDict:
-
-        spec = self.model_training_spec
         info = {}
         grad_steps = 0
         start = time.time()
@@ -282,7 +311,7 @@ class ModelTrainingMixin:
         for epoch in self._model_epochs(spec):
             for minibatch in dataloader:
                 with self.optimizers.optimize("models"):
-                    losses, train_info = self.loss_model(minibatch)
+                    losses, train_info = loss_fn(minibatch)
                     losses.sum().backward()
 
                 info.update({"train_" + k: v for k, v in train_info.items()})

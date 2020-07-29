@@ -10,6 +10,7 @@ from raylab.agents.sac import SACTorchPolicy
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelTrainingMixin
 from raylab.policy.losses import MAPO
+from raylab.policy.losses import ModelEnsembleMLE
 from raylab.policy.losses import SoftCDQLearning
 from raylab.policy.losses import SPAML
 from raylab.utils.debug import fake_batch
@@ -54,7 +55,8 @@ def test_init(policy):
     assert hasattr(policy.module, "critics")
     assert hasattr(policy.module, "alpha")
 
-    assert isinstance(policy.loss_model, SPAML)
+    assert isinstance(policy.loss_paml, SPAML)
+    assert isinstance(policy.loss_mle, ModelEnsembleMLE)
     assert isinstance(policy.loss_actor, MAPO)
     assert isinstance(policy.loss_critic, SoftCDQLearning)
 

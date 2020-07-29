@@ -187,7 +187,7 @@ class RaylabOptions:
                     f" a dictionary: {default}"
                 )
             key = key.rstrip(separator)
-            default = {} if not override else default
+            default = {} if not override and default is None else default
 
         key_seq = key.split(separator)
 

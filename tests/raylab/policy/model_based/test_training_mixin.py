@@ -16,7 +16,9 @@ from raylab.utils.debug import fake_batch
 class DummyLoss:
     # pylint:disable=all
     batch_keys = (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, SampleBatch.NEXT_OBS)
-    ensemble_size: int = 1
+
+    def __init__(self, ensemble_size):
+        self.ensemble_size = ensemble_size
 
     def __call__(self, _):
         losses = torch.randn(self.ensemble_size).requires_grad_(True)
@@ -39,9 +41,8 @@ def policy_cls(base_policy_cls):
         # pylint:disable=abstract-method
         def __init__(self, config):
             super().__init__(config)
-            loss = DummyLoss()
-            loss.ensemble_size = len(self.module.models)
-            self.loss_model = loss
+            self.loss_train = DummyLoss(len(self.module.models))
+            self.loss_warmup = DummyLoss(len(self.module.models))
 
         @property
         def options(self):
@@ -49,8 +50,19 @@ def policy_cls(base_policy_cls):
             options.set_option(
                 "model_training", ModelTrainingMixin.model_training_defaults()
             )
+            options.set_option(
+                "model_warmup", ModelTrainingMixin.model_training_defaults()
+            )
             options.set_option("model/type", "ModelBasedSAC")
             return options
+
+        @property
+        def model_training_loss(self):
+            return self.loss_train
+
+        @property
+        def model_warmup_loss(self):
+            return self.loss_warmup
 
         def _make_optimizers(self):
             optimizers = super()._make_optimizers()
@@ -70,11 +82,18 @@ def config(ensemble_size):
     return {
         "model_training": {
             "dataloader": {"batch_size": 32, "replacement": False},
-            "max_epochs": 10,
+            "max_epochs": 5,
             "max_grad_steps": None,
             "max_time": None,
             "improvement_threshold": 0,
             "patience_epochs": None,
+        },
+        "model_warmup": {
+            "dataloader": {"batch_size": 64, "replacement": True},
+            "max_epochs": 10,
+            "max_grad_steps": None,
+            "max_time": None,
+            "improvement_threshold": None,
         },
         "module": {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}},
     }
@@ -87,8 +106,36 @@ def policy(policy_cls, config):
 
 def test_optimize_model(policy, mocker, train_samples, eval_samples):
     init = mocker.spy(Evaluator, "__init__")
+    train_loss = mocker.spy(DummyLoss, "__call__")
+    _train_model_epochs = mocker.spy(ModelTrainingMixin, "_train_model_epochs")
+
     losses, info = policy.optimize_model(train_samples, eval_samples)
+
     assert init.called
+    assert policy.loss_train in train_loss.call_args.args
+    assert policy.model_training_spec is _train_model_epochs.call_args.kwargs["spec"]
+
+    assert isinstance(losses, list)
+    assert all(isinstance(loss, float) for loss in losses)
+
+    assert isinstance(info, dict)
+    assert "model_epochs" in info
+    assert info["model_epochs"] == 5
+    assert "train_loss(models)" in info
+    assert "eval_loss(models)" in info
+    assert "grad_norm(models)" in info
+
+
+def test_warmup_model(policy, mocker, train_samples, eval_samples):
+    init = mocker.spy(Evaluator, "__init__")
+    warmup_loss = mocker.spy(DummyLoss, "__call__")
+    _train_model_epochs = mocker.spy(ModelTrainingMixin, "_train_model_epochs")
+
+    losses, info = policy.optimize_model(train_samples, eval_samples, warmup=True)
+
+    assert not init.called
+    assert policy.loss_warmup in warmup_loss.call_args.args
+    assert policy.model_warmup_spec is _train_model_epochs.call_args.kwargs["spec"]
 
     assert isinstance(losses, list)
     assert all(isinstance(loss, float) for loss in losses)
@@ -97,7 +144,7 @@ def test_optimize_model(policy, mocker, train_samples, eval_samples):
     assert "model_epochs" in info
     assert info["model_epochs"] == 10
     assert "train_loss(models)" in info
-    assert "eval_loss(models)" in info
+    assert "eval_loss(models)" not in info
     assert "grad_norm(models)" in info
 
 
@@ -111,7 +158,7 @@ def test_optimize_with_no_eval(policy, mocker, train_samples):
 
     assert isinstance(info, dict)
     assert "model_epochs" in info
-    assert info["model_epochs"] == 10
+    assert info["model_epochs"] == 5
     assert "train_loss(models)" in info
     assert "eval_loss(models)" not in info
     assert "grad_norm(models)" in info
