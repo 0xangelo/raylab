@@ -188,7 +188,9 @@ class ModelBasedTrainer(OffPolicyTrainer):
         )
         return metrics
 
-    def train_dynamics_model(self, warmup: bool = True) -> Tuple[List[float], StatDict]:
+    def train_dynamics_model(
+        self, warmup: bool = False
+    ) -> Tuple[List[float], StatDict]:
         """Implements the model training step.
 
         Calls the policy to optimize the model on the environment replay buffer.
