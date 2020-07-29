@@ -109,7 +109,7 @@ def test_optimize_model(policy, mocker, samples):
     losses, info = policy.optimize_model(samples, warmup=False)
 
     assert init.called
-    assert policy.loss_train in train_loss.call_args.args
+    assert policy.loss_train is train_loss.call_args.args[0]
     assert policy.model_training_spec is _train_model_epochs.call_args.kwargs["spec"]
 
     assert isinstance(losses, list)
@@ -131,7 +131,7 @@ def test_warmup_model(policy, mocker, samples):
     losses, info = policy.optimize_model(samples, warmup=True)
 
     assert not init.called
-    assert policy.loss_warmup in warmup_loss.call_args.args
+    assert policy.loss_warmup is warmup_loss.call_args.args[0]
     assert policy.model_warmup_spec is _train_model_epochs.call_args.kwargs["spec"]
 
     assert isinstance(losses, list)
@@ -185,14 +185,11 @@ def patient_policy(patience_epochs, policy_cls, config):
     return policy_cls(config)
 
 
-def test_early_stop(
-    patient_policy, patience_epochs, ensemble_size, mocker, train_samples, eval_samples
-):
+def test_early_stop(patient_policy, patience_epochs, ensemble_size, mocker, samples):
     mock = mocker.patch.object(DummyLoss, "__call__")
     mock.side_effect = lambda _: (torch.ones(ensemble_size).requires_grad_(), {})
 
-    _, info = patient_policy.optimize_model(train_samples, eval_samples)
+    _, info = patient_policy.optimize_model(samples, warmup=False)
 
     assert mock.called
-
     assert info["model_epochs"] == patience_epochs
