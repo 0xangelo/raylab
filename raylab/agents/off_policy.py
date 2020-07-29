@@ -110,3 +110,6 @@ class OffPolicyTrainer(Trainer):
         assert (
             config["rollout_fragment_length"] >= 1
         ), "At least one sample must be collected."
+        assert (
+            config["policy_improvements"] >= 0
+        ), "Number of policy improvement steps must be non-negative"

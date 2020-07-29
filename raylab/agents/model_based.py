@@ -61,17 +61,6 @@ def _set_from_env_if_possible(policy: Policy, env: Any, fn_type: str = "reward")
 
 @trainer.configure
 @trainer.option(
-    "holdout_ratio",
-    default=0.2,
-    help="Fraction of replay buffer to use as validation dataset"
-    " (hence not for training)",
-)
-@trainer.option(
-    "max_holdout",
-    default=5000,
-    help="Maximum number of samples to use as validation dataset",
-)
-@trainer.option(
     "model_update_interval",
     default=1,
     help="""Number of calls to rollout worker between each model update run.
@@ -125,15 +114,10 @@ class ModelBasedTrainer(OffPolicyTrainer):
     @override(OffPolicyTrainer)
     def validate_config(config):
         OffPolicyTrainer.validate_config(config)
-        assert (
-            config["holdout_ratio"] < 1.0
-        ), "Holdout data cannot be the entire dataset"
-        assert (
-            config["max_holdout"] >= 0
-        ), "Maximum number of holdout samples must be non-negative"
-        assert (
-            config["policy_improvements"] >= 0
-        ), "Number of policy improvement steps must be non-negative"
+
+        msg = "'{key}' must be a positive number of RolloutWorker sample calls"
+        for key in "model_update_interval policy_improvement_interval".split():
+            assert config[key] > 0, msg.format(key=key)
 
     @override(OffPolicyTrainer)
     def _train(self):
@@ -158,7 +142,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
             if self._sample_calls % config["model_update_interval"] == 0:
                 with self.model_timer:
-                    _, model_info = self.train_dynamics_model()
+                    _, model_info = self.train_dynamics_model(warmup=False)
                     self.model_timer.push_units_processed(model_info["model_epochs"])
                 stats.update(model_info)
 
@@ -204,17 +188,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
             a dictionary of training statistics
         """
         samples = self.replay.all_samples()
-        samples.shuffle()
-        holdout = min(
-            int(len(self.replay) * self.config["holdout_ratio"]),
-            self.config["max_holdout"],
-        )
-        train_data, eval_data = samples.slice(holdout, None), samples.slice(0, holdout)
-        eval_data = None if eval_data.count == 0 else eval_data
-
-        policy = self.get_policy()
-        eval_losses, stats = policy.optimize_model(train_data, eval_data, warmup=warmup)
-
+        eval_losses, stats = self.get_policy().optimize_model(samples, warmup=warmup)
         return eval_losses, stats
 
     def improve_policy(self, times: int) -> StatDict:
