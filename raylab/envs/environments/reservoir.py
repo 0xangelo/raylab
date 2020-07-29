@@ -39,7 +39,7 @@ class ReservoirEnv(gym.Env):
     metadata = {"render.modes": ["human"]}
 
     def __init__(self, config=None):
-        self._config = {**DEFAULT_CONFIG, **(config or {})}
+        self._config = self._convert_to_tensor({**DEFAULT_CONFIG, **(config or {})})
 
         self._num_reservoirs = len(self._config["init"]["rlevel"])
 
@@ -57,6 +57,22 @@ class ReservoirEnv(gym.Env):
         self.reset()
 
         self._horizon = self._config["horizon"]
+
+    @staticmethod
+    def _convert_to_tensor(config: dict) -> dict:
+        conf_ = config.copy()
+        for key in [
+            "RAIN_SHAPE",
+            "RAIN_SCALE",
+            "DOWNSTREAM",
+            "MAX_RES_CAP",
+            "LOWER_BOUND",
+            "UPPER_BOUND",
+            "LOW_PENALTY",
+            "HIGH_PENALTY",
+        ]:
+            conf_[key] = torch.as_tensor(conf_[key])
+        return conf_
 
     def reset(self):
         self._state = np.array(self._config["init"]["rlevel"] + [0.0])
@@ -97,8 +113,8 @@ class ReservoirEnv(gym.Env):
     def _rainfall(
         self, rlevel: Tensor, sample_shape: List[int] = ()
     ) -> Tuple[Tensor, Tensor]:
-        concentration = torch.as_tensor(self._config["RAIN_SHAPE"]).expand_as(rlevel)
-        rate = 1.0 / torch.as_tensor(self._config["RAIN_SCALE"]).expand_as(rlevel)
+        concentration = self._config["RAIN_SHAPE"].expand_as(rlevel)
+        rate = 1.0 / self._config["RAIN_SCALE"].expand_as(rlevel)
         dist = torch.distributions.Independent(
             torch.distributions.Gamma(concentration, rate), reinterpreted_batch_ndims=1
         )
@@ -107,20 +123,20 @@ class ReservoirEnv(gym.Env):
         return sample, logp
 
     def _inflow(self, rlevel: Tensor, action: Tensor) -> Tensor:
-        DOWNSTREAM = torch.as_tensor(self._config["DOWNSTREAM"], dtype=torch.float32)
+        DOWNSTREAM = self._config["DOWNSTREAM"].float()
         overflow = self._overflow(rlevel, action)
         outflow = action
         return (overflow + outflow).matmul(DOWNSTREAM.t())
 
     def _overflow(self, rlevel: Tensor, action: Tensor) -> Tensor:
         MIN_RES_CAP = torch.zeros(self._num_reservoirs)
-        MAX_RES_CAP = torch.as_tensor(self._config["MAX_RES_CAP"])
+        MAX_RES_CAP = self._config["MAX_RES_CAP"]
         outflow = torch.as_tensor(action)
         return torch.max(MIN_RES_CAP, rlevel - outflow - MAX_RES_CAP)
 
     def _evaporated(self, rlevel: Tensor) -> Tensor:
         EVAP_PER_TIME_UNIT = self._config["MAX_WATER_EVAP_FRAC_PER_TIME_UNIT"]
-        MAX_RES_CAP = torch.as_tensor(self._config["MAX_RES_CAP"])
+        MAX_RES_CAP = self._config["MAX_RES_CAP"]
         return (
             EVAP_PER_TIME_UNIT
             * torch.log(1.0 + rlevel)
@@ -136,22 +152,27 @@ class ReservoirEnv(gym.Env):
         # pylint:disable=unused-argument,missing-docstring
         rlevel, _ = self._unpack_state(next_state)
 
-        LOWER_BOUND = torch.as_tensor(self._config["LOWER_BOUND"])
-        UPPER_BOUND = torch.as_tensor(self._config["UPPER_BOUND"])
+        LOWER_BOUND = self._config["LOWER_BOUND"]
+        UPPER_BOUND = self._config["UPPER_BOUND"]
 
-        LOW_PENALTY = torch.as_tensor(self._config["LOW_PENALTY"])
-        HIGH_PENALTY = torch.as_tensor(self._config["HIGH_PENALTY"])
+        LOW_PENALTY = self._config["LOW_PENALTY"]
+        HIGH_PENALTY = self._config["HIGH_PENALTY"]
 
-        penalty = torch.where(
-            (rlevel >= LOWER_BOUND) & (rlevel <= UPPER_BOUND),
-            torch.zeros_like(rlevel),
-            torch.where(
-                rlevel < LOWER_BOUND,
-                LOW_PENALTY * (LOWER_BOUND - rlevel),
-                HIGH_PENALTY * (rlevel - UPPER_BOUND),
-            ),
+        # 0.01 * abs(rlevel - (lower_bound + upper_bound) / 2) + high_penalty * max(
+        #     0.0, rlevel - upper_bound
+        # ) + low_penalty * max(0.0, lower_bound - rlevel)
+
+        mean_capacity_deviation = 0.01 * torch.abs(
+            rlevel - (LOWER_BOUND + UPPER_BOUND) / 2
+        )
+        overflow_penalty = HIGH_PENALTY * torch.max(
+            torch.zeros_like(rlevel), rlevel - UPPER_BOUND
+        )
+        underflow_penalty = LOW_PENALTY * torch.max(
+            torch.zeros_like(rlevel), LOWER_BOUND - rlevel
         )
 
+        penalty = mean_capacity_deviation + overflow_penalty + underflow_penalty
         return penalty.sum(dim=-1)
 
     def _terminal(self):
