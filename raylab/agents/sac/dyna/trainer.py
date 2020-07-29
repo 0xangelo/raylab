@@ -8,11 +8,21 @@ from .policy import DynaSACTorchPolicy
 
 
 @trainer.configure
-@trainer.option("module/type", "ModelBasedSAC")
-@trainer.option("torch_optimizer/models", {"type": "Adam", "lr": 1e-3})
-@trainer.option("model_training", TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
-@trainer.option("exploration_config/pure_exploration_steps", 1000)
-@trainer.option("evaluation_config/explore", False, override=True)
+@trainer.option("module/type", default="ModelBasedSAC")
+@trainer.option("torch_optimizer/models", default={"type": "Adam", "lr": 1e-3})
+@trainer.option(
+    "model_training", default=TrainingSpec().to_dict(), help=TrainingSpec.__doc__
+)
+@trainer.option(
+    "model_warmup",
+    default=TrainingSpec().to_dict(),
+    help="""Specifications for model warm-up.
+
+    Same configurations as 'model_training'.
+    """,
+)
+@trainer.option("exploration_config/pure_exploration_steps", default=1000)
+@trainer.option("evaluation_config/explore", default=False, override=True)
 @sac_config
 class DynaSACTrainer(ModelBasedTrainer):
     """Single agent trainer for Dyna-SAC."""

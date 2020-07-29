@@ -66,7 +66,7 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
             "Did you set reward and termination functions?"
         )
         obs = batch[SampleBatch.CUR_OBS]
-        action, action_logp = self._modules["policy"].rsample(obs)
+        action, action_logp, policy_info = self._generate_action(obs)
         next_obs, obs_logp, dist_params = self.transition(obs, action)
         action_value = self.one_step_action_value_surrogate(
             obs, action, next_obs, obs_logp
@@ -82,7 +82,20 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
             "entropy": entropy.item(),
         }
         stats.update(self.model_dist_info(dist_params))
+        stats.update(policy_info)
         return loss, stats
+
+    def _generate_action(self, obs: Tensor) -> Tuple[Tensor, Tensor, StatDict]:
+        policy = self._modules["policy"]
+        dist_params = policy(obs)
+        sample, logp = policy.dist.rsample(dist_params)
+        info = {}
+        info.update(
+            {"policy_mean_" + k: v.mean().item() for k, v in dist_params.items()}
+        )
+        info.update({"policy_max_" + k: v.max().item() for k, v in dist_params.items()})
+        info.update({"policy_min_" + k: v.min().item() for k, v in dist_params.items()})
+        return sample, logp, info
 
     def one_step_action_value_surrogate(
         self, obs: Tensor, action: Tensor, next_obs: Tensor, log_prob: Tensor

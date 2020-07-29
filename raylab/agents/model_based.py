@@ -1,4 +1,5 @@
 """Generic Trainer and base configuration for model-based agents."""
+import logging
 from typing import Any
 from typing import List
 from typing import Tuple
@@ -13,6 +14,9 @@ from raylab.agents import trainer
 from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.utils.annotations import StatDict
 from raylab.utils.replay_buffer import NumpyReplayBuffer
+
+
+logger = logging.getLogger(__name__)
 
 
 def set_policy_with_env_fn(worker_set: WorkerSet, fn_type: str = "reward"):
@@ -134,8 +138,13 @@ class ModelBasedTrainer(OffPolicyTrainer):
     @override(OffPolicyTrainer)
     def _train(self):
         pre_learning_steps = self.sample_until_learning_starts()
-        timesteps_this_iter = 0
+        if pre_learning_steps:
+            logger.info("Starting model warmup")
+            _, warmup_stats = self.train_dynamics_model(warmup=True)
+            # pylint:disable=logging-too-many-args
+            logger.info("Finished model warmup with stats: %s", warmup_stats)
 
+        timesteps_this_iter = 0
         config = self.config
         worker = self.workers.local_worker()
         stats = {}
@@ -179,10 +188,14 @@ class ModelBasedTrainer(OffPolicyTrainer):
         )
         return metrics
 
-    def train_dynamics_model(self) -> Tuple[List[float], StatDict]:
+    def train_dynamics_model(self, warmup: bool = True) -> Tuple[List[float], StatDict]:
         """Implements the model training step.
 
         Calls the policy to optimize the model on the environment replay buffer.
+
+        Args:
+            warmup: Whether the optimization is being done on data collected
+                via :meth:`sample_until_learning_starts`.
 
         Returns:
             A tuple containing the list of evaluation losses for each model and
@@ -198,7 +211,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
         eval_data = None if eval_data.count == 0 else eval_data
 
         policy = self.get_policy()
-        eval_losses, stats = policy.optimize_model(train_data, eval_data)
+        eval_losses, stats = policy.optimize_model(train_data, eval_data, warmup=warmup)
 
         return eval_losses, stats
 

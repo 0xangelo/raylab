@@ -10,8 +10,6 @@ from raylab.pytorch.optim.utils import build_optimizer
 class DynaSACTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
     """Model-based policy por Dyna-SAC."""
 
-    # pylint:disable=abstract-method
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._setup_model_loss()
@@ -22,6 +20,10 @@ class DynaSACTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
         from raylab.agents.sac.dyna import DynaSACTrainer
 
         return DynaSACTrainer.options
+
+    @property
+    def model_training_loss(self):
+        return self.loss_model
 
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()

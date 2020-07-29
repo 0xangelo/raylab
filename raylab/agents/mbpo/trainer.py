@@ -29,12 +29,25 @@ DEFAULT_MODULE = {
 
 
 @trainer.configure
-@trainer.option("module", DEFAULT_MODULE, override=True)
+@trainer.option("module", default=DEFAULT_MODULE, override=True)
 @trainer.option(
-    "torch_optimizer/models", {"type": "Adam", "lr": 3e-4, "weight_decay": 0.0001}
+    "torch_optimizer/models",
+    default={"type": "Adam", "lr": 3e-4, "weight_decay": 0.0001},
 )
-@trainer.option("model_training", TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
-@trainer.option("model_sampling", SamplingSpec().to_dict(), help=SamplingSpec.__doc__)
+@trainer.option(
+    "model_training", default=TrainingSpec().to_dict(), help=TrainingSpec.__doc__
+)
+@trainer.option(
+    "model_warmup",
+    default=TrainingSpec().to_dict(),
+    help="""Specifications for model warm-up.
+
+    Same configurations as 'model_training'.
+    """,
+)
+@trainer.option(
+    "model_sampling", default=SamplingSpec().to_dict(), help=SamplingSpec.__doc__
+)
 @trainer.option("model_rollouts", 20, override=True)
 @trainer.option("learning_starts", 5000, override=True)
 @trainer.option("train_batch_size", 512, override=True)
