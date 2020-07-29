@@ -230,7 +230,7 @@ class ReservoirReward(RewardFn):
     def forward(self, state, action, next_state):
         rlevel = next_state[..., :-1]
 
-        mean_capacity_deviation = 0.01 * torch.abs(
+        mean_capacity_deviation = -0.01 * torch.abs(
             rlevel - (self.lower_bound + self.upper_bound) / 2
         )
         overflow_penalty = self.high_penalty * torch.max(
