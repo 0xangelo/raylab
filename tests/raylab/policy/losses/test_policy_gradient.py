@@ -21,7 +21,7 @@ def soft_pg_loss(stochastic_actor, critics):
     return ReparameterizedSoftPG(stochastic_actor, critics)
 
 
-def test_soft_pg_loss(soft_pg_loss, stochastic_actor, critics, batch):
+def test_soft_pg_loss(soft_pg_loss, stochastic_actor, critics, batch, obs):
     loss, info = soft_pg_loss(batch)
     actor = stochastic_actor
 
@@ -34,6 +34,10 @@ def test_soft_pg_loss(soft_pg_loss, stochastic_actor, critics, batch):
 
     assert "loss(actor)" in info
     assert "entropy" in info
+    dist_params = actor(obs)
+    assert all(["policy_mean_" + k in info for k in dist_params])
+    assert all(["policy_max_" + k in info for k in dist_params])
+    assert all(["policy_min_" + k in info for k in dist_params])
 
 
 @pytest.fixture
