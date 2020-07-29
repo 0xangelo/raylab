@@ -142,16 +142,21 @@ class ReservoirEnv(gym.Env):
         LOW_PENALTY = torch.as_tensor(self._config["LOW_PENALTY"])
         HIGH_PENALTY = torch.as_tensor(self._config["HIGH_PENALTY"])
 
-        penalty = torch.where(
-            (rlevel >= LOWER_BOUND) & (rlevel <= UPPER_BOUND),
-            torch.zeros_like(rlevel),
-            torch.where(
-                rlevel < LOWER_BOUND,
-                LOW_PENALTY * (LOWER_BOUND - rlevel),
-                HIGH_PENALTY * (rlevel - UPPER_BOUND),
-            ),
+        # 0.01 * abs(rlevel - (lower_bound + upper_bound) / 2) + high_penalty * max(
+        #     0.0, rlevel - upper_bound
+        # ) + low_penalty * max(0.0, lower_bound - rlevel)
+
+        mean_capacity_deviation = 0.01 * torch.abs(
+            rlevel - (LOWER_BOUND + UPPER_BOUND) / 2
+        )
+        overflow_penalty = HIGH_PENALTY * torch.max(
+            torch.zeros_like(rlevel), rlevel - UPPER_BOUND
+        )
+        underflow_penalty = LOW_PENALTY * torch.max(
+            torch.zeros_like(rlevel), LOWER_BOUND - rlevel
         )
 
+        penalty = mean_capacity_deviation + overflow_penalty + underflow_penalty
         return penalty.sum(dim=-1)
 
     def _terminal(self):

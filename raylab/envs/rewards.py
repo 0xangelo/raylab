@@ -230,16 +230,17 @@ class ReservoirReward(RewardFn):
     def forward(self, state, action, next_state):
         rlevel = next_state[..., :-1]
 
-        penalty = torch.where(
-            (rlevel >= self.lower_bound) & (rlevel <= self.upper_bound),
-            torch.zeros_like(rlevel),
-            torch.where(
-                rlevel < self.lower_bound,
-                self.low_penalty * (self.lower_bound - rlevel),
-                self.high_penalty * (rlevel - self.upper_bound),
-            ),
+        mean_capacity_deviation = 0.01 * torch.abs(
+            rlevel - (self.lower_bound + self.upper_bound) / 2
+        )
+        overflow_penalty = self.high_penalty * torch.max(
+            torch.zeros_like(rlevel), rlevel - self.upper_bound
+        )
+        underflow_penalty = self.low_penalty * torch.max(
+            torch.zeros_like(rlevel), self.lower_bound - rlevel
         )
 
+        penalty = mean_capacity_deviation + overflow_penalty + underflow_penalty
         return penalty.sum(dim=-1)
 
 
