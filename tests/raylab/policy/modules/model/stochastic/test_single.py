@@ -1,6 +1,8 @@
 import pytest
 import torch
 
+from raylab.policy.modules.networks.utils import TensorStandardScaler
+
 
 @pytest.fixture(scope="module", params=(True, False), ids=lambda x: f"Residual({x})")
 def module_cls(request):
@@ -42,10 +44,14 @@ def test_fit_scaler(module, obs, act):
     module.encoder.fit_scaler(obs, act)
 
 
-def test_forward(module, obs, act, next_obs):
+def test_forward(mocker, module, obs, act, next_obs, standard_scaler):
+    # pylint:disable=too-many-arguments
+    spy = mocker.spy(TensorStandardScaler, "__call__")
+
     params = module(obs, act)
     assert "loc" in params
     assert "scale" in params
+    assert not standard_scaler or spy.called
 
     loc, scale = params["loc"], params["scale"]
     assert loc.shape == next_obs.shape
