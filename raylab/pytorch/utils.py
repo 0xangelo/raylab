@@ -5,15 +5,13 @@ from typing import Union
 
 import numpy as np
 import torch
+from torch import Tensor
 from torch.autograd import grad
 
 
 def flat_grad(
-    outputs: Union[torch.Tensor, Iterator[torch.Tensor]],
-    inputs: Iterator[torch.Tensor],
-    *args,
-    **kwargs
-) -> torch.Tensor:
+    outputs: Union[Tensor, Iterator[Tensor]], inputs: Iterator[Tensor], *args, **kwargs
+) -> Tensor:
     """Compute gradients and return a flattened array."""
     params = list(inputs)
     grads = grad(outputs, params, *args, **kwargs)
@@ -23,7 +21,7 @@ def flat_grad(
     )
 
 
-def convert_to_tensor(arr, device: torch.device) -> torch.Tensor:
+def convert_to_tensor(arr, device: torch.device) -> Tensor:
     """Convert array-like object to tensor and cast it to appropriate device.
 
     Arguments:
@@ -31,7 +29,7 @@ def convert_to_tensor(arr, device: torch.device) -> torch.Tensor:
         device: device to cast the resulting tensor to
 
     Returns:
-        The array converted to a `torch.Tensor`.
+        The array converted to a `Tensor`.
     """
     if torch.is_tensor(arr):
         return arr.to(device)
@@ -48,13 +46,13 @@ class TensorDictDataset(torch.utils.data.Dataset):
         tensor_dict: dictionary mapping strings to tensors
     """
 
-    def __init__(self, tensor_dict: Dict[str, torch.Tensor]):
+    def __init__(self, tensor_dict: Dict[str, Tensor]):
         super().__init__()
         batch_size = next(iter(tensor_dict.values())).size(0)
         assert all(tensor.size(0) == batch_size for tensor in tensor_dict.values())
         self.tensor_dict = tensor_dict
 
-    def __getitem__(self, index: int) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, index: int) -> Dict[str, Tensor]:
         return {k: v[index] for k, v in self.tensor_dict.items()}
 
     def __len__(self) -> int:
