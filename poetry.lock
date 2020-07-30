@@ -376,7 +376,7 @@ description = "Easily serialize dataclasses to and from JSON"
 name = "dataclasses-json"
 optional = false
 python-versions = ">=3.6"
-version = "0.5.1"
+version = "0.5.2"
 
 [package.dependencies]
 marshmallow = ">=3.3.0,<4.0.0"
@@ -2277,8 +2277,8 @@ coverage = [
     {file = "coverage-5.2.tar.gz", hash = "sha256:1874bdc943654ba46d28f179c1846f5710eda3aeb265ff029e0ac2b52daae404"},
 ]
 dataclasses-json = [
-    {file = "dataclasses-json-0.5.1.tar.gz", hash = "sha256:6e38b11b178e404124bffd6d213736bc505338e8a4c718596efec8d32eb96f5a"},
-    {file = "dataclasses_json-0.5.1-py3-none-any.whl", hash = "sha256:2f5fca4f097f9f9727e2100c824ed48153171186a679487f8875eca8d8c05107"},
+    {file = "dataclasses-json-0.5.2.tar.gz", hash = "sha256:56ec931959ede74b5dedf65cf20772e6a79764d20c404794cce0111c88c085ff"},
+    {file = "dataclasses_json-0.5.2-py3-none-any.whl", hash = "sha256:b746c48d9d8e884e2a0ffa59c6220a1b21f94d4f9f12c839da0a8a0efd36dc19"},
 ]
 decorator = [
     {file = "decorator-4.4.2-py2.py3-none-any.whl", hash = "sha256:41fa54c2a0cc4ba648be4fd43cff00aedf5b9465c9bf18d64325bc225f08f760"},
