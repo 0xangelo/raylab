@@ -55,10 +55,18 @@ def action_dpg(
     return loss, dqda_norm
 
 
-def policy_dist_params_stats(dist_params: TensorDict) -> StatDict:
-    """Returns mean, max, and min for each action distribution parameter."""
+def dist_params_stats(dist_params: TensorDict, name: str) -> StatDict:
+    """Returns mean, max, and min for each distribution parameter.
+
+    Args:
+        dist_params: Dictionary mapping names to distribution parameters
+
+    Returns:
+        Dictionary with average, minimum, and maximum of each parameter as
+        floats
+    """
     info = {}
-    info.update({"policy_mean_" + k: v.mean().item() for k, v in dist_params.items()})
-    info.update({"policy_max_" + k: v.max().item() for k, v in dist_params.items()})
-    info.update({"policy_min_" + k: v.min().item() for k, v in dist_params.items()})
+    info.update({name + "_mean_" + k: v.mean().item() for k, v in dist_params.items()})
+    info.update({name + "_max_" + k: v.max().item() for k, v in dist_params.items()})
+    info.update({name + "_min_" + k: v.min().item() for k, v in dist_params.items()})
     return info

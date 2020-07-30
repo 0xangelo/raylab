@@ -38,7 +38,7 @@ def test_mapo_init(mapo):
     assert mapo.initialized
 
 
-def test_mapo_call(mapo, batch):
+def test_mapo_call(mapo, batch, models, obs, act):
     tensor, info = mapo(batch)
     assert torch.is_tensor(tensor)
     assert isinstance(info, dict)
@@ -46,6 +46,9 @@ def test_mapo_call(mapo, batch):
     assert all(isinstance(v, (float, int)) for v in info.values())
     assert "loss(actor)" in info
     assert "entropy" in info
+
+    dist_params = models(obs, act)
+    assert all(["model_mean_" + k in info for k in dist_params])
 
 
 def test_mapo_compile(mapo, batch):

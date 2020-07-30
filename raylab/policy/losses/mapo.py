@@ -16,7 +16,7 @@ from raylab.utils.annotations import TensorDict
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
 from .mixins import UniformModelPriorMixin
-from .utils import policy_dist_params_stats
+from .utils import dist_params_stats
 
 
 class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
@@ -82,7 +82,7 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
             "loss(actor)": loss.item(),
             "entropy": entropy.item(),
         }
-        stats.update(self.model_dist_info(dist_params))
+        stats.update(dist_params_stats(dist_params, name="model"))
         stats.update(policy_info)
         return loss, stats
 
@@ -90,7 +90,7 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         policy = self._modules["policy"]
         dist_params = policy(obs)
         sample, logp = policy.dist.rsample(dist_params)
-        info = policy_dist_params_stats(dist_params)
+        info = dist_params_stats(dist_params, name="policy")
         return sample, logp, info
 
     def one_step_action_value_surrogate(

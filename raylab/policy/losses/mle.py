@@ -38,14 +38,14 @@ class MaximumLikelihood(Loss):
             statistics
         """
         obs, actions, next_obs = get_keys(batch, *self.batch_keys)
-        loss = -self.model_likelihood(obs, actions, next_obs).mean()
-        return loss, {"loss(model)": loss.item()}
 
-    def model_likelihood(
-        self, obs: Tensor, actions: Tensor, next_obs: Tensor
-    ) -> Tensor:
-        """Compute likelihood of a transition under the model."""
-        return self.model.log_prob(obs, actions, next_obs)
+        dist_params = self.model(obs, actions)
+        loss = -self.model.dist.log_prob(next_obs, dist_params).mean()
+        if "max_logvar" in dist_params and "min_logvar" in dist_params:
+            loss += 0.01 * dist_params["max_logvar"].sum()
+            loss += -0.01 * dist_params["min_logvar"].sum()
+
+        return loss, {"loss(model)": loss.item()}
 
 
 class ModelEnsembleMLE(Loss):
@@ -70,7 +70,13 @@ class ModelEnsembleMLE(Loss):
         obs, actions, next_obs = map(
             self.expand_foreach_model, get_keys(batch, *self.batch_keys)
         )
-        loss = -self.models.log_prob(obs, actions, next_obs).mean(dim=-1)
+
+        dist_params = self.models(obs, actions)
+        loss = -self.models.dist_log_prob(next_obs, dist_params).mean(dim=-1)
+        if "max_logvar" in dist_params and "min_logvar" in dist_params:
+            loss += 0.01 * dist_params["max_logvar"].sum()
+            loss += -0.01 * dist_params["min_logvar"].sum()
+
         info = {f"loss(models[{i}])": s for i, s in enumerate(loss.tolist())}
         return loss, info
 

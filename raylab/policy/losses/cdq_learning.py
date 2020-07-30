@@ -23,6 +23,7 @@ from raylab.utils.annotations import TensorDict
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
 from .mixins import UniformModelPriorMixin
+from .utils import dist_params_stats
 
 
 class QLearningMixin(ABC):
@@ -200,5 +201,5 @@ class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLear
 
         stats = {"loss(critics)": loss.item()}
         stats.update(self.q_value_info(value))
-        stats.update(self.model_dist_info(dist_params))
+        stats.update(dist_params_stats(dist_params, name="model"))
         return loss, stats

@@ -38,6 +38,16 @@ def obs(batch):
     return batch[SampleBatch.CUR_OBS]
 
 
+@pytest.fixture
+def act(batch):
+    return batch[SampleBatch.ACTIONS]
+
+
+@pytest.fixture
+def new_obs(batch):
+    return batch[SampleBatch.NEXT_OBS]
+
+
 @pytest.fixture(params=(1, 2, 4), ids=(f"Models({n})" for n in (1, 2, 4)))
 def models(request, obs_space, action_space):
     config = {
