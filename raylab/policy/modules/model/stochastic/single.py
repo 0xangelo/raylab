@@ -143,7 +143,14 @@ MLPSpec = StateActionMLP.spec_cls
 
 
 class MLPModel(StochasticModel):
-    """Stochastic model with multilayer perceptron state-action encoder."""
+    """Stochastic model with multilayer perceptron state-action encoder.
+
+    Attributes:
+        params: NN module mapping obs-act pairs to obs dist params
+        dist: NN module implementing the distribution API
+        encoder: NN module used in `params` to map obs-act pairs to vector
+            embeddings
+    """
 
     spec_cls = MLPSpec
 
@@ -155,6 +162,7 @@ class MLPModel(StochasticModel):
         input_dependent_scale: bool,
     ):
         encoder = StateActionMLP(obs_space, action_space, spec)
+
         params = nnx.NormalParams(
             encoder.out_features,
             obs_space.shape[0],
@@ -162,8 +170,11 @@ class MLPModel(StochasticModel):
             bound_parameters=True,
         )
         params = DynamicsParams(encoder, params)
+
         dist = ptd.Independent(ptd.Normal(), reinterpreted_batch_ndims=1)
+
         super().__init__(params, dist)
+        # Can only assign modules and parameters after calling nn.Module.__init__
         self.encoder = encoder
 
     def initialize_parameters(self, initializer_spec: dict):
