@@ -20,13 +20,13 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install Poetry
-      uses: dschep/install-poetry-action@v1.3
+      uses: Gr1N/setup-poetry@v2
     - run: |
         poetry env info
     - name: Cache dependencies
       uses: actions/cache@v2
       with:
-        path: ~/.cache/pip
+        path: ~/.cache/pypoetry/virtualenvs
         key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
         restore-keys: |
           ${{ runner.os }}-poetry-
