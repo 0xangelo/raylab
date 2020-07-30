@@ -35,7 +35,7 @@ jobs:
         poetry install --no-dev
         poetry run pip install pytest pytest-mock gym-cartpole-swingup
     - name: Run pytest
-      run: poetry run pytest
+      run: poetry run pytest --ignore=tests/raylab/policy/modules/v0
 
   publish:
     name: Publish
