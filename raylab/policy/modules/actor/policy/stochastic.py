@@ -155,11 +155,15 @@ class MLPContinuousPolicy(MLPStochasticPolicy):
         input_dependent_scale: bool,
     ):
         def params_fn(out_features):
-            return nnx.NormalParams(
+            params_mod = nnx.NormalParams(
                 out_features,
                 action_space.shape[0],
                 input_dependent_scale=input_dependent_scale,
+                bound_parameters=False,
             )
+            params_mod.max_logvar.fill_(2)
+            params_mod.min_logvar.fill_(-20)
+            return params_mod
 
         dist = ptd.TransformedDistribution(
             ptd.Independent(ptd.Normal(), reinterpreted_batch_ndims=1),

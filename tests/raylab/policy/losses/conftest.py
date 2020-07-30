@@ -1,5 +1,6 @@
 import pytest
 import torch
+from ray.rllib import SampleBatch
 
 from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
 from raylab.policy.modules.actor.policy.deterministic import MLPDeterministicPolicy
@@ -30,6 +31,21 @@ def termination_fn():
 def batch(obs_space, action_space):
     samples = fake_batch(obs_space, action_space, batch_size=256)
     return {k: torch.from_numpy(v) for k, v in samples.items()}
+
+
+@pytest.fixture
+def obs(batch):
+    return batch[SampleBatch.CUR_OBS]
+
+
+@pytest.fixture
+def act(batch):
+    return batch[SampleBatch.ACTIONS]
+
+
+@pytest.fixture
+def new_obs(batch):
+    return batch[SampleBatch.NEXT_OBS]
 
 
 @pytest.fixture(params=(1, 2, 4), ids=(f"Models({n})" for n in (1, 2, 4)))

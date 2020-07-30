@@ -10,26 +10,26 @@ from torch import Tensor
 
 
 DEFAULT_CONFIG = {
-    "MAX_RES_CAP": [100.0, 100.0, 200.0, 300.0, 400.0, 500.0, 800.0, 1000.0],
-    "UPPER_BOUND": [80.0, 80.0, 180.0, 280.0, 380.0, 480.0, 780.0, 980.0],
-    "LOWER_BOUND": [80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0],
-    "RAIN_SHAPE": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-    "RAIN_SCALE": [5.0, 3.0, 9.0, 7.0, 15.0, 13.0, 25.0, 30.0],
+    "MAX_RES_CAP": [100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0],
+    "UPPER_BOUND": [62.5, 62.5, 62.5, 62.5, 62.5, 62.5, 62.5, 62.5],
+    "LOWER_BOUND": [37.5, 37.5, 37.5, 37.5, 37.5, 37.5, 37.5, 37.5],
+    "RAIN_SHAPE": [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25],
+    "RAIN_SCALE": [20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0],
     "DOWNSTREAM": [
-        [False, False, False, False, False, True, False, False],
+        [False, True, False, False, False, False, False, False],
         [False, False, True, False, False, False, False, False],
+        [False, False, False, True, False, False, False, False],
         [False, False, False, False, True, False, False, False],
-        [False, False, False, False, False, False, False, True],
-        [False, False, False, False, False, False, True, False],
+        [False, False, False, False, False, True, False, False],
         [False, False, False, False, False, False, True, False],
         [False, False, False, False, False, False, False, True],
         [False, False, False, False, False, False, False, False],
     ],
     "SINK_RES": [False, False, False, False, False, False, False, True],
     "MAX_WATER_EVAP_FRAC_PER_TIME_UNIT": 0.05,
-    "LOW_PENALTY": [-5.0, -5.0, -5.0, -5.0, -5.0, -5.0, -5.0, -5.0],
-    "HIGH_PENALTY": [-10.0, -10.0, -10.0, -10.0, -10.0, -10.0, -10.0, -10.0],
-    "init": {"rlevel": [75.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0]},
+    "LOW_PENALTY": [-0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5, -0.5],
+    "HIGH_PENALTY": [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0],
+    "init": {"rlevel": [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0]},
     "horizon": 40,
 }
 
@@ -135,14 +135,15 @@ class ReservoirEnv(gym.Env):
         return torch.max(MIN_RES_CAP, rlevel - outflow - MAX_RES_CAP)
 
     def _evaporated(self, rlevel: Tensor) -> Tensor:
-        EVAP_PER_TIME_UNIT = self._config["MAX_WATER_EVAP_FRAC_PER_TIME_UNIT"]
+        # EVAP_PER_TIME_UNIT = self._config["MAX_WATER_EVAP_FRAC_PER_TIME_UNIT"]
         MAX_RES_CAP = self._config["MAX_RES_CAP"]
-        return (
-            EVAP_PER_TIME_UNIT
-            * torch.log(1.0 + rlevel)
-            * (rlevel ** 2)
-            / (MAX_RES_CAP ** 2)
-        )
+        # return (
+        #     EVAP_PER_TIME_UNIT
+        #     * torch.log(1.0 + rlevel)
+        #     * (rlevel ** 2)
+        #     / (MAX_RES_CAP ** 2)
+        # )
+        return 1 / 2 * torch.sin(rlevel / MAX_RES_CAP) * rlevel
 
     def _step_time(self, time: Tensor) -> Tensor:
         timestep = torch.round(self._horizon * time)
@@ -162,7 +163,7 @@ class ReservoirEnv(gym.Env):
         #     0.0, rlevel - upper_bound
         # ) + low_penalty * max(0.0, lower_bound - rlevel)
 
-        mean_capacity_deviation = 0.01 * torch.abs(
+        mean_capacity_deviation = -0.01 * torch.abs(
             rlevel - (LOWER_BOUND + UPPER_BOUND) / 2
         )
         overflow_penalty = HIGH_PENALTY * torch.max(

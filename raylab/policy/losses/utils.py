@@ -6,6 +6,9 @@ import torch
 from torch import Tensor
 from torch.autograd import grad
 
+from raylab.utils.annotations import StatDict
+from raylab.utils.annotations import TensorDict
+
 
 def action_dpg(
     q_max: Tensor,
@@ -50,3 +53,20 @@ def action_dpg(
 
     loss = -torch.sum(a_max * dqda.detach(), dim=-1)
     return loss, dqda_norm
+
+
+def dist_params_stats(dist_params: TensorDict, name: str) -> StatDict:
+    """Returns mean, max, and min for each distribution parameter.
+
+    Args:
+        dist_params: Dictionary mapping names to distribution parameters
+
+    Returns:
+        Dictionary with average, minimum, and maximum of each parameter as
+        floats
+    """
+    info = {}
+    info.update({name + "_mean_" + k: v.mean().item() for k, v in dist_params.items()})
+    info.update({name + "_max_" + k: v.max().item() for k, v in dist_params.items()})
+    info.update({name + "_min_" + k: v.min().item() for k, v in dist_params.items()})
+    return info

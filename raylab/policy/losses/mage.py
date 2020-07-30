@@ -17,6 +17,7 @@ from raylab.utils.annotations import TensorDict
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
 from .mixins import UniformModelPriorMixin
+from .utils import dist_params_stats
 
 
 @dataclass
@@ -113,7 +114,7 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
             "loss(MAGE)": grad_loss.item(),
             "loss(TD)": td_reg.item(),
         }
-        info.update(self.model_dist_info(dist_params))
+        info.update(dist_params_stats(dist_params, name="model"))
         return loss, info
 
     def temporal_diff_error(
