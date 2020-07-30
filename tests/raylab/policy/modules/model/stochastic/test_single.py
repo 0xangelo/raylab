@@ -10,9 +10,16 @@ def module_cls(request):
     return ResidualMLPModel if request.param else MLPModel
 
 
+@pytest.fixture(
+    params=(True, False), ids="StandardScaledEncoder UnscaledEncoder".split()
+)
+def standard_scaler(request):
+    return request.param
+
+
 @pytest.fixture
-def spec(module_cls):
-    return module_cls.spec_cls()
+def spec(module_cls, standard_scaler):
+    return module_cls.spec_cls(standard_scaler=standard_scaler)
 
 
 @pytest.fixture(params=(True, False), ids=lambda x: f"InputDependentScale({x})")
@@ -23,6 +30,40 @@ def input_dependent_scale(request):
 @pytest.fixture
 def module(module_cls, obs_space, action_space, spec, input_dependent_scale):
     return module_cls(obs_space, action_space, spec, input_dependent_scale)
+
+
+def test_init(module):
+    assert hasattr(module, "params")
+    assert hasattr(module, "dist")
+    assert hasattr(module, "encoder")
+
+
+def test_fit_scaler(module, obs, act):
+    module.encoder.fit_scaler(obs, act)
+
+
+def test_forward(module, obs, act, next_obs):
+    params = module(obs, act)
+    assert "loc" in params
+    assert "scale" in params
+
+    loc, scale = params["loc"], params["scale"]
+    assert loc.shape == next_obs.shape
+    assert scale.shape == next_obs.shape
+    assert loc.dtype == torch.float32
+    assert scale.dtype == torch.float32
+
+    params = set(module.parameters())
+    for par in params:
+        par.grad = None
+    loc.mean().backward()
+    assert any(p.grad is not None for p in params)
+
+    for par in params:
+        par.grad = None
+
+    module(obs, act)["scale"].mean().backward()
+    assert any(p.grad is not None for p in params)
 
 
 def test_sample(module, obs, act, next_obs, rew):
@@ -54,31 +95,6 @@ def test_rsample_gradient_propagation(module, obs, act):
     logp.sum().backward()
     assert obs.grad is not None
     assert act.grad is not None
-
-
-def test_params(module, obs, act, next_obs):
-    inputs = (obs, act)
-
-    params = module(*inputs)
-    assert "loc" in params
-    assert "scale" in params
-
-    loc, scale = params["loc"], params["scale"]
-    assert loc.shape == next_obs.shape
-    assert scale.shape == next_obs.shape
-    assert loc.dtype == torch.float32
-    assert scale.dtype == torch.float32
-
-    params = set(module.parameters())
-    for par in params:
-        par.grad = None
-    loc.mean().backward()
-    assert any(p.grad is not None for p in params)
-
-    for par in params:
-        par.grad = None
-    module(*inputs)["scale"].mean().backward()
-    assert any(p.grad is not None for p in params)
 
 
 def test_log_prob(module, obs, act, next_obs, rew):

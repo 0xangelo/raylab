@@ -29,7 +29,7 @@ def expand_foreach_model(ensemble_size):
 def build_single(obs_space, action_space):
     from raylab.policy.modules.model.stochastic.single import MLPModel
 
-    spec = MLPModel.spec_cls()
+    spec = MLPModel.spec_cls(standard_scaler=True)
     input_dependent_scale = True
 
     return lambda: MLPModel(obs_space, action_space, spec, input_dependent_scale)
@@ -41,6 +41,23 @@ def module(module_cls, build_single, ensemble_size, torch_script):
 
     module = module_cls(models)
     return torch.jit.script(module) if torch_script else module
+
+
+def test_forward(module, obs, act, expand_foreach_model):
+    obs, act = map(expand_foreach_model, (obs, act))
+
+    params = module(obs, act)
+    assert "loc" in params
+    assert "scale" in params
+    assert "min_logvar" in params
+    assert "max_logvar" in params
+
+    assert (params["scale"].log() > params["min_logvar"]).all()
+    assert (params["scale"].log() < params["max_logvar"]).all()
+
+
+def test_iterate(module, ensemble_size):
+    assert len([1 for m in module]) == ensemble_size
 
 
 def test_log_prob(module, obs, act, next_obs, rew, expand_foreach_model):

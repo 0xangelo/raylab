@@ -255,9 +255,17 @@ class ModelTrainingMixin(ABC):
         loss_fn = self.model_warmup_loss if warmup else self.model_training_loss
         spec = self.model_warmup_spec if warmup else self.model_training_spec
 
-        train_samples, eval_samples = self._train_eval_split(samples, spec)
-        dataloader = self._build_dataloader(train_samples, loss_fn=loss_fn, spec=spec)
-        evaluator = self._setup_evaluator(eval_samples, loss_fn=loss_fn, spec=spec)
+        train_tensors, eval_tensors = self._train_eval_tensors(
+            samples, loss_fn.batch_keys, spec
+        )
+        # Fit scalers for each model here
+        for model in self.module.models:
+            model.encoder.fit_scaler(
+                train_tensors[SampleBatch.CUR_OBS], train_tensors[SampleBatch.ACTIONS]
+            )
+
+        dataloader = self._build_dataloader(train_tensors, spec=spec)
+        evaluator = self._setup_evaluator(eval_tensors, loss_fn=loss_fn, spec=spec)
 
         info = self._train_model_epochs(
             dataloader, loss_fn=loss_fn, spec=spec, evaluator=evaluator
@@ -274,10 +282,9 @@ class ModelTrainingMixin(ABC):
         info.update(self.model_grad_info())
         return eval_losses, info
 
-    @staticmethod
-    def _train_eval_split(
-        samples: SampleBatch, spec: TrainingSpec
-    ) -> Tuple[SampleBatch, Optional[SampleBatch]]:
+    def _train_eval_tensors(
+        self, samples: SampleBatch, batch_keys: List[str], spec: TrainingSpec
+    ) -> Tuple[TensorDict, Optional[TensorDict]]:
         total_count = samples.count
         holdout = int(total_count * spec.holdout_ratio)
         if spec.max_holdout is not None:
@@ -285,30 +292,28 @@ class ModelTrainingMixin(ABC):
 
         samples.shuffle()
         train_data, eval_data = samples.slice(holdout, None), samples.slice(0, holdout)
-        eval_data = None if eval_data.count == 0 else eval_data
 
-        return train_data, eval_data
+        train_tensors = {k: self.convert_to_tensor(train_data[k]) for k in batch_keys}
+        if eval_data.count == 0:
+            eval_tensors = None
+        else:
+            eval_tensors = {k: self.convert_to_tensor(eval_data[k]) for k in batch_keys}
 
-    def _build_dataloader(
-        self, train_samples: SampleBatch, loss_fn: Loss, spec: TrainingSpec
-    ) -> DataLoader:
+        return train_tensors, eval_tensors
+
+    @staticmethod
+    def _build_dataloader(train_tensors: TensorDict, spec: TrainingSpec) -> DataLoader:
         spec = spec.dataloader
-        train_tensors = {
-            k: self.convert_to_tensor(train_samples[k]) for k in loss_fn.batch_keys
-        }
         dataset = TensorDictDataset(train_tensors)
         sampler = RandomSampler(dataset, replacement=spec.replacement)
         return DataLoader(dataset, sampler=sampler, batch_size=spec.batch_size)
 
     def _setup_evaluator(
-        self, eval_samples: Optional[SampleBatch], loss_fn: Loss, spec: TrainingSpec
+        self, eval_tensors: Optional[TensorDict], loss_fn: Loss, spec: TrainingSpec
     ) -> Optional[Evaluator]:
-        if not (eval_samples and spec.improvement_threshold is not None):
+        if not (eval_tensors and spec.improvement_threshold is not None):
             return None
 
-        eval_tensors = {
-            k: self.convert_to_tensor(eval_samples[k]) for k in loss_fn.batch_keys
-        }
         return Evaluator(
             models=self.module.models,
             loss_fn=loss_fn,

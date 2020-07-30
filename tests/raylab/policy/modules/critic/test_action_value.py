@@ -14,7 +14,7 @@ def double_q(request):
     return request.param
 
 
-@pytest.fixture(params=(True, False), ids=lambda x: "Parallelize({x})")
+@pytest.fixture(params=(True, False), ids=lambda x: f"Parallelize({x})")
 def parallelize(request):
     return request.param
 
