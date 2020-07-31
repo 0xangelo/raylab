@@ -86,6 +86,12 @@ def _import_dapo():
     return DAPOTrainer
 
 
+def _import_mapo_plus():
+    from raylab.agents.mapo.plus import MAPOPlusTrainer
+
+    return MAPOPlusTrainer
+
+
 AGENTS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
@@ -101,6 +107,7 @@ AGENTS = {
     "Dyna-SAC": _import_dyna_sac,
     "MAPO-MLE": _import_mapo_mle,
     "DAPO": _import_dapo,
+    "MAPO++": _import_mapo_plus,
 }
 
 
