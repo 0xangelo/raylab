@@ -118,8 +118,8 @@ def test_optimize_model(policy, mocker, samples):
     assert isinstance(info, dict)
     assert "model_epochs" in info
     assert info["model_epochs"] == 5
-    assert "train_loss(models)" in info
-    assert "eval_loss(models)" in info
+    assert "train/loss(models)" in info
+    assert "eval/loss(models)" in info
     assert "grad_norm(models)" in info
 
 
@@ -140,8 +140,8 @@ def test_warmup_model(policy, mocker, samples):
     assert isinstance(info, dict)
     assert "model_epochs" in info
     assert info["model_epochs"] == 10
-    assert "train_loss(models)" in info
-    assert "eval_loss(models)" not in info
+    assert "train/loss(models)" in info
+    assert "eval/loss(models)" not in info
     assert "grad_norm(models)" in info
 
 
@@ -157,8 +157,8 @@ def test_optimize_with_no_eval(policy, mocker, samples):
     assert isinstance(info, dict)
     assert "model_epochs" in info
     assert info["model_epochs"] == 5
-    assert "train_loss(models)" in info
-    assert "eval_loss(models)" not in info
+    assert "train/loss(models)" in info
+    assert "eval/loss(models)" not in info
     assert "grad_norm(models)" in info
 
 
