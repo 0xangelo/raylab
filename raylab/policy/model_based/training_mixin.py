@@ -156,7 +156,7 @@ class Evaluator:
         """
         eval_losses, eval_info = self.loss_fn(self.eval_tensors)
         eval_losses = eval_losses.tolist()
-        eval_info = {"eval_" + k: v for k, v in eval_info.items()}
+        eval_info = {"eval/" + k: v for k, v in eval_info.items()}
 
         self._update_snapshots(epoch, eval_losses)
 
@@ -351,7 +351,7 @@ class ModelTrainingMixin(ABC):
                     losses, train_info = loss_fn(minibatch)
                     losses.sum().backward()
 
-                info.update({"train_" + k: v for k, v in train_info.items()})
+                info.update({"train/" + k: v for k, v in train_info.items()})
                 grad_steps += 1
                 if spec.max_grad_steps and grad_steps >= spec.max_grad_steps:
                     break
