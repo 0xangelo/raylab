@@ -364,6 +364,8 @@ class ModelTrainingMixin(ABC):
                 break
 
         info["model_epochs"] = epoch + 1
+        info["model_grad_steps"] = grad_steps
+        info["early_stop"] = early_stop
         return info
 
     @torch.no_grad()
