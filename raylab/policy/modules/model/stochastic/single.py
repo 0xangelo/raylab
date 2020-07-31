@@ -1,4 +1,5 @@
 """NN modules for stochastic dynamics estimation."""
+from dataclasses import dataclass
 from typing import List
 
 import torch
@@ -139,7 +140,16 @@ class DynamicsParams(nn.Module):
         return self.params(self.encoder(obs, actions))
 
 
-MLPSpec = StateActionMLP.spec_cls
+@dataclass
+class MLPModelSpec(StateActionMLP.spec_cls):
+    """Specifications for stochastic mlp model network.
+
+    Args:
+        fix_logvar_bounds: Whether to use fixed or dynamically adjusted
+            bounds for the log-scale outputs of the network.
+    """
+
+    fix_logvar_bounds: bool = True
 
 
 class MLPModel(StochasticModel):
@@ -152,13 +162,13 @@ class MLPModel(StochasticModel):
             embeddings
     """
 
-    spec_cls = MLPSpec
+    spec_cls = MLPModelSpec
 
     def __init__(
         self,
         obs_space: Box,
         action_space: Box,
-        spec: MLPSpec,
+        spec: MLPModelSpec,
         input_dependent_scale: bool,
     ):
         encoder = StateActionMLP(obs_space, action_space, spec)
@@ -167,10 +177,11 @@ class MLPModel(StochasticModel):
             encoder.out_features,
             obs_space.shape[0],
             input_dependent_scale=input_dependent_scale,
-            bound_parameters=False,
+            bound_parameters=not spec.fix_logvar_bounds,
         )
-        params.max_logvar.fill_(2)
-        params.min_logvar.fill_(-20)
+        if spec.fix_logvar_bounds:
+            params.max_logvar.fill_(2)
+            params.min_logvar.fill_(-20)
         params = DynamicsParams(encoder, params)
 
         dist = ptd.Independent(ptd.Normal(), reinterpreted_batch_ndims=1)
