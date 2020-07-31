@@ -33,6 +33,8 @@ class SPAML(EnvFunctionsMixin, Loss):
         gamma: Discount factor
         alpha: Entropy regularization coefficient
         grad_estimator: Gradient estimator for expecations ('PD' or 'SF')
+        manhattan: Whether to compute the action gradient's 1-norm or
+            squared error
         lambda_: Kullback Leibler regularization coefficient
 
     Note:
@@ -48,6 +50,7 @@ class SPAML(EnvFunctionsMixin, Loss):
     gamma: float = 0.99
     alpha: float = 0.05
     grad_estimator: str = "SF"
+    manhattan: bool = False
     lambda_: float = 0.05
 
     def __init__(
@@ -193,9 +196,8 @@ class SPAML(EnvFunctionsMixin, Loss):
 
         return next_obs, logp
 
-    @staticmethod
     def action_gradient_loss(
-        action: Tensor, value_target: Tensor, value_pred: Tensor
+        self, action: Tensor, value_target: Tensor, value_pred: Tensor
     ) -> Tensor:
         """Decision-aware model loss based on action gradients.
 
@@ -213,7 +215,10 @@ class SPAML(EnvFunctionsMixin, Loss):
         (action_gradient,) = grad(temporal_diff.sum(), action, create_graph=True)
 
         # First compute action gradient norms by reducing along action dimension
-        grad_norms = action_gradient.abs().sum(dim=-1)
+        if self.manhattan:
+            grad_norms = action_gradient.abs().sum(dim=-1)
+        else:
+            grad_norms = torch.sum(action_gradient ** 2, dim=-1) / 2
         # Return mean action gradient loss along batch dimension
         return grad_norms.mean(dim=-1)
 

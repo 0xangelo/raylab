@@ -25,6 +25,11 @@ from .policy import MAPOTorchPolicy
     help="Model KL regularization to avoid degenerate solutions (needs tuning)",
 )
 @trainer.option(
+    "losses/manhattan",
+    default=False,
+    help="Whether to compute the action gradient's 1-norm or squared error",
+)
+@trainer.option(
     "losses/model_samples",
     default=1,
     help="Number of next states to sample from the model when calculating the"

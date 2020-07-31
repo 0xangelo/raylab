@@ -50,6 +50,7 @@ class MAPOTorchPolicy(ModelTrainingMixin, EnvFnMixin, SACTorchPolicy):
             self.module.models, self.module.actor, self.module.critics
         )
         self.loss_paml.gamma = self.config["gamma"]
+        self.loss_paml.manhattan = self.config["losses"]["manhattan"]
         self.loss_paml.grad_estimator = self.config["losses"]["grad_estimator"]
         self.loss_paml.lambda_ = self.config["losses"]["lambda"]
 
