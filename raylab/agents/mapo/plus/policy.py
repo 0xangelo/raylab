@@ -23,3 +23,11 @@ class MAPOPlusTorchPolicy(MAPOTorchPolicy):
         )
         self.loss_critic.gamma = self.config["gamma"]
         self.loss_critic.seed(self.config["seed"])
+
+    def _set_reward_hook(self):
+        super()._set_reward_hook()
+        self.loss_critic.set_reward_fn(self.reward_fn)
+
+    def _set_termination_hook(self):
+        super()._set_termination_hook()
+        self.loss_critic.set_termination_fn(self.termination_fn)

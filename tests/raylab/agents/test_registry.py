@@ -50,6 +50,10 @@ def trainer(trainer_cls, compile_policy):
 
     if "policy_improvements" in defaults:
         config["policy_improvements"] = 1
+    if "learning_starts" in defaults:
+        config["learning_starts"] = 1
+    if "model_warmup" in defaults:
+        config["model_warmup"] = {"max_epochs": 1}
     if "model_training" in defaults:
         config["model_training"] = {"max_epochs": 1}
 
