@@ -27,6 +27,16 @@ def test_init(policy_cls, obs_space, action_space):
     assert isinstance(policy.loss_mle, ModelEnsembleMLE)
 
 
+def test_options(policy):
+    options = policy.options
+    defaults = options.defaults
+
+    assert "losses" in defaults
+    assert "grad_estimator" in defaults["losses"]
+    assert "manhattan" in defaults["losses"]
+    assert "model_samples" in defaults["losses"]
+
+
 def test_model_losses(policy):
     assert isinstance(policy.model_training_loss, SPAML)
     assert isinstance(policy.model_warmup_loss, ModelEnsembleMLE)
