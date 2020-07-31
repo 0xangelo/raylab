@@ -13,6 +13,11 @@ def policy_cls():
     return MAPOPlusTorchPolicy
 
 
+@pytest.fixture
+def policy(policy_cls, obs_space, action_space):
+    return policy_cls(obs_space, action_space)
+
+
 def test_init(policy_cls, obs_space, action_space):
     policy = policy_cls(obs_space, action_space, {})
 
@@ -20,3 +25,8 @@ def test_init(policy_cls, obs_space, action_space):
     assert isinstance(policy.loss_critic, DynaSoftCDQLearning)
     assert isinstance(policy.loss_paml, SPAML)
     assert isinstance(policy.loss_mle, ModelEnsembleMLE)
+
+
+def test_model_losses(policy):
+    assert isinstance(policy.model_training_loss, SPAML)
+    assert isinstance(policy.model_warmup_loss, ModelEnsembleMLE)
