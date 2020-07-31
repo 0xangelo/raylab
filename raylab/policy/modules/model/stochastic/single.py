@@ -167,8 +167,10 @@ class MLPModel(StochasticModel):
             encoder.out_features,
             obs_space.shape[0],
             input_dependent_scale=input_dependent_scale,
-            bound_parameters=True,
+            bound_parameters=False,
         )
+        params.max_logvar.fill_(2)
+        params.min_logvar.fill_(-20)
         params = DynamicsParams(encoder, params)
 
         dist = ptd.Independent(ptd.Normal(), reinterpreted_batch_ndims=1)
