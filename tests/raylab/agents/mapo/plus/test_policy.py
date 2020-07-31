@@ -15,7 +15,7 @@ def policy_cls():
 
 @pytest.fixture
 def policy(policy_cls, obs_space, action_space):
-    return policy_cls(obs_space, action_space)
+    return policy_cls(obs_space, action_space, {})
 
 
 def test_init(policy_cls, obs_space, action_space):
