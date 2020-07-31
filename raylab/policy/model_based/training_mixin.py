@@ -41,69 +41,11 @@ class DataloaderSpec(DataClassJsonMixin):
     def __post_init__(self):
         assert self.batch_size > 0, "Model batch size must be positive"
 
-
-@dataclass
-class TrainingSpec(DataClassJsonMixin):
-    """Specifications for training the model.
-
-    Attributes:
-        dataloader: specifications for creating the data loader
-        max_epochs: Maximum number of full model passes through the data
-        max_grad_steps: Maximum number of model gradient steps
-        max_time: Maximum time in seconds for training the model. We
-            check this after each epoch (not minibatch)
-        improvement_threshold: Minimum expected relative improvement in model
-            validation loss
-        patience_epochs: Number of epochs to wait for any of the models to
-            improve on the validation dataset before early stopping
-        holdout_ratio: Fraction of replay buffer to use as validation dataset
-        max_holdout: Maximum number of samples to use as validation dataset
-    """
-
-    # pylint:disable=too-many-instance-attributes
-    dataloader: DataloaderSpec = field(default_factory=DataloaderSpec, repr=True)
-    max_epochs: Optional[int] = 120
-    max_grad_steps: Optional[int] = 120
-    max_time: Optional[float] = 20
-    patience_epochs: Optional[int] = 5
-    improvement_threshold: Optional[float] = 0.01
-    holdout_ratio: float = 0.0
-    max_holdout: Optional[int] = None
-
-    def __post_init__(self):
-        assert (
-            not self.max_epochs or self.max_epochs > 0
-        ), "Cannot train model for a negative number of epochs"
-        assert not self.max_grad_steps or self.max_grad_steps > 0
-        assert (
-            not self.max_time or self.max_time > 0
-        ), "Maximum training time must be positive"
-        assert (
-            self.max_epochs
-            or self.max_grad_steps
-            or (self.improvement_threshold is not None and self.patience_epochs)
-        ), "Need at least one stopping criterion"
-        assert (
-            not self.patience_epochs or self.patience_epochs > 0
-        ), "Must wait a positive number of epochs for any model to improve"
-        assert (
-            self.improvement_threshold is None or self.improvement_threshold >= 0
-        ), "Improvement threshold must be nonnegative"
-        assert self.holdout_ratio < 1.0, "Holdout data cannot be the entire dataset"
-        assert (
-            not self.max_holdout or self.max_holdout >= 0
-        ), "Maximum number of holdout samples must be non-negative"
-
-    def epochs(self) -> Iterator[int]:
-        """Returns an iterator over the epoch numbers based on specifications."""
-        return iter(range(self.max_epochs)) if self.max_epochs else itertools.count()
-
-    def terminate_epoch(self, start_time: float, model_steps: int) -> bool:
-        """Returns whether to terminate the epoch based on time and grad steps."""
-        max_time = self.max_time or float("inf")
-        max_grad_steps = self.max_grad_steps or float("inf")
-
-        return time.time() - start_time >= max_time or model_steps >= max_grad_steps
+    def build_dataloader(self, train_tensors: TensorDict) -> DataLoader:
+        """Returns a dataloader for the given tensors based on specifications."""
+        dataset = TensorDictDataset(train_tensors)
+        sampler = RandomSampler(dataset, replacement=self.replacement)
+        return DataLoader(dataset, sampler=sampler, batch_size=self.batch_size)
 
 
 ModelSnapshot = collections.namedtuple("ModelSnapshot", "epoch loss state_dict")
@@ -195,6 +137,108 @@ class Evaluator:
         return losses
 
 
+@dataclass
+class TrainingSpec(DataClassJsonMixin):
+    """Specifications for training the model.
+
+    Attributes:
+        dataloader: specifications for creating the data loader
+        max_epochs: Maximum number of full model passes through the data
+        max_grad_steps: Maximum number of model gradient steps
+        max_time: Maximum time in seconds for training the model. We
+            check this after each epoch (not minibatch)
+        improvement_threshold: Minimum expected relative improvement in model
+            validation loss
+        patience_epochs: Number of epochs to wait for any of the models to
+            improve on the validation dataset before early stopping
+        holdout_ratio: Fraction of replay buffer to use as validation dataset
+        max_holdout: Maximum number of samples to use as validation dataset
+    """
+
+    # pylint:disable=too-many-instance-attributes
+    dataloader: DataloaderSpec = field(default_factory=DataloaderSpec, repr=True)
+    max_epochs: Optional[int] = 120
+    max_grad_steps: Optional[int] = 120
+    max_time: Optional[float] = 20
+    patience_epochs: Optional[int] = 5
+    improvement_threshold: Optional[float] = 0.01
+    holdout_ratio: float = 0.0
+    max_holdout: Optional[int] = None
+
+    def __post_init__(self):
+        assert (
+            not self.max_epochs or self.max_epochs > 0
+        ), "Cannot train model for a negative number of epochs"
+        assert not self.max_grad_steps or self.max_grad_steps > 0
+        assert (
+            not self.max_time or self.max_time > 0
+        ), "Maximum training time must be positive"
+        assert (
+            self.max_epochs
+            or self.max_grad_steps
+            or (self.improvement_threshold is not None and self.patience_epochs)
+        ), "Need at least one stopping criterion"
+        assert (
+            not self.patience_epochs or self.patience_epochs > 0
+        ), "Must wait a positive number of epochs for any model to improve"
+        assert (
+            self.improvement_threshold is None or self.improvement_threshold >= 0
+        ), "Improvement threshold must be nonnegative"
+        assert self.holdout_ratio < 1.0, "Holdout data cannot be the entire dataset"
+        assert (
+            not self.max_holdout or self.max_holdout >= 0
+        ), "Maximum number of holdout samples must be non-negative"
+
+    def epochs(self) -> Iterator[int]:
+        """Returns an iterator over the epoch numbers based on specifications."""
+        return iter(range(self.max_epochs)) if self.max_epochs else itertools.count()
+
+    def terminate_epoch(self, start_time: float, model_steps: int) -> bool:
+        """Returns whether to terminate the epoch based on time and grad steps."""
+        max_time = self.max_time or float("inf")
+        max_grad_steps = self.max_grad_steps or float("inf")
+
+        return time.time() - start_time >= max_time or model_steps >= max_grad_steps
+
+    def train_eval_tensors(
+        self, samples: SampleBatch, batch_keys: List[str], tensor_map_fn: callable
+    ) -> Tuple[TensorDict, Optional[TensorDict]]:
+        """Returns a tensor dict dataset split into training and validation.
+
+        Shuffles the samples before splitting them.
+        """
+        total_count = samples.count
+        holdout = int(total_count * self.holdout_ratio)
+        if self.max_holdout is not None:
+            holdout = min(holdout, self.max_holdout)
+
+        samples.shuffle()
+        train_data, eval_data = samples.slice(holdout, None), samples.slice(0, holdout)
+
+        train_tensors = {k: tensor_map_fn(train_data[k]) for k in batch_keys}
+        if eval_data.count == 0:
+            eval_tensors = None
+        else:
+            eval_tensors = {k: tensor_map_fn(eval_data[k]) for k in batch_keys}
+
+        return train_tensors, eval_tensors
+
+    def build_evaluator(
+        self, models: nn.ModuleList, eval_tensors: Optional[TensorDict], loss_fn: Loss
+    ) -> Optional[Evaluator]:
+        """Returns a model evaluator based on internal specifications."""
+        if not (eval_tensors and self.improvement_threshold is not None):
+            return None
+
+        return Evaluator(
+            models=models,
+            loss_fn=loss_fn,
+            eval_tensors=eval_tensors,
+            improvement_threshold=self.improvement_threshold,
+            patience_epochs=self.patience_epochs,
+        )
+
+
 class ModelTrainingMixin(ABC):
     """Adds model training behavior to a TorchPolicy class.
 
@@ -266,8 +310,8 @@ class ModelTrainingMixin(ABC):
         loss_fn = self.model_warmup_loss if warmup else self.model_training_loss
         spec = self.model_warmup_spec if warmup else self.model_training_spec
 
-        train_tensors, eval_tensors = self._train_eval_tensors(
-            samples, loss_fn.batch_keys, spec
+        train_tensors, eval_tensors = spec.train_eval_tensors(
+            samples, loss_fn.batch_keys, self.convert_to_tensor
         )
         # Fit scalers for each model here
         for model in self.module.models:
@@ -275,8 +319,8 @@ class ModelTrainingMixin(ABC):
                 train_tensors[SampleBatch.CUR_OBS], train_tensors[SampleBatch.ACTIONS]
             )
 
-        dataloader = self._build_dataloader(train_tensors, spec=spec)
-        evaluator = self._setup_evaluator(eval_tensors, loss_fn=loss_fn, spec=spec)
+        dataloader = spec.dataloader.build_dataloader(train_tensors)
+        evaluator = spec.build_evaluator(self.module.models, eval_tensors, loss_fn)
 
         info = self._train_model_epochs(
             dataloader, loss_fn=loss_fn, spec=spec, evaluator=evaluator
@@ -285,53 +329,13 @@ class ModelTrainingMixin(ABC):
         if evaluator:
             eval_losses = evaluator.restore_models()
             info.update(
-                {f"eval_loss(models[{i}])": l for i, l in enumerate(eval_losses)}
+                {f"eval/loss(models[{i}])": l for i, l in enumerate(eval_losses)}
             )
         else:
             eval_losses = [np.nan for _ in self.module.models]
 
         info.update(self.model_grad_info())
         return eval_losses, info
-
-    def _train_eval_tensors(
-        self, samples: SampleBatch, batch_keys: List[str], spec: TrainingSpec
-    ) -> Tuple[TensorDict, Optional[TensorDict]]:
-        total_count = samples.count
-        holdout = int(total_count * spec.holdout_ratio)
-        if spec.max_holdout is not None:
-            holdout = min(holdout, spec.max_holdout)
-
-        samples.shuffle()
-        train_data, eval_data = samples.slice(holdout, None), samples.slice(0, holdout)
-
-        train_tensors = {k: self.convert_to_tensor(train_data[k]) for k in batch_keys}
-        if eval_data.count == 0:
-            eval_tensors = None
-        else:
-            eval_tensors = {k: self.convert_to_tensor(eval_data[k]) for k in batch_keys}
-
-        return train_tensors, eval_tensors
-
-    @staticmethod
-    def _build_dataloader(train_tensors: TensorDict, spec: TrainingSpec) -> DataLoader:
-        spec = spec.dataloader
-        dataset = TensorDictDataset(train_tensors)
-        sampler = RandomSampler(dataset, replacement=spec.replacement)
-        return DataLoader(dataset, sampler=sampler, batch_size=spec.batch_size)
-
-    def _setup_evaluator(
-        self, eval_tensors: Optional[TensorDict], loss_fn: Loss, spec: TrainingSpec
-    ) -> Optional[Evaluator]:
-        if not (eval_tensors and spec.improvement_threshold is not None):
-            return None
-
-        return Evaluator(
-            models=self.module.models,
-            loss_fn=loss_fn,
-            eval_tensors=eval_tensors,
-            improvement_threshold=spec.improvement_threshold,
-            patience_epochs=spec.patience_epochs,
-        )
 
     def _train_model_epochs(
         self,
