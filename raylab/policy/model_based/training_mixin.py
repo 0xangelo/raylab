@@ -94,6 +94,17 @@ class TrainingSpec(DataClassJsonMixin):
             not self.max_holdout or self.max_holdout >= 0
         ), "Maximum number of holdout samples must be non-negative"
 
+    def epochs(self) -> Iterator[int]:
+        """Returns an iterator over the epoch numbers based on specifications."""
+        return iter(range(self.max_epochs)) if self.max_epochs else itertools.count()
+
+    def terminate_epoch(self, start_time: float, model_steps: int) -> bool:
+        """Returns whether to terminate the epoch based on time and grad steps."""
+        max_time = self.max_time or float("inf")
+        max_grad_steps = self.max_grad_steps or float("inf")
+
+        return time.time() - start_time >= max_time or model_steps >= max_grad_steps
+
 
 ModelSnapshot = collections.namedtuple("ModelSnapshot", "epoch loss state_dict")
 
@@ -334,7 +345,7 @@ class ModelTrainingMixin(ABC):
         start = time.time()
         early_stop = False
         epoch = -1
-        for epoch in self._model_epochs(spec):
+        for epoch in spec.epochs():
             for minibatch in dataloader:
                 with self.optimizers.optimize("models"):
                     losses, train_info = loss_fn(minibatch)
@@ -349,24 +360,11 @@ class ModelTrainingMixin(ABC):
                 early_stop, eval_info = evaluator.validate(epoch)
                 info.update(eval_info)
 
-            if early_stop or self._terminate_epoch(start, grad_steps, spec):
+            if early_stop or spec.terminate_epoch(start, grad_steps):
                 break
 
         info["model_epochs"] = epoch + 1
         return info
-
-    @staticmethod
-    def _model_epochs(spec: TrainingSpec) -> Iterator[int]:
-        return iter(range(spec.max_epochs)) if spec.max_epochs else itertools.count()
-
-    @staticmethod
-    def _terminate_epoch(
-        start_time: float, model_steps: int, spec: TrainingSpec,
-    ) -> bool:
-        max_time = spec.max_time or float("inf")
-        max_grad_steps = spec.max_grad_steps or float("inf")
-
-        return time.time() - start_time >= max_time or model_steps >= max_grad_steps
 
     @torch.no_grad()
     def model_grad_info(self) -> StatDict:
