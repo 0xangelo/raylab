@@ -1,11 +1,12 @@
 """Network and configurations for modules with stochastic model ensembles."""
-from typing import Dict
 from typing import List
 from typing import Tuple
 
 import torch
 import torch.nn as nn
 from torch import Tensor
+
+from raylab.utils.annotations import TensorDict
 
 from .single import StochasticModel
 
@@ -26,7 +27,7 @@ class StochasticModelEnsemble(nn.ModuleList):
         ), f"All modules in {cls_name} must be instances of StochasticModel."
         super().__init__(models)
 
-    def forward(self, obs: Tensor, action: Tensor) -> Dict[str, Tensor]:
+    def forward(self, obs: Tensor, action: Tensor) -> TensorDict:
         # pylint:disable=arguments-differ
         outputs = [m(obs[i], action[i]) for i, m in enumerate(self)]
         dist_params = {}
@@ -102,7 +103,7 @@ class StochasticModelEnsemble(nn.ModuleList):
 
     @torch.jit.export
     def dist_sample(
-        self, dist_params: Dict[str, Tensor], sample_shape: List[int] = ()
+        self, dist_params: TensorDict, sample_shape: List[int] = ()
     ) -> Tuple[Tensor, Tensor]:
         outputs: List[Tuple[Tensor, Tensor]] = []
         for idx, mod in enumerate(self):
@@ -117,7 +118,7 @@ class StochasticModelEnsemble(nn.ModuleList):
 
     @torch.jit.export
     def dist_rsample(
-        self, dist_params: Dict[str, Tensor], sample_shape: List[int] = ()
+        self, dist_params: TensorDict, sample_shape: List[int] = ()
     ) -> Tuple[Tensor, Tensor]:
         outputs: List[Tuple[Tensor, Tensor]] = []
         for idx, mod in enumerate(self):
@@ -131,7 +132,7 @@ class StochasticModelEnsemble(nn.ModuleList):
         return sample, logp
 
     @torch.jit.export
-    def dist_log_prob(self, next_obs: Tensor, dist_params: Dict[str, Tensor]) -> Tensor:
+    def dist_log_prob(self, next_obs: Tensor, dist_params: TensorDict) -> Tensor:
         outputs: List[Tensor] = []
         for idx, mod in enumerate(self):
             params = {}
@@ -147,7 +148,7 @@ class ForkedStochasticModelEnsemble(StochasticModelEnsemble):
 
     # pylint:disable=abstract-method,protected-access
 
-    def forward(self, obs: Tensor, action: Tensor) -> Dict[str, Tensor]:
+    def forward(self, obs: Tensor, action: Tensor) -> TensorDict:
         futures = [torch.jit._fork(m, obs[i], action[i]) for i, m in enumerate(self)]
         outputs = [torch.jit._wait(f) for f in futures]
         dist_params = {}
@@ -189,9 +190,9 @@ class ForkedStochasticModelEnsemble(StochasticModelEnsemble):
 
     @torch.jit.export
     def dist_sample(
-        self, dist_params: Dict[str, Tensor], sample_shape: List[int] = ()
+        self, dist_params: TensorDict, sample_shape: List[int] = ()
     ) -> Tuple[Tensor, Tensor]:
-        params: List[Dict[str, Tensor]] = []
+        params: List[TensorDict] = []
         for idx, mod in enumerate(self):
             params.append({})
             for key in dist_params:
@@ -208,9 +209,9 @@ class ForkedStochasticModelEnsemble(StochasticModelEnsemble):
 
     @torch.jit.export
     def dist_rsample(
-        self, dist_params: Dict[str, Tensor], sample_shape: List[int] = ()
+        self, dist_params: TensorDict, sample_shape: List[int] = ()
     ) -> Tuple[Tensor, Tensor]:
-        params: List[Dict[str, Tensor]] = []
+        params: List[TensorDict] = []
         for idx, mod in enumerate(self):
             params.append({})
             for key in dist_params:
@@ -226,8 +227,8 @@ class ForkedStochasticModelEnsemble(StochasticModelEnsemble):
         return sample, logp
 
     @torch.jit.export
-    def dist_log_prob(self, next_obs: Tensor, dist_params: Dict[str, Tensor]) -> Tensor:
-        params: List[Dict[str, Tensor]] = []
+    def dist_log_prob(self, next_obs: Tensor, dist_params: TensorDict) -> Tensor:
+        params: List[TensorDict] = []
         for idx, mod in enumerate(self):
             params.append({})
             for key in dist_params:
