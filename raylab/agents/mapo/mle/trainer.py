@@ -20,7 +20,7 @@ from .policy import MlMAPOTorchPolicy
     """,
 )
 @trainer.option(
-    "dyna_q",
+    "losses/dyna_q",
     default=False,
     help="Whether to use the model to sample next state for CDQ-Learning.",
 )
