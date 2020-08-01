@@ -20,6 +20,11 @@ from .policy import MlMAPOTorchPolicy
     """,
 )
 @trainer.option(
+    "dyna_q",
+    default=False,
+    help="Whether to use the model to sample next state for CDQ-Learning.",
+)
+@trainer.option(
     "losses/model_samples",
     default=1,
     help="Number of next states to sample from the model when calculating the"
