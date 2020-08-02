@@ -5,24 +5,32 @@ from typing import Tuple
 import torch
 import torch.nn as nn
 from torch import Tensor
+from torch.jit import _fork as fork
+from torch.jit import _wait as wait
 
 from raylab.utils.annotations import TensorDict
 
 from .single import StochasticModel
 
+SampleLogp = Tuple[Tensor, Tensor]
+
 
 class SME(nn.ModuleList):
     """Stochastic Model Ensemble.
 
-    A static NN module list of stochastic dynamics models. Implements the
-    StochasticModel API by stacking outputs along a new 'ensemble' dimension
-    (at position 0).
+    A static NN module list of `N` stochastic dynamics models. Implements the
+    StochasticModel API but returns python lists of `N` outputs, one for each
+    model in the ensemble.
+
+    Assumes inputs are lists of the same length as the model ensemble.
+    Applies each model in the ensemble to one of the inputs in the list.
 
     Args:
         models: List of StochasticModel modules
-    """
 
-    # pylint:disable=abstract-method
+    Notes:
+        `O` is the observation shape and `A` is the action shape.
+    """
 
     def __init__(self, models: List[StochasticModel]):
         cls_name = type(self).__name__
@@ -31,215 +39,106 @@ class SME(nn.ModuleList):
         ), f"All modules in {cls_name} must be instances of StochasticModel."
         super().__init__(models)
 
-    def forward(self, obs: Tensor, action: Tensor) -> TensorDict:
+    def forward(self, obs: List[Tensor], act: List[Tensor]) -> List[TensorDict]:
         # pylint:disable=arguments-differ
-        outputs = [m(obs[i], action[i]) for i, m in enumerate(self)]
-        dist_params = {}
-        for k in outputs[0]:
-            dist_params[k] = torch.stack([o[k] for o in outputs])
-        return dist_params
+        return [m(obs[i], act[i]) for i, m in enumerate(self)]
 
     @torch.jit.export
-    def sample(
-        self, obs: Tensor, action: Tensor, sample_shape: List[int] = ()
-    ) -> Tuple[Tensor, Tensor]:
+    def sample(self, obs: List[Tensor], act: List[Tensor]) -> List[SampleLogp]:
         """Compute samples and likelihoods for each model in the ensemble.
 
-        Splits inputs by the first dimension in `N` chunks, where `N` is the
-        ensemble size. Then, applies each model in the ensemble to one of the
-        slices.
-
-        `O` is the observation shape and `A` is the action shape.
-
         Args:
-            obs: Observation tensor of shape `(N, *) + O`
-            action: Action tensor of shape `(N, *) + A`
-            sample_shape: Shape to append to the samples of each model in the
-                ensemble. Samples from all the models are then concatenated.
+            obs: List of `N` observation tensors of shape `(*,) + O`
+            action: List of `N` action tensors of shape `(*,) + A`
+            sample_shape: Sample shape argument for each model in the ensemble
 
         Returns:
-           Sample and log-likelihood tensors of shape `(N,) + S + (*,) + O` and
-           `(N,) + S + (*,)` respectively, where `S` is the `sample_shape`.
+           List of `N` tuples of sample and log-likelihood tensors of shape
+           `S + (*,) + O` and `S + (*,)` respectively, where `S` is the
+           `sample_shape`.
         """
-        outputs = [
-            m.sample(obs[i], action[i], sample_shape) for i, m in enumerate(self)
-        ]
-        sample = torch.stack([s for s, _ in outputs])
-        logp = torch.stack([p for _, p in outputs])
-        return sample, logp
+        return [m.sample(obs[i], act[i]) for i, m in enumerate(self)]
 
     @torch.jit.export
-    def rsample(
-        self, obs, action, sample_shape: List[int] = ()
-    ) -> Tuple[Tensor, Tensor]:
+    def rsample(self, obs: List[Tensor], act: List[Tensor]) -> List[SampleLogp]:
         """Compute reparameterized samples and likelihoods for each model.
 
         Uses the same semantics as :meth:`SME.sample`.
         """
-        outputs = [
-            m.rsample(obs[i], action[i], sample_shape) for i, m in enumerate(self)
-        ]
-        sample = torch.stack([s for s, _ in outputs])
-        logp = torch.stack([p for _, p in outputs])
-        return sample, logp
+        return [m.rsample(obs[i], act[i]) for i, m in enumerate(self)]
 
     @torch.jit.export
-    def log_prob(self, obs, action, next_obs) -> Tensor:
+    def log_prob(
+        self, obs: List[Tensor], act: List[Tensor], new_obs: List[Tensor]
+    ) -> List[Tensor]:
         """Compute likelihoods for each model in the ensemble.
 
-        Splits inputs by the first dimension in `N` chunks, where `N` is the
-        ensemble size. Then, applies each model in the ensemble to one of the
-        slices.
-
         Args:
-            obs: Observation tensor of shape `(N, *) + O`
-            action: Action tensor of shape `(N, *) + A`
-            next_obs: Observation tensor of shape `(N, *) + O`
+            obs: List of `N` observation tensors of shape `(*,) + O`
+            action: List of `N` action tensors of shape `(*,) + A`
+            new_obs: List of `N` observation tensors of shape `(*,) + O`
 
         Returns:
-           Log-likelihood tensor of shape `(N, *)`
+           List of `N` log-likelihood tensors of shape `(*,)`
         """
-        return torch.stack(
-            [m.log_prob(obs[i], action[i], next_obs[i]) for i, m in enumerate(self)]
-        )
+        return [m.log_prob(obs[i], act[i], new_obs[i]) for i, m in enumerate(self)]
 
     # pylint:disable=missing-function-docstring
 
     @torch.jit.export
-    def dist_sample(
-        self, dist_params: TensorDict, sample_shape: List[int] = ()
-    ) -> Tuple[Tensor, Tensor]:
-        outputs: List[Tuple[Tensor, Tensor]] = []
-        for idx, mod in enumerate(self):
-            params = {}
-            for key in dist_params:
-                params[key] = dist_params[key][idx]
-            outputs.append(mod.dist.sample(params, sample_shape))
-
-        sample = torch.stack([s for s, _ in outputs])
-        logp = torch.stack([p for _, p in outputs])
-        return sample, logp
+    def sample_from_params(self, dist_params: List[TensorDict]) -> List[SampleLogp]:
+        return [m.dist.sample(dist_params[i]) for i, m in enumerate(self)]
 
     @torch.jit.export
-    def dist_rsample(
-        self, dist_params: TensorDict, sample_shape: List[int] = ()
-    ) -> Tuple[Tensor, Tensor]:
-        outputs: List[Tuple[Tensor, Tensor]] = []
-        for idx, mod in enumerate(self):
-            params = {}
-            for key in dist_params:
-                params[key] = dist_params[key][idx]
-            outputs.append(mod.dist.rsample(params, sample_shape))
-
-        sample = torch.stack([s for s, _ in outputs])
-        logp = torch.stack([p for _, p in outputs])
-        return sample, logp
+    def rsample_from_params(self, dist_params: List[TensorDict]) -> List[SampleLogp]:
+        return [m.dist.rsample(dist_params[i]) for i, m in enumerate(self)]
 
     @torch.jit.export
-    def dist_log_prob(self, next_obs: Tensor, dist_params: TensorDict) -> Tensor:
-        outputs: List[Tensor] = []
-        for idx, mod in enumerate(self):
-            params = {}
-            for key in dist_params:
-                params[key] = dist_params[key][idx]
-            outputs.append(mod.dist.log_prob(next_obs[idx], params))
-
-        return torch.stack(outputs)
+    def log_prob_from_params(
+        self, obs: List[Tensor], params: List[TensorDict]
+    ) -> List[Tensor]:
+        return [m.dist.log_prob(obs[i], params[i]) for i, m in enumerate(self)]
 
 
 class ForkedSME(SME):
-    """Ensemble of stochastic models with parallelized methods."""
+    """Stochastic Model Ensemble with parallelized methods."""
 
-    # pylint:disable=abstract-method,protected-access
-
-    def forward(self, obs: Tensor, action: Tensor) -> TensorDict:
-        futures = [torch.jit._fork(m, obs[i], action[i]) for i, m in enumerate(self)]
-        outputs = [torch.jit._wait(f) for f in futures]
-        dist_params = {}
-        for k in outputs[0]:
-            dist_params[k] = torch.stack([o[k] for o in outputs])
-        return dist_params
+    def forward(self, obs: List[Tensor], act: List[Tensor]) -> List[TensorDict]:
+        futures = [fork(m, obs[i], act[i]) for i, m in enumerate(self)]
+        return [wait(f) for f in futures]
 
     @torch.jit.export
-    def sample(self, obs, action, sample_shape: List[int] = ()):
-        futures = [
-            torch.jit._fork(m.sample, obs[i], action[i], sample_shape)
-            for i, m in enumerate(self)
-        ]
-        outputs = [torch.jit._wait(f) for f in futures]
-        sample = torch.stack([s for s, _ in outputs])
-        logp = torch.stack([p for _, p in outputs])
-        return sample, logp
+    def sample(self, obs: List[Tensor], act: List[Tensor]) -> List[SampleLogp]:
+        futures = [fork(m.sample, obs[i], act[i]) for i, m in enumerate(self)]
+        return [wait(f) for f in futures]
 
     @torch.jit.export
-    def rsample(self, obs, action, sample_shape: List[int] = ()):
-        futures = [
-            torch.jit._fork(m.rsample, obs[i], action[i], sample_shape)
-            for i, m in enumerate(self)
-        ]
-        outputs = [torch.jit._wait(f) for f in futures]
-        sample = torch.stack([s for s, _ in outputs])
-        logp = torch.stack([p for _, p in outputs])
-        return sample, logp
+    def rsample(self, obs: List[Tensor], act: List[Tensor]) -> List[SampleLogp]:
+        futures = [fork(m.rsample, obs[i], act[i]) for i, m in enumerate(self)]
+        return [wait(f) for f in futures]
 
     @torch.jit.export
-    def log_prob(self, obs, action, next_obs):
+    def log_prob(
+        self, obs: List[Tensor], act: List[Tensor], new_obs: List[Tensor]
+    ) -> List[Tensor]:
         futures = [
-            torch.jit._fork(m.log_prob, obs[i], action[i], next_obs[i])
-            for i, m in enumerate(self)
+            fork(m.log_prob, obs[i], act[i], new_obs[i]) for i, m in enumerate(self)
         ]
-        return torch.stack([torch.jit._wait(f) for f in futures])
-
-    # pylint:disable=unused-variable
+        return [wait(f) for f in futures]
 
     @torch.jit.export
-    def dist_sample(
-        self, dist_params: TensorDict, sample_shape: List[int] = ()
-    ) -> Tuple[Tensor, Tensor]:
-        params: List[TensorDict] = []
-        for idx, mod in enumerate(self):
-            params.append({})
-            for key in dist_params:
-                params[idx][key] = dist_params[key][idx]
-
-        futures = [
-            torch.jit._fork(m.dist.sample, params[i], sample_shape)
-            for i, m in enumerate(self)
-        ]
-        outputs = [torch.jit._wait(f) for f in futures]
-        sample = torch.stack([s for s, _ in outputs])
-        logp = torch.stack([p for _, p in outputs])
-        return sample, logp
+    def sample_from_params(self, dist_params: List[TensorDict]) -> List[SampleLogp]:
+        futures = [fork(m.dist.sample, dist_params[i]) for i, m in enumerate(self)]
+        return [wait(f) for f in futures]
 
     @torch.jit.export
-    def dist_rsample(
-        self, dist_params: TensorDict, sample_shape: List[int] = ()
-    ) -> Tuple[Tensor, Tensor]:
-        params: List[TensorDict] = []
-        for idx, mod in enumerate(self):
-            params.append({})
-            for key in dist_params:
-                params[idx][key] = dist_params[key][idx]
-
-        futures = [
-            torch.jit._fork(m.dist.rsample, params[i], sample_shape)
-            for i, m in enumerate(self)
-        ]
-        outputs = [torch.jit._wait(f) for f in futures]
-        sample = torch.stack([s for s, _ in outputs])
-        logp = torch.stack([p for _, p in outputs])
-        return sample, logp
+    def rsample_from_params(self, dist_params: List[TensorDict]) -> List[SampleLogp]:
+        futures = [fork(m.dist.rsample, dist_params[i]) for i, m in enumerate(self)]
+        return [wait(f) for f in futures]
 
     @torch.jit.export
-    def dist_log_prob(self, next_obs: Tensor, dist_params: TensorDict) -> Tensor:
-        params: List[TensorDict] = []
-        for idx, mod in enumerate(self):
-            params.append({})
-            for key in dist_params:
-                params[idx][key] = dist_params[key][idx]
-
-        futures = [
-            torch.jit._fork(m.dist.log_prob, next_obs[i], params[i])
-            for i, m in enumerate(self)
-        ]
-        return torch.stack([torch.jit._wait(f) for f in futures])
+    def log_prob_from_params(
+        self, obs: List[Tensor], params: List[TensorDict]
+    ) -> List[Tensor]:
+        futures = [fork(m.dist.log_prob, obs[i], params[i]) for i, m in enumerate(self)]
+        return [wait(f) for f in futures]
