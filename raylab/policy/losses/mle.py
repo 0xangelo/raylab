@@ -1,4 +1,5 @@
 """Loss functions for Maximum Likelihood Estimation."""
+from typing import List
 from typing import Tuple
 
 import torch
@@ -40,7 +41,7 @@ class MaximumLikelihood(Loss):
         obs, actions, next_obs = get_keys(batch, *self.batch_keys)
 
         dist_params = self.model(obs, actions)
-        loss = -self.model.dist.log_prob(next_obs, dist_params).mean()
+        loss = -torch.stackself.model.dist.log_prob(next_obs, dist_params).mean()
         if "max_logvar" in dist_params and "min_logvar" in dist_params:
             loss += 0.01 * dist_params["max_logvar"].sum()
             loss += -0.01 * dist_params["min_logvar"].sum()
@@ -59,6 +60,7 @@ class ModelEnsembleMLE(Loss):
 
     def __init__(self, models: SME):
         self.models = models
+        self.tag = "MLE"
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         """Compute Maximum Likelihood Estimation (MLE) loss for each model.
@@ -72,15 +74,21 @@ class ModelEnsembleMLE(Loss):
         )
 
         dist_params = self.models(obs, actions)
-        loss = -self.models.dist_log_prob(next_obs, dist_params).mean(dim=-1)
-        if "max_logvar" in dist_params and "min_logvar" in dist_params:
-            loss += 0.01 * dist_params["max_logvar"].sum()
-            loss += -0.01 * dist_params["min_logvar"].sum()
+        losses = [
+            -logp.mean()
+            for logp in self.models.log_prob_from_params(next_obs, dist_params)
+        ]
+        losses_reg = [
+            nll + 0.01 * p["max_logvar"].sum() - 0.01 * p["min_logvar"].sum()
+            if "max_logvar" in p and "min_logvar" in p
+            else nll
+            for nll, p in zip(losses, dist_params)
+        ]
 
-        info = {f"loss(models[{i}])": s for i, s in enumerate(loss.tolist())}
-        return loss, info
+        info = {f"{self.tag}(models[{i}])": n.item() for i, n in enumerate(losses_reg)}
+        return torch.stack(losses_reg), info
 
-    def expand_foreach_model(self, tensor: Tensor) -> Tensor:
+    def expand_foreach_model(self, tensor: Tensor) -> List[Tensor]:
         """Add first dimension to tensor with the size of the model ensemble.
 
         Args:
@@ -89,7 +97,7 @@ class ModelEnsembleMLE(Loss):
         Returns:
             Tensor `tensor` expanded to shape `(N,) + S`
         """
-        return tensor.expand((len(self.models),) + tensor.shape)
+        return [tensor.clone() for _ in range(len(self.models))]
 
     def compile(self):
         self.models = torch.jit.script(self.models)

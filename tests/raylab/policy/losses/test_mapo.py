@@ -47,7 +47,7 @@ def test_mapo_call(mapo, batch, models, obs, act):
     assert "loss(actor)" in info
     assert "entropy" in info
 
-    dist_params = models(obs, act)
+    dist_params = models[0](obs, act)
     assert all(["model_mean_" + k in info for k in dist_params])
 
 
