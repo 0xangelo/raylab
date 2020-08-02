@@ -9,7 +9,7 @@ from torch.autograd import grad
 
 from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 from raylab.policy.modules.critic.q_value import QValueEnsemble
-from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+from raylab.policy.modules.model.stochastic.ensemble import SME
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -54,10 +54,7 @@ class SPAML(EnvFunctionsMixin, Loss):
     lambda_: float = 0.05
 
     def __init__(
-        self,
-        models: StochasticModelEnsemble,
-        actor: StochasticPolicy,
-        critics: QValueEnsemble,
+        self, models: SME, actor: StochasticPolicy, critics: QValueEnsemble,
     ):
         super().__init__()
         modules = nn.ModuleDict()

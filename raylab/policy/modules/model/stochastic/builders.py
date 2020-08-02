@@ -5,8 +5,8 @@ from dataclasses import field
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
 
-from .ensemble import ForkedStochasticModelEnsemble
-from .ensemble import StochasticModelEnsemble
+from .ensemble import ForkedSME
+from .ensemble import SME
 from .single import MLPModel
 from .single import ResidualMLPModel
 
@@ -68,9 +68,7 @@ class EnsembleSpec(Spec):
     parallelize: bool = False
 
 
-def build_ensemble(
-    obs_space: Box, action_space: Box, spec: EnsembleSpec
-) -> StochasticModelEnsemble:
+def build_ensemble(obs_space: Box, action_space: Box, spec: EnsembleSpec) -> SME:
     """Construct stochastic dynamics model ensemble.
 
     Args:
@@ -82,6 +80,6 @@ def build_ensemble(
         A stochastic dynamics model ensemble
     """
     models = [build(obs_space, action_space, spec) for _ in range(spec.ensemble_size)]
-    cls = ForkedStochasticModelEnsemble if spec.parallelize else StochasticModelEnsemble
+    cls = ForkedSME if spec.parallelize else SME
     ensemble = cls(models)
     return ensemble

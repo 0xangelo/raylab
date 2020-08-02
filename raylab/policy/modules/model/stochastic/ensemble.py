@@ -11,8 +11,12 @@ from raylab.utils.annotations import TensorDict
 from .single import StochasticModel
 
 
-class StochasticModelEnsemble(nn.ModuleList):
-    """A static list of stochastic dynamics models.
+class SME(nn.ModuleList):
+    """Stochastic Model Ensemble.
+
+    A static NN module list of stochastic dynamics models. Implements the
+    StochasticModel API by stacking outputs along a new 'ensemble' dimension
+    (at position 0).
 
     Args:
         models: List of StochasticModel modules
@@ -70,7 +74,7 @@ class StochasticModelEnsemble(nn.ModuleList):
     ) -> Tuple[Tensor, Tensor]:
         """Compute reparameterized samples and likelihoods for each model.
 
-        Uses the same semantics as :meth:`StochasticModelEnsemble.sample`.
+        Uses the same semantics as :meth:`SME.sample`.
         """
         outputs = [
             m.rsample(obs[i], action[i], sample_shape) for i, m in enumerate(self)
@@ -143,7 +147,7 @@ class StochasticModelEnsemble(nn.ModuleList):
         return torch.stack(outputs)
 
 
-class ForkedStochasticModelEnsemble(StochasticModelEnsemble):
+class ForkedSME(SME):
     """Ensemble of stochastic models with parallelized methods."""
 
     # pylint:disable=abstract-method,protected-access

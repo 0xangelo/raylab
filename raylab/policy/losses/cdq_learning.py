@@ -16,7 +16,7 @@ from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 from raylab.policy.modules.critic.q_value import QValue
 from raylab.policy.modules.critic.v_value import PolicyQValue
 from raylab.policy.modules.critic.v_value import VValue
-from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+from raylab.policy.modules.model.stochastic.ensemble import SME
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -164,7 +164,7 @@ class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLear
     def __init__(
         self,
         critics: QValue,
-        models: StochasticModelEnsemble,
+        models: SME,
         target_critics: QValue,
         actor: StochasticPolicy,
     ):

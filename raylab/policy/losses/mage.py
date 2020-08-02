@@ -10,7 +10,7 @@ from torch import Tensor
 
 from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
 from raylab.policy.modules.critic.q_value import QValueEnsemble
-from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+from raylab.policy.modules.model.stochastic.ensemble import SME
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -36,7 +36,7 @@ class MAGEModules:
     target_critics: QValueEnsemble
     policy: DeterministicPolicy
     target_policy: DeterministicPolicy
-    models: StochasticModelEnsemble
+    models: SME
 
 
 class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
@@ -83,7 +83,7 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         return 1
 
     @property
-    def _models(self) -> StochasticModelEnsemble:
+    def _models(self) -> SME:
         return self._modules["models"]
 
     def compile(self):

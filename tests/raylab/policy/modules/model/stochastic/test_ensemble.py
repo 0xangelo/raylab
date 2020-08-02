@@ -4,12 +4,10 @@ import torch
 
 @pytest.fixture(scope="module", params=(True, False), ids=lambda x: f"Forked({x})")
 def module_cls(request):
-    from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
-    from raylab.policy.modules.model.stochastic.ensemble import (
-        ForkedStochasticModelEnsemble,
-    )
+    from raylab.policy.modules.model.stochastic.ensemble import SME
+    from raylab.policy.modules.model.stochastic.ensemble import ForkedSME
 
-    return ForkedStochasticModelEnsemble if request.param else StochasticModelEnsemble
+    return ForkedSME if request.param else SME
 
 
 @pytest.fixture(params=(1, 4), ids=lambda x: f"Ensemble({x})")

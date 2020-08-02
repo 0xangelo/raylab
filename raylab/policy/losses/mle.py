@@ -5,7 +5,7 @@ import torch
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+from raylab.policy.modules.model.stochastic.ensemble import SME
 from raylab.policy.modules.model.stochastic.single import StochasticModel
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
@@ -57,7 +57,7 @@ class ModelEnsembleMLE(Loss):
 
     batch_keys: Tuple[str, str, str] = MaximumLikelihood.batch_keys
 
-    def __init__(self, models: StochasticModelEnsemble):
+    def __init__(self, models: SME):
         self.models = models
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
