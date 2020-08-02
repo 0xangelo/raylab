@@ -19,8 +19,6 @@ class Spec(DataClassJsonMixin):
 
     Args:
         network: Specifications for stochastic model network
-        input_dependent_scale: Whether to parameterize the Gaussian standard
-            deviation as a function of the state and action
         residual: Whether to build model as a residual one, i.e., that
             predicts the change in state rather than the next state itself
         initializer: Optional dictionary with mandatory `type` key corresponding
@@ -29,7 +27,6 @@ class Spec(DataClassJsonMixin):
     """
 
     network: ModelSpec = field(default_factory=ModelSpec)
-    input_dependent_scale: bool = True
     residual: bool = True
     initializer: dict = field(default_factory=dict)
 
@@ -46,7 +43,7 @@ def build(obs_space: Box, action_space: Box, spec: Spec) -> MLPModel:
         A stochastic dynamics model
     """
     cls = ResidualMLPModel if spec.residual else MLPModel
-    model = cls(obs_space, action_space, spec.network, spec.input_dependent_scale)
+    model = cls(obs_space, action_space, spec.network)
     model.initialize_parameters(spec.initializer)
     return model
 
@@ -57,8 +54,6 @@ class EnsembleSpec(Spec):
 
     Args:
         network: Specifications for stochastic model networks
-        input_dependent_scale: Whether to parameterize the Gaussian standard
-            deviation as a function of the state and action
         residual: Whether to build each model as a residual one, i.e., that
             predicts the change in state rather than the next state itself
         initializer: Optional dictionary with mandatory `type` key corresponding

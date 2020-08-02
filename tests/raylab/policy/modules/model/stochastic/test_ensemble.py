@@ -29,10 +29,9 @@ def expand_foreach_model(ensemble_size):
 def build_single(obs_space, action_space):
     from raylab.policy.modules.model.stochastic.single import MLPModel
 
-    spec = MLPModel.spec_cls(standard_scaler=True)
-    input_dependent_scale = True
+    spec = MLPModel.spec_cls(standard_scaler=True, input_dependent_scale=True)
 
-    return lambda: MLPModel(obs_space, action_space, spec, input_dependent_scale)
+    return lambda: MLPModel(obs_space, action_space, spec)
 
 
 @pytest.fixture

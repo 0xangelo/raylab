@@ -19,19 +19,21 @@ def standard_scaler(request):
     return request.param
 
 
-@pytest.fixture
-def spec(module_cls, standard_scaler):
-    return module_cls.spec_cls(standard_scaler=standard_scaler)
-
-
 @pytest.fixture(params=(True, False), ids=lambda x: f"InputDependentScale({x})")
 def input_dependent_scale(request):
     return request.param
 
 
 @pytest.fixture
-def module(module_cls, obs_space, action_space, spec, input_dependent_scale):
-    return module_cls(obs_space, action_space, spec, input_dependent_scale)
+def spec(module_cls, standard_scaler, input_dependent_scale):
+    return module_cls.spec_cls(
+        standard_scaler=standard_scaler, input_dependent_scale=input_dependent_scale
+    )
+
+
+@pytest.fixture
+def module(module_cls, obs_space, action_space, spec):
+    return module_cls(obs_space, action_space, spec)
 
 
 def test_init(module):
