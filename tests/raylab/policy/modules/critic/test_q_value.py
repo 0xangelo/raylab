@@ -30,3 +30,9 @@ def test_forward(q_value_ensemble, obs, action, n_critics):
     assert torch.is_tensor(clipped)
     assert clipped.dtype == torch.float32
     assert clipped.shape == (len(obs),)
+
+
+def test_script_backprop(q_value_ensemble, obs, action):
+    critics = torch.jit.script(q_value_ensemble)
+    values, _ = critics(obs, action).min(dim=-1)
+    values.mean().backward()
