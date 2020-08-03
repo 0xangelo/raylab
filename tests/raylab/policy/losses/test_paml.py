@@ -57,10 +57,6 @@ def test_call(loss_fn, batch, n_models):
 
 def test_compile(loss_fn, batch):
     loss_fn.compile()
-    assert all(
-        isinstance(loss_fn._modules[k], torch.jit.ScriptModule)
-        for k in "models critics".split()
-    )
     loss_fn(batch)
 
 
