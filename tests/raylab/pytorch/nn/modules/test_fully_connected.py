@@ -150,6 +150,7 @@ def script_sae(obs_dim, act_dim, delay_action, layer_norm):
     )
 
 
+@pytest.mark.skip(reason="https://github.com/pytorch/pytorch/issues/42459")
 def test_script_sae_ograd(script_sae, obs, act):
     print(script_sae.code)
     print(script_sae.obs_module)
@@ -165,6 +166,7 @@ def test_script_sae_ograd(script_sae, obs, act):
     assert obs.grad is not None
 
 
+@pytest.mark.skip(reason="https://github.com/pytorch/pytorch/issues/42459")
 def test_script_sae_agrad(script_sae, obs, act):
     act = act.clone().requires_grad_(True)
 
