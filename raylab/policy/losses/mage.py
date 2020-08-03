@@ -115,16 +115,17 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         self, obs: Tensor, action: Tensor, next_obs: Tensor,
     ) -> Tensor:
         """Returns the temporal difference error with clipped action values."""
-        values = torch.cat([m(obs, action) for m in self._modules["critics"]], dim=-1)
+        critics = self._modules["critics"]
+        target_policy = self._modules["target_policy"]
+        target_critics = self._modules["target_critics"]
 
-        reward = self._env.reward(obs, action, next_obs)
-        done = self._env.termination(obs, action, next_obs)
-        next_action = self._modules["target_policy"](next_obs)
-        next_values, _ = torch.cat(
-            [m(next_obs, next_action) for m in self._modules["target_critics"]], dim=-1
-        ).min(dim=-1)
-        targets = torch.where(done, reward, reward + self.gamma * next_values)
-        targets = targets.unsqueeze(-1).expand_as(values)
+        values = critics(obs, action)  # (*, N)
+        reward = self._env.reward(obs, action, next_obs)  # (*,)
+        done = self._env.termination(obs, action, next_obs)  # (*,)
+        next_action = target_policy(next_obs)  # (*, A)
+        next_values, _ = target_critics(next_obs, next_action).min(dim=-1)  # (*,)
+        targets = torch.where(done, reward, reward + self.gamma * next_values)  # (*,)
+        targets = targets.unsqueeze(-1).expand_as(values)  # (*, N)
 
         return targets - values
 
