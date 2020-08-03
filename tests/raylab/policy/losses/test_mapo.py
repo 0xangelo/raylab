@@ -24,7 +24,6 @@ def test_mapo_init(mapo):
 
     assert hasattr(mapo, "gamma")
     assert hasattr(mapo, "alpha")
-    assert hasattr(mapo, "model_samples")
     assert hasattr(mapo, "grad_estimator")
     assert hasattr(mapo, "_modules")
     assert "models" in mapo._modules

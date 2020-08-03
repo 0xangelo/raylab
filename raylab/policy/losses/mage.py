@@ -78,11 +78,6 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         return "PD"
 
     @property
-    def model_samples(self):
-        """Number of next states to draw from the model"""
-        return 1
-
-    @property
     def _models(self) -> SME:
         return self._modules["models"]
 
@@ -91,8 +86,7 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
 
     def transition(self, obs, action):
         next_obs, _, dist_params = super().transition(obs, action)
-        # Squeeze the model sample_shape dimension
-        return next_obs.squeeze(dim=0), dist_params
+        return next_obs, dist_params
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         assert self.initialized, (

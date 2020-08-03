@@ -122,9 +122,9 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         )
 
         if self.grad_estimator == "SF":
-            surrogate = torch.mean(log_prob * next_vval.detach(), dim=0)
+            surrogate = log_prob * next_vval.detach()
         elif self.grad_estimator == "PD":
-            surrogate = torch.mean(next_vval, dim=0)
+            surrogate = next_vval
         return surrogate
 
 

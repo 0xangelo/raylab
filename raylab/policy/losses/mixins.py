@@ -52,11 +52,9 @@ class UniformModelPriorMixin:
 
     Attributes:
         grad_estimator: Gradient estimator for expecations ('PD' or 'SF')
-        model_samples: Number of next states to draw from the model
     """
 
     grad_estimator: str = "PD"
-    model_samples: int = 1
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -77,17 +75,16 @@ class UniformModelPriorMixin:
             action: The action sampled from the stochastic policy
 
         Returns:
-            A tuple with the next state and its log-likelihood generated from
-            a model sampled from the ensemble
+            A tuple with the next state, its log-likelihood generated from
+            a model sampled from the ensemble, and that model's distribution
+            parameters
         """
-        sample_shape = (self.model_samples,)
-
         model = self._rng.choice(self._models)
         dist_params = model.params(obs, action)
         if self.grad_estimator == "SF":
-            next_obs, logp = model.dist.sample(dist_params, sample_shape)
+            next_obs, logp = model.dist.sample(dist_params)
         elif self.grad_estimator == "PD":
-            next_obs, logp = model.dist.rsample(dist_params, sample_shape)
+            next_obs, logp = model.dist.rsample(dist_params)
         return next_obs, logp, dist_params
 
     def verify_model(self, obs: Tensor, act: Tensor):

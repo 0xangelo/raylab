@@ -176,11 +176,6 @@ class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLear
         """Whether or not the loss function has all the necessary components."""
         return self._env.initialized
 
-    def transition(self, obs, action):
-        next_obs, logp, dist_params = super().transition(obs, action)
-        # Squeeze the model samples dimension
-        return next_obs.squeeze(dim=0), logp.squeeze(dim=0), dist_params
-
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         assert self.initialized, (
             "Environment functions missing. "
