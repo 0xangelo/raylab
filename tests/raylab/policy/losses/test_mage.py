@@ -76,6 +76,7 @@ def test_mage_call(loss_fn, batch, critics):
     assert all([p.grad is not None for p in critics.parameters()])
 
 
+@pytest.mark.skip(reason="https://github.com/pytorch/pytorch/issues/42459")
 def test_script_backprop(loss_fn, batch, critics):
     loss_fn.compile()
     loss, _ = loss_fn(batch)
