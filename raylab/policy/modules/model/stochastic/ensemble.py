@@ -5,8 +5,8 @@ from typing import Tuple
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.jit import _fork as fork
-from torch.jit import _wait as wait
+from torch.jit import fork
+from torch.jit import wait
 
 from raylab.utils.annotations import TensorDict
 
@@ -31,6 +31,8 @@ class SME(nn.ModuleList):
     Notes:
         `O` is the observation shape and `A` is the action shape.
     """
+
+    # pylint:disable=abstract-method
 
     def __init__(self, models: List[StochasticModel]):
         cls_name = type(self).__name__
@@ -102,6 +104,8 @@ class SME(nn.ModuleList):
 
 class ForkedSME(SME):
     """Stochastic Model Ensemble with parallelized methods."""
+
+    # pylint:disable=abstract-method
 
     def forward(self, obs: List[Tensor], act: List[Tensor]) -> List[TensorDict]:
         futures = [fork(m, obs[i], act[i]) for i, m in enumerate(self)]
