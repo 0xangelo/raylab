@@ -78,7 +78,6 @@ class SPAML(EnvFunctionsMixin, Loss):
         return len(self._modules["models"])
 
     def compile(self):
-        self._modules.update({k: torch.jit.script(m) for k, m in self._modules.items()})
         self._loss_mle.compile()
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
