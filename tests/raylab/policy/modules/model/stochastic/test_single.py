@@ -1,5 +1,6 @@
 import pytest
 import torch
+from torch.autograd import grad
 
 from raylab.policy.modules.networks.utils import TensorStandardScaler
 
@@ -129,3 +130,25 @@ def test_reproduce(module, obs, act, next_obs, rew):
 
 def test_script(module):
     torch.jit.script(module)
+
+
+def test_script_model_ograd(module, obs, act):
+    model = torch.jit.script(module)
+    obs = obs.clone().requires_grad_()
+
+    rsample, _ = model.rsample(obs, act)
+    (ograd,) = grad(rsample.mean(), [obs], create_graph=True)
+    print(ograd)
+    ograd.mean().backward()
+    assert obs.grad is not None
+
+
+def test_script_model_agrad(module, obs, act):
+    model = torch.jit.script(module)
+    act = act.clone().requires_grad_()
+
+    rsample, _ = model.rsample(obs, act)
+    (agrad,) = grad(rsample.mean(), [act], create_graph=True)
+    print(agrad)
+    agrad.mean().backward()
+    assert act.grad is not None
