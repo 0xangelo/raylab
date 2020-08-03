@@ -8,9 +8,19 @@ from raylab.policy.losses.abstract import Loss
 
 
 @pytest.fixture
-def loss_fn(models, stochastic_policy, action_critics, reward_fn, termination_fn):
+def actor(stochastic_policy):
+    return stochastic_policy
+
+
+@pytest.fixture
+def critics(action_critics):
     critics, _ = action_critics
-    loss_fn = SPAML(models, stochastic_policy, critics)
+    return critics
+
+
+@pytest.fixture
+def loss_fn(models, actor, critics, reward_fn, termination_fn):
+    loss_fn = SPAML(models, actor, critics)
     loss_fn.set_reward_fn(reward_fn)
     loss_fn.set_termination_fn(termination_fn)
     loss_fn.grad_estimator = "PD"
