@@ -81,9 +81,6 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
     def _models(self) -> SME:
         return self._modules["models"]
 
-    def compile(self):
-        self._modules.update({k: torch.jit.script(v) for k, v in self._modules.items()})
-
     def transition(self, obs, action):
         next_obs, _, dist_params = super().transition(obs, action)
         return next_obs, dist_params
