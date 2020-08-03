@@ -7,6 +7,12 @@ from raylab.policy.losses.mage import MAGEModules
 
 
 @pytest.fixture
+def critics(action_critics):
+    critics, _ = action_critics
+    return critics
+
+
+@pytest.fixture
 def modules(action_critics, deterministic_policies, models):
     critics, target_critics = action_critics
     policy, target_policy = deterministic_policies
@@ -58,15 +64,24 @@ def test_compile(loss_fn):
     assert all(isinstance(v, torch.jit.ScriptModule) for v in loss_fn._modules.values())
 
 
-def test_mage_call(loss_fn, batch, script):
-    if script:
-        loss_fn.compile()
+def test_mage_call(loss_fn, batch, critics):
     loss, info = loss_fn(batch)
 
     assert torch.is_tensor(loss)
     assert isinstance(info, dict)
     assert all(isinstance(k, str) for k in info.keys())
     assert all(isinstance(v, float) for v in info.values())
+
+    loss.backward()
+    assert all([p.grad is not None for p in critics.parameters()])
+
+
+def test_script_backprop(loss_fn, batch, critics):
+    loss_fn.compile()
+    loss, _ = loss_fn(batch)
+
+    loss.backward()
+    assert all([p.grad is not None for p in critics.parameters()])
 
 
 def test_gradient_is_finite(loss_fn, batch):
