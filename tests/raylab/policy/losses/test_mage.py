@@ -116,14 +116,38 @@ def action(batch):
     return batch[SampleBatch.ACTIONS]
 
 
-def test_grad_loss_gradient_propagation(loss_fn, obs, action):
-    action.requires_grad_(True)
-    next_obs, dist_params = loss_fn.transition(obs, action)
+@pytest.fixture
+def next_obs(batch):
+    return batch[SampleBatch.NEXT_OBS]
 
+
+@pytest.fixture
+def rew(batch):
+    return batch[SampleBatch.REWARDS]
+
+
+def test_transition(loss_fn, obs, action):
+    next_obs, dist_params = loss_fn.transition(obs, action)
+    assert torch.is_tensor(next_obs)
     assert isinstance(dist_params, dict)
     assert all(
         [isinstance(k, str) and torch.is_tensor(v) for k, v in dist_params.items()]
     )
+
+
+def test_delta(loss_fn, critics, obs, action, next_obs, rew):
+    # pylint:disable=too-many-arguments
+    diff = loss_fn.temporal_diff_error(obs, action, next_obs)
+    assert torch.is_tensor(diff)
+    assert diff.shape == rew.shape + (len(critics),)
+
+    if len(critics) > 1:
+        assert not torch.allclose(diff[..., 0], diff[..., 1], atol=1e-6)
+
+
+def test_grad_loss_gradient_propagation(loss_fn, obs, action):
+    action.requires_grad_(True)
+    next_obs, _ = loss_fn.transition(obs, action)
 
     delta = loss_fn.temporal_diff_error(obs, action, next_obs)
     _ = loss_fn.gradient_loss(delta, action)

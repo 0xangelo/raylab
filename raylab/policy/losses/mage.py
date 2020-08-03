@@ -130,9 +130,9 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
     def gradient_loss(delta: Tensor, action: Tensor) -> Tensor:
         """Returns the action gradient loss for the Q-value function."""
         (action_gradient,) = torch.autograd.grad(delta.sum(), action, create_graph=True)
-        return action_gradient.abs().sum(dim=-1).mean()
+        return torch.sum(action_gradient ** 2, dim=-1).mean()
 
     @staticmethod
     def temporal_diff_loss(delta: Tensor) -> Tensor:
         """Returns the temporal difference loss for the Q-value function."""
-        return delta.abs().sum(dim=-1).mean()
+        return torch.sum(delta ** 2, dim=-1).mean()
