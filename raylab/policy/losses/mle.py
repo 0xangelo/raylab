@@ -41,7 +41,7 @@ class MaximumLikelihood(Loss):
         obs, actions, next_obs = get_keys(batch, *self.batch_keys)
 
         dist_params = self.model(obs, actions)
-        loss = -torch.stackself.model.dist.log_prob(next_obs, dist_params).mean()
+        loss = -self.model.dist.log_prob(next_obs, dist_params).mean()
         if "max_logvar" in dist_params and "min_logvar" in dist_params:
             loss += 0.01 * dist_params["max_logvar"].sum()
             loss += -0.01 * dist_params["min_logvar"].sum()
