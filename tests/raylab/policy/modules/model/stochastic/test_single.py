@@ -132,6 +132,7 @@ def test_script(module):
     torch.jit.script(module)
 
 
+@pytest.mark.skip(reason="https://github.com/pytorch/pytorch/issues/42459")
 def test_script_model_ograd(module, obs, act):
     model = torch.jit.script(module)
     obs = obs.clone().requires_grad_()
@@ -143,6 +144,7 @@ def test_script_model_ograd(module, obs, act):
     assert obs.grad is not None
 
 
+@pytest.mark.skip(reason="https://github.com/pytorch/pytorch/issues/42459")
 def test_script_model_agrad(module, obs, act):
     model = torch.jit.script(module)
     act = act.clone().requires_grad_()
