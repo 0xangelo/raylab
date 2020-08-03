@@ -55,7 +55,7 @@ class UniformModelPriorMixin:
         model_samples: Number of next states to draw from the model
     """
 
-    grad_estimator: str = "SF"
+    grad_estimator: str = "PD"
     model_samples: int = 1
 
     def __init__(self, *args, **kwargs):
