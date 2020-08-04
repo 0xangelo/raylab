@@ -24,7 +24,6 @@ def test_mapo_init(mapo):
 
     assert hasattr(mapo, "gamma")
     assert hasattr(mapo, "alpha")
-    assert hasattr(mapo, "model_samples")
     assert hasattr(mapo, "grad_estimator")
     assert hasattr(mapo, "_modules")
     assert "models" in mapo._modules
@@ -47,7 +46,7 @@ def test_mapo_call(mapo, batch, models, obs, act):
     assert "loss(actor)" in info
     assert "entropy" in info
 
-    dist_params = models(obs, act)
+    dist_params = models[0](obs, act)
     assert all(["model_mean_" + k in info for k in dist_params])
 
 

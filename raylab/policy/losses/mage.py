@@ -10,7 +10,7 @@ from torch import Tensor
 
 from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
 from raylab.policy.modules.critic.q_value import QValueEnsemble
-from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+from raylab.policy.modules.model.stochastic.ensemble import SME
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -36,7 +36,7 @@ class MAGEModules:
     target_critics: QValueEnsemble
     policy: DeterministicPolicy
     target_policy: DeterministicPolicy
-    models: StochasticModelEnsemble
+    models: SME
 
 
 class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
@@ -78,21 +78,12 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         return "PD"
 
     @property
-    def model_samples(self):
-        """Number of next states to draw from the model"""
-        return 1
-
-    @property
-    def _models(self) -> StochasticModelEnsemble:
+    def _models(self) -> SME:
         return self._modules["models"]
-
-    def compile(self):
-        self._modules.update({k: torch.jit.script(v) for k, v in self._modules.items()})
 
     def transition(self, obs, action):
         next_obs, _, dist_params = super().transition(obs, action)
-        # Squeeze the model sample_shape dimension
-        return next_obs.squeeze(dim=0), dist_params
+        return next_obs, dist_params
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         assert self.initialized, (
@@ -121,16 +112,17 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         self, obs: Tensor, action: Tensor, next_obs: Tensor,
     ) -> Tensor:
         """Returns the temporal difference error with clipped action values."""
-        values = torch.cat([m(obs, action) for m in self._modules["critics"]], dim=-1)
+        critics = self._modules["critics"]
+        target_policy = self._modules["target_policy"]
+        target_critics = self._modules["target_critics"]
 
-        reward = self._env.reward(obs, action, next_obs)
-        done = self._env.termination(obs, action, next_obs)
-        next_action = self._modules["target_policy"](next_obs)
-        next_values, _ = torch.cat(
-            [m(next_obs, next_action) for m in self._modules["target_critics"]], dim=-1
-        ).min(dim=-1)
-        targets = torch.where(done, reward, reward + self.gamma * next_values)
-        targets = targets.unsqueeze(-1).expand_as(values)
+        values = critics(obs, action)  # (*, N)
+        reward = self._env.reward(obs, action, next_obs)  # (*,)
+        done = self._env.termination(obs, action, next_obs)  # (*,)
+        next_action = target_policy(next_obs)  # (*, A)
+        next_values, _ = target_critics(next_obs, next_action).min(dim=-1)  # (*,)
+        targets = torch.where(done, reward, reward + self.gamma * next_values)  # (*,)
+        targets = targets.unsqueeze(-1).expand_as(values)  # (*, N)
 
         return targets - values
 
@@ -138,9 +130,9 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
     def gradient_loss(delta: Tensor, action: Tensor) -> Tensor:
         """Returns the action gradient loss for the Q-value function."""
         (action_gradient,) = torch.autograd.grad(delta.sum(), action, create_graph=True)
-        return action_gradient.abs().sum(dim=-1).mean()
+        return torch.sum(action_gradient ** 2, dim=-1).mean()
 
     @staticmethod
     def temporal_diff_loss(delta: Tensor) -> Tensor:
         """Returns the temporal difference loss for the Q-value function."""
-        return delta.abs().sum(dim=-1).mean()
+        return torch.sum(delta ** 2, dim=-1).mean()

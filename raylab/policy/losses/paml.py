@@ -9,7 +9,7 @@ from torch.autograd import grad
 
 from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 from raylab.policy.modules.critic.q_value import QValueEnsemble
-from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+from raylab.policy.modules.model.stochastic.ensemble import SME
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -54,10 +54,7 @@ class SPAML(EnvFunctionsMixin, Loss):
     lambda_: float = 0.05
 
     def __init__(
-        self,
-        models: StochasticModelEnsemble,
-        actor: StochasticPolicy,
-        critics: QValueEnsemble,
+        self, models: SME, actor: StochasticPolicy, critics: QValueEnsemble,
     ):
         super().__init__()
         modules = nn.ModuleDict()
@@ -78,7 +75,6 @@ class SPAML(EnvFunctionsMixin, Loss):
         return len(self._modules["models"])
 
     def compile(self):
-        self._modules.update({k: torch.jit.script(m) for k, m in self._modules.items()})
         self._loss_mle.compile()
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
@@ -109,7 +105,7 @@ class SPAML(EnvFunctionsMixin, Loss):
         Returns:
             Tensor `tensor` expanded to shape `(N,) + S`
         """
-        return tensor.expand((len(self._modules["models"]),) + tensor.shape)
+        return tensor.expand((self.ensemble_size,) + tensor.shape)
 
     @torch.no_grad()
     def generate_action(self, obs: Tensor) -> Tensor:
@@ -141,7 +137,8 @@ class SPAML(EnvFunctionsMixin, Loss):
             The action-value tensor of shape `(N, *)`
         """
         unclipped_qval = self._modules["critics"](obs, action)
-        return unclipped_qval.min(dim=-1)[0]
+        clipped, _ = unclipped_qval.min(dim=-1)
+        return clipped
 
     def one_step_action_value_surrogate(self, obs: Tensor, action: Tensor) -> Tensor:
         """Surrogate loss for gradient estimation of action values.
@@ -188,13 +185,16 @@ class SPAML(EnvFunctionsMixin, Loss):
             ensemble
         """
         models = self._modules["models"]
+        obs = obs.chunk(self.ensemble_size, dim=0)
+        action = action.chunk(self.ensemble_size, dim=0)
 
         if self.grad_estimator == "SF":
-            next_obs, logp = models.sample(obs, action)
+            outputs = models.sample(obs, action)
         elif self.grad_estimator == "PD":
-            next_obs, logp = models.rsample(obs, action)
+            outputs = models.rsample(obs, action)
 
-        return next_obs, logp
+        next_obs, logp = zip(*outputs)
+        return torch.cat(next_obs), torch.cat(logp)
 
     def action_gradient_loss(
         self, action: Tensor, value_target: Tensor, value_pred: Tensor

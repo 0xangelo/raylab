@@ -16,7 +16,7 @@ from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 from raylab.policy.modules.critic.q_value import QValue
 from raylab.policy.modules.critic.v_value import PolicyQValue
 from raylab.policy.modules.critic.v_value import VValue
-from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+from raylab.policy.modules.model.stochastic.ensemble import SME
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -164,7 +164,7 @@ class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLear
     def __init__(
         self,
         critics: QValue,
-        models: StochasticModelEnsemble,
+        models: SME,
         target_critics: QValue,
         actor: StochasticPolicy,
     ):
@@ -175,11 +175,6 @@ class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLear
     def initialized(self) -> bool:
         """Whether or not the loss function has all the necessary components."""
         return self._env.initialized
-
-    def transition(self, obs, action):
-        next_obs, logp, dist_params = super().transition(obs, action)
-        # Squeeze the model samples dimension
-        return next_obs.squeeze(dim=0), logp.squeeze(dim=0), dist_params
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         assert self.initialized, (
