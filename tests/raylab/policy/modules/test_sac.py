@@ -2,6 +2,8 @@ import pytest
 import torch
 import torch.nn as nn
 
+import raylab.pytorch.nn as nnx
+from raylab.policy.modules.actor.policy.stochastic import MLPContinuousPolicy
 from raylab.policy.modules.sac import SAC
 
 
@@ -27,6 +29,11 @@ def test_init(module):
 
     for attr in "actor alpha critics target_critics".split():
         assert hasattr(module, attr)
+
+
+def test_actor_network(module):
+    assert isinstance(module.actor, MLPContinuousPolicy)
+    assert isinstance(module.actor.params[-1], nnx.PolicyNormalParams)
 
 
 def test_script(module):

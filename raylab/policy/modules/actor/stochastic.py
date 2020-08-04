@@ -35,7 +35,7 @@ class StochasticActorSpec(DataClassJsonMixin):
 
     encoder: MLPSpec = field(default_factory=MLPSpec)
     input_dependent_scale: bool = False
-    initial_entropy_coeff: float = 0.0
+    initial_entropy_coeff: float = 1.0
     initializer: dict = field(default_factory=dict)
 
     def __post_init__(self):
