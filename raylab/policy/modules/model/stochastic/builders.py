@@ -5,8 +5,8 @@ from dataclasses import field
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
 
-from .ensemble import ForkedStochasticModelEnsemble
-from .ensemble import StochasticModelEnsemble
+from .ensemble import ForkedSME
+from .ensemble import SME
 from .single import MLPModel
 from .single import ResidualMLPModel
 
@@ -19,8 +19,6 @@ class Spec(DataClassJsonMixin):
 
     Args:
         network: Specifications for stochastic model network
-        input_dependent_scale: Whether to parameterize the Gaussian standard
-            deviation as a function of the state and action
         residual: Whether to build model as a residual one, i.e., that
             predicts the change in state rather than the next state itself
         initializer: Optional dictionary with mandatory `type` key corresponding
@@ -29,7 +27,6 @@ class Spec(DataClassJsonMixin):
     """
 
     network: ModelSpec = field(default_factory=ModelSpec)
-    input_dependent_scale: bool = True
     residual: bool = True
     initializer: dict = field(default_factory=dict)
 
@@ -46,7 +43,7 @@ def build(obs_space: Box, action_space: Box, spec: Spec) -> MLPModel:
         A stochastic dynamics model
     """
     cls = ResidualMLPModel if spec.residual else MLPModel
-    model = cls(obs_space, action_space, spec.network, spec.input_dependent_scale)
+    model = cls(obs_space, action_space, spec.network)
     model.initialize_parameters(spec.initializer)
     return model
 
@@ -57,8 +54,6 @@ class EnsembleSpec(Spec):
 
     Args:
         network: Specifications for stochastic model networks
-        input_dependent_scale: Whether to parameterize the Gaussian standard
-            deviation as a function of the state and action
         residual: Whether to build each model as a residual one, i.e., that
             predicts the change in state rather than the next state itself
         initializer: Optional dictionary with mandatory `type` key corresponding
@@ -73,9 +68,7 @@ class EnsembleSpec(Spec):
     parallelize: bool = False
 
 
-def build_ensemble(
-    obs_space: Box, action_space: Box, spec: EnsembleSpec
-) -> StochasticModelEnsemble:
+def build_ensemble(obs_space: Box, action_space: Box, spec: EnsembleSpec) -> SME:
     """Construct stochastic dynamics model ensemble.
 
     Args:
@@ -87,6 +80,6 @@ def build_ensemble(
         A stochastic dynamics model ensemble
     """
     models = [build(obs_space, action_space, spec) for _ in range(spec.ensemble_size)]
-    cls = ForkedStochasticModelEnsemble if spec.parallelize else StochasticModelEnsemble
+    cls = ForkedSME if spec.parallelize else SME
     ensemble = cls(models)
     return ensemble

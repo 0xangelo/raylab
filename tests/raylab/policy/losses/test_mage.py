@@ -7,6 +7,12 @@ from raylab.policy.losses.mage import MAGEModules
 
 
 @pytest.fixture
+def critics(action_critics):
+    critics, _ = action_critics
+    return critics
+
+
+@pytest.fixture
 def modules(action_critics, deterministic_policies, models):
     critics, target_critics = action_critics
     policy, target_policy = deterministic_policies
@@ -55,18 +61,30 @@ def script(request):
 
 def test_compile(loss_fn):
     loss_fn.compile()
-    assert all(isinstance(v, torch.jit.ScriptModule) for v in loss_fn._modules.values())
+    assert not any(
+        [isinstance(v, torch.jit.ScriptModule) for v in loss_fn._modules.values()]
+    )
 
 
-def test_mage_call(loss_fn, batch, script):
-    if script:
-        loss_fn.compile()
+def test_mage_call(loss_fn, batch, critics):
     loss, info = loss_fn(batch)
 
     assert torch.is_tensor(loss)
     assert isinstance(info, dict)
     assert all(isinstance(k, str) for k in info.keys())
     assert all(isinstance(v, float) for v in info.values())
+
+    loss.backward()
+    assert all([p.grad is not None for p in critics.parameters()])
+
+
+@pytest.mark.skip(reason="https://github.com/pytorch/pytorch/issues/42459")
+def test_script_backprop(loss_fn, batch, critics):
+    loss_fn.compile()
+    loss, _ = loss_fn(batch)
+
+    loss.backward()
+    assert all([p.grad is not None for p in critics.parameters()])
 
 
 def test_gradient_is_finite(loss_fn, batch):
@@ -98,14 +116,38 @@ def action(batch):
     return batch[SampleBatch.ACTIONS]
 
 
-def test_grad_loss_gradient_propagation(loss_fn, obs, action):
-    action.requires_grad_(True)
-    next_obs, dist_params = loss_fn.transition(obs, action)
+@pytest.fixture
+def next_obs(batch):
+    return batch[SampleBatch.NEXT_OBS]
 
+
+@pytest.fixture
+def rew(batch):
+    return batch[SampleBatch.REWARDS]
+
+
+def test_transition(loss_fn, obs, action):
+    next_obs, dist_params = loss_fn.transition(obs, action)
+    assert torch.is_tensor(next_obs)
     assert isinstance(dist_params, dict)
     assert all(
         [isinstance(k, str) and torch.is_tensor(v) for k, v in dist_params.items()]
     )
+
+
+def test_delta(loss_fn, critics, obs, action, next_obs, rew):
+    # pylint:disable=too-many-arguments
+    diff = loss_fn.temporal_diff_error(obs, action, next_obs)
+    assert torch.is_tensor(diff)
+    assert diff.shape == rew.shape + (len(critics),)
+
+    if len(critics) > 1:
+        assert not torch.allclose(diff[..., 0], diff[..., 1], atol=1e-6)
+
+
+def test_grad_loss_gradient_propagation(loss_fn, obs, action):
+    action.requires_grad_(True)
+    next_obs, _ = loss_fn.transition(obs, action)
 
     delta = loss_fn.temporal_diff_error(obs, action, next_obs)
     _ = loss_fn.gradient_loss(delta, action)

@@ -6,8 +6,9 @@ from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
 from raylab.policy.modules.actor.policy.deterministic import MLPDeterministicPolicy
 from raylab.policy.modules.actor.policy.stochastic import MLPContinuousPolicy
 from raylab.policy.modules.critic.action_value import ActionValueCritic
-from raylab.policy.modules.model.stochastic.builders import build_ensemble
-from raylab.policy.modules.model.stochastic.builders import EnsembleSpec
+from raylab.policy.modules.model.stochastic import build_ensemble
+from raylab.policy.modules.model.stochastic import build_single
+from raylab.policy.modules.model.stochastic import EnsembleSpec
 from raylab.utils.debug import fake_batch
 
 
@@ -48,18 +49,27 @@ def new_obs(batch):
     return batch[SampleBatch.NEXT_OBS]
 
 
+@pytest.fixture
+def model_spec():
+    spec = EnsembleSpec()
+    spec.network.units = (32,)
+    spec.network.input_dependent_scale = True
+    spec.residual = True
+    return spec
+
+
 @pytest.fixture(params=(1, 2, 4), ids=(f"Models({n})" for n in (1, 2, 4)))
-def models(request, obs_space, action_space):
-    config = {
-        "network": {"units": (32,)},
-        "residual": True,
-        "input_dependent_scale": True,
-        "ensemble_size": request.param,
-        "parallelize": False,
-    }
-    spec = EnsembleSpec.from_dict(config)
+def models(request, obs_space, action_space, model_spec):
+    spec = model_spec
+    spec.ensemble_size = request.param
+    spec.parallelize = True
 
     return build_ensemble(obs_space, action_space, spec)
+
+
+@pytest.fixture
+def model(obs_space, action_space, model_spec):
+    return build_single(obs_space, action_space, model_spec)
 
 
 @pytest.fixture(params=(1, 2), ids=(f"Critics({n})" for n in (1, 2)))

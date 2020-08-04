@@ -8,11 +8,22 @@ from raylab.policy.losses.abstract import Loss
 
 
 @pytest.fixture
-def loss_fn(models, stochastic_policy, action_critics, reward_fn, termination_fn):
+def actor(stochastic_policy):
+    return stochastic_policy
+
+
+@pytest.fixture
+def critics(action_critics):
     critics, _ = action_critics
-    loss_fn = SPAML(models, stochastic_policy, critics)
+    return critics
+
+
+@pytest.fixture
+def loss_fn(models, actor, critics, reward_fn, termination_fn):
+    loss_fn = SPAML(models, actor, critics)
     loss_fn.set_reward_fn(reward_fn)
     loss_fn.set_termination_fn(termination_fn)
+    loss_fn.grad_estimator = "PD"
     return loss_fn
 
 
@@ -57,7 +68,8 @@ def test_call(loss_fn, batch, n_models):
 
 def test_compile(loss_fn, batch):
     loss_fn.compile()
-    loss_fn(batch)
+    loss, _ = loss_fn(batch)
+    loss.sum().backward()
 
 
 @pytest.fixture

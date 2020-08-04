@@ -8,7 +8,7 @@ from torch import Tensor
 
 from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 from raylab.policy.modules.critic.q_value import QValueEnsemble
-from raylab.policy.modules.model.stochastic.ensemble import StochasticModelEnsemble
+from raylab.policy.modules.model.stochastic.ensemble import SME
 from raylab.utils.annotations import DynamicsFn
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
@@ -37,10 +37,7 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
     alpha: float = 0.05
 
     def __init__(
-        self,
-        models: StochasticModelEnsemble,
-        actor: StochasticPolicy,
-        critics: QValueEnsemble,
+        self, models: SME, actor: StochasticPolicy, critics: QValueEnsemble,
     ):
         super().__init__()
         modules = nn.ModuleDict()
@@ -125,9 +122,9 @@ class MAPO(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         )
 
         if self.grad_estimator == "SF":
-            surrogate = torch.mean(log_prob * next_vval.detach(), dim=0)
+            surrogate = log_prob * next_vval.detach()
         elif self.grad_estimator == "PD":
-            surrogate = torch.mean(next_vval, dim=0)
+            surrogate = next_vval
         return surrogate
 
 

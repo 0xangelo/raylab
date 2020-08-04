@@ -41,7 +41,7 @@ class ModelBasedSAC(SAC):
         spec: Specifications for model-based SAC modules
 
     Attributes:
-        models (StochasticModelEnsemble): Stochastic dynamics model ensemble
+        models (SME): Stochastic dynamics model ensemble
         actor (StochasticPolicy): Stochastic policy to be learned
         alpha (Alpha): Entropy bonus coefficient
         critics (QValueEnsemble): The action-value estimators to be learned

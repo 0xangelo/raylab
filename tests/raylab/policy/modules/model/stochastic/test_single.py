@@ -1,5 +1,6 @@
 import pytest
 import torch
+from torch.autograd import grad
 
 from raylab.policy.modules.networks.utils import TensorStandardScaler
 
@@ -19,19 +20,21 @@ def standard_scaler(request):
     return request.param
 
 
-@pytest.fixture
-def spec(module_cls, standard_scaler):
-    return module_cls.spec_cls(standard_scaler=standard_scaler)
-
-
 @pytest.fixture(params=(True, False), ids=lambda x: f"InputDependentScale({x})")
 def input_dependent_scale(request):
     return request.param
 
 
 @pytest.fixture
-def module(module_cls, obs_space, action_space, spec, input_dependent_scale):
-    return module_cls(obs_space, action_space, spec, input_dependent_scale)
+def spec(module_cls, standard_scaler, input_dependent_scale):
+    return module_cls.spec_cls(
+        standard_scaler=standard_scaler, input_dependent_scale=input_dependent_scale
+    )
+
+
+@pytest.fixture
+def module(module_cls, obs_space, action_space, spec):
+    return module_cls(obs_space, action_space, spec)
 
 
 def test_init(module):
@@ -127,3 +130,27 @@ def test_reproduce(module, obs, act, next_obs, rew):
 
 def test_script(module):
     torch.jit.script(module)
+
+
+@pytest.mark.skip(reason="https://github.com/pytorch/pytorch/issues/42459")
+def test_script_model_ograd(module, obs, act):
+    model = torch.jit.script(module)
+    obs = obs.clone().requires_grad_()
+
+    rsample, _ = model.rsample(obs, act)
+    (ograd,) = grad(rsample.mean(), [obs], create_graph=True)
+    print(ograd)
+    ograd.mean().backward()
+    assert obs.grad is not None
+
+
+@pytest.mark.skip(reason="https://github.com/pytorch/pytorch/issues/42459")
+def test_script_model_agrad(module, obs, act):
+    model = torch.jit.script(module)
+    act = act.clone().requires_grad_()
+
+    rsample, _ = model.rsample(obs, act)
+    (agrad,) = grad(rsample.mean(), [act], create_graph=True)
+    print(agrad)
+    agrad.mean().backward()
+    assert act.grad is not None

@@ -111,6 +111,5 @@ class ForkedQValueEnsemble(QValueEnsemble):
     """Ensemble of Q-value estimators with parallelized forward pass."""
 
     def _action_values(self, obs: Tensor, act: Tensor) -> Tensor:
-        # pylint:disable=protected-access
-        futures = [torch.jit._fork(m, obs, act) for m in self]
-        return torch.cat([torch.jit._wait(f) for f in futures], dim=-1)
+        futures = [torch.jit.fork(m, obs, act) for m in self]
+        return torch.cat([torch.jit.wait(f) for f in futures], dim=-1)

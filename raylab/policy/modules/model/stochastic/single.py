@@ -144,12 +144,25 @@ class DynamicsParams(nn.Module):
 class MLPModelSpec(StateActionMLP.spec_cls):
     """Specifications for stochastic mlp model network.
 
+    Inherits parameters from `StateActionMLP.spec_cls`.
+
     Args:
+        units: Number of units in each hidden layer
+        activation: Nonlinearity following each linear layer
+        delay_action: Whether to apply an initial preprocessing layer on the
+            observation before concatenating the action to the input.
+        standard_scaler: Whether to transform the inputs of the NN using a
+            standard scaling procedure (subtract mean and divide by stddev). The
+            transformation mean and stddev should be fitted during training and
+            used for both training and evaluation.
         fix_logvar_bounds: Whether to use fixed or dynamically adjusted
             bounds for the log-scale outputs of the network.
+        input_dependent_scale: Whether to parameterize the Gaussian standard
+            deviation as a function of the state and action
     """
 
     fix_logvar_bounds: bool = True
+    input_dependent_scale: bool = True
 
 
 class MLPModel(StochasticModel):
@@ -164,19 +177,13 @@ class MLPModel(StochasticModel):
 
     spec_cls = MLPModelSpec
 
-    def __init__(
-        self,
-        obs_space: Box,
-        action_space: Box,
-        spec: MLPModelSpec,
-        input_dependent_scale: bool,
-    ):
+    def __init__(self, obs_space: Box, action_space: Box, spec: MLPModelSpec):
         encoder = StateActionMLP(obs_space, action_space, spec)
 
         params = nnx.NormalParams(
             encoder.out_features,
             obs_space.shape[0],
-            input_dependent_scale=input_dependent_scale,
+            input_dependent_scale=spec.input_dependent_scale,
             bound_parameters=not spec.fix_logvar_bounds,
         )
         if spec.fix_logvar_bounds:

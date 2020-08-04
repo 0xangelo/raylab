@@ -41,7 +41,7 @@ class ModelBasedDDPG(DDPG):
         spec: Specifications for model-based DDPG modules
 
     Attributes:
-        model (StochasticModelEnsemble): Stochastic dynamics model ensemble
+        model (SME): Stochastic dynamics model ensemble
         actor (DeterministicPolicy): The deterministic policy to be learned
         behavior (DeterministicPolicy): The policy for exploration
         target_actor (DeterministicPolicy): The policy used for estimating the
