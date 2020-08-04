@@ -67,7 +67,7 @@ test-all: ## run tests on every Python version with tox
 	tox
 
 changelog:
-	auto-changelog --tag-prefix v --unreleased --stdout --starting-commit HEAD
+	auto-changelog --tag-prefix v --unreleased --stdout --starting-commit HEAD~
 
 push-release:
 	git push origin master develop --tags
