@@ -1,9 +1,9 @@
 """Customized modules."""
-
 from .action_output import ActionOutput
 from .activation import Swish
 from .dist_params import CategoricalParams
 from .dist_params import NormalParams
+from .dist_params import PolicyNormalParams
 from .dist_params import StdNormalParams
 from .fully_connected import FullyConnected
 from .fully_connected import MADE
@@ -25,6 +25,7 @@ __all__ = [
     "GaussianNoise",
     "Lambda",
     "NormalParams",
+    "PolicyNormalParams",
     "NormalizedLinear",
     "MADE",
     "MaskedLinear",

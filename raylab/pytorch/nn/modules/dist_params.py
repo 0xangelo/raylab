@@ -29,6 +29,41 @@ class CategoricalParams(nn.Module):
         return {"logits": logits - logits.logsumexp(dim=-1, keepdim=True)}
 
 
+class PolicyNormalParams(nn.Module):
+    # pylint:disable=line-too-long
+    """Produce Normal parameters for a stochastic policy.
+
+    Max and min log scale clipping borrowed from `spinningup`_ and `pfrl`_.
+    Initialization copied from `pfrl`_.
+
+    .. _`spinningup`: https://github.com/openai/spinningup/blob/master/spinup/algos/pytorch/sac/core.py
+    .. _`prfrl`: https://github.com/pfnet/pfrl/blob/master/examples/mujoco/reproduction/soft_actor_critic/train_soft_actor_critic.py
+    """
+    # pylint:enable=line-too-long
+    def __init__(
+        self, in_features: int, event_size: int, input_dependent_scale: bool = True,
+    ):
+        super().__init__()
+        self.loc_module = nn.Linear(in_features, event_size)
+        if input_dependent_scale:
+            self.log_scale_module = nn.Linear(in_features, event_size)
+        else:
+            self.log_scale_module = LeafParameter(event_size)
+
+        self.apply(initialize_("xavier_uniform", gain=1.0))
+
+    @override(nn.Module)
+    def forward(self, inputs: torch.Tensor) -> Dict[str, torch.Tensor]:
+        # pylint:disable=arguments-differ
+        loc = self.loc_module(inputs)
+
+        log_scale = self.log_scale_module(inputs)
+        log_scale = torch.clamp(log_scale, min=-20, max=2)
+        scale = log_scale.exp()
+
+        return {"loc": loc, "scale": scale}
+
+
 class NormalParams(nn.Module):
     # pylint:disable=line-too-long
     """Produce Normal parameters.
@@ -36,7 +71,7 @@ class NormalParams(nn.Module):
     Initialized to be close to a standard Normal distribution.
 
     Utilizes bounded log_stddev as described in the 'Well behaved probabilistic
-    networks' appendix of `PETS`_
+    networks' appendix of `PETS`_.
 
     .. _`PETS`: https://papers.nips.cc/paper/7725-deep-reinforcement-learning-in-a-handful-of-trials-using-probabilistic-dynamics-models
     """
