@@ -108,11 +108,21 @@ def optim(request):
 
 
 def test_default_config(trainer_cls):
-    assert "workers" in trainer_cls.options.defaults
-    assert "optim" in trainer_cls.options.defaults
-    assert "arbitrary" in trainer_cls.options.defaults
-    assert "arbitrary" in trainer_cls.options.allow_unknown_subkeys
-    assert "arbitrary" in trainer_cls.options.override_all_if_type_changes
+    options = trainer_cls.options
+
+    assert "workers" in options.defaults
+    assert "optim" in options.defaults
+    assert "arbitrary" in options.defaults
+    assert "arbitrary" in options.allow_unknown_subkeys
+    assert "arbitrary" in options.override_all_if_type_changes
+
+
+def test_wandb_config(trainer_cls):
+    options = trainer_cls.options
+
+    assert "wandb" in options.defaults
+    assert isinstance(options.defaults["wandb"], dict)
+    assert not options.defaults["wandb"]
 
 
 def test_metrics_creation(trainer_cls, workers, optim):

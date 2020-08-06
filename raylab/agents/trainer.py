@@ -4,16 +4,13 @@ from abc import ABCMeta
 from typing import Callable
 from typing import Optional
 
-try:
-    import wandb
-except ImportError:
-    wandb = None
-
 from ray.rllib.agents.trainer import Trainer as RLlibTrainer
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils import override as overrides
 from ray.tune import Trainable
+
+from raylab.utils.wandb import WandBLogger
 
 from . import compat
 from .options import Json
@@ -83,9 +80,6 @@ def option(
 # ==============================================================================
 # Base Raylab Trainer
 # ==============================================================================
-Jsonable = (dict, list, str, int, float, bool, type(None))
-
-
 @configure
 @option(
     "wandb/",
@@ -108,21 +102,6 @@ Jsonable = (dict, list, str, int, float, bool, type(None))
     Check out the Quickstart for more information:
     `https://docs.wandb.com/quickstart`
     """,
-)
-@option(
-    "wandb/enabled",
-    default=False,
-    help="""Whether to sync logs and files with `wandb`.""",
-)
-@option(
-    "wandb/file_paths",
-    default=(),
-    help="Sequence of file names to pass to `wandb.save` on trainer setup.",
-)
-@option(
-    "wandb/save_checkpoints",
-    default=False,
-    help="Whether to sync trainer checkpoints to W&B via `wandb.save`.",
 )
 @option("compile_policy", False, help="Whether to optimize the policy's backend")
 @option(
@@ -156,8 +135,10 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     .. _`Weights & Biases`: https://docs.wandb.com/
     """
 
+    # pylint:disable=too-many-instance-attributes
     optimizer: Optional[PolicyOptimizer]
     workers: Optional[WorkerSet]
+    wandb: WandBLogger
     # Handle all config merging in RaylabOptions
     options: RaylabOptions = RaylabOptions()
 
@@ -174,18 +155,9 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         # Update global_vars after training so that they're saved if checkpointing
         self.global_vars["timestep"] = self.metrics.num_steps_sampled
 
-        if self.config["wandb"]["enabled"]:
-            self._wandb_log_result(result)
+        if self.wandb.enabled:
+            self.wandb.log_result(result)
         return result
-
-    @staticmethod
-    def _wandb_log_result(result: dict):
-        # Avoid logging the config every iteration
-        # Only log Jsonable objects
-        filtered = {
-            k: v for k, v in result.items() if k != "config" and isinstance(v, Jsonable)
-        }
-        wandb.log(filtered)
 
     @property
     @overrides(RLlibTrainer)
@@ -229,8 +201,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         if self.config["compile_policy"]:
             self._optimize_policy_backend()
 
-        if self.config["wandb"]["enabled"]:
-            self._setup_wandb()
+        self.wandb = WandBLogger(self.config, self._name)
 
     def _setup_optimizer_placeholder(self):
         # Always have a PolicyOptimizer if possible to collect metrics
@@ -253,27 +224,6 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
             )
         self.workers.foreach_policy(lambda p, _: p.compile())
 
-    def _setup_wandb(self):
-        assert wandb is not None, "Unable to import wandb, did you install it via pip?"
-
-        wandb_kwargs = dict(
-            name=self._name,
-            config_exclude_keys={"wandb", "callbacks"},
-            config=self.config,
-            # Allow calling init twice if creating more than one trainer in the
-            # same process
-            reinit=True,
-        )
-        special_keys = {"enabled", "file_paths", "save_checkpoints"}
-        wandb_kwargs.update(
-            {k: v for k, v in self.config["wandb"].items() if k not in special_keys}
-        )
-        wandb.init(**wandb_kwargs)
-
-        file_paths = self.config["wandb"]["file_paths"]
-        for path in file_paths:
-            wandb.save(path)
-
     def __getattr__(self, attr):
         if attr == "metrics":
             return self.optimizer
@@ -288,11 +238,8 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     @overrides(Trainable)
     def save(self, checkpoint_dir=None):
         checkpoint_path = super().save(checkpoint_dir)
-
-        config = self.config
-        if config["wandb"]["enabled"] and config["wandb"]["save_checkpoints"]:
-            wandb.save(checkpoint_path)
-
+        if self.wandb.enabled:
+            self.wandb.save_checkpoint(checkpoint_path)
         return checkpoint_path
 
     @overrides(RLlibTrainer)
@@ -312,5 +259,5 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     @overrides(RLlibTrainer)
     def _stop(self):
         super()._stop()
-        if self.config["wandb"]["enabled"] and wandb:
-            wandb.join()
+        if self.wandb.enabled:
+            self.wandb.stop()

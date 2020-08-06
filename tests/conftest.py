@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from .mock_env import MockEnv
@@ -51,3 +53,11 @@ def register_envs():
 
     ENVS["MockEnv"] = _mock_env_maker
     raylab.register_all_environments()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def wandb_dryrun():
+    # https://docs.wandb.com/library/environment-variables
+    # If you don't want your script to sync to the cloud
+    os.environ["WANDB_MODE"] = "dryrun"
+    os.environ["WANDB_ENTITY"] = "dummy"
