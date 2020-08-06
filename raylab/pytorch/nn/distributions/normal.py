@@ -1,5 +1,4 @@
-# pylint:disable=missing-docstring
-# pylint:enable=missing-docstring
+# pylint:disable=missing-module-docstring
 import math
 from typing import Dict
 from typing import List

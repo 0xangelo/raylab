@@ -16,14 +16,10 @@ from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
 from raylab.policy.modules.critic.q_value import QValue
 from raylab.policy.modules.critic.v_value import PolicyQValue
 from raylab.policy.modules.critic.v_value import VValue
-from raylab.policy.modules.model.stochastic.ensemble import SME
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
 from .abstract import Loss
-from .mixins import EnvFunctionsMixin
-from .mixins import UniformModelPriorMixin
-from .utils import dist_params_stats
 
 
 class QLearningMixin(ABC):
@@ -143,58 +139,3 @@ class SoftCDQLearning(QLearningMixin, Loss):
         next_entropy = torch.where(dones, torch.zeros_like(next_logp), -next_logp)
         target = rewards + self.gamma * (next_vals + self.alpha * next_entropy)
         return target.unsqueeze(-1).expand_as(unclipped_values)
-
-
-class DynaSoftCDQLearning(EnvFunctionsMixin, UniformModelPriorMixin, SoftCDQLearning):
-    """Loss function Dyna-augmented soft clipped double Q-learning.
-
-    Args:
-        critics: Main action-values
-        models: Stochastic model ensemble
-        target_critics: Target action-values
-        actor: Stochastic policy for the next state
-
-    Attributes:
-        gamma: discount factor
-        alpha: entropy coefficient
-    """
-
-    batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
-
-    def __init__(
-        self,
-        critics: QValue,
-        models: SME,
-        target_critics: QValue,
-        actor: StochasticPolicy,
-    ):
-        super().__init__(critics, target_critics, actor)
-        self._models = models
-
-    @property
-    def initialized(self) -> bool:
-        """Whether or not the loss function has all the necessary components."""
-        return self._env.initialized
-
-    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
-        assert self.initialized, (
-            "Environment functions missing. "
-            "Did you set reward and termination functions?"
-        )
-        obs = batch[SampleBatch.CUR_OBS]
-        action, _ = self.actor.sample(obs)
-        next_obs, _, dist_params = self.transition(obs, action)
-
-        reward = self._env.reward(obs, action, next_obs)
-        done = self._env.termination(obs, action, next_obs)
-
-        loss_fn = nn.MSELoss()
-        value = self.critics(obs, action)
-        with torch.no_grad():
-            target_value = self.critic_targets(reward, next_obs, done)
-        loss = loss_fn(value, target_value)
-
-        stats = {"loss(critics)": loss.item()}
-        stats.update(self.q_value_info(value))
-        stats.update(dist_params_stats(dist_params, name="model"))
-        return loss, stats
