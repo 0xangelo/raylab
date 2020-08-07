@@ -49,31 +49,31 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr .pytest_cache
 
 f8lint: ## check style with flake8
-	flake8 raylab tests
+	poetry run flake8 raylab tests
 
 pylint: ## lint code with pylint
-	pylint raylab -d similarities
+	poetry run pylint raylab -d similarities
 
 pylint-test: ## lint test files with pylint
-	pylint --rcfile=tests/pylintrc tests -d similarities
+	poetry run pylint --rcfile=tests/pylintrc tests -d similarities
 
 similarities: ## check code duplication with pylint
-	pylint raylab -d all -e similarities
+	poetry run pylint raylab -d all -e similarities
 
 test: ## run tests quickly with the default Python
-	pytest
+	poetry run pytest --ignore=tests/raylab/policy/modules/v0
 
 test-all: ## run tests on every Python version with tox
-	tox
+	poetry run tox
 
 changelog:
-	git describe --abbrev=0 | xargs auto-changelog --tag-prefix v --unreleased --stdout --starting-commit
+	git describe --abbrev=0 | xargs poetry run auto-changelog --tag-prefix v --unreleased --stdout --starting-commit
 
 push-release:
 	git push origin master develop --tags
 
 reorder-imports-staged:
-	git diff --cached --name-only | xargs grep -rl --include "*.py" 'import' | xargs reorder-python-imports --separate-relative
+	git diff --cached --name-only | xargs grep -rl --include "*.py" 'import' | xargs poetry run reorder-python-imports --separate-relative
 
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source raylab -m pytest
