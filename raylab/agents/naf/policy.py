@@ -6,8 +6,8 @@ from ray.rllib.utils import override
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import ClippedDoubleQLearning
-from raylab.pytorch.nn.utils import update_polyak
-from raylab.pytorch.optim import build_optimizer
+from raylab.torch.nn.utils import update_polyak
+from raylab.torch.optim import build_optimizer
 
 
 class NAFTorchPolicy(TorchPolicy):

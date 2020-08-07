@@ -5,9 +5,9 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-import raylab.pytorch.nn as nnx
-import raylab.pytorch.nn.distributions as ptd
-from raylab.pytorch.nn.init import initialize_
+import raylab.torch.nn as nnx
+import raylab.torch.nn.distributions as ptd
+from raylab.torch.nn.init import initialize_
 from raylab.utils.dictionaries import deep_merge
 
 

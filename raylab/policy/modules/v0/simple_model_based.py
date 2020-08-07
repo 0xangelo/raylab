@@ -1,5 +1,4 @@
 """Model-based architecture with disjoint model, actor, and critic."""
-
 from .abstract import AbstractModelActorCritic
 from .mixins import StateValueMixin
 from .mixins import StochasticActorMixin

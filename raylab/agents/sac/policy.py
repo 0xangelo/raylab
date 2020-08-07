@@ -8,8 +8,8 @@ from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import MaximumEntropyDual
 from raylab.policy.losses import ReparameterizedSoftPG
 from raylab.policy.losses import SoftCDQLearning
-from raylab.pytorch.nn.utils import update_polyak
-from raylab.pytorch.optim import build_optimizer
+from raylab.torch.nn.utils import update_polyak
+from raylab.torch.optim import build_optimizer
 
 
 class SACTorchPolicy(TorchPolicy):

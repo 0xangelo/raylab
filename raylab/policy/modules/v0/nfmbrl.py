@@ -1,5 +1,4 @@
 """Model-based architecture with Normalizing Flows."""
-
 from .abstract import AbstractModelActorCritic
 from .mixins import MaximumEntropyMixin
 from .mixins import NormalizingFlowActorMixin

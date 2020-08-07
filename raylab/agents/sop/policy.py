@@ -8,8 +8,8 @@ from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import ActionDPG
 from raylab.policy.losses import ClippedDoubleQLearning
 from raylab.policy.losses import DeterministicPolicyGradient
-from raylab.pytorch.nn.utils import update_polyak
-from raylab.pytorch.optim import build_optimizer
+from raylab.torch.nn.utils import update_polyak
+from raylab.torch.optim import build_optimizer
 
 
 class SOPTorchPolicy(TorchPolicy):

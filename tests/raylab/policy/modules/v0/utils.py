@@ -4,7 +4,7 @@ from functools import partial
 import torch
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
 
-from raylab.pytorch.utils import convert_to_tensor
+from raylab.torch.utils import convert_to_tensor
 from raylab.utils.debug import fake_batch
 
 

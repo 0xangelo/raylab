@@ -1,5 +1,4 @@
 """Model-based Actor-Critic for the maximum entropy framework."""
-
 from .abstract import AbstractModelActorCritic
 from .mixins import MaximumEntropyMixin
 from .mixins import StateValueMixin

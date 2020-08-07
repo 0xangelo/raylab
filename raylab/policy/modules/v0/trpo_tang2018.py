@@ -8,14 +8,14 @@ from ray.rllib.utils import merge_dicts
 from ray.rllib.utils import override
 
 import raylab.policy.modules.networks as networks
-from raylab.pytorch.nn import FullyConnected
-from raylab.pytorch.nn.distributions import flows
-from raylab.pytorch.nn.distributions import Independent
-from raylab.pytorch.nn.distributions import Normal
-from raylab.pytorch.nn.distributions import TransformedDistribution
-from raylab.pytorch.nn.distributions.flows import CompositeTransform
-from raylab.pytorch.nn.distributions.flows import TanhSquashTransform
-from raylab.pytorch.nn.init import initialize_
+from raylab.torch.nn import FullyConnected
+from raylab.torch.nn.distributions import flows
+from raylab.torch.nn.distributions import Independent
+from raylab.torch.nn.distributions import Normal
+from raylab.torch.nn.distributions import TransformedDistribution
+from raylab.torch.nn.distributions.flows import CompositeTransform
+from raylab.torch.nn.distributions.flows import TanhSquashTransform
+from raylab.torch.nn.init import initialize_
 
 from .abstract import AbstractActorCritic
 from .mixins import StateValueMixin

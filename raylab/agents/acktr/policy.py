@@ -13,10 +13,10 @@ from ray.rllib.utils import override
 import raylab.utils.dictionaries as dutil
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
-from raylab.pytorch.nn.distributions import Normal
-from raylab.pytorch.optim import build_optimizer
-from raylab.pytorch.optim.hessian_free import line_search
-from raylab.pytorch.optim.kfac import KFACMixin
+from raylab.torch.nn.distributions import Normal
+from raylab.torch.optim import build_optimizer
+from raylab.torch.optim.hessian_free import line_search
+from raylab.torch.optim.kfac import KFACMixin
 from raylab.utils.explained_variance import explained_variance
 
 

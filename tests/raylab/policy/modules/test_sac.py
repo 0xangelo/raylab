@@ -2,7 +2,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-import raylab.pytorch.nn as nnx
+import raylab.torch.nn as nnx
 from raylab.policy.modules.actor.policy.stochastic import MLPContinuousPolicy
 from raylab.policy.modules.sac import SAC
 

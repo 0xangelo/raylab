@@ -1,5 +1,4 @@
 """SVG Module with RealNVP density approximation for the policy."""
-
 from .abstract import AbstractModelActorCritic
 from .mixins import NormalizingFlowActorMixin
 from .mixins import StateValueMixin

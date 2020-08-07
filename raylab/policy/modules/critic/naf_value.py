@@ -3,7 +3,7 @@ import torch.nn as nn
 from gym.spaces import Box
 from torch import Tensor
 
-import raylab.pytorch.nn as nnx
+import raylab.torch.nn as nnx
 from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
 
 from .q_value import QValue

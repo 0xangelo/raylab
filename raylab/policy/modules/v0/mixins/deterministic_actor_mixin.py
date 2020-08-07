@@ -5,11 +5,11 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.pytorch.nn import FullyConnected
-from raylab.pytorch.nn import GaussianNoise
-from raylab.pytorch.nn import NormalizedLinear
-from raylab.pytorch.nn import TanhSquash
-from raylab.pytorch.nn.init import initialize_
+from raylab.torch.nn import FullyConnected
+from raylab.torch.nn import GaussianNoise
+from raylab.torch.nn import NormalizedLinear
+from raylab.torch.nn import TanhSquash
+from raylab.torch.nn.init import initialize_
 from raylab.utils.dictionaries import deep_merge
 
 

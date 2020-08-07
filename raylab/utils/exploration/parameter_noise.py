@@ -8,7 +8,7 @@ from ray.rllib import SampleBatch
 from ray.rllib.models.action_dist import ActionDistribution
 
 from raylab.policy import TorchPolicy
-from raylab.pytorch.nn.utils import perturb_params
+from raylab.torch.nn.utils import perturb_params
 from raylab.utils.param_noise import AdaptiveParamNoiseSpec
 from raylab.utils.param_noise import ddpg_distance_metric
 

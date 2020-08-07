@@ -11,7 +11,7 @@ from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
 from raylab.policy import TorchPolicy
 from raylab.policy.losses import OneStepSVG
-from raylab.pytorch.optim import get_optimizer_class
+from raylab.torch.optim import get_optimizer_class
 
 
 class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):

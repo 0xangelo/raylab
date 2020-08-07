@@ -8,7 +8,7 @@ import torch.nn as nn
 from gym.spaces import Box
 from torch import Tensor
 
-import raylab.pytorch.nn as nnx
+import raylab.torch.nn as nnx
 from raylab.policy.modules.networks.mlp import StateMLP
 
 

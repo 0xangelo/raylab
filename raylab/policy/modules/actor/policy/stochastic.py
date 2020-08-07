@@ -7,8 +7,8 @@ import torch.nn as nn
 from gym.spaces import Box
 from gym.spaces import Discrete
 
-import raylab.pytorch.nn as nnx
-import raylab.pytorch.nn.distributions as ptd
+import raylab.torch.nn as nnx
+import raylab.torch.nn.distributions as ptd
 from raylab.policy.modules.networks.mlp import StateMLP
 
 

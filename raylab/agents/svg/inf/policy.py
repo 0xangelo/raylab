@@ -10,7 +10,7 @@ from raylab.agents.svg import SVGTorchPolicy
 from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
 from raylab.policy.losses import TrajectorySVG
-from raylab.pytorch.optim import build_optimizer
+from raylab.torch.optim import build_optimizer
 
 
 class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):

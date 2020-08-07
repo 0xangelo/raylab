@@ -31,7 +31,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from raylab.pytorch.nn.utils import get_activation
+from raylab.torch.nn.utils import get_activation
 
 
 class ResidualBlock(nn.Module):

@@ -5,7 +5,7 @@ from raylab.policy import ModelSamplingMixin
 from raylab.policy import ModelTrainingMixin
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import ModelEnsembleMLE
-from raylab.pytorch.optim import build_optimizer
+from raylab.torch.optim import build_optimizer
 
 
 class MBPOTorchPolicy(
