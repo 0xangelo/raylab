@@ -32,12 +32,6 @@ def _import_sop():
     return SOPTrainer
 
 
-def _import_mapo():
-    from raylab.agents.mapo import MAPOTrainer
-
-    return MAPOTrainer
-
-
 def _import_trpo():
     from raylab.agents.trpo import TRPOTrainer
 
@@ -68,46 +62,17 @@ def _import_mage():
     return MAGETrainer
 
 
-def _import_dyna_sac():
-    from raylab.agents.sac.dyna import DynaSACTrainer
-
-    return DynaSACTrainer
-
-
-def _import_mapo_mle():
-    from raylab.agents.mapo.mle import MlMAPOTrainer
-
-    return MlMAPOTrainer
-
-
-def _import_dapo():
-    from raylab.agents.mapo.dapo import DAPOTrainer
-
-    return DAPOTrainer
-
-
-def _import_mapo_plus():
-    from raylab.agents.mapo.plus import MAPOPlusTrainer
-
-    return MAPOPlusTrainer
-
-
 AGENTS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
     "SVG(1)": _import_svg_one,
     "SoftAC": _import_sac,
     "SOP": _import_sop,
-    "MAPO": _import_mapo,
     "TRPO": _import_trpo,
     "SoftSVG": _import_soft_svg,
     "ACKTR": _import_acktr,
     "MBPO": _import_mbpo,
     "MAGE": _import_mage,
-    "Dyna-SAC": _import_dyna_sac,
-    "MAPO-MLE": _import_mapo_mle,
-    "DAPO": _import_dapo,
-    "MAPO++": _import_mapo_plus,
 }
 
 

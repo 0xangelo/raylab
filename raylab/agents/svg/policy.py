@@ -7,7 +7,7 @@ from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import ISFittedVIteration
 from raylab.policy.losses import MaximumLikelihood
-from raylab.pytorch.nn.utils import update_polyak
+from raylab.torch.nn.utils import update_polyak
 
 
 class SVGTorchPolicy(EnvFnMixin, TorchPolicy):

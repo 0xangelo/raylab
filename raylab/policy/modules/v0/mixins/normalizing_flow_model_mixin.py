@@ -6,8 +6,8 @@ import torch.nn as nn
 from ray.rllib.utils import override
 
 import raylab.policy.modules.networks as networks
-import raylab.pytorch.nn as nnx
-import raylab.pytorch.nn.distributions as ptd
+import raylab.torch.nn as nnx
+import raylab.torch.nn.distributions as ptd
 from raylab.utils.dictionaries import deep_merge
 
 from .stochastic_model_mixin import StochasticModel

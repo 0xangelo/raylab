@@ -12,11 +12,11 @@ from torch.nn.utils import vector_to_parameters
 
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
-from raylab.pytorch.optim import build_optimizer
-from raylab.pytorch.optim.hessian_free import conjugate_gradient
-from raylab.pytorch.optim.hessian_free import hessian_vector_product
-from raylab.pytorch.optim.hessian_free import line_search
-from raylab.pytorch.utils import flat_grad
+from raylab.torch.optim import build_optimizer
+from raylab.torch.optim.hessian_free import conjugate_gradient
+from raylab.torch.optim.hessian_free import hessian_vector_product
+from raylab.torch.optim.hessian_free import line_search
+from raylab.torch.utils import flat_grad
 from raylab.utils.dictionaries import get_keys
 from raylab.utils.explained_variance import explained_variance
 

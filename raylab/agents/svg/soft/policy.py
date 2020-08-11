@@ -9,7 +9,7 @@ from raylab.policy import EnvFnMixin
 from raylab.policy.losses import ISSoftVIteration
 from raylab.policy.losses import MaximumEntropyDual
 from raylab.policy.losses import OneStepSoftSVG
-from raylab.pytorch.optim import build_optimizer
+from raylab.torch.optim import build_optimizer
 
 
 class SoftSVGTorchPolicy(SVGTorchPolicy):

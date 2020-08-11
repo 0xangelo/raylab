@@ -1,7 +1,7 @@
 # pylint:disable=missing-module-docstring
 import numpy as np
 
-import raylab.pytorch.utils as ptu
+import raylab.torch.utils as ptu
 
 from .base import BaseExploration
 from .base import Model

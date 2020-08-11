@@ -2,8 +2,8 @@
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.pytorch.nn import StateActionEncoder
-from raylab.pytorch.nn.init import initialize_
+from raylab.torch.nn import StateActionEncoder
+from raylab.torch.nn.init import initialize_
 from raylab.utils.dictionaries import deep_merge
 
 

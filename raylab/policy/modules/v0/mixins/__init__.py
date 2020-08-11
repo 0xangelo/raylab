@@ -1,5 +1,4 @@
 """Collection of Reinforcement Learning components implementations."""
-
 from .action_value_mixin import ActionValueFunction
 from .action_value_mixin import ActionValueMixin
 from .deterministic_actor_mixin import DeterministicActorMixin

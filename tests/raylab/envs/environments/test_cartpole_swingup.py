@@ -3,7 +3,7 @@ from functools import partial
 import pytest
 import torch
 
-from raylab.pytorch.utils import convert_to_tensor
+from raylab.torch.utils import convert_to_tensor
 
 try:
     import gym_cartpole_swingup  # pylint:disable=unused-import

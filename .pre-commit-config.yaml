@@ -78,7 +78,7 @@ repos:
         language: system
         types: [python]
         stages: [commit]
-        args: [-j 0]
+        args: ["-d similarities,abstract-method,missing-function-docstring"]
         files: ^raylab/
 
     - repo: local
@@ -89,5 +89,5 @@ repos:
         language: system
         types: [python]
         stages: [commit]
-        args: [--rcfile=tests/pylintrc, -d similarities]
+        args: [--rcfile=tests/pylintrc, "-d similarities,abstract-method,missing-function-docstring"]
         files: ^tests/

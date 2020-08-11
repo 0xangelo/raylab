@@ -21,7 +21,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import RandomSampler
 
 from raylab.policy.losses.abstract import Loss
-from raylab.pytorch.utils import TensorDictDataset
+from raylab.torch.utils import TensorDictDataset
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 

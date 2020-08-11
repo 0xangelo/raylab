@@ -1,5 +1,4 @@
 """Model-based Soft Actor-Critic architecture."""
-
 from .abstract import AbstractModelActorCritic
 from .mixins import ActionValueMixin
 from .mixins import MaximumEntropyMixin

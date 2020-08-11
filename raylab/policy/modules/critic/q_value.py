@@ -54,7 +54,7 @@ class MLPQValue(QValue):
     def initialize_parameters(self, initializer_spec: dict):
         """Initialize all Linear models in the encoder.
 
-        Uses `raylab.pytorch.nn.init.initialize_` to create an initializer
+        Uses `raylab.torch.nn.init.initialize_` to create an initializer
         function.
 
         Args:

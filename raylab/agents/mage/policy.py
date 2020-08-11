@@ -6,7 +6,7 @@ from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import MAGE
 from raylab.policy.losses import ModelEnsembleMLE
 from raylab.policy.losses.mage import MAGEModules
-from raylab.pytorch.optim import build_optimizer
+from raylab.torch.optim import build_optimizer
 
 
 class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):

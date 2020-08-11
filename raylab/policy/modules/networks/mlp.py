@@ -11,9 +11,9 @@ from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
 from torch import Tensor
 
-import raylab.pytorch.nn as nnx
-from raylab.pytorch.nn.init import initialize_
-from raylab.pytorch.nn.utils import get_activation
+import raylab.torch.nn as nnx
+from raylab.torch.nn.init import initialize_
+from raylab.torch.nn.utils import get_activation
 
 from .utils import TensorStandardScaler
 
@@ -49,7 +49,7 @@ class StateMLP(nnx.FullyConnected):
     def initialize_parameters(self, initializer_spec: dict):
         """Initialize all Linear models in the encoder.
 
-        Uses `raylab.pytorch.nn.init.initialize_` to create an initializer
+        Uses `raylab.torch.nn.init.initialize_` to create an initializer
         function.
 
         Args:
@@ -128,7 +128,7 @@ class StateActionMLP(nn.Module):
     def initialize_parameters(self, initializer_spec: dict):
         """Initialize all Linear models in the encoder.
 
-        Uses `raylab.pytorch.nn.init.initialize_` to create an initializer
+        Uses `raylab.torch.nn.init.initialize_` to create an initializer
         function.
 
         Args:

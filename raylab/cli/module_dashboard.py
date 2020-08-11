@@ -14,7 +14,7 @@ from bokeh.plotting import figure
 from ray.rllib import SampleBatch
 
 import raylab
-import raylab.pytorch.utils as ptu
+import raylab.torch.utils as ptu
 import raylab.utils.dictionaries as dutil
 from raylab.utils.checkpoints import get_agent_from_checkpoint
 

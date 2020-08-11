@@ -1,8 +1,8 @@
 """Support for modules with state value functions as critics."""
 import torch.nn as nn
 
-from raylab.pytorch.nn import FullyConnected
-from raylab.pytorch.nn.init import initialize_
+from raylab.torch.nn import FullyConnected
+from raylab.torch.nn.init import initialize_
 from raylab.utils.dictionaries import deep_merge
 
 
