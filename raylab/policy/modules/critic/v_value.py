@@ -7,6 +7,8 @@ import torch
 import torch.nn as nn
 from gym.spaces import Box
 from torch import Tensor
+from torch.jit import fork
+from torch.jit import wait
 
 from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
 from raylab.policy.modules.networks.mlp import StateMLP
@@ -110,5 +112,5 @@ class ForkedVValueEnsemble(VValueEnsemble):
 
     def _state_values(self, obs: Tensor) -> Tensor:
         # pylint:disable=protected-access
-        futures = [torch.jit._fork(m, obs) for m in self]
-        return torch.cat([torch.jit._wait(f) for f in futures], dim=-1)
+        futures = [fork(m, obs) for m in self]
+        return torch.cat([wait(f) for f in futures], dim=-1)
