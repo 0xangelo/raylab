@@ -25,7 +25,7 @@ class WandBLogger:
 
     def __init__(self, config: dict, name: str):
         create = bool(config.get("wandb", {}))
-        self._wandb = self._setup(config, name) if create else None
+        self._run = self._setup(config, name) if create else None
 
     def _setup(self, config: dict, name: str):
         assert wandb is not None, "Unable to import wandb, did you install it via pip?"
@@ -47,17 +47,21 @@ class WandBLogger:
         wandb_kwargs.update(
             {k: v for k, v in wandb_config.items() if k not in self.SPECIAL_KEYS}
         )
-        logger = wandb.init(**wandb_kwargs)
+        run = wandb.init(**wandb_kwargs)
 
         file_paths = wandb_config.get("file_paths", [])
         for path in file_paths:
             wandb.save(path)
 
-        return logger
+        return run
 
     @property
     def enabled(self):
-        return self._wandb is not None
+        return self._run is not None
+
+    @property
+    def run(self):
+        return self._run
 
     @staticmethod
     def log_result(result: dict):
