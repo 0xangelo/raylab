@@ -111,6 +111,5 @@ class ForkedVValueEnsemble(VValueEnsemble):
     """Ensemble of V-value estimators with parallelized forward pass."""
 
     def _state_values(self, obs: Tensor) -> Tensor:
-        # pylint:disable=protected-access
         futures = [fork(m, obs) for m in self]
         return torch.cat([wait(f) for f in futures], dim=-1)
