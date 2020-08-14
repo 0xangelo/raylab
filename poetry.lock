@@ -1756,7 +1756,7 @@ description = "The fastest way to build data apps in Python"
 name = "streamlit"
 optional = false
 python-versions = ">=3.6"
-version = "0.64.0"
+version = "0.65.1"
 
 [package.dependencies]
 altair = ">=3.2.0"
@@ -2097,7 +2097,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "ed170799a5b29b24064628b0face0da23e1c7a539dff48baa1186979836e0380"
+content-hash = "41dc21b6e87f2388b6316f98a8497c86f6fe6cabe18376eba601cf3a62687868"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -3124,7 +3124,7 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 streamlit = [
-    {file = "streamlit-0.64.0-py2.py3-none-any.whl", hash = "sha256:7c77a7e1252077cad8493d5f9284ff54fb8135581aba163b4afd7405eb71ed66"},
+    {file = "streamlit-0.65.1-py2.py3-none-any.whl", hash = "sha256:d29f041cddaf06421236d6707a793edd189047bcad20ee241bd0567e4da202a0"},
 ]
 stringcase = [
     {file = "stringcase-1.2.0.tar.gz", hash = "sha256:48a06980661908efe8d9d34eab2b6c13aefa2163b3ced26972902e3bdfd87008"},
