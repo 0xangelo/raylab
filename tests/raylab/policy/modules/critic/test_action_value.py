@@ -40,7 +40,7 @@ def test_module_creation(module, obs, action, spec):
     q_values, targets = module.q_values, module.target_q_values
     vals = [m(obs, action) for ensemble in (q_values, targets) for m in ensemble]
     for val in vals:
-        assert val.shape[-1] == 1
+        assert val.shape == obs.shape[:-1]
         assert val.dtype == torch.float32
 
     assert all(

@@ -28,8 +28,8 @@ class VValue(ABC, nn.Module):
         """Main forward pass mapping obs to V-values.
 
         Note:
-            The output tensor has a last singleton dimension, i.e., for a batch
-            of 10 observations, the output will have shape (10, 1).
+            Output tensor has scalars for each batch dimension, i.e., for a
+            batch of 10 observations, the output will have shape (10,).
         """
 
 
@@ -74,10 +74,10 @@ class MLPVValue(VValue):
 
     def forward(self, obs: Tensor) -> Tensor:
         logits = self.encoder(obs)
-        return self.value_linear(logits)
+        return self.value_linear(logits).squeeze(dim=-1)
 
 
-class VValueEnsemble(nn.ModuleList, VValue):
+class VValueEnsemble(nn.ModuleList):
     """A static list of V-value estimators.
 
     Args:
@@ -91,25 +91,31 @@ class VValueEnsemble(nn.ModuleList, VValue):
         ), f"All modules in {cls_name} must be instances of VValue."
         super().__init__(v_values)
 
-    def forward(self, obs: Tensor) -> Tensor:
+    def forward(self, obs: Tensor) -> List[Tensor]:
         """Evaluate each V estimator in the ensemble.
 
         Args:
             obs: The observation tensor
 
         Returns:
-            A tensor of shape `(*, N)`, where `N` is the ensemble size
+            List of `N` output tensors, where `N` is the ensemble size
         """
         # pylint:disable=arguments-differ
         return self._state_values(obs)
 
-    def _state_values(self, obs: Tensor) -> Tensor:
-        return torch.cat([m(obs) for m in self], dim=-1)
+    def _state_values(self, obs: Tensor) -> List[Tensor]:
+        return [m(obs) for m in self]
+
+    @staticmethod
+    def clipped(outputs: List[Tensor]) -> Tensor:
+        """Returns the minimum V-value of an ensemble's outputs."""
+        mininum, _ = torch.stack(outputs, dim=0).min(dim=0)
+        return mininum
 
 
 class ForkedVValueEnsemble(VValueEnsemble):
     """Ensemble of V-value estimators with parallelized forward pass."""
 
-    def _state_values(self, obs: Tensor) -> Tensor:
+    def _state_values(self, obs: Tensor) -> List[Tensor]:
         futures = [fork(m, obs) for m in self]
-        return torch.cat([wait(f) for f in futures], dim=-1)
+        return [wait(f) for f in futures]

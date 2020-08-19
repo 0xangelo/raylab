@@ -19,20 +19,28 @@ def q_value_ensemble(obs_space, action_space, n_critics):
     return QValueEnsemble(q_values)
 
 
+def _test_value(value, obs):
+    assert torch.is_tensor(value)
+    assert value.dtype == torch.float32
+    assert value.shape == (len(obs),)
+
+
 def test_forward(q_value_ensemble, obs, action, n_critics):
     critics = q_value_ensemble
     values = critics(obs, action)
-    assert torch.is_tensor(values)
-    assert values.dtype == torch.float32
-    assert values.shape == (len(obs), n_critics)
 
-    clipped = critics(obs, action).min(dim=-1)[0]
-    assert torch.is_tensor(clipped)
-    assert clipped.dtype == torch.float32
-    assert clipped.shape == (len(obs),)
+    assert isinstance(values, list)
+    assert len(values) == n_critics
+
+    for value in values:
+        _test_value(value, obs)
+
+    clipped = QValueEnsemble.clipped(values)
+    _test_value(clipped, obs)
 
 
 def test_script_backprop(q_value_ensemble, obs, action):
     critics = torch.jit.script(q_value_ensemble)
-    values, _ = critics(obs, action).min(dim=-1)
-    values.mean().backward()
+    values = critics(obs, action)
+    clipped = QValueEnsemble.clipped(values)
+    clipped.mean().backward()

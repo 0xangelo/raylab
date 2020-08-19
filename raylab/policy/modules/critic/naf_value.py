@@ -37,8 +37,8 @@ class NAFQValue(QValue):
 
     def forward(self, obs: Tensor, action: Tensor) -> Tensor:
         logits = self.policy.encoder(obs)
-        best_value = self._value_linear(logits)
-        advantage = self._advantage(logits, action)
+        best_value = self._value_linear(logits).squeeze(-1)
+        advantage = self._advantage(logits, action).squeeze(-1)
         return advantage + best_value
 
 
@@ -51,7 +51,7 @@ class NAFVValue(VValue):
         self.value_linear = value_linear
 
     def forward(self, obs: Tensor) -> Tensor:
-        return self.value_linear(self.encoder(obs))
+        return self.value_linear(self.encoder(obs)).squeeze(-1)
 
 
 class AdvantageFunction(nn.Module):
@@ -68,4 +68,4 @@ class AdvantageFunction(nn.Module):
         action_diff = (action - best_action).unsqueeze(-1)  # column vector [..., N, 1]
         vec = tril_matrix.matmul(action_diff)  # column vector [..., N, 1]
         advantage = -0.5 * vec.transpose(-1, -2).matmul(vec).squeeze(-1)
-        return advantage
+        return advantage  # scalars [..., 1]

@@ -16,14 +16,20 @@ def v_value_ensemble(obs_space, n_critics):
     return VValueEnsemble(v_values)
 
 
+def _test_value(value, obs):
+    assert torch.is_tensor(value)
+    assert value.dtype == torch.float32
+    assert value.shape == (len(obs),)
+
+
 def test_forward(v_value_ensemble, obs, n_critics):
     critics = v_value_ensemble
     values = critics(obs)
-    assert torch.is_tensor(values)
-    assert values.dtype == torch.float32
-    assert values.shape == (len(obs), n_critics)
 
-    clipped = critics(obs).min(dim=-1)[0]
-    assert torch.is_tensor(clipped)
-    assert clipped.dtype == torch.float32
-    assert clipped.shape == (len(obs),)
+    assert isinstance(values, list)
+    assert len(values) == n_critics
+    for value in values:
+        _test_value(value, obs)
+
+    clipped = VValueEnsemble.clipped(values)
+    _test_value(clipped, obs)
