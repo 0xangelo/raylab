@@ -41,7 +41,7 @@ class MaximumLikelihood(Loss):
         obs, actions, next_obs = get_keys(batch, *self.batch_keys)
 
         dist_params = self.model(obs, actions)
-        loss = -self.model.dist.log_prob(next_obs, dist_params).mean()
+        loss = -self.model.log_prob(next_obs, dist_params).mean()
         if "max_logvar" in dist_params and "min_logvar" in dist_params:
             loss += 0.01 * dist_params["max_logvar"].sum()
             loss += -0.01 * dist_params["min_logvar"].sum()
@@ -74,10 +74,7 @@ class ModelEnsembleMLE(Loss):
         )
 
         dist_params = self.models(obs, actions)
-        losses = [
-            -logp.mean()
-            for logp in self.models.log_prob_from_params(next_obs, dist_params)
-        ]
+        losses = [-logp.mean() for logp in self.models.log_prob(next_obs, dist_params)]
         losses_reg = [
             nll + 0.01 * p["max_logvar"].sum() - 0.01 * p["min_logvar"].sum()
             if "max_logvar" in p and "min_logvar" in p

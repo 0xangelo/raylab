@@ -1,14 +1,20 @@
 """NN modules for stochastic dynamics estimation."""
 from dataclasses import dataclass
 from typing import List
+from typing import Tuple
 
 import torch
 import torch.nn as nn
 from gym.spaces import Box
+from torch import Tensor
 
 import raylab.torch.nn as nnx
 import raylab.torch.nn.distributions as ptd
 from raylab.policy.modules.networks.mlp import StateActionMLP
+from raylab.utils.annotations import TensorDict
+
+
+SampleLogp = Tuple[Tensor, Tensor]
 
 
 class StochasticModel(nn.Module):
@@ -21,65 +27,57 @@ class StochasticModel(nn.Module):
         self.params = params_module
         self.dist = dist_module
 
-    def forward(self, obs, action):  # pylint:disable=arguments-differ
+    def forward(self, obs, action) -> TensorDict:  # pylint:disable=arguments-differ
         return self.params(obs, action)
 
     @torch.jit.export
-    def sample(self, obs, action, sample_shape: List[int] = ()):
+    def sample(self, params: TensorDict, sample_shape: List[int] = ()) -> SampleLogp:
         """
         Generates a sample_shape shaped sample or sample_shape shaped batch of
         samples if the distribution parameters are batched. Returns a (sample, log_prob)
         pair.
         """
-        params = self(obs, action)
         return self.dist.sample(params, sample_shape)
 
     @torch.jit.export
-    def rsample(self, obs, action, sample_shape: List[int] = ()):
+    def rsample(self, params: TensorDict, sample_shape: List[int] = ()) -> SampleLogp:
         """
         Generates a sample_shape shaped reparameterized sample or sample_shape
         shaped batch of reparameterized samples if the distribution parameters
         are batched. Returns a (rsample, log_prob) pair.
         """
-        params = self(obs, action)
         return self.dist.rsample(params, sample_shape)
 
     @torch.jit.export
-    def log_prob(self, obs, action, next_obs):
+    def log_prob(self, next_obs: Tensor, params: TensorDict) -> Tensor:
         """
         Returns the log probability density/mass function evaluated at `next_obs`.
         """
-        params = self(obs, action)
         return self.dist.log_prob(next_obs, params)
 
     @torch.jit.export
-    def cdf(self, obs, action, next_obs):
+    def cdf(self, next_obs: Tensor, params: TensorDict) -> Tensor:
         """Returns the cumulative density/mass function evaluated at `next_obs`."""
-        params = self(obs, action)
         return self.dist.cdf(next_obs, params)
 
     @torch.jit.export
-    def icdf(self, obs, action, prob):
+    def icdf(self, prob, params: TensorDict) -> Tensor:
         """Returns the inverse cumulative density/mass function evaluated at `prob`."""
-        params = self(obs, action)
         return self.dist.icdf(prob, params)
 
     @torch.jit.export
-    def entropy(self, obs, action):
+    def entropy(self, params: TensorDict) -> Tensor:
         """Returns entropy of distribution."""
-        params = self(obs, action)
         return self.dist.entropy(params)
 
     @torch.jit.export
-    def perplexity(self, obs, action):
+    def perplexity(self, params: TensorDict) -> Tensor:
         """Returns perplexity of distribution."""
-        params = self(obs, action)
         return self.dist.perplexity(params)
 
     @torch.jit.export
-    def reproduce(self, obs, action, next_obs):
+    def reproduce(self, next_obs, params: TensorDict) -> SampleLogp:
         """Produce a reparametrized sample with the same value as `next_obs`."""
-        params = self(obs, action)
         return self.dist.reproduce(next_obs, params)
 
 
@@ -88,39 +86,38 @@ class ResidualMixin:
 
     # pylint:disable=missing-function-docstring,not-callable
 
+    def forward(self, obs: Tensor, action: Tensor) -> TensorDict:
+        params = self.params(obs, action)
+        params["obs"] = obs
+        return params
+
     @torch.jit.export
-    def sample(self, obs, action, sample_shape: List[int] = ()):
-        params = self(obs, action)
+    def sample(self, params: TensorDict, sample_shape: List[int] = ()) -> SampleLogp:
         res, log_prob = self.dist.sample(params, sample_shape)
-        return obs + res, log_prob
+        return params["obs"] + res, log_prob
 
     @torch.jit.export
-    def rsample(self, obs, action, sample_shape: List[int] = ()):
-        params = self(obs, action)
+    def rsample(self, params: TensorDict, sample_shape: List[int] = ()) -> SampleLogp:
         res, log_prob = self.dist.rsample(params, sample_shape)
-        return obs + res, log_prob
+        return params["obs"] + res, log_prob
 
     @torch.jit.export
-    def log_prob(self, obs, action, next_obs):
-        params = self(obs, action)
-        return self.dist.log_prob(next_obs - obs, params)
+    def log_prob(self, next_obs: Tensor, params: TensorDict) -> Tensor:
+        return self.dist.log_prob(next_obs - params["obs"], params)
 
     @torch.jit.export
-    def cdf(self, obs, action, next_obs):
-        params = self(obs, action)
-        return self.dist.cdf(next_obs - obs, params)
+    def cdf(self, next_obs: Tensor, params: TensorDict) -> Tensor:
+        return self.dist.cdf(next_obs - params["obs"], params)
 
     @torch.jit.export
-    def icdf(self, obs, action, prob):
-        params = self(obs, action)
+    def icdf(self, prob, params: TensorDict) -> Tensor:
         residual = self.dist.icdf(prob, params)
-        return obs + residual
+        return params["obs"] + residual
 
     @torch.jit.export
-    def reproduce(self, obs, action, next_obs):
-        params = self(obs, action)
-        sample_, log_prob_ = self.dist.reproduce(next_obs - obs, params)
-        return obs + sample_, log_prob_
+    def reproduce(self, next_obs, params: TensorDict) -> SampleLogp:
+        sample_, log_prob_ = self.dist.reproduce(next_obs - params["obs"], params)
+        return params["obs"] + sample_, log_prob_
 
 
 class DynamicsParams(nn.Module):

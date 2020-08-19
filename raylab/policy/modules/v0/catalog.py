@@ -3,28 +3,13 @@ import torch.nn as nn
 from gym.spaces import Space
 
 from .maxent_model_based import MaxEntModelBased
-from .nfmbrl import NFMBRL
-from .off_policy_nfac import OffPolicyNFAC
 from .on_policy_actor_critic import OnPolicyActorCritic
-from .on_policy_nfac import OnPolicyNFAC
 from .simple_model_based import SimpleModelBased
 from .svg_module import SVGModule
-from .svg_realnvp_actor import SVGRealNVPActor
-from .trpo_tang2018 import TRPOTang2018
 
 MODULES = {
     cls.__name__ + "-v0": cls
-    for cls in (
-        SimpleModelBased,
-        SVGModule,
-        MaxEntModelBased,
-        NFMBRL,
-        OnPolicyActorCritic,
-        OnPolicyNFAC,
-        OffPolicyNFAC,
-        TRPOTang2018,
-        SVGRealNVPActor,
-    )
+    for cls in (SimpleModelBased, SVGModule, MaxEntModelBased, OnPolicyActorCritic)
 }
 
 

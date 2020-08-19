@@ -46,7 +46,7 @@ class SME(nn.ModuleList):
         return [m(obs[i], act[i]) for i, m in enumerate(self)]
 
     @torch.jit.export
-    def sample(self, obs: List[Tensor], act: List[Tensor]) -> List[SampleLogp]:
+    def sample(self, params: List[TensorDict]) -> List[SampleLogp]:
         """Compute samples and likelihoods for each model in the ensemble.
 
         Args:
@@ -59,20 +59,18 @@ class SME(nn.ModuleList):
            `S + (*,) + O` and `S + (*,)` respectively, where `S` is the
            `sample_shape`.
         """
-        return [m.sample(obs[i], act[i]) for i, m in enumerate(self)]
+        return [m.sample(params[i]) for i, m in enumerate(self)]
 
     @torch.jit.export
-    def rsample(self, obs: List[Tensor], act: List[Tensor]) -> List[SampleLogp]:
+    def rsample(self, params: List[TensorDict]) -> List[SampleLogp]:
         """Compute reparameterized samples and likelihoods for each model.
 
         Uses the same semantics as :meth:`SME.sample`.
         """
-        return [m.rsample(obs[i], act[i]) for i, m in enumerate(self)]
+        return [m.rsample(params[i]) for i, m in enumerate(self)]
 
     @torch.jit.export
-    def log_prob(
-        self, obs: List[Tensor], act: List[Tensor], new_obs: List[Tensor]
-    ) -> List[Tensor]:
+    def log_prob(self, new_obs: List[Tensor], params: List[TensorDict]) -> List[Tensor]:
         """Compute likelihoods for each model in the ensemble.
 
         Args:
@@ -83,23 +81,7 @@ class SME(nn.ModuleList):
         Returns:
            List of `N` log-likelihood tensors of shape `(*,)`
         """
-        return [m.log_prob(obs[i], act[i], new_obs[i]) for i, m in enumerate(self)]
-
-    # pylint:disable=missing-function-docstring
-
-    @torch.jit.export
-    def sample_from_params(self, dist_params: List[TensorDict]) -> List[SampleLogp]:
-        return [m.dist.sample(dist_params[i]) for i, m in enumerate(self)]
-
-    @torch.jit.export
-    def rsample_from_params(self, dist_params: List[TensorDict]) -> List[SampleLogp]:
-        return [m.dist.rsample(dist_params[i]) for i, m in enumerate(self)]
-
-    @torch.jit.export
-    def log_prob_from_params(
-        self, obs: List[Tensor], params: List[TensorDict]
-    ) -> List[Tensor]:
-        return [m.dist.log_prob(obs[i], params[i]) for i, m in enumerate(self)]
+        return [m.log_prob(new_obs[i], params[i]) for i, m in enumerate(self)]
 
 
 class ForkedSME(SME):
@@ -112,37 +94,16 @@ class ForkedSME(SME):
         return [wait(f) for f in futures]
 
     @torch.jit.export
-    def sample(self, obs: List[Tensor], act: List[Tensor]) -> List[SampleLogp]:
-        futures = [fork(m.sample, obs[i], act[i]) for i, m in enumerate(self)]
+    def sample(self, params: List[TensorDict]) -> List[SampleLogp]:
+        futures = [fork(m.sample, params[i]) for i, m in enumerate(self)]
         return [wait(f) for f in futures]
 
     @torch.jit.export
-    def rsample(self, obs: List[Tensor], act: List[Tensor]) -> List[SampleLogp]:
-        futures = [fork(m.rsample, obs[i], act[i]) for i, m in enumerate(self)]
+    def rsample(self, params: List[TensorDict]) -> List[SampleLogp]:
+        futures = [fork(m.rsample, params[i]) for i, m in enumerate(self)]
         return [wait(f) for f in futures]
 
     @torch.jit.export
-    def log_prob(
-        self, obs: List[Tensor], act: List[Tensor], new_obs: List[Tensor]
-    ) -> List[Tensor]:
-        futures = [
-            fork(m.log_prob, obs[i], act[i], new_obs[i]) for i, m in enumerate(self)
-        ]
-        return [wait(f) for f in futures]
-
-    @torch.jit.export
-    def sample_from_params(self, dist_params: List[TensorDict]) -> List[SampleLogp]:
-        futures = [fork(m.dist.sample, dist_params[i]) for i, m in enumerate(self)]
-        return [wait(f) for f in futures]
-
-    @torch.jit.export
-    def rsample_from_params(self, dist_params: List[TensorDict]) -> List[SampleLogp]:
-        futures = [fork(m.dist.rsample, dist_params[i]) for i, m in enumerate(self)]
-        return [wait(f) for f in futures]
-
-    @torch.jit.export
-    def log_prob_from_params(
-        self, obs: List[Tensor], params: List[TensorDict]
-    ) -> List[Tensor]:
-        futures = [fork(m.dist.log_prob, obs[i], params[i]) for i, m in enumerate(self)]
+    def log_prob(self, new_obs: List[Tensor], params: List[TensorDict]) -> List[Tensor]:
+        futures = [fork(m.log_prob, new_obs[i], params[i]) for i, m in enumerate(self)]
         return [wait(f) for f in futures]
