@@ -34,7 +34,7 @@ class MaximumLikelihood(Loss):
             # Treat everything as if ensemble
             models = SME([models])
         self.models = models
-        self.tag = "MLE"
+        self.tag = "nll"
 
     def compile(self):
         self.models = torch.jit.script(self.models)
@@ -71,16 +71,16 @@ class MaximumLikelihood(Loss):
         return [tensor.clone() for _ in range(len(self.models))]
 
     @classmethod
-    def add_regularizations(cls, params: List[TensorDict]) -> List[Tensor]:
+    def add_regularizations(cls, params_list: List[TensorDict]) -> List[Tensor]:
         """Add logvar bound penalties if needed.
 
         Args:
-            params: List of model distribution parameters
+            params_list: List of model distribution parameters
 
         Returns:
             List of regularization factors for each model's loss
         """
-        return list(map(cls.regularize_if_needed, params))
+        return list(map(cls.regularize_if_needed, params_list))
 
     @staticmethod
     def regularize_if_needed(params: TensorDict) -> Tensor:
@@ -92,7 +92,13 @@ class MaximumLikelihood(Loss):
         Returns:
             Regularization factors for model loss
         """
-        if "max_logvar" in params and "min_logvar" in params:
+        should_regularize = (
+            "max_logvar" in params
+            and params["max_logvar"].requires_grad
+            and "min_logvar" in params
+            and params["min_logvar"].requires_grad
+        )
+        if should_regularize:
             return 0.01 * params["max_logvar"].sum() - 0.01 * params["min_logvar"].sum()
 
         return torch.zeros([])
