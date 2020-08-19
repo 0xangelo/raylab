@@ -6,7 +6,6 @@ from .isfv_iteration import ISSoftVIteration
 from .mage import MAGE
 from .maximum_entropy import MaximumEntropyDual
 from .mle import MaximumLikelihood
-from .mle import ModelEnsembleMLE
 from .policy_gradient import ActionDPG
 from .policy_gradient import DeterministicPolicyGradient
 from .policy_gradient import ReparameterizedSoftPG
@@ -24,7 +23,6 @@ __all__ = [
     "MaximumEntropyDual",
     "MAGE",
     "MaximumLikelihood",
-    "ModelEnsembleMLE",
     "OneStepSVG",
     "OneStepSoftSVG",
     "ReparameterizedSoftPG",

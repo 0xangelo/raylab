@@ -4,7 +4,7 @@ from raylab.policy import EnvFnMixin
 from raylab.policy import ModelTrainingMixin
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import MAGE
-from raylab.policy.losses import ModelEnsembleMLE
+from raylab.policy.losses import MaximumLikelihood
 from raylab.policy.losses.mage import MAGEModules
 from raylab.torch.optim import build_optimizer
 
@@ -24,7 +24,7 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
         super().__init__(observation_space, action_space, config)
 
         module = self.module
-        self.loss_model = ModelEnsembleMLE(module.models)
+        self.loss_model = MaximumLikelihood(module.models)
         mage_modules = MAGEModules(
             critics=module.critics,
             target_critics=module.target_critics,

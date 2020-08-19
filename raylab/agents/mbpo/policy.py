@@ -4,7 +4,7 @@ from raylab.policy import EnvFnMixin
 from raylab.policy import ModelSamplingMixin
 from raylab.policy import ModelTrainingMixin
 from raylab.policy.action_dist import WrapStochasticPolicy
-from raylab.policy.losses import ModelEnsembleMLE
+from raylab.policy.losses import MaximumLikelihood
 from raylab.torch.optim import build_optimizer
 
 
@@ -19,7 +19,7 @@ class MBPOTorchPolicy(
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
         models = self.module.models
-        self.loss_model = ModelEnsembleMLE(models)
+        self.loss_model = MaximumLikelihood(models)
 
     @property
     def options(self):
