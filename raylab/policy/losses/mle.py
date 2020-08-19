@@ -56,7 +56,7 @@ class MaximumLikelihood(Loss):
             nll + reg for nll, reg in zip(nlls, self.add_regularizations(dist_params))
         ]
 
-        info = {f"{self.tag}(models[{i}])": n.item() for i, n in enumerate(losses)}
+        info = {f"{self.tag}(models[{i}])": n.item() for i, n in enumerate(nlls)}
         return torch.stack(losses), info
 
     def expand_foreach_model(self, tensor: Tensor) -> List[Tensor]:
