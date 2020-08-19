@@ -108,3 +108,26 @@ def test_rsample(module, obs, act, rew, expand_foreach_model):
     assert all([torch.is_tensor(s) and torch.is_tensor(p) for s, p in outputs])
     assert all([s.shape == obs[0].shape for s, _ in outputs])
     assert all([p.shape == rew.shape for _, p in outputs])
+
+
+def test_deterministic(module, obs, act, rew, expand_foreach_model):
+    obss, acts = map(expand_foreach_model, (obs, act))
+    params = module(obss, acts)
+
+    outputs = module.deterministic(params)
+    assert isinstance(outputs, list)
+    obs1, logp1 = zip(*outputs)
+    assert all([torch.is_tensor(o) for o in obs1])
+    assert all([torch.is_tensor(p) for p in logp1])
+    assert all([o.shape == obs.shape for o in obs1])
+    assert all([p.shape == rew.shape for p in logp1])
+    assert all([o.dtype == obs.dtype for o in obs1])
+    assert all([p.dtype == rew.dtype for p in logp1])
+
+    obs2, logp2 = zip(*module.deterministic(params))
+    assert all([torch.allclose(o1, o2) for o1, o2 in zip(obs1, obs2)])
+    assert all([torch.allclose(p1, p2) for p1, p2 in zip(logp1, logp2)])
+
+    assert obs1[0].grad_fn is not None
+    obs1[0].sum().backward()
+    assert any([p.grad is not None for p in module[0].parameters()])

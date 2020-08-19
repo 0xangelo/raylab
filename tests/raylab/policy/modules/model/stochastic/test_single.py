@@ -129,6 +129,26 @@ def test_reproduce(module, obs, act, next_obs, rew):
     assert all(p.grad is not None for p in params)
 
 
+def test_deterministic(module, obs, act, rew):
+    params = module(obs, act)
+
+    obs1, logp1 = module.deterministic(params)
+    assert torch.is_tensor(obs1)
+    assert torch.is_tensor(logp1)
+    assert obs1.shape == obs.shape
+    assert logp1.shape == rew.shape
+    assert obs1.dtype == obs.dtype
+    assert logp1.dtype == rew.dtype
+
+    obs2, logp2 = module.deterministic(params)
+    assert torch.allclose(obs1, obs2)
+    assert torch.allclose(logp1, logp2)
+
+    assert obs1.grad_fn is not None
+    obs1.sum().backward()
+    assert any([p.grad is not None for p in module.parameters()])
+
+
 def test_script(module):
     torch.jit.script(module)
 

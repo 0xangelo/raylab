@@ -80,6 +80,14 @@ class StochasticModel(nn.Module):
         """Produce a reparametrized sample with the same value as `next_obs`."""
         return self.dist.reproduce(next_obs, params)
 
+    @torch.jit.export
+    def deterministic(self, params: TensorDict) -> SampleLogp:
+        """
+        Generates a deterministic sample or batch of samples if the distribution
+        parameters are batched. Returns a (rsample, log_prob) pair.
+        """
+        return self.dist.deterministic(params)
+
 
 class ResidualMixin:
     """Overrides StochasticModel interface to model state transition residuals."""
@@ -118,6 +126,11 @@ class ResidualMixin:
     def reproduce(self, next_obs, params: TensorDict) -> SampleLogp:
         sample_, log_prob_ = self.dist.reproduce(next_obs - params["obs"], params)
         return params["obs"] + sample_, log_prob_
+
+    @torch.jit.export
+    def deterministic(self, params: TensorDict) -> SampleLogp:
+        sample, log_prob = self.dist.deterministic(params)
+        return params["obs"] + sample, log_prob
 
 
 class DynamicsParams(nn.Module):

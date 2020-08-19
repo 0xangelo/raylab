@@ -53,7 +53,7 @@ def config(input_dependent_scale, residual):
     return {
         "model": {
             "residual": residual,
-            "input_dependent_scale": input_dependent_scale,
+            "network": {"input_dependent_scale": input_dependent_scale},
             "ensemble_size": 0,
         },
     }
@@ -78,12 +78,13 @@ def test_ensemble(module_and_batch_fn, module_cls, config, ensemble_size):
 
 def test_model_rsample(module_batch_config):
     module, batch, _ = module_batch_config
+    model = module.model
 
-    samples, logp = module.model.rsample(
-        batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS]
+    samples, logp = model.rsample(
+        model(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
     )
-    samples_, _ = module.model.rsample(
-        batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS]
+    samples_, _ = model.rsample(
+        model(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
     )
     assert samples.shape == batch[SampleBatch.NEXT_OBS].shape
     assert samples.dtype == torch.float32
@@ -94,8 +95,9 @@ def test_model_rsample(module_batch_config):
 
 def test_model_params(module_batch_config):
     module, batch, _ = module_batch_config
+    model = module.model
 
-    params = module.model(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
+    params = model(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
     assert "loc" in params
     assert "scale" in params
 
@@ -105,7 +107,7 @@ def test_model_params(module_batch_config):
     assert loc.dtype == torch.float32
     assert scale.dtype == torch.float32
 
-    parameters = set(module.model.parameters())
+    parameters = set(model.parameters())
     for par in parameters:
         par.grad = None
     loc.mean().backward()
@@ -114,7 +116,7 @@ def test_model_params(module_batch_config):
 
     for par in parameters:
         par.grad = None
-    module.model(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])[
+    model(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])[
         "scale"
     ].mean().backward()
     assert any(p.grad is not None for p in parameters)
@@ -123,11 +125,11 @@ def test_model_params(module_batch_config):
 
 def test_model_logp(module_batch_config):
     module, batch, _ = module_batch_config
+    model = module.model
 
-    logp = module.model.log_prob(
-        batch[SampleBatch.CUR_OBS],
-        batch[SampleBatch.ACTIONS],
+    logp = model.log_prob(
         batch[SampleBatch.NEXT_OBS],
+        model(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS]),
     )
     assert logp.shape == batch[SampleBatch.REWARDS].shape
     assert logp.dtype == torch.float32
@@ -137,10 +139,11 @@ def test_model_logp(module_batch_config):
 
 def test_model_reproduce(module_batch_config):
     module, batch, _ = module_batch_config
+    model = module.model
 
     next_obs = batch[SampleBatch.NEXT_OBS]
-    next_obs_, logp_ = module.model.reproduce(
-        batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS], next_obs
+    next_obs_, logp_ = model.reproduce(
+        next_obs, model(batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS])
     )
     assert next_obs_.shape == next_obs.shape
     assert next_obs_.dtype == next_obs.dtype
@@ -148,6 +151,6 @@ def test_model_reproduce(module_batch_config):
     assert logp_.shape == batch[SampleBatch.REWARDS].shape
 
     next_obs_.mean().backward()
-    model_params = set(module.model.parameters())
+    model_params = set(model.parameters())
     assert all(p.grad is not None for p in model_params)
     assert all(p.grad is None for p in set(module.parameters()) - model_params)
