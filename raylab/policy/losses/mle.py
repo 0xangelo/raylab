@@ -53,7 +53,7 @@ class MaximumLikelihood(Loss):
         dist_params = self.models(obs, actions)
         nlls = [-logp.mean() for logp in self.models.log_prob(next_obs, dist_params)]
         losses = [
-            nll + reg for nll, reg in zip(nlls, self.add_regularizations(dist_params))
+            nll + reg for nll, reg in zip(nlls, self.regularizations(dist_params))
         ]
 
         info = {f"{self.tag}(models[{i}])": n.item() for i, n in enumerate(nlls)}
@@ -71,8 +71,8 @@ class MaximumLikelihood(Loss):
         return [tensor.clone() for _ in range(len(self.models))]
 
     @classmethod
-    def add_regularizations(cls, params_list: List[TensorDict]) -> List[Tensor]:
-        """Add logvar bound penalties if needed.
+    def regularizations(cls, params_list: List[TensorDict]) -> List[Tensor]:
+        """Computes logvar bound penalties if needed.
 
         Args:
             params_list: List of model distribution parameters
