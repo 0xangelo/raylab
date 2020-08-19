@@ -80,11 +80,11 @@ class UniformModelPriorMixin:
             parameters
         """
         model = self._rng.choice(self._models)
-        dist_params = model.params(obs, action)
+        dist_params = model(obs, action)
         if self.grad_estimator == "SF":
-            next_obs, logp = model.dist.sample(dist_params)
+            next_obs, logp = model.sample(dist_params)
         elif self.grad_estimator == "PD":
-            next_obs, logp = model.dist.rsample(dist_params)
+            next_obs, logp = model.rsample(dist_params)
         return next_obs, logp, dist_params
 
     def verify_model(self, obs: Tensor, act: Tensor):
@@ -102,7 +102,7 @@ class UniformModelPriorMixin:
         """
         model = self._models[0]
         if self.grad_estimator == "SF":
-            sample, logp = model.sample(obs, act.requires_grad_())
+            sample, logp = model.sample(model(obs, act.requires_grad_()))
             assert sample.grad_fn is None
             assert logp is not None
             logp.mean().backward()
@@ -111,7 +111,7 @@ class UniformModelPriorMixin:
             ), "Transition grad log_prob must exist for SF estimator"
             assert not torch.allclose(act.grad, torch.zeros_like(act))
         if self.grad_estimator == "PD":
-            sample, _ = model.rsample(obs.requires_grad_(), act.requires_grad_())
+            sample, _ = model.rsample(model(obs.requires_grad_(), act.requires_grad_()))
             sample.mean().backward()
             assert (
                 act.grad is not None

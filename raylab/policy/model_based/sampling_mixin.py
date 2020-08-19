@@ -116,7 +116,7 @@ class ModelSamplingMixin:
             model = self.rng.choice(self.elite_models)
 
             action, _ = self.module.actor.sample(obs)
-            next_obs, _ = model.sample(obs, action)
+            next_obs, _ = model.sample(model(obs, action))
             reward = self.reward_fn(obs, action, next_obs)
             done = self.termination_fn(obs, action, next_obs)
 

@@ -22,7 +22,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         assert "target_critic" in self.module, "SoftSVG needs a target Value function!"
 
         self.loss_actor = OneStepSoftSVG(
-            self.module.model.reproduce,
+            lambda s, a, s_: self.module.model.reproduce(s_, self.module.model(s, a)),
             self.module.actor.reproduce,
             self.module.critic,
         )

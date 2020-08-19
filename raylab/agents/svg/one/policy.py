@@ -22,7 +22,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.loss_actor = OneStepSVG(
-            self.module.model.reproduce,
+            lambda s, a, s_: self.module.model.reproduce(s_, self.module.model(s, a)),
             self.module.actor.reproduce,
             self.module.critic,
         )

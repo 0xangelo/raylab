@@ -77,7 +77,7 @@ def test_forward(mocker, module, obs, act, next_obs, standard_scaler):
 
 def test_sample(module, obs, act, next_obs, rew):
     sampler = module.sample
-    inputs = (obs, act)
+    inputs = (module(obs, act),)
 
     samples, logp = sampler(*inputs)
     samples_, _ = sampler(*inputs)
@@ -92,8 +92,9 @@ def test_rsample_gradient_propagation(module, obs, act):
     sampler = module.rsample
     obs.requires_grad_(True)
     act.requires_grad_(True)
+    params = module(obs, act)
 
-    sample, logp = sampler(obs, act)
+    sample, logp = sampler(params)
     assert obs.grad_fn is None
     assert act.grad_fn is None
     sample.sum().backward(retain_graph=True)
@@ -107,7 +108,7 @@ def test_rsample_gradient_propagation(module, obs, act):
 
 
 def test_log_prob(module, obs, act, next_obs, rew):
-    logp = module.log_prob(obs, act, next_obs)
+    logp = module.log_prob(next_obs, module(obs, act))
 
     assert torch.is_tensor(logp)
     assert logp.shape == rew.shape
@@ -117,7 +118,7 @@ def test_log_prob(module, obs, act, next_obs, rew):
 
 
 def test_reproduce(module, obs, act, next_obs, rew):
-    next_obs_, logp_ = module.reproduce(obs, act, next_obs)
+    next_obs_, logp_ = module.reproduce(next_obs, module(obs, act))
     assert next_obs_.shape == next_obs.shape
     assert next_obs_.dtype == next_obs.dtype
     assert torch.allclose(next_obs_, next_obs, atol=1e-5)
@@ -137,7 +138,7 @@ def test_script_model_ograd(module, obs, act):
     model = torch.jit.script(module)
     obs = obs.clone().requires_grad_()
 
-    rsample, _ = model.rsample(obs, act)
+    rsample, _ = model.rsample(model(obs, act))
     (ograd,) = grad(rsample.mean(), [obs], create_graph=True)
     print(ograd)
     ograd.mean().backward()
@@ -149,7 +150,7 @@ def test_script_model_agrad(module, obs, act):
     model = torch.jit.script(module)
     act = act.clone().requires_grad_()
 
-    rsample, _ = model.rsample(obs, act)
+    rsample, _ = model.rsample(model(obs, act))
     (agrad,) = grad(rsample.mean(), [act], create_graph=True)
     print(agrad)
     agrad.mean().backward()

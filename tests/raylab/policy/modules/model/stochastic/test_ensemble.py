@@ -60,7 +60,7 @@ def test_iterate(module, ensemble_size):
 def test_log_prob(module, obs, act, next_obs, rew, expand_foreach_model):
     # pylint:disable=too-many-arguments
     obs, act, next_obs = map(expand_foreach_model, (obs, act, next_obs))
-    log_prob = module.log_prob(obs, act, next_obs)
+    log_prob = module.log_prob(next_obs, module(obs, act))
 
     assert isinstance(log_prob, list)
     assert all([torch.is_tensor(logp) for logp in log_prob])
@@ -83,13 +83,13 @@ def test_log_prob(module, obs, act, next_obs, rew, expand_foreach_model):
 def test_sample(module, obs, act, rew, expand_foreach_model):
     obs, act = map(expand_foreach_model, (obs, act))
 
-    outputs = module.sample(obs, act)
+    outputs = module.sample(module(obs, act))
     assert isinstance(outputs, list)
     assert all([isinstance(o, tuple) for o in outputs])
     assert all([torch.is_tensor(s) and torch.is_tensor(p) for s, p in outputs])
 
     samples, logp = zip(*outputs)
-    samples_, _ = zip(*module.sample(obs, act))
+    samples_, _ = zip(*module.sample(module(obs, act)))
 
     assert all([s.shape == o.shape for s, o in zip(samples, obs)])
     assert all([s.dtype == o.dtype for s, o in zip(samples, obs)])
@@ -98,11 +98,11 @@ def test_sample(module, obs, act, rew, expand_foreach_model):
     assert all([not torch.allclose(s, s_) for s, s_ in zip(samples, samples_)])
 
 
-def test_rsample_from_params(module, obs, act, rew, expand_foreach_model):
+def test_rsample(module, obs, act, rew, expand_foreach_model):
     obs, act = map(expand_foreach_model, (obs, act))
 
     params = module(obs, act)
-    outputs = module.rsample_from_params(params)
+    outputs = module.rsample(params)
     assert isinstance(outputs, list)
     assert all([isinstance(o, tuple) for o in outputs])
     assert all([torch.is_tensor(s) and torch.is_tensor(p) for s, p in outputs])
