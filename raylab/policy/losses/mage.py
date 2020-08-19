@@ -116,15 +116,14 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         target_policy = self._modules["target_policy"]
         target_critics = self._modules["target_critics"]
 
-        values = critics(obs, action)  # (*, N)
         reward = self._env.reward(obs, action, next_obs)  # (*,)
         done = self._env.termination(obs, action, next_obs)  # (*,)
         next_action = target_policy(next_obs)  # (*, A)
-        next_values, _ = target_critics(next_obs, next_action).min(dim=-1)  # (*,)
-        targets = torch.where(done, reward, reward + self.gamma * next_values)  # (*,)
-        targets = targets.unsqueeze(-1).expand_as(values)  # (*, N)
+        next_val = QValueEnsemble.clipped(target_critics(next_obs, next_action))  # (*,)
+        target = torch.where(done, reward, reward + self.gamma * next_val)  # (*,)
 
-        return targets - values
+        values = critics(obs, action)  # [(*,)] * N
+        return torch.stack([target - v for v in values], dim=-1)  # (*, N)
 
     @staticmethod
     def gradient_loss(delta: Tensor, action: Tensor) -> Tensor:

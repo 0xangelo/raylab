@@ -1,6 +1,7 @@
 """Modularized Q-Learning procedures."""
 from abc import ABC
 from abc import abstractmethod
+from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import Union
@@ -13,9 +14,9 @@ from torch import Tensor
 import raylab.utils.dictionaries as dutil
 from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
 from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
-from raylab.policy.modules.critic.q_value import QValue
+from raylab.policy.modules.critic.q_value import QValueEnsemble
 from raylab.policy.modules.critic.v_value import PolicyQValue
-from raylab.policy.modules.critic.v_value import VValue
+from raylab.policy.modules.critic.v_value import VValueEnsemble
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -33,6 +34,7 @@ class QLearningMixin(ABC):
         SampleBatch.NEXT_OBS,
         SampleBatch.DONES,
     )
+    critics: QValueEnsemble
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, TensorDict]:
         """Compute loss for Q-value function."""
@@ -41,7 +43,7 @@ class QLearningMixin(ABC):
             target_values = self.critic_targets(rewards, next_obs, dones)
         loss_fn = nn.MSELoss()
         values = self.critics(obs, actions)
-        critic_loss = loss_fn(values, target_values)
+        critic_loss = torch.stack([loss_fn(v, target_values) for v in values]).sum()
 
         stats = {"loss(critics)": critic_loss.item()}
         stats.update(self.q_value_info(values))
@@ -54,13 +56,17 @@ class QLearningMixin(ABC):
         """Compute clipped 1-step approximation of Q^{\\pi}(s, a)."""
 
     @staticmethod
-    def q_value_info(value: Tensor) -> StatDict:
+    def q_value_info(values: List[Tensor]) -> StatDict:
         """Return the average, min, and max Q-values in a batch."""
-        info = {
-            "q_mean": value.mean().item(),
-            "q_max": value.max().item(),
-            "q_min": value.min().item(),
-        }
+        info = {}
+        # pylint:disable=invalid-name
+        for i, q in enumerate(values):
+            infoi = {
+                f"Q{i}_mean": q.mean().item(),
+                f"Q{i}_max": q.max().item(),
+                f"Q{i}_min": q.min().item(),
+            }
+            info.update(infoi)
         return info
 
 
@@ -84,27 +90,27 @@ class ClippedDoubleQLearning(QLearningMixin, Loss):
 
     def __init__(
         self,
-        critics: QValue,
-        target_critics: Union[QValue, VValue],
+        critics: QValueEnsemble,
+        target_critics: Union[QValueEnsemble, VValueEnsemble],
         actor: Optional[DeterministicPolicy] = None,
     ):
         self.critics = critics
-        if isinstance(target_critics, QValue):
+        if isinstance(target_critics, QValueEnsemble):
             if actor is None:
                 raise ValueError(
                     f"Passing a Q-value function to {type(self).__name__}"
                     " requires a deterministic policy as the `actor` argument."
                 )
-            self.target_critics = PolicyQValue(policy=actor, q_value=target_critics)
+            self.target_critics = VValueEnsemble(
+                [PolicyQValue(policy=actor, q_value=q) for q in target_critics]
+            )
         else:
             self.target_critics = target_critics
 
     def critic_targets(self, rewards, next_obs, dones):
-        unclipped_values = self.target_critics(next_obs)
-        values, _ = unclipped_values.min(dim=-1)
-        next_vals = torch.where(dones, torch.zeros_like(values), values)
-        target = rewards + self.gamma * next_vals
-        return target.unsqueeze(-1).expand_as(unclipped_values)
+        clipped = VValueEnsemble.clipped(self.target_critics(next_obs))
+        next_vals = torch.where(dones, torch.zeros_like(clipped), clipped)
+        return rewards + self.gamma * next_vals
 
 
 class SoftCDQLearning(QLearningMixin, Loss):
@@ -124,7 +130,10 @@ class SoftCDQLearning(QLearningMixin, Loss):
     alpha: float = 0.05
 
     def __init__(
-        self, critics: QValue, target_critics: QValue, actor: StochasticPolicy,
+        self,
+        critics: QValueEnsemble,
+        target_critics: QValueEnsemble,
+        actor: StochasticPolicy,
     ):
         self.critics = critics
         self.target_critics = target_critics
@@ -132,10 +141,8 @@ class SoftCDQLearning(QLearningMixin, Loss):
 
     def critic_targets(self, rewards, next_obs, dones):
         next_acts, next_logp = self.actor.sample(next_obs)
-        unclipped_values = self.target_critics(next_obs, next_acts)
-        values, _ = unclipped_values.min(dim=-1)
+        clipped = QValueEnsemble.clipped(self.target_critics(next_obs, next_acts))
 
-        next_vals = torch.where(dones, torch.zeros_like(values), values)
+        next_vals = torch.where(dones, torch.zeros_like(clipped), clipped)
         next_entropy = torch.where(dones, torch.zeros_like(next_logp), -next_logp)
-        target = rewards + self.gamma * (next_vals + self.alpha * next_entropy)
-        return target.unsqueeze(-1).expand_as(unclipped_values)
+        return rewards + self.gamma * (next_vals + self.alpha * next_entropy)

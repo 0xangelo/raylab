@@ -1,6 +1,7 @@
 """Parameterized action-value estimators."""
 from abc import ABC
 from abc import abstractmethod
+from typing import List
 
 import torch
 import torch.nn as nn
@@ -22,8 +23,8 @@ class QValue(ABC, nn.Module):
         """Main forward pass mapping obs and actions to Q-values.
 
         Note:
-            The output tensor has a last singleton dimension, i.e., for a batch
-            of 10 obs-action pairs, the output will have shape (10, 1).
+            Output tensor has scalars for each batch dimension, i.e., for a
+            batch of 10 obs-action pairs, the output will have shape (10,).
         """
 
 
@@ -49,7 +50,7 @@ class MLPQValue(QValue):
 
     def forward(self, obs: Tensor, action: Tensor) -> Tensor:
         features = self.encoder(obs, action)
-        return self.value_linear(features)
+        return self.value_linear(features).squeeze(dim=-1)
 
     def initialize_parameters(self, initializer_spec: dict):
         """Initialize all Linear models in the encoder.
@@ -65,7 +66,7 @@ class MLPQValue(QValue):
         self.encoder.initialize_parameters(initializer_spec)
 
 
-class QValueEnsemble(nn.ModuleList, QValue):
+class QValueEnsemble(nn.ModuleList):
     """A static list of Q-value estimators.
 
     Args:
@@ -79,7 +80,7 @@ class QValueEnsemble(nn.ModuleList, QValue):
         ), f"All modules in {cls_name} must be instances of QValue."
         super().__init__(q_values)
 
-    def forward(self, obs: Tensor, action: Tensor) -> Tensor:
+    def forward(self, obs: Tensor, action: Tensor) -> List[Tensor]:
         """Evaluate each Q estimator in the ensemble.
 
         Args:
@@ -87,13 +88,13 @@ class QValueEnsemble(nn.ModuleList, QValue):
             action: The action tensor
 
         Returns:
-            A tensor of shape `(*, N)`, where `N` is the ensemble size
+            List of `N` output tensors, where `N` is the ensemble size
         """
         # pylint:disable=arguments-differ
         return self._action_values(obs, action)
 
-    def _action_values(self, obs: Tensor, act: Tensor) -> Tensor:
-        return torch.cat([m(obs, act) for m in self], dim=-1)
+    def _action_values(self, obs: Tensor, act: Tensor) -> List[Tensor]:
+        return [m(obs, act) for m in self]
 
     def initialize_parameters(self, initializer_spec: dict):
         """Initialize each Q estimator in the ensemble.
@@ -106,10 +107,16 @@ class QValueEnsemble(nn.ModuleList, QValue):
         for q_value in self:
             q_value.initialize_parameters(initializer_spec)
 
+    @staticmethod
+    def clipped(outputs: List[Tensor]) -> Tensor:
+        """Returns the minimum Q-value of an ensemble's outputs."""
+        mininum, _ = torch.stack(outputs, dim=0).min(dim=0)
+        return mininum
+
 
 class ForkedQValueEnsemble(QValueEnsemble):
     """Ensemble of Q-value estimators with parallelized forward pass."""
 
-    def _action_values(self, obs: Tensor, act: Tensor) -> Tensor:
+    def _action_values(self, obs: Tensor, act: Tensor) -> List[Tensor]:
         futures = [torch.jit.fork(m, obs, act) for m in self]
-        return torch.cat([torch.jit.wait(f) for f in futures], dim=-1)
+        return [torch.jit.wait(f) for f in futures]
