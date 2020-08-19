@@ -5,7 +5,7 @@ import torch
 from raylab.agents.mage import MAGETorchPolicy
 from raylab.policy.losses import DeterministicPolicyGradient
 from raylab.policy.losses import MAGE
-from raylab.policy.losses import ModelEnsembleMLE
+from raylab.policy.losses import MaximumLikelihood
 from raylab.utils.debug import fake_batch
 
 
@@ -53,7 +53,7 @@ def test_init(policy):
     assert hasattr(policy, "loss_model")
     assert hasattr(policy, "loss_actor")
     assert hasattr(policy, "loss_critic")
-    assert isinstance(policy.loss_model, ModelEnsembleMLE)
+    assert isinstance(policy.loss_model, MaximumLikelihood)
     assert isinstance(policy.loss_actor, DeterministicPolicyGradient)
     assert isinstance(policy.loss_critic, MAGE)
 
