@@ -83,6 +83,14 @@ class SME(nn.ModuleList):
         """
         return [m.log_prob(new_obs[i], params[i]) for i, m in enumerate(self)]
 
+    @torch.jit.export
+    def deterministic(self, params: List[TensorDict]) -> List[SampleLogp]:
+        """Compute deterministic new observations and their likelihoods for each model.
+
+        Uses the same semantics as :meth:`SME.sample`.
+        """
+        return [m.deterministic(params[i]) for i, m in enumerate(self)]
+
 
 class ForkedSME(SME):
     """Stochastic Model Ensemble with parallelized methods."""
@@ -106,4 +114,9 @@ class ForkedSME(SME):
     @torch.jit.export
     def log_prob(self, new_obs: List[Tensor], params: List[TensorDict]) -> List[Tensor]:
         futures = [fork(m.log_prob, new_obs[i], params[i]) for i, m in enumerate(self)]
+        return [wait(f) for f in futures]
+
+    @torch.jit.export
+    def deterministic(self, params: List[TensorDict]) -> List[SampleLogp]:
+        futures = [fork(m.deterministic, params[i]) for i, m in enumerate(self)]
         return [wait(f) for f in futures]
