@@ -23,4 +23,7 @@ def q_value(action_space, policy):
 def test_forward(q_value, obs, action):
     value = q_value(obs, action)
     assert torch.is_tensor(value)
-    assert value.shape == (len(obs), 1)
+    assert value.shape == (len(obs),)
+
+    value.sum().backward()
+    assert any([p.grad is not None for p in q_value.parameters()])
