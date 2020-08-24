@@ -27,7 +27,7 @@ poetry-version = "^0.1.5"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.8.3"
-pylint = "^2.5.3"
+pylint = "^2.6.0"
 watchdog = "^0.10.3"
 black = "^19.10b0"
 tox = "^3.19.0"
