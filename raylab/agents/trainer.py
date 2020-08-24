@@ -1,12 +1,11 @@
 """Primitives for all Trainers."""
-import warnings
 from abc import ABCMeta
 from typing import Callable
 from typing import Optional
 
+from ray.rllib import Policy
 from ray.rllib.agents.trainer import Trainer as RLlibTrainer
 from ray.rllib.evaluation.worker_set import WorkerSet
-from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils import override as overrides
 from ray.tune import Trainable
 
@@ -136,28 +135,27 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     """
 
     # pylint:disable=too-many-instance-attributes
-    optimizer: Optional[PolicyOptimizer]
     workers: Optional[WorkerSet]
     wandb: WandBLogger
     # Handle all config merging in RaylabOptions
     options: RaylabOptions = RaylabOptions()
+    _policy: Policy
 
     @overrides(RLlibTrainer)
     def train(self):
         result = {}
 
         # Run evaluation once before any optimization is done
-        if self._iteration == 0 and self.config["evaluation_interval"]:
+        if self.iteration == 0 and self.config["evaluation_interval"]:
             result.update(self._evaluate())
 
         result.update(super().train())
+        return result
 
-        # Update global_vars after training so that they're saved if checkpointing
-        self.global_vars["timestep"] = self.metrics.num_steps_sampled
-
+    @overrides(Trainable)
+    def log_result(self, result: dict):
         if self.wandb.enabled:
             self.wandb.log_result(result)
-        return result
 
     @property
     @overrides(RLlibTrainer)
@@ -165,7 +163,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         return self.options.defaults
 
     @overrides(RLlibTrainer)
-    def _setup(self, config: dict):
+    def setup(self, config: dict):
         if not self.options.all_options_set:
             raise RuntimeError(
                 f"{type(self).__name__} still has configs to be set."
@@ -196,25 +194,10 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
                 num_workers=config["evaluation_num_workers"],
             )
 
-        self._setup_optimizer_placeholder()
-
         if self.config["compile_policy"]:
             self._optimize_policy_backend()
 
         self.wandb = WandBLogger(self.config, self._name)
-
-    def _setup_optimizer_placeholder(self):
-        # Always have a PolicyOptimizer if possible to collect metrics
-        if not hasattr(self, "optimizer"):
-            if hasattr(self, "workers"):
-                self.optimizer = PolicyOptimizer(self.workers)
-            else:
-                warnings.warn(
-                    "No worker set initialized; episodes summary will be unavailable."
-                )
-        # Always have a WorkerSet if possible to get workers and policy
-        if hasattr(self, "optimizer") and not hasattr(self, "workers"):
-            self.workers = self.optimizer.workers
 
     def _optimize_policy_backend(self):
         if not hasattr(self, "workers"):
@@ -223,12 +206,6 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
                 "Cannot access policies for compilation."
             )
         self.workers.foreach_policy(lambda p, _: p.compile())
-
-    def __getattr__(self, attr):
-        if attr == "metrics":
-            return self.optimizer
-
-        raise AttributeError(f"{type(self).__name__} has no '{attr}' attribute")
 
     @classmethod
     @overrides(RLlibTrainer)
@@ -257,7 +234,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         super().__setstate__(state)
 
     @overrides(RLlibTrainer)
-    def _stop(self):
-        super()._stop()
+    def cleanup(self):
+        super().cleanup()
         if self.wandb.enabled:
             self.wandb.stop()
