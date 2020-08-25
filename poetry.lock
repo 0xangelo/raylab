@@ -253,14 +253,14 @@ description = "Interactive plots and applications in the browser from Python"
 name = "bokeh"
 optional = false
 python-versions = ">=3.6"
-version = "2.1.1"
+version = "2.2.0"
 
 [package.dependencies]
 Jinja2 = ">=2.7"
 PyYAML = ">=3.10"
 numpy = ">=1.11.3"
 packaging = ">=16.8"
-pillow = ">=4.0"
+pillow = ">=7.1.0"
 python-dateutil = ">=2.1"
 tornado = ">=5.1"
 typing_extensions = ">=3.7.4"
@@ -2207,7 +2207,7 @@ blinker = [
     {file = "blinker-1.4.tar.gz", hash = "sha256:471aee25f3992bd325afa3772f1063dbdbbca947a041b8b89466dc00d606f8b6"},
 ]
 bokeh = [
-    {file = "bokeh-2.1.1.tar.gz", hash = "sha256:2dfabf228f55676b88acc464f416e2b13ee06470a8ad1dd3e609bb789425fbad"},
+    {file = "bokeh-2.2.0.tar.gz", hash = "sha256:d790551db111a2cb43804987bc4da5d5d83124790c30ee4e9e88d4520325e13e"},
 ]
 boto3 = [
     {file = "boto3-1.14.7-py2.py3-none-any.whl", hash = "sha256:fe6f7f58fa53c4dd86432315717c989a65a5a8748e6219a53725be1041c4a113"},
