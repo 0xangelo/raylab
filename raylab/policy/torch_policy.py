@@ -4,7 +4,6 @@ from abc import abstractmethod
 from typing import List
 from typing import Tuple
 
-import numpy as np
 import torch
 import torch.nn as nn
 from gym.spaces import Space
@@ -352,19 +351,3 @@ class TorchPolicy(Policy):
 
     def import_model_from_h5(self, import_file):
         pass
-
-
-def _to_numpy_state_dict(mapping):
-    for key, val in mapping.items():
-        if torch.is_tensor(val):
-            mapping[key] = val.cpu().detach().numpy()
-        elif isinstance(val, dict):
-            _to_numpy_state_dict(val)
-
-
-def _from_numpy_state_dict(mapping, device=None):
-    for key, val in mapping.items():
-        if isinstance(val, np.ndarray):
-            mapping[key] = convert_to_tensor(val, device)
-        elif isinstance(val, dict):
-            _from_numpy_state_dict(val, device)
