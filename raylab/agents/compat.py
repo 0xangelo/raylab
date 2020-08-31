@@ -4,11 +4,16 @@ import copy
 import logging
 from typing import Any
 from typing import Callable
+from typing import List
 from typing import Optional
 
+from ray.rllib import RolloutWorker
 from ray.rllib.agents.callbacks import DefaultCallbacks
 from ray.rllib.agents.trainer import Trainer
 from ray.rllib.env.normalize_actions import NormalizeActionWrapper
+from ray.rllib.evaluation.metrics import collect_episodes
+from ray.rllib.evaluation.metrics import summarize_episodes
+from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.utils import merge_dicts
 from ray.rllib.utils.deprecation import DEPRECATED_VALUE
 from ray.rllib.utils.deprecation import deprecation_warning
@@ -19,12 +24,91 @@ from ray.tune.registry import ENV_CREATOR
 from ray.tune.resources import Resources
 
 logger = logging.getLogger(__name__)
-tf = try_import_tf()
+tf1, _, tfv = try_import_tf()
+
+
+# ==============================================================================
+# Metrics logging
+# ==============================================================================
+
+
+class StandardMetrics:
+    """Recreate old optimizer logging behavior.
+
+    Args:
+        workers: The set of rollout workers to use.
+    """
+
+    def __init__(self, workers: WorkerSet):
+        self.workers = workers
+        self.episode_history = []
+        self.to_be_collected = []
+
+        # Counters that should be updated by sub-classes
+        self.num_steps_trained = 0
+        self.num_steps_sampled = 0
+
+    def stats(self):
+        """Returns a dictionary of internal performance statistics."""
+
+        return {
+            "num_steps_trained": self.num_steps_trained,
+            "num_steps_sampled": self.num_steps_sampled,
+        }
+
+    def save(self) -> List[int]:
+        """Returns a serializable object representing the state."""
+
+        return [self.num_steps_trained, self.num_steps_sampled]
+
+    def restore(self, data: List[int]):
+        """Restores state from the given data object."""
+
+        self.num_steps_trained = data[0]
+        self.num_steps_sampled = data[1]
+
+    def collect_metrics(
+        self,
+        timeout_seconds: int,
+        min_history: int = 100,
+        selected_workers: Optional[List[RolloutWorker]] = None,
+    ) -> dict:
+        """Returns worker stats.
+
+        Arguments:
+            timeout_seconds: Max wait time for a worker before
+                dropping its results. This usually indicates a hung worker.
+            min_history: Min history length to smooth results over.
+            selected_workers: Override the list of remote workers
+                to collect metrics from.
+
+        Returns:
+            res: A training result dict from worker metrics with
+                `info` replaced with stats from self.
+        """
+        episodes, self.to_be_collected = collect_episodes(
+            self.workers.local_worker(),
+            selected_workers or self.workers.remote_workers(),
+            self.to_be_collected,
+            timeout_seconds=timeout_seconds,
+        )
+        orig_episodes = list(episodes)
+        missing = min_history - len(episodes)
+        if missing > 0:
+            episodes.extend(self.episode_history[-missing:])
+            assert len(episodes) <= min_history
+        self.episode_history.extend(orig_episodes)
+        self.episode_history = self.episode_history[-min_history:]
+        res = summarize_episodes(episodes, orig_episodes)
+        res.update(info=self.stats())
+        return res
 
 
 # ==============================================================================
 # Trainer setup
 # ==============================================================================
+
+
 def make_env_creator(env_id: Optional[str], config: dict) -> Callable[[dict], Any]:
     if env_id:
         config["env"] = env_id
@@ -54,33 +138,6 @@ def make_env_creator(env_id: Optional[str], config: dict) -> Callable[[dict], An
     return env_creator
 
 
-def check_and_resolve_framework_settings(config: dict):
-    # Check and resolve DL framework settings.
-    if "use_pytorch" in config and config["use_pytorch"] != DEPRECATED_VALUE:
-        deprecation_warning("use_pytorch", "framework=torch", error=False)
-        if config["use_pytorch"]:
-            config["framework"] = "torch"
-        config.pop("use_pytorch")
-    if "eager" in config and config["eager"] != DEPRECATED_VALUE:
-        deprecation_warning("eager", "framework=tfe", error=False)
-        if config["eager"]:
-            config["framework"] = "tfe"
-        config.pop("eager")
-
-    # Enable eager/tracing support.
-    if tf and config["framework"] == "tfe":
-        if not tf.executing_eagerly():
-            tf.enable_eager_execution()
-        logger.info(
-            "Executing eagerly, with eager_tracing={}".format(config["eager_tracing"])
-        )
-    if tf and not tf.executing_eagerly() and config["framework"] != "torch":
-        logger.info(
-            "Tip: set framework=tfe or the --eager flag to enable "
-            "TensorFlow eager execution"
-        )
-
-
 def normalize_env_creator(env_creator: callable) -> callable:
     inner = env_creator
 
@@ -95,6 +152,35 @@ def normalize_env_creator(env_creator: callable) -> callable:
         return NormalizeActionWrapper(env)
 
     return lambda env_config: normalize(inner(env_config))
+
+
+def check_and_resolve_framework_settings(config: dict):
+    # Check and resolve DL framework settings.
+    if "use_pytorch" in config and config["use_pytorch"] != DEPRECATED_VALUE:
+        deprecation_warning("use_pytorch", "framework=torch", error=False)
+        if config["use_pytorch"]:
+            config["framework"] = "torch"
+        config.pop("use_pytorch")
+    if "eager" in config and config["eager"] != DEPRECATED_VALUE:
+        deprecation_warning("eager", "framework=tfe", error=False)
+        if config["eager"]:
+            config["framework"] = "tfe"
+        config.pop("eager")
+
+    # Enable eager/tracing support.
+    if tf1 and config["framework"] in ["tf2", "tfe"]:
+        if config["framework"] == "tf2" and tfv < 2:
+            raise ValueError("`framework`=tf2, but tf-version is < 2.0!")
+        if not tf1.executing_eagerly():
+            tf1.enable_eager_execution()
+        logger.info(
+            "Executing eagerly, with eager_tracing={}".format(config["eager_tracing"])
+        )
+    if tf1 and not tf1.executing_eagerly() and config["framework"] != "torch":
+        logger.info(
+            "Tip: set framework=tfe or the --eager flag to enable "
+            "TensorFlow eager execution"
+        )
 
 
 def validate_callbacks(config: dict) -> DefaultCallbacks:
@@ -137,6 +223,8 @@ def setup_evaluation_config(config: dict) -> dict:
 # ==============================================================================
 # Trainer resource requests
 # ==============================================================================
+
+
 def default_resource_request(cls, config: dict) -> Resources:
     cf = dict(cls.options.defaults, **config)  # pylint:disable=invalid-name
     Trainer._validate_config(cf)  # pylint:disable=protected-access

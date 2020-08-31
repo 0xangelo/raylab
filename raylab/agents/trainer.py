@@ -117,16 +117,11 @@ def option(
 class Trainer(RLlibTrainer, metaclass=ABCMeta):
     """Base Trainer for all agents.
 
-    Either a PolicyOptimizer or WorkerSet must be set (as `optimizer` or
-    `workers` attributes respectively) to collect episode statistics.
+    A WorkerSet must be set (as a `workers` attribute) to collect episode
+    statistics.
 
-    Always creates a PolicyOptimizer instance as the `optimizer` attribute to
+    Always creates a `StandardMetrics` instance as the `metrics` attribute to
     log episode metrics (to be removed in the future).
-
-    Accessing `metrics` returns the optimizer, which is useful when using an
-    optimizer only to log metrics. This way, the user can update
-    `self.metrics.num_steps_sampled` and the results will be logged via RLlib's
-    framework.
 
     Integration with `Weights & Biases`_ is available. The user must install
     `wandb` and set a project name in the `wandb` subconfig dict.
@@ -136,10 +131,11 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
 
     # pylint:disable=too-many-instance-attributes
     workers: Optional[WorkerSet]
+    metrics: Optional[compat.StandardMetrics]
     wandb: WandBLogger
+    _policy: Policy
     # Handle all config merging in RaylabOptions
     options: RaylabOptions = RaylabOptions()
-    _policy: Policy
 
     @overrides(RLlibTrainer)
     def train(self):
@@ -184,6 +180,9 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
 
         self._init(config, self.env_creator)
 
+        if hasattr(self, "workers"):
+            self.metrics = compat.StandardMetrics(self.workers)
+
         # Evaluation setup.
         if config.get("evaluation_interval"):
             evaluation_config = compat.setup_evaluation_config(config)
@@ -207,6 +206,15 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
             )
         self.workers.foreach_policy(lambda p, _: p.compile())
 
+    @overrides(RLlibTrainer)
+    def collect_metrics(self, selected_workers: Optional[list] = None) -> dict:
+        """Collects metrics from the remote workers of this agent."""
+        return self.metrics.collect_metrics(
+            self.config["collect_metrics_timeout"],
+            min_history=self.config["metrics_smoothing_episodes"],
+            selected_workers=selected_workers,
+        )
+
     @classmethod
     @overrides(RLlibTrainer)
     def default_resource_request(cls, config: dict) -> compat.Resources:
@@ -223,6 +231,10 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     def __getstate__(self):
         state = super().__getstate__()
         state["global_vars"] = self.global_vars
+
+        if hasattr(self, "metrics"):
+            state["metrics"] = self.metrics.save()
+
         return state
 
     @overrides(RLlibTrainer)
@@ -230,6 +242,9 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         self.global_vars = state["global_vars"]
         if hasattr(self, "workers"):
             self.workers.foreach_worker(lambda w: w.set_global_vars(self.global_vars))
+
+        if hasattr(self, "metrics"):
+            self.metrics.restore(state["metrics"])
 
         super().__setstate__(state)
 
