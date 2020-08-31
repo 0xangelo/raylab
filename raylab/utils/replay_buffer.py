@@ -54,6 +54,9 @@ class ListReplayBuffer:
             ReplayField(SampleBatch.DONES),
         )
 
+    def __len__(self):
+        return len(self._storage)
+
     def add_fields(self, *fields: ReplayField):
         """Add fields to the replay buffer and build the corresponding storage."""
         new_names = {f.name for f in fields}
