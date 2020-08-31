@@ -44,5 +44,10 @@ class DDPGModule(DeterministicActorMixin, ActionValueMixin, AbstractActorCritic)
     # pylint:disable=abstract-method
 
     def __init__(self, obs_space, action_space, config):
-        config = deep_merge(BASE_CONFIG, config, False, ["actor", "critic"])
+        config = deep_merge(
+            BASE_CONFIG,
+            config,
+            new_keys_allowed=False,
+            allow_new_subkey_list=["actor", "critic"],
+        )
         super().__init__(obs_space, action_space, config)

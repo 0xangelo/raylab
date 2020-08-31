@@ -1,12 +1,11 @@
 """Primitives for all Trainers."""
-import warnings
 from abc import ABCMeta
 from typing import Callable
 from typing import Optional
 
+from ray.rllib import Policy
 from ray.rllib.agents.trainer import Trainer as RLlibTrainer
 from ray.rllib.evaluation.worker_set import WorkerSet
-from ray.rllib.optimizers import PolicyOptimizer
 from ray.rllib.utils import override as overrides
 from ray.tune import Trainable
 
@@ -118,16 +117,11 @@ def option(
 class Trainer(RLlibTrainer, metaclass=ABCMeta):
     """Base Trainer for all agents.
 
-    Either a PolicyOptimizer or WorkerSet must be set (as `optimizer` or
-    `workers` attributes respectively) to collect episode statistics.
+    A WorkerSet must be set (as a `workers` attribute) to collect episode
+    statistics.
 
-    Always creates a PolicyOptimizer instance as the `optimizer` attribute to
+    Always creates a `StandardMetrics` instance as the `metrics` attribute to
     log episode metrics (to be removed in the future).
-
-    Accessing `metrics` returns the optimizer, which is useful when using an
-    optimizer only to log metrics. This way, the user can update
-    `self.metrics.num_steps_sampled` and the results will be logged via RLlib's
-    framework.
 
     Integration with `Weights & Biases`_ is available. The user must install
     `wandb` and set a project name in the `wandb` subconfig dict.
@@ -136,9 +130,11 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     """
 
     # pylint:disable=too-many-instance-attributes
-    optimizer: Optional[PolicyOptimizer]
     workers: Optional[WorkerSet]
+    metrics: Optional[compat.StandardMetrics]
     wandb: WandBLogger
+    _name: str = ""
+    _policy: Optional[Policy] = None
     # Handle all config merging in RaylabOptions
     options: RaylabOptions = RaylabOptions()
 
@@ -147,17 +143,16 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         result = {}
 
         # Run evaluation once before any optimization is done
-        if self._iteration == 0 and self.config["evaluation_interval"]:
+        if self.iteration == 0 and self.config["evaluation_interval"]:
             result.update(self._evaluate())
 
         result.update(super().train())
+        return result
 
-        # Update global_vars after training so that they're saved if checkpointing
-        self.global_vars["timestep"] = self.metrics.num_steps_sampled
-
+    @overrides(Trainable)
+    def log_result(self, result: dict):
         if self.wandb.enabled:
             self.wandb.log_result(result)
-        return result
 
     @property
     @overrides(RLlibTrainer)
@@ -165,7 +160,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         return self.options.defaults
 
     @overrides(RLlibTrainer)
-    def _setup(self, config: dict):
+    def setup(self, config: dict):
         if not self.options.all_options_set:
             raise RuntimeError(
                 f"{type(self).__name__} still has configs to be set."
@@ -186,6 +181,9 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
 
         self._init(config, self.env_creator)
 
+        if hasattr(self, "workers"):
+            self.metrics = compat.StandardMetrics(self.workers)
+
         # Evaluation setup.
         if config.get("evaluation_interval"):
             evaluation_config = compat.setup_evaluation_config(config)
@@ -196,25 +194,10 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
                 num_workers=config["evaluation_num_workers"],
             )
 
-        self._setup_optimizer_placeholder()
-
         if self.config["compile_policy"]:
             self._optimize_policy_backend()
 
         self.wandb = WandBLogger(self.config, self._name)
-
-    def _setup_optimizer_placeholder(self):
-        # Always have a PolicyOptimizer if possible to collect metrics
-        if not hasattr(self, "optimizer"):
-            if hasattr(self, "workers"):
-                self.optimizer = PolicyOptimizer(self.workers)
-            else:
-                warnings.warn(
-                    "No worker set initialized; episodes summary will be unavailable."
-                )
-        # Always have a WorkerSet if possible to get workers and policy
-        if hasattr(self, "optimizer") and not hasattr(self, "workers"):
-            self.workers = self.optimizer.workers
 
     def _optimize_policy_backend(self):
         if not hasattr(self, "workers"):
@@ -224,11 +207,14 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
             )
         self.workers.foreach_policy(lambda p, _: p.compile())
 
-    def __getattr__(self, attr):
-        if attr == "metrics":
-            return self.optimizer
-
-        raise AttributeError(f"{type(self).__name__} has no '{attr}' attribute")
+    @overrides(RLlibTrainer)
+    def collect_metrics(self, selected_workers: Optional[list] = None) -> dict:
+        """Collects metrics from the remote workers of this agent."""
+        return self.metrics.collect_metrics(
+            self.config["collect_metrics_timeout"],
+            min_history=self.config["metrics_smoothing_episodes"],
+            selected_workers=selected_workers,
+        )
 
     @classmethod
     @overrides(RLlibTrainer)
@@ -246,6 +232,10 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     def __getstate__(self):
         state = super().__getstate__()
         state["global_vars"] = self.global_vars
+
+        if hasattr(self, "metrics"):
+            state["metrics"] = self.metrics.save()
+
         return state
 
     @overrides(RLlibTrainer)
@@ -254,10 +244,13 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         if hasattr(self, "workers"):
             self.workers.foreach_worker(lambda w: w.set_global_vars(self.global_vars))
 
+        if hasattr(self, "metrics"):
+            self.metrics.restore(state["metrics"])
+
         super().__setstate__(state)
 
     @overrides(RLlibTrainer)
-    def _stop(self):
-        super()._stop()
+    def cleanup(self):
+        super().cleanup()
         if self.wandb.enabled:
             self.wandb.stop()

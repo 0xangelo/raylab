@@ -1,6 +1,7 @@
 """Trainer and configuration for TRPO."""
-from ray.rllib.optimizers import SyncSamplesOptimizer
+from ray.rllib.agents.trainer_template import default_execution_plan
 from ray.rllib.utils import override
+from ray.tune import Trainable
 
 from raylab.agents import Trainer
 from raylab.agents import trainer
@@ -66,21 +67,10 @@ class TRPOTrainer(Trainer):
         self.workers = self._make_workers(
             env_creator, self._policy, config, num_workers=config["num_workers"]
         )
-        self.optimizer = SyncSamplesOptimizer(
-            self.workers, train_batch_size=config["train_batch_size"]
-        )
 
-    @override(Trainer)
-    def _train(self):
-        init_timesteps = self.optimizer.num_steps_sampled
-        timesteps_per_iteration = max(self.config["timesteps_per_iteration"], 2)
+        self.execution_plan = default_execution_plan
+        self.train_exec_impl = self.execution_plan(self.workers, config)
 
-        while (
-            self.optimizer.num_steps_sampled - init_timesteps < timesteps_per_iteration
-        ):
-            learner_stats = self.optimizer.step()
-
-        res = self.collect_metrics()
-        timesteps = self.optimizer.num_steps_sampled - init_timesteps
-        res.update(timesteps_this_iter=timesteps, learner_stats=learner_stats)
-        return res
+    @override(Trainable)
+    def step(self):
+        return next(self.train_exec_impl)

@@ -29,7 +29,10 @@ BASE_CONFIG = {
 
 
 class SVGModule(
-    SVGModelMixin, StochasticActorMixin, StateValueMixin, AbstractModelActorCritic,
+    SVGModelMixin,
+    StochasticActorMixin,
+    StateValueMixin,
+    AbstractModelActorCritic,
 ):
     """Module architecture with reparameterized actor and model.
 
@@ -39,7 +42,12 @@ class SVGModule(
     # pylint:disable=abstract-method
 
     def __init__(self, obs_space, action_space, config):
-        config = deep_merge(BASE_CONFIG, config, False, ["actor", "critic", "model"])
+        config = deep_merge(
+            BASE_CONFIG,
+            config,
+            new_keys_allowed=False,
+            allow_new_subkey_list=["actor", "critic", "model"],
+        )
         super().__init__(obs_space, action_space, config)
 
         if config.get("replay_kl") is False:

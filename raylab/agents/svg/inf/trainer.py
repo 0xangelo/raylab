@@ -1,6 +1,7 @@
 """Trainer and configuration for SVG(inf)."""
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
+from ray.tune import Trainable
 
 from raylab.agents import Trainer
 from raylab.agents import trainer
@@ -71,8 +72,8 @@ class SVGInfTrainer(Trainer):
         self.replay.add_fields(ReplayField(SampleBatch.ACTION_LOGP))
         self.replay.seed(config["seed"])
 
-    @override(Trainer)
-    def _train(self):
+    @override(Trainable)
+    def step(self):
         init_timesteps = self.metrics.num_steps_sampled
         worker = self.workers.local_worker()
         policy = worker.get_policy()
