@@ -320,6 +320,8 @@ class RaylabOptions:
 # ================================================================================
 # RLlib Help
 # ================================================================================
+
+
 COMMON_INFO = {
     # === Settings for Rollout Worker processes ===
     "num_workers": """\
@@ -485,6 +487,12 @@ COMMON_INFO = {
     "sample_async": """\
     Use a background thread for sampling (slightly off-policy, usually not
     advisable to turn on unless your env specifically requires it).""",
+    "_use_trajectory_view_api": """\
+    Experimental flag to speed up sampling and use 'trajectory views' as
+    generic ModelV2 `input_dicts` that can be requested by the model to
+    contain different information on the ongoing episode.
+    NOTE: Only supported for PyTorch so far.
+    """,
     "observation_filter": """\
     Element-wise observation filter, either "NoFilter" or "MeanStdFilter".""",
     "synchronize_filters": """\
@@ -639,6 +647,12 @@ COMMON_INFO = {
         transitions are replayed independently per policy.
         """,
     },
+    # === Replay Settings ===
+    "replay_sequence_length": """\
+    The number of contiguous environment steps to replay at once. This may
+    be set to greater than 1 to support recurrent models.
+    """,
+    # Deprecated keys:
     "use_pytorch": "Deprecated; replaced by `framework=torch`.",
     "eager": "Deprecated; replaced by `framework=tfe`.",
 }
