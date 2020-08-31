@@ -152,7 +152,7 @@ class RaylabOptions:
             defaults,
             config,
             new_keys_allowed=False,
-            whitelist=self.allow_unknown_subkeys,
+            allow_new_subkey_list=self.allow_unknown_subkeys,
             override_all_if_type_changes=self.override_all_if_type_changes,
         )
         return new
