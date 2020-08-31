@@ -23,7 +23,7 @@ class StochasticModelMixin:
     def process_config(config) -> EnsembleSpec:
         """Fill in default configuration for models."""
         return EnsembleSpec.from_dict(
-            deep_merge(BASE_CONFIG, config.get("model", {}), False)
+            deep_merge(BASE_CONFIG, config.get("model", {}), new_keys_allowed=False)
         )
 
     @staticmethod

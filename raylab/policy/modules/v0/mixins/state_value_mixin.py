@@ -29,8 +29,8 @@ class StateValueMixin:
         config = deep_merge(
             BASE_CONFIG,
             config.get("critic", {}),
-            False,
-            ["encoder", "initializer_options"],
+            new_keys_allowed=False,
+            allow_new_subkey_list=["encoder", "initializer_options"],
         )
 
         def make_vf():

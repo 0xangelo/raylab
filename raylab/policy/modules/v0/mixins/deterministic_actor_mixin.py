@@ -38,7 +38,12 @@ class DeterministicActorMixin:
 
     @staticmethod
     def _make_actor(obs_space, action_space, config):
-        config = deep_merge(BASE_CONFIG, config.get("actor", {}), False, ["encoder"])
+        config = deep_merge(
+            BASE_CONFIG,
+            config.get("actor", {}),
+            new_keys_allowed=False,
+            allow_new_subkey_list=["encoder"],
+        )
         if not config["encoder"].get("layer_norm") and config["perturbed_policy"]:
             warnings.warn(
                 "'layer_norm' is deactivated even though a perturbed policy was "
@@ -59,7 +64,8 @@ class DeterministicActorMixin:
             target_actor.load_state_dict(actor.state_dict())
         if config["smooth_target_policy"]:
             target_actor = DeterministicPolicy.from_existing(
-                target_actor, noise=config["target_gaussian_sigma"],
+                target_actor,
+                noise=config["target_gaussian_sigma"],
             )
 
         return {"actor": actor, "behavior": behavior, "target_actor": target_actor}
@@ -103,7 +109,8 @@ class DeterministicPolicy(nn.Module):
             beta=config["beta"],
         )
         squash = TanhSquash(
-            torch.as_tensor(action_space.low), torch.as_tensor(action_space.high),
+            torch.as_tensor(action_space.low),
+            torch.as_tensor(action_space.high),
         )
         mods = nn.ModuleList([logits, normalize, squash])
         return cls(mods, noise=noise)

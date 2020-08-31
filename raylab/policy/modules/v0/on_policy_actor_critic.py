@@ -19,7 +19,9 @@ BASE_CONFIG = {
 
 
 class OnPolicyActorCritic(
-    StochasticActorMixin, StateValueMixin, AbstractActorCritic,
+    StochasticActorMixin,
+    StateValueMixin,
+    AbstractActorCritic,
 ):
     """Actor-Critic module with stochastic actor and state-value critics."""
 

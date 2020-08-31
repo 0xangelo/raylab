@@ -1,5 +1,6 @@
 # pylint:disable=missing-module-docstring
 from ray.rllib.utils import override
+from ray.tune import Trainable
 
 from raylab.agents import trainer
 from raylab.agents.trainer import Trainer
@@ -30,9 +31,7 @@ from raylab.utils.replay_buffer import NumpyReplayBuffer
 class OffPolicyTrainer(Trainer):
     """Generic trainer for off-policy agents."""
 
-    # pylint:disable=attribute-defined-outside-init
-    _name = ""
-    _policy = None
+    # pylint:disable=attribute-defined-outside-init,abstract-method
 
     @override(Trainer)
     def _init(self, config, env_creator):
@@ -42,8 +41,8 @@ class OffPolicyTrainer(Trainer):
         )
         self.build_replay_buffer(config)
 
-    @override(Trainer)
-    def _train(self):
+    @override(Trainable)
+    def step(self):
         pre_learning_steps = self.sample_until_learning_starts()
         timesteps_this_iter = 0
 

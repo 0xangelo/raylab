@@ -38,8 +38,8 @@ class StochasticActorMixin:
         config = deep_merge(
             StochasticActorMixin.BASE_CONFIG,
             config.get("actor", {}),
-            False,
-            ["encoder"],
+            new_keys_allowed=False,
+            allow_new_subkey_list=["encoder"],
         )
 
         if isinstance(action_space, spaces.Discrete):
@@ -78,7 +78,9 @@ class MaximumEntropyMixin:
     def __init__(self, obs_space, action_space, config):
         super().__init__(obs_space, action_space, config)
         config = deep_merge(
-            MaximumEntropyMixin.BASE_CONFIG, config.get("entropy", {}), False
+            MaximumEntropyMixin.BASE_CONFIG,
+            config.get("entropy", {}),
+            new_keys_allowed=False,
         )
         self.alpha = Alpha(config["initial_alpha"])
 
