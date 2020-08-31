@@ -69,9 +69,9 @@ class ACKTRTorchPolicy(TorchPolicy):
         config = dutil.deep_merge(
             DEFAULT_OPTIM_CONFIG,
             self.config["torch_optimizer"],
-            False,
-            [],
-            ["actor", "critic"],
+            new_keys_allowed=False,
+            allow_new_subkey_list=[],
+            override_all_if_type_changes=["actor", "critic"],
         )
         assert config["actor"]["type"] in [
             "KFAC",
@@ -210,7 +210,9 @@ class ACKTRTorchPolicy(TorchPolicy):
 
     def _update_critic(self, batch_tensors):
         cur_obs, value_targets = dutil.get_keys(
-            batch_tensors, SampleBatch.CUR_OBS, Postprocessing.VALUE_TARGETS,
+            batch_tensors,
+            SampleBatch.CUR_OBS,
+            Postprocessing.VALUE_TARGETS,
         )
         mse = nn.MSELoss()
         fake_dist = Normal()

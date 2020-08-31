@@ -25,7 +25,12 @@ class ActionValueMixin:
 
     @staticmethod
     def _make_critic(obs_space, action_space, config):
-        config = deep_merge(BASE_CONFIG, config.get("critic", {}), False, ["encoder"])
+        config = deep_merge(
+            BASE_CONFIG,
+            config.get("critic", {}),
+            new_keys_allowed=False,
+            allow_new_subkey_list=["encoder"],
+        )
         obs_size, act_size = obs_space.shape[0], action_space.shape[0]
 
         def make_critic():

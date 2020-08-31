@@ -52,7 +52,7 @@ class TorchPolicy(Policy):
             options.defaults,
             config,
             new_keys_allowed=True,
-            whitelist=options.allow_unknown_subkeys,
+            allow_new_subkey_list=options.allow_unknown_subkeys,
             override_all_if_type_changes=options.override_all_if_type_changes,
         )
 
