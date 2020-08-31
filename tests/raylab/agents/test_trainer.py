@@ -1,4 +1,3 @@
-import contextlib
 import itertools
 
 import pytest
@@ -114,11 +113,7 @@ def test_wandb_config(trainer_cls):
 
 def test_metrics_creation(trainer_cls, workers):
     should_have_workers = workers
-    context = (
-        contextlib.nullcontext() if should_have_workers else pytest.warns(UserWarning)
-    )
-    with context:
-        trainer = trainer_cls(config=dict(workers=workers, num_workers=0))
+    trainer = trainer_cls(config=dict(workers=workers, num_workers=0))
 
     assert not should_have_workers or hasattr(trainer, "metrics")
 
