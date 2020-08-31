@@ -4,7 +4,6 @@ import itertools
 import pytest
 from ray.rllib import Policy
 from ray.rllib.agents.trainer import Trainer as RLlibTrainer
-from ray.rllib.optimizers import PolicyOptimizer
 
 from raylab.agents.trainer import configure
 from raylab.agents.trainer import option
@@ -64,7 +63,6 @@ def test_dummy_policy(policy_cls, obs_space, action_space):
 def trainer_cls(policy_cls):
     @configure
     @option("workers", False)
-    @option("optim", False)
     @option("arbitrary/", allow_unknown_subkeys=True, override_all_if_type_changes=True)
     @option("arbitrary/type", "one")
     @option("arbitrary/key", "value")
@@ -76,17 +74,12 @@ def trainer_cls(policy_cls):
             super().__init__(*args, env="MockEnv", **kwargs)
 
         def _init(self, config, env_creator):
-            def make_workers():
-                return self._make_workers(
+            if config["workers"]:
+                self.workers = self._make_workers(
                     env_creator, self._policy, config, num_workers=config["num_workers"]
                 )
 
-            if config["optim"]:
-                self.optimizer = PolicyOptimizer(make_workers())
-            elif config["workers"]:
-                self.workers = make_workers()
-
-        def _train(self):
+        def step(self):
             info = {}
             if hasattr(self, "workers"):
                 policy = self.get_policy()
@@ -102,16 +95,10 @@ def workers(request):
     return request.param
 
 
-@pytest.fixture(params=(True, False), ids=(f"Optimizer({b})" for b in (True, False)))
-def optim(request):
-    return request.param
-
-
 def test_default_config(trainer_cls):
     options = trainer_cls.options
 
     assert "workers" in options.defaults
-    assert "optim" in options.defaults
     assert "arbitrary" in options.defaults
     assert "arbitrary" in options.allow_unknown_subkeys
     assert "arbitrary" in options.override_all_if_type_changes
@@ -125,13 +112,13 @@ def test_wandb_config(trainer_cls):
     assert not options.defaults["wandb"]
 
 
-def test_metrics_creation(trainer_cls, workers, optim):
-    should_have_workers = any((workers, optim))
+def test_metrics_creation(trainer_cls, workers):
+    should_have_workers = workers
     context = (
         contextlib.nullcontext() if should_have_workers else pytest.warns(UserWarning)
     )
     with context:
-        trainer = trainer_cls(config=dict(workers=workers, optim=optim, num_workers=0))
+        trainer = trainer_cls(config=dict(workers=workers, num_workers=0))
 
     assert not should_have_workers or hasattr(trainer, "metrics")
 
@@ -156,18 +143,17 @@ def trainable_info_keys():
 
 
 @pytest.fixture
-def trainer(trainer_cls, workers, optim):
-    return trainer_cls(config=dict(workers=workers, optim=optim, num_workers=0))
+def trainer(trainer_cls, workers):
+    return trainer_cls(config=dict(workers=workers, num_workers=0))
 
 
-def test_has_optimizer_and_worker(trainer, workers, optim):
-    should_have_optimizer_and_worker = any([workers, optim])
-    assert not should_have_optimizer_and_worker or trainer._has_policy_optimizer()
-    assert not should_have_optimizer_and_worker or hasattr(trainer, "workers")
+def test_has_workers(trainer, workers):
+    should_have_workers = workers
+    assert not should_have_workers or hasattr(trainer, "workers")
 
 
-def test_train(trainer, workers, optim, trainable_info_keys):
-    should_learn = any((workers, optim))
+def test_train(trainer, workers, trainable_info_keys):
+    should_learn = workers
     if should_learn:
         info = trainer.train()
         info_keys = set(info.keys())
@@ -188,9 +174,9 @@ def test_train(trainer, workers, optim, trainable_info_keys):
         assert weights["param"] == 1
 
 
-def test_returns_metrics(trainer_cls, workers, optim):
-    should_have_workers = any((workers, optim))
-    trainer = trainer_cls(config=dict(workers=workers, optim=optim, num_workers=0))
+def test_returns_metrics(trainer_cls, workers):
+    should_have_workers = workers
+    trainer = trainer_cls(config=dict(workers=workers, num_workers=0))
 
     if should_have_workers:
         assert trainer.metrics.workers

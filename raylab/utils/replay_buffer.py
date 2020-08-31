@@ -6,9 +6,8 @@ from dataclasses import dataclass
 import numpy as np
 from gym.spaces import Space
 from ray.rllib import SampleBatch
-from ray.rllib.optimizers.replay_buffer import ReplayBuffer as _ReplayBuffer
-from ray.rllib.utils import override
 from ray.rllib.utils.compression import unpack_if_needed
+from ray.rllib.utils.window_stat import WindowStat
 
 
 @dataclass
@@ -20,7 +19,7 @@ class ReplayField:
     dtype: np.dtype = np.float32
 
 
-class ListReplayBuffer(_ReplayBuffer):
+class ListReplayBuffer:
     """Replay buffer as a list of tuples.
 
     Returns a SampleBatch object when queried for samples.
@@ -34,8 +33,19 @@ class ListReplayBuffer(_ReplayBuffer):
             specification
     """
 
+    # pylint:disable=too-many-instance-attributes
+
     def __init__(self, size: int):
-        super().__init__(size)
+        self._storage = []
+        self._maxsize = size
+        self._next_idx = 0
+        self._hit_count = np.zeros(size)
+        self._eviction_started = False
+        self._num_added = 0
+        self._num_sampled = 0
+        self._evicted_hit_stats = WindowStat("evicted_hit", 1000)
+        self._est_size_bytes = 0
+
         self.fields = (
             ReplayField(SampleBatch.CUR_OBS),
             ReplayField(SampleBatch.ACTIONS),
@@ -54,7 +64,6 @@ class ListReplayBuffer(_ReplayBuffer):
 
         self.fields = self.fields + fields
 
-    @override(_ReplayBuffer)
     def add(self, row: dict):  # pylint:disable=arguments-differ
         """Add a row from a SampleBatch to storage.
 
@@ -76,7 +85,6 @@ class ListReplayBuffer(_ReplayBuffer):
             self._evicted_hit_stats.push(self._hit_count[self._next_idx])
             self._hit_count[self._next_idx] = 0
 
-    @override(_ReplayBuffer)
     def _encode_sample(self, idxes):
         sample = []
         for i in idxes:
@@ -93,13 +101,20 @@ class ListReplayBuffer(_ReplayBuffer):
             map(np.array, [obses_t, actions, rewards, obses_tp1, dones] + extras)
         )
 
-    @override(_ReplayBuffer)
     def sample(self, batch_size: int) -> SampleBatch:
+        """Sample a batch of experiences.
+
+        Args:
+            batch_size: How many transitions to sample
+
+        Returns:
+            A sample batch of roughly decorrelated transitions
+        """
         idxes = random.choices(range(len(self._storage)), k=batch_size)
         return self.sample_with_idxes(idxes)
 
-    @override(_ReplayBuffer)
     def sample_with_idxes(self, idxes: np.ndarray) -> SampleBatch:
+        """Sample a batch of experiences corresponding to the given indexes."""
         self._num_sampled += len(idxes)
         data = self._encode_sample(idxes)
         return SampleBatch(dict(zip([f.name for f in self.fields], data)))
@@ -107,6 +122,18 @@ class ListReplayBuffer(_ReplayBuffer):
     def all_samples(self) -> SampleBatch:
         """All transitions stored in buffer."""
         return self.sample_with_idxes(range(len(self)))
+
+    def stats(self, debug=False):
+        """Returns a dictionary of usage statistics."""
+        data = {
+            "added_count": self._num_added,
+            "sampled_count": self._num_sampled,
+            "est_size_bytes": self._est_size_bytes,
+            "num_entries": len(self._storage),
+        }
+        if debug:
+            data.update(self._evicted_hit_stats.stats())
+        return data
 
 
 class NumpyReplayBuffer:

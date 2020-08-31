@@ -120,7 +120,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
             assert config[key] > 0, msg.format(key=key)
 
     @override(OffPolicyTrainer)
-    def _train(self):
+    def step(self):
         pre_learning_steps = self.sample_until_learning_starts()
         if pre_learning_steps:
             logger.info("Starting model warmup")
@@ -268,7 +268,7 @@ class DynaLikeTrainer(ModelBasedTrainer):
         self.virtual_replay.seed(config["seed"])
 
     @override(ModelBasedTrainer)
-    def _train(self):
+    def step(self):
         pre_learning_steps = self.sample_until_learning_starts()
         timesteps_this_iter = 0
 

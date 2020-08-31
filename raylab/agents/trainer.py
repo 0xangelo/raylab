@@ -133,7 +133,8 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     workers: Optional[WorkerSet]
     metrics: Optional[compat.StandardMetrics]
     wandb: WandBLogger
-    _policy: Policy
+    _name: str = ""
+    _policy: Optional[Policy] = None
     # Handle all config merging in RaylabOptions
     options: RaylabOptions = RaylabOptions()
 
