@@ -75,6 +75,21 @@ push-release:
 reorder-imports-staged:
 	git diff --cached --name-only | xargs grep -rl --include "*.py" 'import' | xargs poetry run reorder-python-imports --separate-relative
 
+bump-patch:
+	poetry version patch
+	git add pyproject.toml
+	git commit -s -m "chore: bump version patch"
+
+bump-minor:
+	poetry version minor
+	git add pyproject.toml
+	git commit -s -m "chore: bump version minor"
+
+bump-major:
+	poetry version major
+	git add pyproject.toml
+	git commit -s -m "chore: bump version major"
+
 coverage: ## check code coverage quickly with the default Python
 	coverage run --source raylab -m pytest
 	coverage report -m
