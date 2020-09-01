@@ -30,7 +30,7 @@ def pytest_collection_modifyitems(config, items):
 def init_ray():
     import ray
 
-    ray.init()
+    ray.init(local_mode=True, include_dashboard=False, include_java=False)
     yield
     ray.shutdown()
 

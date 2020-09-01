@@ -136,6 +136,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
         info = {}
 
         samples = self.worker.sample()
+        self.update_steps_sampled(samples.count)
         self.add_to_buffer(samples)
         self._sample_calls += 1
 
@@ -272,6 +273,7 @@ class DynaLikeTrainer(ModelBasedTrainer):
         info = {}
 
         samples = self.worker.sample()
+        self.update_steps_sampled(samples.count)
         self.add_to_buffer(samples)
         self._sample_calls += 1
 

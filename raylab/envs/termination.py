@@ -214,3 +214,41 @@ class Walker2DTermination(TerminationFn):
         if self._terminate_when_unhealthy:
             return ~self._is_healthy(next_state)
         return torch.zeros(next_state.shape[:-1]).bool()
+
+
+@register("Hopper-v3")
+class HopperTermination(TerminationFn):
+    """Hopper-v3's termination function."""
+
+    def __init__(self, config: dict):
+        super().__init__()
+        parameters = get_env_parameters("Hopper-v3")
+        for attr in """
+        healthy_angle_range
+        healthy_state_range
+        healthy_z_range
+        terminate_when_unhealthy
+        """.split():
+            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+
+    def forward(self, state, action, next_state):
+        if self._terminate_when_unhealthy:
+            return ~self._is_healthy(next_state)
+        return torch.zeros(next_state.shape[:-1]).bool()
+
+    def is_healthy(self, state):
+        # pylint:disable=invalid-name
+        if self._exclude_current_positions_from_observation:
+            z, angle, state_ = state[..., 0], state[..., 1], state[..., 1:]
+        else:
+            z, angle, state_ = state[..., 1], state[..., 2], state[..., 2:]
+
+        min_state, max_state = self._healthy_state_range
+        min_z, max_z = self._healthy_z_range
+        min_angle, max_angle = self._healthy_angle_range
+
+        healthy_state = torch.all((min_state < state_) & (state_ < max_state), dim=-1)
+        healthy_z = (min_z < z) & (z < max_z)
+        healthy_angle = (min_angle < angle) & (angle < max_angle)
+
+        return healthy_state & healthy_z & healthy_angle

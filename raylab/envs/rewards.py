@@ -358,25 +358,20 @@ class Walker2DReward(RewardFn):
         self.delta_t = 0.008
 
     def forward(self, state, action, next_state):
-        x_velocity = (next_state[..., 0] - state[..., 0]) / self.delta_t
         ctrl_cost = self._control_cost(action)
 
+        x_velocity = (next_state[..., 0] - state[..., 0]) / self.delta_t
         forward_reward = self._forward_reward_weight * x_velocity
-        if self._terminate_when_unhealthy:
-            healthy_reward = torch.empty_like(forward_reward).fill_(
-                self._healthy_reward
-            )
-        else:
+
+        healthy_reward = torch.full_like(ctrl_cost, fill_value=self._healthy_reward)
+        if not self._terminate_when_unhealthy:
             healthy_reward = torch.where(
                 self._is_healthy(next_state),
-                torch.empty_like(forward_reward).fill_(self._healthy_reward),
-                torch.zeros_like(forward_reward),
+                healthy_reward,
+                torch.zeros_like(healthy_reward),
             )
 
-        rewards = forward_reward + healthy_reward
-        costs = ctrl_cost
-
-        return rewards - costs
+        return forward_reward + healthy_reward - ctrl_cost
 
     def _control_cost(self, action):
         control_cost = self._ctrl_cost_weight * torch.sum(torch.square(action), dim=-1)
@@ -426,3 +421,62 @@ class SwimmerReward(RewardFn):
     def _control_cost(self, action):
         control_cost = self._ctrl_cost_weight * torch.sum(torch.square(action), dim=-1)
         return control_cost
+
+
+@register("Hopper-v3")
+class HopperReward(RewardFn):
+    """Hopper-v3's reward function."""
+
+    def __init__(self, config: dict):
+        super().__init__(config)
+        parameters = get_env_parameters("Hopper-v3")
+        for attr in """
+        ctrl_cost_weight
+        exclude_current_positions_from_observation
+        forward_reward_weight
+        healthy_angle_range
+        healthy_reward
+        healthy_state_range
+        healthy_z_range
+        terminate_when_unhealthy
+        """.split():
+            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+
+        assert (
+            not self._exclude_current_positions_from_observation
+        ), "Need current state position for Hopper-v3 reward function"
+
+        self.delta_t = 0.008
+
+    def forward(self, state, action, next_state):
+        ctrl_cost = self.control_cost(action)
+
+        x_velocity = (state[..., 0] - next_state[..., 0]) / self.delta_t
+        forward_reward = self._forward_reward_weight * x_velocity
+
+        healthy_reward = torch.full_like(ctrl_cost, fill_value=self._healthy_reward)
+        if not self._terminate_when_unhealthy:
+            healthy_reward = torch.where(
+                self._is_healthy(next_state),
+                healthy_reward,
+                torch.zeros_like(healthy_reward),
+            )
+
+        return forward_reward + healthy_reward - ctrl_cost
+
+    def control_cost(self, action):
+        return self._ctrl_cost_weight * torch.sum(torch.square(action), dim=-1)
+
+    def is_healthy(self, state):
+        # pylint:disable=invalid-name
+        z, angle, state_ = state[..., 1], state[..., 2], state[..., 2:]
+
+        min_state, max_state = self._healthy_state_range
+        min_z, max_z = self._healthy_z_range
+        min_angle, max_angle = self._healthy_angle_range
+
+        healthy_state = torch.all((min_state < state_) & (state_ < max_state), dim=-1)
+        healthy_z = (min_z < z) & (z < max_z)
+        healthy_angle = (min_angle < angle) & (angle < max_angle)
+
+        return healthy_state & healthy_z & healthy_angle
