@@ -9,12 +9,12 @@ from ray.rllib import Policy
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.utils import override
-from ray.rllib.utils.timer import TimerStat
 
 from raylab.agents import trainer
 from raylab.agents.off_policy import OffPolicyTrainer
 from raylab.utils.annotations import StatDict
 from raylab.utils.replay_buffer import NumpyReplayBuffer
+from raylab.utils.timer import TimerStat
 
 
 logger = logging.getLogger(__name__)
@@ -140,16 +140,14 @@ class ModelBasedTrainer(OffPolicyTrainer):
         self._sample_calls += 1
 
         if self._sample_calls % self.config["model_update_interval"] == 0:
-            timer = self.timers["model"]
-            with timer:
+            with self.timers["model"] as timer:
                 _, model_info = self.train_dynamics_model(warmup=False)
                 timer.push_units_processed(model_info["model_epochs"])
 
             info.update(model_info)
 
         if self._sample_calls % self.config["policy_improvement_interval"] == 0:
-            timer = self.timers["policy"]
-            with timer:
+            with self.timers["policy"] as timer:
                 times = self.config["policy_improvements"]
                 policy_info = self.improve_policy(times=times)
                 timer.push_units_processed(times)
@@ -278,8 +276,7 @@ class DynaLikeTrainer(ModelBasedTrainer):
         self._sample_calls += 1
 
         if self._sample_calls % self.config["model_update_interval"] == 0:
-            timer = self.timers["model"]
-            with timer:
+            with self.timers["model"] as timer:
                 eval_losses, model_info = self.train_dynamics_model(warmup=False)
                 timer.push_units_processed(model_info["model_epochs"])
 
@@ -289,8 +286,7 @@ class DynaLikeTrainer(ModelBasedTrainer):
         if self._sample_calls % self.config["policy_improvement_interval"] == 0:
             self.populate_virtual_buffer(self.config["model_rollouts"])
 
-            timer = self.timers["policy"]
-            with timer:
+            with self.timers["policy"] as timer:
                 times = self.config["policy_improvements"]
                 policy_info = self.improve_policy(times=times)
                 timer.push_units_processed(times)
