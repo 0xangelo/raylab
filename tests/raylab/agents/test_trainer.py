@@ -1,7 +1,4 @@
-import itertools
-
 import pytest
-from ray.rllib import Policy
 from ray.rllib.agents.trainer import Trainer as RLlibTrainer
 
 from raylab.agents.trainer import configure
@@ -9,45 +6,8 @@ from raylab.agents.trainer import option
 from raylab.agents.trainer import Trainer
 
 
-@pytest.fixture(scope="module")
-def policy_cls():
-    class DummyPolicy(Policy):
-        # pylint:disable=abstract-method,too-many-arguments
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.param = 0
-            self.param_seq = itertools.count()
-            next(self.param_seq)
-
-        def compute_actions(
-            self,
-            obs_batch,
-            state_batches=None,
-            prev_action_batch=None,
-            prev_reward_batch=None,
-            info_batch=None,
-            episodes=None,
-            explore=None,
-            timestep=None,
-            **kwargs,
-        ):
-            return [self.action_space.sample() for _ in obs_batch], [], {}
-
-        def learn_on_batch(self, _):
-            self.param = next(self.param_seq)
-            return {"improved": True}
-
-        def get_weights(self):
-            return {"param": self.param}
-
-        def set_weights(self, weights):
-            self.param = weights["param"]
-
-    return DummyPolicy
-
-
-def test_dummy_policy(policy_cls, obs_space, action_space):
-    policy = policy_cls(obs_space, action_space, {})
+def test_dummy_policy(dummy_policy_cls, obs_space, action_space):
+    policy = dummy_policy_cls(obs_space, action_space, {})
     assert policy.param == 0
     info = policy.learn_on_batch(None)
     assert "improved" in info
@@ -59,7 +19,7 @@ def test_dummy_policy(policy_cls, obs_space, action_space):
 
 
 @pytest.fixture(scope="module")
-def trainer_cls(policy_cls):
+def trainer_cls(dummy_policy_cls):
     @configure
     @option("workers", False)
     @option("arbitrary/", allow_unknown_subkeys=True, override_all_if_type_changes=True)
@@ -67,7 +27,7 @@ def trainer_cls(policy_cls):
     @option("arbitrary/key", "value")
     class MinimalTrainer(Trainer):
         _name = "MinimalTrainer"
-        _policy = policy_cls
+        _policy = dummy_policy_cls
 
         def __init__(self, *args, **kwargs):
             super().__init__(*args, env="MockEnv", **kwargs)

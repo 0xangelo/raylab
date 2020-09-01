@@ -1,6 +1,7 @@
 """Generic Trainer and base configuration for model-based agents."""
 import logging
 from typing import Any
+from typing import Dict
 from typing import List
 from typing import Tuple
 
@@ -99,15 +100,15 @@ class ModelBasedTrainer(OffPolicyTrainer):
     """
 
     # pylint:disable=attribute-defined-outside-init
+    timers: Dict[str, TimerStat]
 
     @override(OffPolicyTrainer)
     def _init(self, config, env_creator):
         super()._init(config, env_creator)
-        self.model_timer = TimerStat()
-        self.policy_timer = TimerStat()
         set_policy_with_env_fn(self.workers, fn_type="reward")
         set_policy_with_env_fn(self.workers, fn_type="termination")
 
+        self.timers = {"model": TimerStat(), "policy": TimerStat()}
         self._sample_calls: int = 0
 
     @staticmethod
@@ -120,57 +121,38 @@ class ModelBasedTrainer(OffPolicyTrainer):
             assert config[key] > 0, msg.format(key=key)
 
     @override(OffPolicyTrainer)
-    def step(self):
-        pre_learning_steps = self.sample_until_learning_starts()
-        if pre_learning_steps:
+    def sample_until_learning_starts(self) -> int:
+        sample_count = super().sample_until_learning_starts()
+        if sample_count:
             logger.info("Starting model warmup")
             _, warmup_stats = self.train_dynamics_model(warmup=True)
             # pylint:disable=logging-too-many-args
             logger.info("Finished model warmup with stats: %s", warmup_stats)
 
-        timesteps_this_iter = 0
-        config = self.config
-        worker = self.workers.local_worker()
-        stats = {}
-
-        while timesteps_this_iter < max(config["timesteps_per_iteration"], 1):
-            samples = worker.sample()
-            self._sample_calls += 1
-            timesteps_this_iter += samples.count
-            for row in samples.rows():
-                self.replay.add(row)
-
-            if self._sample_calls % config["model_update_interval"] == 0:
-                with self.model_timer:
-                    _, model_info = self.train_dynamics_model(warmup=False)
-                    self.model_timer.push_units_processed(model_info["model_epochs"])
-                stats.update(model_info)
-
-            if self._sample_calls % config["policy_improvement_interval"] == 0:
-                with self.policy_timer:
-                    policy_info = self.improve_policy(
-                        times=config["policy_improvements"]
-                    )
-                    self.policy_timer.push_units_processed(
-                        config["policy_improvements"]
-                    )
-                stats.update(policy_info)
-
-        self.metrics.num_steps_sampled += timesteps_this_iter
-        return self._log_metrics(stats, timesteps_this_iter + pre_learning_steps)
-
     @override(OffPolicyTrainer)
-    def _log_metrics(self, learner_stats, timesteps_this_iter):
-        metrics = super()._log_metrics(learner_stats, timesteps_this_iter)
-        metrics.update(
-            model_time_s=round(self.model_timer.mean, 3),
-            policy_time_s=round(self.policy_timer.mean, 3),
-            # Get mean number of model epochs per second spent updating the model
-            model_update_throughput=round(self.model_timer.mean_throughput, 3),
-            # Get mean number of policy updates per second spent updating the policy
-            policy_update_throughput=round(self.policy_timer.mean_throughput, 3),
-        )
-        return metrics
+    def single_iteration(self) -> Tuple[int, dict]:
+        info = {}
+
+        samples = self.worker.sample()
+        self.add_to_buffer(samples)
+        self._sample_calls += 1
+
+        if self._sample_calls % self.config["model_update_interval"] == 0:
+            with self.timers["model"] as timer:
+                _, model_info = self.train_dynamics_model(warmup=False)
+                timer.push_units_processed(model_info["model_epochs"])
+
+            info.update(model_info)
+
+        if self._sample_calls % self.config["policy_improvement_interval"] == 0:
+            with self.timers["policy"] as timer:
+                times = self.config["policy_improvements"]
+                policy_info = self.improve_policy(times=times)
+                timer.push_units_processed(times)
+
+            info.update(policy_info)
+
+        return samples.count, info
 
     def train_dynamics_model(
         self, warmup: bool = False
@@ -213,6 +195,21 @@ class ModelBasedTrainer(OffPolicyTrainer):
 
         stats.update(policy.get_exploration_info())
         return stats
+
+    @override(OffPolicyTrainer)
+    def _log_metrics(self, learner_stats, timesteps_this_iter):
+        metrics = super()._log_metrics(learner_stats, timesteps_this_iter)
+        model_timer = self.timers["model"]
+        policy_timer = self.timers["policy"]
+        metrics.update(
+            model_time_s=round(model_timer.mean, 3),
+            policy_time_s=round(policy_timer.mean, 3),
+            # Get mean number of model epochs per second spent updating the model
+            model_update_throughput=round(model_timer.mean_throughput, 3),
+            # Get mean number of policy updates per second spent updating the policy
+            policy_update_throughput=round(policy_timer.mean_throughput, 3),
+        )
+        return metrics
 
 
 @trainer.configure
@@ -261,6 +258,7 @@ class DynaLikeTrainer(ModelBasedTrainer):
     @override(OffPolicyTrainer)
     def build_replay_buffer(self, config):
         super().build_replay_buffer(config)
+
         policy = self.get_policy()
         self.virtual_replay = NumpyReplayBuffer(
             policy.observation_space, policy.action_space, config["virtual_buffer_size"]
@@ -268,41 +266,32 @@ class DynaLikeTrainer(ModelBasedTrainer):
         self.virtual_replay.seed(config["seed"])
 
     @override(ModelBasedTrainer)
-    def step(self):
-        pre_learning_steps = self.sample_until_learning_starts()
-        timesteps_this_iter = 0
+    def single_iteration(self):
+        info = {}
 
-        config = self.config
-        worker = self.workers.local_worker()
-        policy = self.get_policy()
-        stats = {}
-        while timesteps_this_iter < max(config["timesteps_per_iteration"], 1):
-            samples = worker.sample()
-            self._sample_calls += 1
-            timesteps_this_iter += samples.count
-            for row in samples.rows():
-                self.replay.add(row)
+        samples = self.worker.sample()
+        self.add_to_buffer(samples)
+        self._sample_calls += 1
 
-            if self._sample_calls % config["model_update_interval"] == 0:
-                with self.model_timer:
-                    eval_losses, model_info = self.train_dynamics_model()
-                    self.model_timer.push_units_processed(model_info["model_epochs"])
-                policy.set_new_elite(eval_losses)
-                stats.update(model_info)
+        if self._sample_calls % self.config["model_update_interval"] == 0:
+            with self.timers["model"] as timer:
+                eval_losses, model_info = self.train_dynamics_model(warmup=False)
+                timer.push_units_processed(model_info["model_epochs"])
 
-            if self._sample_calls % config["policy_improvement_interval"] == 0:
-                self.populate_virtual_buffer(config["model_rollouts"])
-                with self.policy_timer:
-                    policy_info = self.improve_policy(
-                        times=config["policy_improvements"]
-                    )
-                    self.policy_timer.push_units_processed(
-                        config["policy_improvements"]
-                    )
-                stats.update(policy_info)
+            self.get_policy().set_new_elite(eval_losses)
+            info.update(model_info)
 
-        self.metrics.num_steps_sampled += timesteps_this_iter
-        return self._log_metrics(stats, timesteps_this_iter + pre_learning_steps)
+        if self._sample_calls % self.config["policy_improvement_interval"] == 0:
+            self.populate_virtual_buffer(self.config["model_rollouts"])
+
+            with self.timers["policy"] as timer:
+                times = self.config["policy_improvements"]
+                policy_info = self.improve_policy(times=times)
+                timer.push_units_processed(times)
+
+            info.update(policy_info)
+
+        return samples.count, info
 
     def populate_virtual_buffer(self, num_rollouts: int):
         """Add model rollouts branched from real data to the virtual pool.
