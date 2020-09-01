@@ -451,7 +451,7 @@ class HopperReward(RewardFn):
     def forward(self, state, action, next_state):
         ctrl_cost = self.control_cost(action)
 
-        x_velocity = (state[..., 0] - next_state[..., 0]) / self.delta_t
+        x_velocity = (next_state[..., 0] - state[..., 0]) / self.delta_t
         forward_reward = self._forward_reward_weight * x_velocity
 
         healthy_reward = torch.full_like(ctrl_cost, fill_value=self._healthy_reward)
