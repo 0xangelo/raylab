@@ -224,6 +224,7 @@ class HopperTermination(TerminationFn):
         super().__init__()
         parameters = get_env_parameters("Hopper-v3")
         for attr in """
+        exclude_current_positions_from_observation
         healthy_angle_range
         healthy_state_range
         healthy_z_range

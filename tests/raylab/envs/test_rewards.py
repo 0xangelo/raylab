@@ -19,7 +19,9 @@ def env_config(request):
 @pytest.fixture(params=VALID_ENVS)
 def env_reward(request, envs, env_config):
     env_name = request.param
-    if any(prefix in env_name for prefix in "HalfCheetah Walker2d Swimmer".split()):
+    if any(
+        prefix in env_name for prefix in "HalfCheetah Walker2d Swimmer Hopper".split()
+    ):
         env_config["exclude_current_positions_from_observation"] = False
     if "IndustrialBenchmark" in env_name:
         env_config["max_episode_steps"] = 200

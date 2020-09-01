@@ -6,6 +6,56 @@ from ray.rllib import Policy
 from raylab.utils.debug import fake_batch
 
 
+@pytest.fixture
+def model_update_interval():
+    return 1
+
+
+@pytest.fixture
+def policy_improvement_interval():
+    return 1
+
+
+@pytest.fixture
+def policy_improvements():
+    return 1
+
+
+@pytest.fixture
+def train_batch_size():
+    return 32
+
+
+@pytest.fixture
+def rollout_fragment_length():
+    return 10
+
+
+@pytest.fixture
+def learning_starts(rollout_fragment_length):
+    return rollout_fragment_length
+
+
+@pytest.fixture
+def num_workers():
+    return 0
+
+
+@pytest.fixture
+def buffer_size():
+    return 100
+
+
+@pytest.fixture
+def timesteps_per_iteration(rollout_fragment_length):
+    return rollout_fragment_length
+
+
+@pytest.fixture
+def evaluation_interval():
+    return 1
+
+
 @pytest.fixture(scope="module")
 def dummy_policy_cls():
     class DummyPolicy(Policy):
