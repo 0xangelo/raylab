@@ -1,6 +1,48 @@
+import itertools
+
 import pytest
+from ray.rllib import Policy
 
 from raylab.utils.debug import fake_batch
+
+
+@pytest.fixture(scope="module")
+def dummy_policy_cls():
+    class DummyPolicy(Policy):
+        # pylint:disable=abstract-method,too-many-arguments
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.param = 0
+            self.param_seq = itertools.count()
+            next(self.param_seq)
+
+            self.exploration = self._create_exploration()
+
+        def compute_actions(
+            self,
+            obs_batch,
+            state_batches=None,
+            prev_action_batch=None,
+            prev_reward_batch=None,
+            info_batch=None,
+            episodes=None,
+            explore=None,
+            timestep=None,
+            **kwargs,
+        ):
+            return [self.action_space.sample() for _ in obs_batch], [], {}
+
+        def learn_on_batch(self, _):
+            self.param = next(self.param_seq)
+            return {"improved": True}
+
+        def get_weights(self):
+            return {"param": self.param}
+
+        def set_weights(self, weights):
+            self.param = weights["param"]
+
+    return DummyPolicy
 
 
 @pytest.fixture(scope="module")

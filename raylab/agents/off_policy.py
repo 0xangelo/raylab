@@ -1,4 +1,8 @@
 # pylint:disable=missing-module-docstring
+from typing import Tuple
+
+from ray.rllib import RolloutWorker
+from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 from ray.tune import Trainable
 
@@ -41,69 +45,8 @@ class OffPolicyTrainer(Trainer):
         )
         self.build_replay_buffer(config)
 
-    @override(Trainable)
-    def step(self):
-        pre_learning_steps = self.sample_until_learning_starts()
-        timesteps_this_iter = 0
-
-        worker = self.workers.local_worker()
-        policy = worker.get_policy()
-        stats = {}
-        while timesteps_this_iter < max(self.config["timesteps_per_iteration"], 1):
-            samples = worker.sample()
-            timesteps_this_iter += samples.count
-            for row in samples.rows():
-                self.replay.add(row)
-            stats.update(policy.get_exploration_info())
-
-            self._before_replay_steps(policy)
-            for _ in range(int(self.config["policy_improvements"])):
-                batch = self.replay.sample(self.config["train_batch_size"])
-                stats.update(policy.learn_on_batch(batch))
-                self.metrics.num_steps_trained += batch.count
-
-        self.metrics.num_steps_sampled += timesteps_this_iter
-        return self._log_metrics(stats, timesteps_this_iter + pre_learning_steps)
-
-    def build_replay_buffer(self, config):
-        """Construct replay buffer to hold samples."""
-        policy = self.get_policy()
-        self.replay = NumpyReplayBuffer(
-            policy.observation_space, policy.action_space, config["buffer_size"]
-        )
-        self.replay.seed(config["seed"])
-
-    def sample_until_learning_starts(self):
-        """
-        Sample enough transtions so that 'learning_starts' steps are collected before
-        the next policy update.
-        """
-        learning_starts = self.config["learning_starts"]
-        worker = self.workers.local_worker()
-        sample_count = 0
-        while self.metrics.num_steps_sampled + sample_count < learning_starts:
-            samples = worker.sample()
-            sample_count += samples.count
-            for row in samples.rows():
-                self.replay.add(row)
-
-        if sample_count:
-            self.metrics.num_steps_sampled += sample_count
-            self.global_vars["timestep"] = self.metrics.num_steps_sampled
-            self.workers.foreach_worker(lambda w: w.set_global_vars(self.global_vars))
-
-        return sample_count
-
-    def _before_replay_steps(self, policy):  # pylint:disable=unused-argument
-        pass
-
-    def _log_metrics(self, learner_stats, timesteps_this_iter):
-        res = self.collect_metrics()
-        res.update(timesteps_this_iter=timesteps_this_iter, learner=learner_stats)
-        return res
-
     @staticmethod
-    def validate_config(config):
+    def validate_config(config: dict):
         """Assert configuration values are valid."""
         assert config["num_workers"] == 0, "No point in using additional workers."
         assert (
@@ -112,3 +55,95 @@ class OffPolicyTrainer(Trainer):
         assert (
             config["policy_improvements"] >= 0
         ), "Number of policy improvement steps must be non-negative"
+
+    def build_replay_buffer(self, config: dict):
+        """Construct replay buffer to hold samples."""
+        policy = self.get_policy()
+        self.replay = NumpyReplayBuffer(
+            policy.observation_space, policy.action_space, config["buffer_size"]
+        )
+        self.replay.seed(config["seed"])
+
+    @property
+    def worker(self) -> RolloutWorker:
+        """The rollout worker."""
+        return self.workers.local_worker()
+
+    @override(Trainable)
+    def step(self):
+        pre_learning_steps = self.sample_until_learning_starts()
+
+        timesteps_this_iter = 0
+        while timesteps_this_iter < max(self.config["timesteps_per_iteration"], 1):
+            sample_count, info = self.single_iteration()
+            timesteps_this_iter += sample_count
+
+        timesteps_this_iter += pre_learning_steps
+        return self._log_metrics(
+            learner_stats=info, timesteps_this_iter=timesteps_this_iter
+        )
+
+    def sample_until_learning_starts(self) -> int:
+        """
+        Sample enough transtions so that 'learning_starts' steps are collected before
+        the next policy update.
+        """
+        learning_starts = self.config["learning_starts"]
+        sample_count = 0
+        while self.metrics.num_steps_sampled + sample_count < learning_starts:
+            samples = self.worker.sample()
+            sample_count += samples.count
+            self.add_to_buffer(samples)
+
+        if sample_count:
+            self.update_steps_sampled(sample_count)
+        return sample_count
+
+    def single_iteration(self) -> Tuple[int, dict]:
+        """Run one logical iteration of training.
+
+        Returns:
+            A tuple with the number of timesteps collected in the environment
+            and the info dict from this iteration.
+        """
+        info = {}
+        samples = self.worker.sample()
+        self.update_steps_sampled(samples.count)
+        self.add_to_buffer(samples)
+
+        policy = self.worker.get_policy()
+        info.update(policy.get_exploration_info())
+
+        self._before_replay_steps(policy)
+        for _ in range(int(self.config["policy_improvements"])):
+            batch = self.replay.sample(self.config["train_batch_size"])
+            info.update(policy.learn_on_batch(batch))
+            self.metrics.num_steps_trained += batch.count
+
+        return samples.count, info
+
+    def _before_replay_steps(self, policy):  # pylint:disable=unused-argument
+        pass
+
+    def add_to_buffer(self, samples: SampleBatch):
+        """Add sample batch to replay buffer"""
+        for row in samples.rows():
+            self.replay.add(row)
+
+    def update_steps_sampled(self, count: int):
+        """Update the number of steps sampled in the environment.
+
+        Updates the standard metrics, global vars, worker vars, and policy
+        global timestep (important to keep exploration and schedule in sync).
+        """
+        self.metrics.num_steps_sampled += count
+        self.global_vars["timestep"] += count
+        self._broadcast_global_vars()
+
+    def _broadcast_global_vars(self):
+        self.workers.foreach_worker(lambda w: w.set_global_vars(self.global_vars))
+
+    def _log_metrics(self, learner_stats: dict, timesteps_this_iter: int) -> dict:
+        res = self.collect_metrics()
+        res.update(timesteps_this_iter=timesteps_this_iter, learner=learner_stats)
+        return res
