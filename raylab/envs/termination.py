@@ -233,7 +233,7 @@ class HopperTermination(TerminationFn):
 
     def forward(self, state, action, next_state):
         if self._terminate_when_unhealthy:
-            return ~self._is_healthy(next_state)
+            return ~self.is_healthy(next_state)
         return torch.zeros(next_state.shape[:-1]).bool()
 
     def is_healthy(self, state):
