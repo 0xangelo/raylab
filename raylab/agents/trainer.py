@@ -147,12 +147,11 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
             result.update(self._evaluate())
 
         result.update(super().train())
-        return result
 
-    @overrides(Trainable)
-    def log_result(self, result: dict):
         if self.wandb.enabled:
             self.wandb.log_result(result)
+
+        return result
 
     @property
     @overrides(RLlibTrainer)
