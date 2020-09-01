@@ -129,6 +129,8 @@ class ModelBasedTrainer(OffPolicyTrainer):
             # pylint:disable=logging-too-many-args
             logger.info("Finished model warmup with stats: %s", warmup_stats)
 
+        return sample_count
+
     @override(OffPolicyTrainer)
     def single_iteration(self) -> Tuple[int, dict]:
         info = {}
@@ -138,14 +140,16 @@ class ModelBasedTrainer(OffPolicyTrainer):
         self._sample_calls += 1
 
         if self._sample_calls % self.config["model_update_interval"] == 0:
-            with self.timers["model"] as timer:
+            timer = self.timers["model"]
+            with timer:
                 _, model_info = self.train_dynamics_model(warmup=False)
                 timer.push_units_processed(model_info["model_epochs"])
 
             info.update(model_info)
 
         if self._sample_calls % self.config["policy_improvement_interval"] == 0:
-            with self.timers["policy"] as timer:
+            timer = self.timers["policy"]
+            with timer:
                 times = self.config["policy_improvements"]
                 policy_info = self.improve_policy(times=times)
                 timer.push_units_processed(times)
@@ -274,7 +278,8 @@ class DynaLikeTrainer(ModelBasedTrainer):
         self._sample_calls += 1
 
         if self._sample_calls % self.config["model_update_interval"] == 0:
-            with self.timers["model"] as timer:
+            timer = self.timers["model"]
+            with timer:
                 eval_losses, model_info = self.train_dynamics_model(warmup=False)
                 timer.push_units_processed(model_info["model_epochs"])
 
@@ -284,7 +289,8 @@ class DynaLikeTrainer(ModelBasedTrainer):
         if self._sample_calls % self.config["policy_improvement_interval"] == 0:
             self.populate_virtual_buffer(self.config["model_rollouts"])
 
-            with self.timers["policy"] as timer:
+            timer = self.timers["policy"]
+            with timer:
                 times = self.config["policy_improvements"]
                 policy_info = self.improve_policy(times=times)
                 timer.push_units_processed(times)
