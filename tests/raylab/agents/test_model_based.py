@@ -39,51 +39,6 @@ def trainer_cls(policy_cls):
 
 
 @pytest.fixture
-def model_update_interval():
-    return 1
-
-
-@pytest.fixture
-def policy_improvement_interval():
-    return 1
-
-
-@pytest.fixture
-def policy_improvements():
-    return 1
-
-
-@pytest.fixture
-def train_batch_size():
-    return 32
-
-
-@pytest.fixture
-def rollout_fragment_length():
-    return 10
-
-
-@pytest.fixture
-def learning_starts(rollout_fragment_length):
-    return rollout_fragment_length
-
-
-@pytest.fixture
-def num_workers():
-    return 0
-
-
-@pytest.fixture
-def buffer_size():
-    return 100
-
-
-@pytest.fixture
-def timesteps_per_iteration(rollout_fragment_length):
-    return rollout_fragment_length
-
-
-@pytest.fixture
 def config(
     model_update_interval,
     policy_improvement_interval,
@@ -94,6 +49,7 @@ def config(
     num_workers,
     buffer_size,
     timesteps_per_iteration,
+    evaluation_interval,
 ):
     # pylint:disable=too-many-arguments
     return dict(
@@ -107,6 +63,7 @@ def config(
         num_workers=num_workers,
         buffer_size=buffer_size,
         timesteps_per_iteration=timesteps_per_iteration,
+        evaluation_interval=evaluation_interval,
     )
 
 
@@ -123,21 +80,26 @@ def test_init(trainer_cls, config):
         == 0
     )
 
+    assert trainer.iteration == 0
+
 
 @pytest.fixture
 def trainer(trainer_cls, config):
     return trainer_cls(config=config)
 
 
-def test_step(mocker, trainer, policy_cls, learning_starts, rollout_fragment_length):
+def test_train(mocker, trainer, policy_cls, learning_starts, rollout_fragment_length):
     sample_until_learning_starts = mocker.spy(
         ModelBasedTrainer, "sample_until_learning_starts"
     )
     train_dynamics_model = mocker.spy(ModelBasedTrainer, "train_dynamics_model")
     learn_on_batch = mocker.spy(policy_cls, "learn_on_batch")
+    _evaluate = mocker.spy(ModelBasedTrainer, "_evaluate")
 
-    res = trainer.step()
+    res = trainer.train()
     assert isinstance(res, dict)
+
+    assert "evaluation" in res
 
     timesteps_this_iter = learning_starts + rollout_fragment_length
     assert res["timesteps_this_iter"] == timesteps_this_iter
@@ -147,3 +109,4 @@ def test_step(mocker, trainer, policy_cls, learning_starts, rollout_fragment_len
     assert sample_until_learning_starts.called
     assert train_dynamics_model.called
     assert learn_on_batch.called
+    assert _evaluate.called

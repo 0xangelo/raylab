@@ -13,41 +13,6 @@ def trainer_cls(dummy_policy_cls):
 
 
 @pytest.fixture
-def policy_improvements():
-    return 1
-
-
-@pytest.fixture
-def train_batch_size():
-    return 32
-
-
-@pytest.fixture
-def rollout_fragment_length():
-    return 10
-
-
-@pytest.fixture
-def learning_starts(rollout_fragment_length):
-    return rollout_fragment_length
-
-
-@pytest.fixture
-def num_workers():
-    return 0
-
-
-@pytest.fixture
-def buffer_size():
-    return 100
-
-
-@pytest.fixture
-def timesteps_per_iteration(rollout_fragment_length):
-    return rollout_fragment_length
-
-
-@pytest.fixture
 def config(
     policy_improvements,
     learning_starts,
@@ -56,6 +21,7 @@ def config(
     num_workers,
     buffer_size,
     timesteps_per_iteration,
+    evaluation_interval,
 ):
     # pylint:disable=too-many-arguments
     return dict(
@@ -67,6 +33,7 @@ def config(
         num_workers=num_workers,
         buffer_size=buffer_size,
         timesteps_per_iteration=timesteps_per_iteration,
+        evaluation_interval=evaluation_interval,
     )
 
 
@@ -83,6 +50,10 @@ def test_init(trainer_cls, config):
         == 0
     )
 
+    assert hasattr(trainer, "evaluation_workers")
+    assert trainer.iteration == 0
+    assert trainer._iteration == 0
+
 
 @pytest.fixture
 def trainer(trainer_cls, config):
@@ -98,12 +69,18 @@ def test_update_steps_sampled(trainer):
     assert trainer.get_policy().global_timestep == steps
 
 
-def test_step(mocker, trainer, learning_starts, rollout_fragment_length):
-    spy = mocker.spy(OffPolicyTrainer, "sample_until_learning_starts")
+def test_train(mocker, trainer, learning_starts, rollout_fragment_length):
+    sample_until_learning_starts = mocker.spy(
+        OffPolicyTrainer, "sample_until_learning_starts"
+    )
+    _evaluate = mocker.spy(OffPolicyTrainer, "_evaluate")
 
-    res = trainer.step()
+    res = trainer.train()
+    assert trainer.iteration == 1
+    assert trainer._iteration == 1
     assert isinstance(res, dict)
-
     assert res["timesteps_this_iter"] == learning_starts + rollout_fragment_length
+    assert "evaluation" in res
 
-    assert spy.called
+    assert sample_until_learning_starts.called
+    assert _evaluate.called

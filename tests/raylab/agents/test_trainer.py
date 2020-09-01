@@ -111,6 +111,9 @@ def test_train(trainer, workers, trainable_info_keys):
     should_learn = workers
     if should_learn:
         info = trainer.train()
+        assert trainer._iteration == 1
+        assert trainer.iteration == 1
+
         info_keys = set(info.keys())
         assert all(key in info_keys for key in trainable_info_keys)
 
