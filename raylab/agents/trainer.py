@@ -114,6 +114,7 @@ def option(
     help="Config dict for PyTorch optimizers.",
     allow_unknown_subkeys=True,
 )
+@option("framework", default="torch", override=True)
 class Trainer(RLlibTrainer, metaclass=ABCMeta):
     """Base Trainer for all agents.
 
