@@ -253,3 +253,17 @@ class HopperTermination(TerminationFn):
         healthy_angle = (min_angle < angle) & (angle < max_angle)
 
         return healthy_state & healthy_z & healthy_angle
+
+
+@register("InvertedPendulum-v2")
+class InvertedPendulumTermination(TerminationFn):
+    # pylint:disable=abstract-method,missing-class-docstring
+    def __init__(self, _):
+        super().__init__()
+
+    def forward(self, state, action, next_state):
+        # pylint:disable=no-self-use
+        notdone = torch.isfinite(next_state).all(dim=-1) & (
+            next_state[..., 1].abs() <= 0.2
+        )
+        return ~notdone

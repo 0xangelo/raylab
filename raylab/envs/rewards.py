@@ -480,3 +480,11 @@ class HopperReward(RewardFn):
         healthy_angle = (min_angle < angle) & (angle < max_angle)
 
         return healthy_state & healthy_z & healthy_angle
+
+
+@register("InvertedPendulum-v2")
+class InvertedPendulumReward(RewardFn):
+    # pylint:disable=abstract-method,missing-class-docstring
+    def forward(self, state, action, next_state):
+        # pylint:disable=no-self-use
+        return torch.ones(next_state.shape[:-1])
