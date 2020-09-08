@@ -1,7 +1,11 @@
 import pytest
 import torch
 
+from raylab.policy.modules.actor.policy.stochastic import Alpha
+from raylab.policy.modules.critic.v_value import HardValue
 from raylab.policy.modules.critic.v_value import MLPVValue
+from raylab.policy.modules.critic.v_value import SoftValue
+from raylab.policy.modules.critic.v_value import VValue
 from raylab.policy.modules.critic.v_value import VValueEnsemble
 
 
@@ -33,3 +37,64 @@ def test_forward(v_value_ensemble, obs, n_critics):
 
     clipped = VValueEnsemble.clipped(values)
     _test_value(clipped, obs)
+
+
+@pytest.fixture
+def critics(action_critics):
+    _, target_critics = action_critics
+    return target_critics
+
+
+@pytest.fixture
+def alpha():
+    return Alpha(1.0)
+
+
+@pytest.fixture
+def soft_value(stochastic_policy, critics, alpha):
+    return SoftValue(stochastic_policy, critics, alpha)
+
+
+def test_soft_init(soft_value):
+    assert isinstance(soft_value, VValue)
+
+
+def test_soft_call(soft_value, obs, stochastic_policy, critics, alpha):
+    value = soft_value(obs)
+    assert value.shape == obs.shape[:-1]
+    assert value.grad_fn is not None
+
+    value.sum().backward()
+    parameters = set.union(
+        set(stochastic_policy.parameters()),
+        set(critics.parameters()),
+        set(alpha.parameters()),
+    )
+    assert all([p.grad is not None for p in parameters])
+
+
+@pytest.fixture
+def deterministic_policy(deterministic_policies):
+    _, target = deterministic_policies
+    return target
+
+
+@pytest.fixture
+def hard_value(deterministic_policy, critics):
+    return HardValue(deterministic_policy, critics)
+
+
+def test_hard_init(hard_value):
+    assert isinstance(hard_value, VValue)
+
+
+def test_hard_call(hard_value, obs, deterministic_policy, critics):
+    value = hard_value(obs)
+    assert value.shape == obs.shape[:-1]
+    assert value.grad_fn is not None
+
+    value.sum().backward()
+    parameters = set.union(
+        set(deterministic_policy.parameters()), set(critics.parameters())
+    )
+    assert all([p.grad is not None for p in parameters])

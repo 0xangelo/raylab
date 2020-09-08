@@ -73,6 +73,8 @@ class QValueEnsemble(nn.ModuleList):
         q_values: A list of QValue modules
     """
 
+    # pylint:disable=abstract-method
+
     def __init__(self, q_values):
         cls_name = type(self).__name__
         assert all(
@@ -117,6 +119,21 @@ class QValueEnsemble(nn.ModuleList):
 class ForkedQValueEnsemble(QValueEnsemble):
     """Ensemble of Q-value estimators with parallelized forward pass."""
 
+    # pylint:disable=abstract-method
+
     def _action_values(self, obs: Tensor, act: Tensor) -> List[Tensor]:
         futures = [torch.jit.fork(m, obs, act) for m in self]
         return [torch.jit.wait(f) for f in futures]
+
+
+class ClippedQValue(QValue):
+    """Q-value computed as the minimum among Q-values in an ensemble."""
+
+    def __init__(self, q_values: QValueEnsemble):
+        super().__init__()
+        self.q_values = q_values
+
+    def forward(self, obs, act):  # pylint:disable=arguments-differ
+        values = self.q_values(obs, act)
+        mininum, _ = torch.stack(values, dim=0).min(dim=0)
+        return mininum
