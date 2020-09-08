@@ -63,6 +63,7 @@ class QLearningMixin(ABC):
         for i, q in enumerate(values):
             infoi = {
                 f"Q{i}_mean": q.mean().item(),
+                f"Q{i}_std": q.std().item(),
                 f"Q{i}_max": q.max().item(),
                 f"Q{i}_min": q.min().item(),
             }
