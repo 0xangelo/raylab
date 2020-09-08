@@ -23,7 +23,9 @@ class SOPTorchPolicy(TorchPolicy):
 
         self._make_actor_loss()
         self.loss_critic = ClippedDoubleQLearning(
-            self.module.critics, self.module.target_critics, self.module.target_actor,
+            self.module.critics,
+            self.module.target_critics,
+            self.module.target_actor,
         )
         self.loss_critic.gamma = self.config["gamma"]
         self._grad_step = 0
@@ -39,7 +41,8 @@ class SOPTorchPolicy(TorchPolicy):
     def _make_actor_loss(self):
         if self.config["dpg_loss"] == "default":
             self.loss_actor = DeterministicPolicyGradient(
-                self.module.actor, self.module.critics,
+                self.module.actor,
+                self.module.critics,
             )
         elif self.config["dpg_loss"] == "acme":
             self.loss_actor = ActionDPG(self.module.actor, self.module.critics)

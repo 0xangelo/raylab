@@ -7,8 +7,8 @@ import torch
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.policy.modules.model.stochastic.ensemble import SME
-from raylab.policy.modules.model.stochastic.single import StochasticModel
+from raylab.policy.modules.model import SME
+from raylab.policy.modules.model import StochasticModel
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 from raylab.utils.dictionaries import get_keys

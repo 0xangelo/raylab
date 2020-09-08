@@ -1,7 +1,7 @@
 """Support for modules with stochastic policies."""
-from raylab.policy.modules.model.stochastic import build_ensemble
-from raylab.policy.modules.model.stochastic import build_single
-from raylab.policy.modules.model.stochastic import EnsembleSpec
+from raylab.policy.modules.model import build_ensemble
+from raylab.policy.modules.model import build_single
+from raylab.policy.modules.model import EnsembleSpec
 from raylab.utils.dictionaries import deep_merge
 
 

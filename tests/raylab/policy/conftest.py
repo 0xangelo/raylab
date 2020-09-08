@@ -2,13 +2,13 @@ import pytest
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
-from raylab.policy.modules.actor.policy.deterministic import MLPDeterministicPolicy
-from raylab.policy.modules.actor.policy.stochastic import MLPContinuousPolicy
+from raylab.policy.modules.actor import DeterministicPolicy
+from raylab.policy.modules.actor import MLPContinuousPolicy
+from raylab.policy.modules.actor import MLPDeterministicPolicy
 from raylab.policy.modules.critic.action_value import ActionValueCritic
-from raylab.policy.modules.model.stochastic import build_ensemble
-from raylab.policy.modules.model.stochastic import build_single
-from raylab.policy.modules.model.stochastic import EnsembleSpec
+from raylab.policy.modules.model import build_ensemble
+from raylab.policy.modules.model import build_single
+from raylab.policy.modules.model import EnsembleSpec
 from raylab.utils.debug import fake_batch
 
 

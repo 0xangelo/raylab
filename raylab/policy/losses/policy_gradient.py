@@ -6,9 +6,9 @@ import torch
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
-from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
-from raylab.policy.modules.critic.q_value import QValueEnsemble
+from raylab.policy.modules.actor import DeterministicPolicy
+from raylab.policy.modules.actor import StochasticPolicy
+from raylab.policy.modules.critic import QValueEnsemble
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -61,7 +61,9 @@ class ReparameterizedSoftPG(Loss):
     alpha: float = 0.05
 
     def __init__(
-        self, actor: StochasticPolicy, critics: QValueEnsemble,
+        self,
+        actor: StochasticPolicy,
+        critics: QValueEnsemble,
     ):
         self.actor = actor
         self.critics = critics

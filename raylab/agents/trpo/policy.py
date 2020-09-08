@@ -103,7 +103,10 @@ class TRPOTorchPolicy(TorchPolicy):
         # Perform Line Search
         if self.config["line_search"]:
             new_params, line_search_info = self._perform_line_search(
-                pol_grad, descent_step, surr_loss, batch_tensors,
+                pol_grad,
+                descent_step,
+                surr_loss,
+                batch_tensors,
             )
             info.update(line_search_info)
         else:

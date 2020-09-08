@@ -8,9 +8,9 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
-from raylab.policy.modules.critic.q_value import QValueEnsemble
-from raylab.policy.modules.model.stochastic.ensemble import SME
+from raylab.policy.modules.actor import DeterministicPolicy
+from raylab.policy.modules.critic import QValueEnsemble
+from raylab.policy.modules.model import SME
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -109,7 +109,10 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         return loss, info
 
     def temporal_diff_error(
-        self, obs: Tensor, action: Tensor, next_obs: Tensor,
+        self,
+        obs: Tensor,
+        action: Tensor,
+        next_obs: Tensor,
     ) -> Tensor:
         """Returns the temporal difference error with clipped action values."""
         critics = self._modules["critics"]

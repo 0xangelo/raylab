@@ -11,9 +11,9 @@ from torch import Tensor
 from torch.jit import fork
 from torch.jit import wait
 
-from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
-from raylab.policy.modules.actor.policy.stochastic import Alpha
-from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
+from raylab.policy.modules.actor import Alpha
+from raylab.policy.modules.actor import DeterministicPolicy
+from raylab.policy.modules.actor import StochasticPolicy
 from raylab.policy.modules.networks.mlp import StateMLP
 
 from .q_value import ClippedQValue
@@ -36,25 +36,6 @@ class VValue(ABC, nn.Module):
             Output tensor has scalars for each batch dimension, i.e., for a
             batch of 10 observations, the output will have shape (10,).
         """
-
-
-class PolicyQValue(VValue):
-    """State-value function from policy and Q-value function.
-
-    Args:
-        policy: Deterministic policy
-        q_value: Q-value function
-    """
-
-    def __init__(self, policy: DeterministicPolicy, q_value: QValue):
-        super().__init__()
-        self.policy = policy
-        self.q_value = q_value
-
-    def forward(self, obs: Tensor) -> Tensor:
-        act = self.policy(obs)
-        value = self.q_value(obs, act)
-        return value
 
 
 class MLPVValue(VValue):

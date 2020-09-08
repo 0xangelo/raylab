@@ -29,7 +29,9 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         self.loss_actor.gamma = self.config["gamma"]
 
         self.loss_critic = ISSoftVIteration(
-            self.module.critic, self.module.target_critic, self.module.actor.sample,
+            self.module.critic,
+            self.module.target_critic,
+            self.module.actor.sample,
         )
         self.loss_critic.gamma = self.config["gamma"]
 

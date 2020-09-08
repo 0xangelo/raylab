@@ -24,7 +24,9 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
         self._off_policy_learning = False
 
         self.loss_actor = TrajectorySVG(
-            self.module.model, self.module.actor, self.module.critic,
+            self.module.model,
+            self.module.actor,
+            self.module.critic,
         )
 
     @property

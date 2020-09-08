@@ -41,7 +41,10 @@ class PolicyNormalParams(nn.Module):
     """
     # pylint:enable=line-too-long
     def __init__(
-        self, in_features: int, event_size: int, input_dependent_scale: bool = True,
+        self,
+        in_features: int,
+        event_size: int,
+        input_dependent_scale: bool = True,
     ):
         super().__init__()
         self.loc_module = nn.Linear(in_features, event_size)

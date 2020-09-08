@@ -12,11 +12,11 @@ from ray.rllib import SampleBatch
 from torch import Tensor
 
 import raylab.utils.dictionaries as dutil
-from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
-from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
-from raylab.policy.modules.critic.q_value import QValueEnsemble
-from raylab.policy.modules.critic.v_value import PolicyQValue
-from raylab.policy.modules.critic.v_value import VValueEnsemble
+from raylab.policy.modules.actor import DeterministicPolicy
+from raylab.policy.modules.actor import StochasticPolicy
+from raylab.policy.modules.critic import HardValue
+from raylab.policy.modules.critic import QValueEnsemble
+from raylab.policy.modules.critic import VValueEnsemble
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -103,7 +103,7 @@ class ClippedDoubleQLearning(QLearningMixin, Loss):
                     " requires a deterministic policy as the `actor` argument."
                 )
             self.target_critics = VValueEnsemble(
-                [PolicyQValue(policy=actor, q_value=q) for q in target_critics]
+                [HardValue(policy=actor, q_value=q) for q in target_critics]
             )
         else:
             self.target_critics = target_critics

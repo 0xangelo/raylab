@@ -277,7 +277,9 @@ class ModelTrainingMixin(ABC):
         return self.model_training_loss
 
     def optimize_model(
-        self, samples: SampleBatch, warmup: bool = False,
+        self,
+        samples: SampleBatch,
+        warmup: bool = False,
     ) -> Tuple[List[float], StatDict]:
         """Update models with samples.
 

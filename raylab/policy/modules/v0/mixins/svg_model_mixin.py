@@ -8,8 +8,8 @@ from ray.rllib.utils import override
 
 import raylab.torch.nn as nnx
 import raylab.torch.nn.distributions as ptd
-from raylab.policy.modules.model.stochastic.single import ResidualMixin
-from raylab.policy.modules.model.stochastic.single import StochasticModel
+from raylab.policy.modules.model import ResidualMixin
+from raylab.policy.modules.model import StochasticModel
 from raylab.policy.modules.networks.mlp import StateActionMLP
 from raylab.torch.nn.init import initialize_
 
