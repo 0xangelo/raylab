@@ -18,7 +18,11 @@ def sac_config(cls: type) -> type:
             help="""Target entropy for temperature parameter optimization.
 
             If 'auto', will use the heuristic provided in the SAC paper,
-            H = -dim(A), where A is the action space""",
+            H = -dim(A), where A is the action space
+
+            If 'tf-agents', will use the TFAgents implementation,
+            H = -dim(A) / 2, where A is the action space
+            """,
         ),
         trainer.option("torch_optimizer/actor", {"type": "Adam", "lr": 1e-3}),
         trainer.option("torch_optimizer/critics", {"type": "Adam", "lr": 1e-3}),

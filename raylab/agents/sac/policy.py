@@ -35,12 +35,14 @@ class SACTorchPolicy(TorchPolicy):
         self.loss_critic.gamma = self.config["gamma"]
 
     def _setup_alpha_loss(self):
-        action_space = self.action_space
-        target_entropy = (
-            -action_space.shape[0]
-            if self.config["target_entropy"] == "auto"
-            else self.config["target_entropy"]
-        )
+        action_size = self.action_space.shape[0]
+        if self.config["target_entropy"] == "auto":
+            target_entropy = -action_size
+        elif self.config["target_entropy"] == "tf-agents":
+            target_entropy = -action_size / 2
+        else:
+            target_entropy = self.config["target_entropy"]
+
         self.loss_alpha = MaximumEntropyDual(
             self.module.alpha, self.module.actor.sample, target_entropy
         )
