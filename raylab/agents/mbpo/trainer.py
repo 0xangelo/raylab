@@ -2,8 +2,8 @@
 from raylab.agents import trainer
 from raylab.agents.model_based import DynaLikeTrainer
 from raylab.agents.sac.trainer import sac_config
-from raylab.policy.model_based.sampling_mixin import SamplingSpec
-from raylab.policy.model_based.training_mixin import TrainingSpec
+from raylab.policy.model_based.sampling import SamplingSpec
+from raylab.policy.model_based.training import TrainingSpec
 
 from .policy import MBPOTorchPolicy
 
