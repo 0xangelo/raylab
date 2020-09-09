@@ -1,4 +1,5 @@
 # pylint:disable=missing-module-docstring
+from .action_value import ActionValueCritic
 from .q_value import ClippedQValue
 from .q_value import ForkedQValueEnsemble
 from .q_value import MLPQValue
