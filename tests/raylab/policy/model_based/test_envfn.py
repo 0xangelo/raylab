@@ -15,7 +15,7 @@ def policy_cls(base_policy_cls):
         @property
         def options(self):
             options = RaylabOptions()
-            options.set_option("module/type", "SimpleModelBased-v0")
+            options.set_option("module/type", "ModelBasedSAC")
             return options
 
     return Policy
