@@ -73,16 +73,13 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         return self._env.initialized
 
     @property
-    def grad_estimator(self):
-        """Gradient estimator for expecations."""
-        return "PD"
-
-    @property
-    def _models(self) -> SME:
+    def models(self) -> SME:
         return self._modules["models"]
 
     def transition(self, obs, action):
-        next_obs, _, dist_params = super().transition(obs, action)
+        model, _ = self.sample_model()
+        dist_params = model(obs, action)
+        next_obs, _ = model.rsample(dist_params)
         return next_obs, dist_params
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:

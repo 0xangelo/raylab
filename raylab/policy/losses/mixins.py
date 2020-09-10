@@ -4,8 +4,7 @@ from typing import Optional
 from typing import Tuple
 
 import numpy as np
-import torch
-from torch import Tensor
+import torch.nn as nn
 
 from raylab.utils.annotations import RewardFn
 from raylab.utils.annotations import TerminationFn
@@ -51,10 +50,10 @@ class UniformModelPriorMixin:
     Expects a model ensemble as a `_models` instance attribute.
 
     Attributes:
-        grad_estimator: Gradient estimator for expecations ('PD' or 'SF')
+        models: Module list of dynamics models
     """
 
-    grad_estimator: str = "PD"
+    models: nn.ModuleList
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -64,56 +63,8 @@ class UniformModelPriorMixin:
         """Seeds the RNG for choosing a model from the ensemble."""
         self._rng = np.random.default_rng(seed)
 
-    def transition(self, obs: Tensor, action: Tensor) -> Tuple[Tensor, Tensor]:
-        """Compute virtual transition and its log density.
-
-        Samples a model from the ensemble using the internal RNG and uses it to
-        generate the next state.
-
-        Args:
-            obs: The current state
-            action: The action sampled from the stochastic policy
-
-        Returns:
-            A tuple with the next state, its log-likelihood generated from
-            a model sampled from the ensemble, and that model's distribution
-            parameters
-        """
-        model = self._rng.choice(self._models)
-        dist_params = model(obs, action)
-        if self.grad_estimator == "SF":
-            next_obs, logp = model.sample(dist_params)
-        elif self.grad_estimator == "PD":
-            next_obs, logp = model.rsample(dist_params)
-        return next_obs, logp, dist_params
-
-    def verify_model(self, obs: Tensor, act: Tensor):
-        """Verify model suitability for the current gradient estimator.
-
-        Assumes all models in the ensemble behave the same way.
-
-        Args:
-            obs: Dummy observation tensor
-            act: Dummy action tensor
-
-        Raises:
-            AssertionError: If the internal model does not satisfy requirements
-                for gradient estimation
-        """
-        model = self._models[0]
-        if self.grad_estimator == "SF":
-            sample, logp = model.sample(model(obs, act.requires_grad_()))
-            assert sample.grad_fn is None
-            assert logp is not None
-            logp.mean().backward()
-            assert (
-                act.grad is not None
-            ), "Transition grad log_prob must exist for SF estimator"
-            assert not torch.allclose(act.grad, torch.zeros_like(act))
-        if self.grad_estimator == "PD":
-            sample, _ = model.rsample(model(obs.requires_grad_(), act.requires_grad_()))
-            sample.mean().backward()
-            assert (
-                act.grad is not None
-            ), "Transition grad w.r.t. state and action must exist for PD estimator"
-            assert not torch.allclose(act.grad, torch.zeros_like(act))
+    def sample_model(self) -> Tuple[nn.Module, int]:
+        """Return a model and its index sampled uniformly at random."""
+        models = self.models
+        idx = self._rng.integers(len(models))
+        return models[idx], idx
