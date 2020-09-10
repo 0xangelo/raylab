@@ -43,7 +43,11 @@ H = -dim(A), where A is the action space
     help="Interpolation factor in polyak averaging for target networks.",
 )
 @trainer.option("module/type", "SoftSVG")
-@trainer.option("exploration_config/type", "raylab.utils.exploration.StochasticActor")
+@trainer.option(
+    "exploration_config/type",
+    "raylab.utils.exploration.StochasticActor",
+    override=True,
+)
 @trainer.option("exploration_config/pure_exploration_steps", 1000)
 @trainer.option("evaluation_config/explore", False, override=True)
 class SoftSVGTrainer(OffPolicyTrainer):

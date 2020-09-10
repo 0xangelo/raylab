@@ -19,8 +19,6 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
-        assert "target_critic" in self.module, "SoftSVG needs a target Value function!"
-
         self.loss_actor = OneStepSoftSVG(
             lambda s, a, s_: self.module.model.reproduce(s_, self.module.model(s, a)),
             self.module.actor.reproduce,
@@ -154,7 +152,7 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         """Return gradient statistics for component."""
         fetches = {
             f"grad_norm({component})": nn.utils.clip_grad_norm_(
-                self.module[component].parameters(), float("inf")
+                getattr(self.module, component).parameters(), float("inf")
             ).item()
         }
         return fetches
