@@ -40,7 +40,7 @@ from .policy import SVGInfTorchPolicy
     help="Options for adaptive KL coefficient. See raylab.utils.adaptive_kl",
     allow_unknown_subkeys=True,
 )
-@trainer.option("module", {"type": "SVGModule-v0"}, override=True)
+@trainer.option("module", {"type": "SVG"}, override=True)
 @trainer.option(
     "exploration_config/type", "raylab.utils.exploration.StochasticActor", override=True
 )
