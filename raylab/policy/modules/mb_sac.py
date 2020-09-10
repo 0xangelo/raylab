@@ -4,8 +4,8 @@ from dataclasses import field
 
 from gym.spaces import Box
 
-from .model.stochastic import build_ensemble
-from .model.stochastic import EnsembleSpec
+from .model import build_ensemble
+from .model import EnsembleSpec
 from .sac import SAC
 from .sac import SACSpec
 

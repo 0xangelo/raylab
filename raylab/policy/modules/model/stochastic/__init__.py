@@ -8,3 +8,5 @@ from .ensemble import SME
 from .single import MLPModel
 from .single import ResidualMixin
 from .single import StochasticModel
+from .svg import ResidualSVGModel
+from .svg import SVGModel
