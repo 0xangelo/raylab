@@ -7,6 +7,7 @@ from .mb_ddpg import ModelBasedDDPG
 from .mb_sac import ModelBasedSAC
 from .naf import NAF
 from .sac import SAC
+from .svg import SoftSVG
 from .svg import SVG
 from .v0.catalog import get_module as get_module_v0
 
@@ -60,5 +61,5 @@ def get_module(obs_space: Space, action_space: Space, config: dict) -> nn.Module
     return cls(obs_space, action_space, spec)
 
 
-for _cls in (DDPG, NAF, SAC, ModelBasedDDPG, ModelBasedSAC, SVG):
+for _cls in (DDPG, NAF, SAC, ModelBasedDDPG, ModelBasedSAC, SVG, SoftSVG):
     register(_cls)

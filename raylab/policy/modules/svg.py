@@ -54,3 +54,12 @@ class SVG(nn.Module):
 
         self.critic = critic
         self.target_critic = target_critic
+
+
+class SoftSVG(SVG):
+    """Architecture used for SVG in the Maximum Entropy framework."""
+
+    def _make_actor(self, obs_space: Box, action_space: Box, spec: ActorSpec):
+        actor = StochasticActor(obs_space, action_space, spec)
+        self.actor = actor.policy
+        self.alpha = actor.alpha
