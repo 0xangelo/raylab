@@ -2,6 +2,7 @@ import pytest
 import torch
 from ray.rllib import SampleBatch
 
+from raylab.policy.modules.actor import Alpha
 from raylab.policy.modules.actor import DeterministicPolicy
 from raylab.policy.modules.actor import MLPContinuousPolicy
 from raylab.policy.modules.actor import MLPDeterministicPolicy
@@ -42,6 +43,16 @@ def obs(batch):
 @pytest.fixture
 def act(batch):
     return batch[SampleBatch.ACTIONS]
+
+
+@pytest.fixture
+def rew(batch):
+    return batch[SampleBatch.REWARDS]
+
+
+@pytest.fixture
+def done(batch):
+    return batch[SampleBatch.DONES]
 
 
 @pytest.fixture
@@ -107,3 +118,8 @@ def stochastic_policy(obs_space, action_space, policy_input_scale):
     return MLPContinuousPolicy(
         obs_space, action_space, mlp_spec, input_dependent_scale=policy_input_scale
     )
+
+
+@pytest.fixture
+def alpha_module():
+    return Alpha(1.0)

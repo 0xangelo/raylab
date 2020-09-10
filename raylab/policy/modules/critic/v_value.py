@@ -159,3 +159,16 @@ class HardValue(VValue):
 
     def forward(self, obs):
         return self.q_value(obs, self.policy(obs))
+
+
+class ClippedVValue(VValue):
+    """Minimum of an ensemble of state-value functions."""
+
+    def __init__(self, v_values: VValueEnsemble):
+        super().__init__()
+        self.v_values = v_values
+
+    def forward(self, obs: Tensor) -> Tensor:
+        values = self.v_values(obs)
+        minimum, _ = torch.stack(values, dim=0).min(dim=0)
+        return minimum

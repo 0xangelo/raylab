@@ -5,7 +5,8 @@ from ray.rllib.utils import override
 
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
-from raylab.policy.losses import ClippedDoubleQLearning
+from raylab.policy.losses import FittedQLearning
+from raylab.policy.modules.critic import ClippedVValue
 from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
 
@@ -18,8 +19,8 @@ class NAFTorchPolicy(TorchPolicy):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.loss_fn = ClippedDoubleQLearning(
-            self.module.critics, self.module.target_vcritics
+        self.loss_fn = FittedQLearning(
+            self.module.critics, ClippedVValue(self.module.target_vcritics)
         )
         self.loss_fn.gamma = self.config["gamma"]
 

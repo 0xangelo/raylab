@@ -5,9 +5,10 @@ from ray.rllib.utils import override
 
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
+from raylab.policy.losses import FittedQLearning
 from raylab.policy.losses import MaximumEntropyDual
 from raylab.policy.losses import ReparameterizedSoftPG
-from raylab.policy.losses import SoftCDQLearning
+from raylab.policy.modules.critic import SoftValue
 from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
 
@@ -29,9 +30,9 @@ class SACTorchPolicy(TorchPolicy):
         self.loss_actor = ReparameterizedSoftPG(self.module.actor, self.module.critics)
 
     def _setup_critic_loss(self):
-        self.loss_critic = SoftCDQLearning(
-            self.module.critics, self.module.target_critics, self.module.actor
-        )
+        module = self.module
+        soft_target = SoftValue(module.actor, module.target_critics, module.alpha)
+        self.loss_critic = FittedQLearning(module.critics, soft_target)
         self.loss_critic.gamma = self.config["gamma"]
 
     def _setup_alpha_loss(self):
@@ -75,7 +76,6 @@ class SACTorchPolicy(TorchPolicy):
         info = {}
 
         alpha = self.module.alpha().item()
-        self.loss_critic.alpha = alpha
         self.loss_actor.alpha = alpha
 
         info.update(self._update_critic(batch_tensors))
