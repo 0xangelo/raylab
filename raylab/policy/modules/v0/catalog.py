@@ -3,9 +3,8 @@ import torch.nn as nn
 from gym.spaces import Space
 
 from .on_policy_actor_critic import OnPolicyActorCritic
-from .simple_model_based import SimpleModelBased
 
-MODULES = {cls.__name__ + "-v0": cls for cls in (SimpleModelBased, OnPolicyActorCritic)}
+MODULES = {cls.__name__ + "-v0": cls for cls in (OnPolicyActorCritic,)}
 
 
 def get_module(obs_space: Space, action_space: Space, config: dict) -> nn.Module:
