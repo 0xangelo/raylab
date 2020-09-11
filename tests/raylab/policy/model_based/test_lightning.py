@@ -1,4 +1,6 @@
+import copy
 import functools
+import itertools
 import math
 import warnings
 
@@ -10,18 +12,19 @@ from torch.utils.data import DataLoader
 
 from raylab.agents.options import RaylabOptions
 from raylab.policy import OptimizerCollection
+from raylab.policy.losses.abstract import Loss
 from raylab.policy.model_based.lightning import LightningModel
 from raylab.policy.model_based.lightning import LightningModelMixin
 from raylab.torch.optim import build_optimizer
 from raylab.utils.debug import fake_batch
 
 
-class DummyLoss:
+class DummyLoss(Loss):
     # pylint:disable=all
     batch_keys = (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, SampleBatch.NEXT_OBS)
 
-    def __init__(self, ensemble_size):
-        self.ensemble_size = ensemble_size
+    def __init__(self, models):
+        self.ensemble_size = len(models)
 
     def __call__(self, _):
         losses = torch.randn(self.ensemble_size).requires_grad_(True)
@@ -34,8 +37,7 @@ def policy_cls(base_policy_cls):
         # pylint:disable=abstract-method
         def __init__(self, model_loss, config):
             super().__init__(config)
-            self.loss_train = model_loss(len(self.module.models))
-            self.loss_warmup = model_loss(len(self.module.models))
+            self.loss_train = model_loss(self.module.models)
 
         @property
         def options(self):
@@ -51,10 +53,6 @@ def policy_cls(base_policy_cls):
         @property
         def model_training_loss(self):
             return self.loss_train
-
-        @property
-        def model_warmup_loss(self):
-            return self.loss_warmup
 
         def _make_optimizers(self):
             optimizers = super()._make_optimizers()
@@ -212,3 +210,39 @@ def test_trainer_output(policy, samples):
     assert isinstance(info, dict)
     assert "test/loss" in info
     assert isinstance(info["test/loss"], float)
+    assert "test/loss(models)" in info
+
+
+class WorseningLoss(Loss):
+    batch_keys = (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, SampleBatch.NEXT_OBS)
+
+    def __init__(self, models):
+        self.ensemble_size = len(models)
+        self._increasing_seq = itertools.count()
+
+    def __call__(self, _):
+        losses = torch.full(
+            (self.ensemble_size,),
+            fill_value=float(next(self._increasing_seq)),
+            requires_grad=True,
+        )
+        return losses.sum(), {"loss(models)": losses.mean().item()}
+
+
+@pytest.fixture
+def worsening_policy(policy_cls, config):
+    return policy_cls(WorseningLoss, config)
+
+
+def test_checkpointing(worsening_policy, samples):
+    policy = worsening_policy
+    patience = 2
+    policy.model_training_spec.max_epochs = 1000
+    policy.model_training_spec.patience = patience
+
+    init_params = copy.deepcopy(list(policy.module.models.parameters()))
+    losses, info = policy.optimize_model(samples, warmup=False)
+    assert info["model_epochs"] == patience + 1
+
+    after_params = list(policy.module.models.parameters())
+    assert all([torch.allclose(i, p) for i, p in zip(init_params, after_params)])
