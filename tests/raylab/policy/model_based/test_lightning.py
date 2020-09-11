@@ -1,5 +1,7 @@
+import contextlib
 import copy
 import functools
+import io
 import itertools
 import math
 import warnings
@@ -154,7 +156,12 @@ def _test_optimization(policy, mocker, samples, warmup):
     trainer_fit = mocker.spy(pl.Trainer, "fit")
     trainer_test = mocker.spy(pl.Trainer, "test")
 
-    losses, info = policy.optimize_model(samples, warmup=warmup)
+    stderr, stdout = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(stdout):
+        losses, info = policy.optimize_model(samples, warmup=warmup)
+
+    assert not stderr.getvalue()
+    assert not stdout.getvalue()
 
     assert pl_module.called
     assert early_stop.called

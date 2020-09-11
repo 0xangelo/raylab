@@ -22,6 +22,8 @@ from raylab.torch.utils import convert_to_tensor
 from raylab.torch.utils import TensorDictDataset
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
+from raylab.utils.lightning import supress_stderr
+from raylab.utils.lightning import supress_stdout
 
 
 @dataclass
@@ -270,11 +272,7 @@ class LightningModelMixin(ABC):
         trainer = self.get_trainer(spec)
         train, val = spec.train_val_loaders(train_tensors, val_tensors)
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", module="pytorch_lightning*")
-            trainer.fit(model, train_dataloader=train, val_dataloaders=val)
-            info = trainer.test(model, test_dataloaders=val)[0]
-
+        info = self.run_training(model=model, trainer=trainer, train=train, val=val)
         info.update({"model_epochs": trainer.current_epoch + 1})
         return [np.nan for _ in self.module.models], info
 
@@ -299,6 +297,15 @@ class LightningModelMixin(ABC):
             track_grad_norm=2,
             # gradient_clip_val=1e4,  # Broken
         )
+
+    @staticmethod
+    @supress_stderr
+    @supress_stdout
+    def run_training(model, trainer, train, val):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", module="pytorch_lightning*")
+            trainer.fit(model, train_dataloader=train, val_dataloaders=val)
+            return trainer.test(model, test_dataloaders=val)[0]
 
     @staticmethod
     def model_training_defaults():
