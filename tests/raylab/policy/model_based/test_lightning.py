@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 
 from raylab.agents.options import RaylabOptions
 from raylab.policy import OptimizerCollection
-from raylab.policy.losses.abstract import Loss
+from raylab.policy.losses import Loss
 from raylab.policy.model_based.lightning import LightningModel
 from raylab.policy.model_based.lightning import LightningModelMixin
 from raylab.torch.optim import build_optimizer

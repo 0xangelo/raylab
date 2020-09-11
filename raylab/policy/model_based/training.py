@@ -20,7 +20,7 @@ from ray.rllib import SampleBatch
 from torch.utils.data import DataLoader
 from torch.utils.data import RandomSampler
 
-from raylab.policy.losses.abstract import Loss
+from raylab.policy.losses import Loss
 from raylab.torch.utils import TensorDictDataset
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict

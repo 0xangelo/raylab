@@ -17,7 +17,7 @@ from torch import Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
-from raylab.policy.losses.abstract import Loss
+from raylab.policy.losses import Loss
 from raylab.torch.utils import convert_to_tensor
 from raylab.torch.utils import TensorDictDataset
 from raylab.utils.annotations import StatDict
