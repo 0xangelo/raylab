@@ -17,8 +17,10 @@ def critics(action_critics):
 
 
 @pytest.fixture
-def soft_pg_loss(stochastic_actor, critics):
-    return ReparameterizedSoftPG(stochastic_actor, critics)
+def soft_pg_loss(stochastic_actor, critics, alpha_module):
+    return ReparameterizedSoftPG(
+        actor=stochastic_actor, critic=critics, alpha=alpha_module
+    )
 
 
 def test_soft_pg_loss(soft_pg_loss, stochastic_actor, critics, batch, obs):

@@ -27,7 +27,9 @@ class SACTorchPolicy(TorchPolicy):
         self._setup_alpha_loss()
 
     def _setup_actor_loss(self):
-        self.loss_actor = ReparameterizedSoftPG(self.module.actor, self.module.critics)
+        self.loss_actor = ReparameterizedSoftPG(
+            actor=self.module.actor, critic=self.module.critics, alpha=self.module.alpha
+        )
 
     def _setup_critic_loss(self):
         module = self.module
@@ -74,9 +76,6 @@ class SACTorchPolicy(TorchPolicy):
     def learn_on_batch(self, samples):
         batch_tensors = self.lazy_tensor_dict(samples)
         info = {}
-
-        alpha = self.module.alpha().item()
-        self.loss_actor.alpha = alpha
 
         info.update(self._update_critic(batch_tensors))
         info.update(self._update_actor(batch_tensors))
