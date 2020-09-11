@@ -28,19 +28,14 @@ class DummyLoss:
         return losses.sum(), {"loss(models)": losses.mean().item()}
 
 
-@pytest.fixture
-def samples(obs_space, action_space):
-    return fake_batch(obs_space, action_space, batch_size=256)
-
-
 @pytest.fixture(scope="module")
 def policy_cls(base_policy_cls):
     class Policy(LightningModelMixin, base_policy_cls):
         # pylint:disable=abstract-method
-        def __init__(self, config):
+        def __init__(self, model_loss, config):
             super().__init__(config)
-            self.loss_train = DummyLoss(len(self.module.models))
-            self.loss_warmup = DummyLoss(len(self.module.models))
+            self.loss_train = model_loss(len(self.module.models))
+            self.loss_warmup = model_loss(len(self.module.models))
 
         @property
         def options(self):
@@ -51,7 +46,6 @@ def policy_cls(base_policy_cls):
             options.set_option(
                 "model_warmup", LightningModelMixin.model_training_defaults()
             )
-            options.set_option("model/type", "ModelBasedSAC")
             return options
 
         @property
@@ -128,7 +122,7 @@ def config(
 
 @pytest.fixture
 def policy(policy_cls, config):
-    return policy_cls(config)
+    return policy_cls(DummyLoss, config)
 
 
 def test_init(
@@ -140,6 +134,11 @@ def test_init(
         assert spec.improvement_delta == improvement_delta
         assert spec.patience == patience
         assert spec.holdout_ratio == holdout_ratio
+
+
+@pytest.fixture
+def samples(obs_space, action_space):
+    return fake_batch(obs_space, action_space, batch_size=256)
 
 
 def test_optimize_model(policy, mocker, samples):
