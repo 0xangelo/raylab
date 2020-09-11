@@ -1,4 +1,5 @@
 """Modularized losses/procedures for RL algorithms."""
+from .dyna import DynaQLearning
 from .isfv_iteration import ISFittedVIteration
 from .isfv_iteration import ISSoftVIteration
 from .mage import MAGE
@@ -14,6 +15,7 @@ from .svg import TrajectorySVG
 
 
 __all__ = [
+    "DynaQLearning",
     "FittedQLearning",
     "ActionDPG",
     "DeterministicPolicyGradient",
