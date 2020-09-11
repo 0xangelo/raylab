@@ -81,7 +81,11 @@ def plot_individual(pic, x_all, all_ys, data, label, color):
         dataframe = pd.DataFrame({"x": x_all, "y": y_i, "id": identifier})
         source = ColumnDataSource(data=dataframe)
         pic.line(
-            x="x", y="y", source=source, legend_label=label, color=color,
+            x="x",
+            y="y",
+            source=source,
+            legend_label=label,
+            color=color,
         )
 
 

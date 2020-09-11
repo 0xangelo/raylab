@@ -34,7 +34,7 @@ jobs:
       run: |
         poetry install
     - name: Run pytest
-      run: poetry run pytest --ignore=tests/raylab/policy/modules/v0
+      run: poetry run pytest
 
   publish:
     name: Publish

@@ -9,8 +9,8 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 from torch import Tensor
 
-from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
-from raylab.policy.modules.model.stochastic.single import StochasticModel
+from raylab.policy.modules.actor import StochasticPolicy
+from raylab.policy.modules.model import StochasticModel
 from raylab.utils.annotations import RewardFn
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
@@ -114,7 +114,9 @@ class OneStepSoftSVG(OneStepSVG):
         _next_vals = self.critic(_next_obs).squeeze(-1)
 
         return torch.where(
-            dones, _augmented_rewards, _augmented_rewards + self.gamma * _next_vals,
+            dones,
+            _augmented_rewards,
+            _augmented_rewards + self.gamma * _next_vals,
         )
 
 

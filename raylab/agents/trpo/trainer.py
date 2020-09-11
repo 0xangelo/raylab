@@ -47,7 +47,7 @@ LINESEARCH_OPTIONS = {
     """,
 )
 @trainer.option("line_search_options", LINESEARCH_OPTIONS)
-@trainer.option("module/type", "OnPolicyActorCritic-v0")
+@trainer.option("module/type", "TRPO")
 @trainer.option(
     "exploration_config/type",
     "raylab.utils.exploration.StochasticActor",

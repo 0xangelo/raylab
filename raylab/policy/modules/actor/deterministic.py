@@ -67,7 +67,10 @@ class DeterministicActor(nn.Module):
     spec_cls = DeterministicActorSpec
 
     def __init__(
-        self, obs_space: Box, action_space: Box, spec: DeterministicActorSpec,
+        self,
+        obs_space: Box,
+        action_space: Box,
+        spec: DeterministicActorSpec,
     ):
         super().__init__()
 

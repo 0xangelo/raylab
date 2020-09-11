@@ -8,7 +8,7 @@ from ray.rllib import SampleBatch
 from raylab.agents.options import RaylabOptions
 from raylab.policy import ModelTrainingMixin
 from raylab.policy import OptimizerCollection
-from raylab.policy.model_based.training_mixin import Evaluator
+from raylab.policy.model_based.training import Evaluator
 from raylab.torch.optim import build_optimizer
 from raylab.utils.debug import fake_batch
 

@@ -6,8 +6,9 @@ from ray.rllib.utils import override
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import ActionDPG
-from raylab.policy.losses import ClippedDoubleQLearning
 from raylab.policy.losses import DeterministicPolicyGradient
+from raylab.policy.losses import FittedQLearning
+from raylab.policy.modules.critic import HardValue
 from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
 
@@ -22,9 +23,8 @@ class SOPTorchPolicy(TorchPolicy):
         super().__init__(*args, **kwargs)
 
         self._make_actor_loss()
-        self.loss_critic = ClippedDoubleQLearning(
-            self.module.critics, self.module.target_critics, self.module.target_actor,
-        )
+        target_value = HardValue(self.module.target_actor, self.module.target_critics)
+        self.loss_critic = FittedQLearning(self.module.critics, target_value)
         self.loss_critic.gamma = self.config["gamma"]
         self._grad_step = 0
 
@@ -39,7 +39,8 @@ class SOPTorchPolicy(TorchPolicy):
     def _make_actor_loss(self):
         if self.config["dpg_loss"] == "default":
             self.loss_actor = DeterministicPolicyGradient(
-                self.module.actor, self.module.critics,
+                self.module.actor,
+                self.module.critics,
             )
         elif self.config["dpg_loss"] == "acme":
             self.loss_actor = ActionDPG(self.module.actor, self.module.critics)

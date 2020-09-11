@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 
 from raylab.policy.action_dist import BaseActionDist
-from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
+from raylab.policy.modules.actor import DeterministicPolicy
 
 from .base import Model
 from .random_uniform import RandomUniform

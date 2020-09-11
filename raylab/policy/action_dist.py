@@ -5,9 +5,8 @@ from abc import abstractmethod
 import torch.nn as nn
 from ray.rllib.models.action_dist import ActionDistribution
 
-from .modules.actor.policy.deterministic import DeterministicPolicy
-from .modules.actor.policy.stochastic import StochasticPolicy
-from .modules.v0.mixins.stochastic_actor_mixin import StochasticPolicy as V0StochasticPi
+from .modules.actor import DeterministicPolicy
+from .modules.actor import StochasticPolicy
 
 
 class IncompatibleDistClsError(Exception):
@@ -48,7 +47,7 @@ class BaseActionDist(ActionDistribution, metaclass=ABCMeta):
         try:
             cls._check_model_compat(model)
         except AssertionError as err:
-            raise IncompatibleDistClsError(cls, model, err)
+            raise IncompatibleDistClsError(cls, model, err) from err
 
     @classmethod
     @abstractmethod
@@ -63,7 +62,7 @@ class WrapStochasticPolicy(BaseActionDist):
     """
 
     # pylint:disable=abstract-method
-    valid_actor_cls = (V0StochasticPi, StochasticPolicy)
+    valid_actor_cls = StochasticPolicy
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

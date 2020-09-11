@@ -5,9 +5,10 @@ from ray.rllib.utils import override
 
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
+from raylab.policy.losses import FittedQLearning
 from raylab.policy.losses import MaximumEntropyDual
 from raylab.policy.losses import ReparameterizedSoftPG
-from raylab.policy.losses import SoftCDQLearning
+from raylab.policy.modules.critic import SoftValue
 from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
 
@@ -26,21 +27,25 @@ class SACTorchPolicy(TorchPolicy):
         self._setup_alpha_loss()
 
     def _setup_actor_loss(self):
-        self.loss_actor = ReparameterizedSoftPG(self.module.actor, self.module.critics)
+        self.loss_actor = ReparameterizedSoftPG(
+            actor=self.module.actor, critic=self.module.critics, alpha=self.module.alpha
+        )
 
     def _setup_critic_loss(self):
-        self.loss_critic = SoftCDQLearning(
-            self.module.critics, self.module.target_critics, self.module.actor
-        )
+        module = self.module
+        soft_target = SoftValue(module.actor, module.target_critics, module.alpha)
+        self.loss_critic = FittedQLearning(module.critics, soft_target)
         self.loss_critic.gamma = self.config["gamma"]
 
     def _setup_alpha_loss(self):
-        action_space = self.action_space
-        target_entropy = (
-            -action_space.shape[0]
-            if self.config["target_entropy"] == "auto"
-            else self.config["target_entropy"]
-        )
+        action_size = self.action_space.shape[0]
+        if self.config["target_entropy"] == "auto":
+            target_entropy = -action_size
+        elif self.config["target_entropy"] == "tf-agents":
+            target_entropy = -action_size / 2
+        else:
+            target_entropy = self.config["target_entropy"]
+
         self.loss_alpha = MaximumEntropyDual(
             self.module.alpha, self.module.actor.sample, target_entropy
         )
@@ -71,10 +76,6 @@ class SACTorchPolicy(TorchPolicy):
     def learn_on_batch(self, samples):
         batch_tensors = self.lazy_tensor_dict(samples)
         info = {}
-
-        alpha = self.module.alpha().item()
-        self.loss_critic.alpha = alpha
-        self.loss_actor.alpha = alpha
 
         info.update(self._update_critic(batch_tensors))
         info.update(self._update_actor(batch_tensors))

@@ -1,16 +1,16 @@
 """Losses for model aware action gradient estimation."""
-from dataclasses import dataclass
 from typing import Tuple
+from typing import Union
 
-import numpy as np
 import torch
-import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
-from raylab.policy.modules.critic.q_value import QValueEnsemble
-from raylab.policy.modules.model.stochastic.ensemble import SME
+from raylab.policy.modules.actor import DeterministicPolicy
+from raylab.policy.modules.critic import QValueEnsemble
+from raylab.policy.modules.critic import VValue
+from raylab.policy.modules.model import SME
+from raylab.policy.modules.model import StochasticModel
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -20,69 +20,49 @@ from .mixins import UniformModelPriorMixin
 from .utils import dist_params_stats
 
 
-@dataclass
-class MAGEModules:
-    """Necessary modules for MAGE loss.
-
-    Attributes:
-        critics: Q-value estimators
-        target_critics: Q-value estimators for the next state
-        policy: deterministic policy for current state
-        target_policy: deterministic policy for next state
-        models: ensemble of stochastic models
-    """
-
-    critics: QValueEnsemble
-    target_critics: QValueEnsemble
-    policy: DeterministicPolicy
-    target_policy: DeterministicPolicy
-    models: SME
-
-
 class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
     """Loss function for Model-based Action-Gradient-Estimator.
 
     Args:
-        modules: necessary modules for MAGE loss
+        critics: Q-value estimators
+        policy: deterministic policy for current state
+        target_critic: V-value estimator for the next state
+        models: ensemble of stochastic models
 
     Attributes:
         gamma: discount factor
-        lambda: weighting factor for TD-error regularization
+        lambd: weighting factor for TD-error regularization
     """
 
     batch_keys = (SampleBatch.CUR_OBS,)
     gamma: float = 0.99
-    lambda_: float = 0.05
+    lambd: float = 0.05
 
-    def __init__(self, modules: MAGEModules):
+    def __init__(
+        self,
+        critics: QValueEnsemble,
+        policy: DeterministicPolicy,
+        target_critic: VValue,
+        models: Union[StochasticModel, SME],
+    ):
         super().__init__()
-        self._modules = nn.ModuleDict(
-            dict(
-                critics=modules.critics,
-                target_critics=modules.target_critics,
-                policy=modules.policy,
-                target_policy=modules.target_policy,
-                models=modules.models,
-            )
-        )
-        self._rng = np.random.default_rng()
+        self.critics = critics
+        self.policy = policy
+        self.target_critic = target_critic
+        if isinstance(models, StochasticModel):
+            models = SME([models])
+        self.models = models
 
     @property
     def initialized(self) -> bool:
         """Whether or not the loss function has all the necessary components."""
         return self._env.initialized
 
-    @property
-    def grad_estimator(self):
-        """Gradient estimator for expecations."""
-        return "PD"
-
-    @property
-    def _models(self) -> SME:
-        return self._modules["models"]
-
-    def transition(self, obs, action):
-        next_obs, _, dist_params = super().transition(obs, action)
+    def transition(self, obs: Tensor, action: Tensor) -> Tuple[Tensor, TensorDict]:
+        # pylint:disable=missing-function-docstring
+        model, _ = self.sample_model()
+        dist_params = model(obs, action)
+        next_obs, _ = model.rsample(dist_params)
         return next_obs, dist_params
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
@@ -92,13 +72,13 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         )
 
         obs = batch[SampleBatch.CUR_OBS]
-        action = self._modules["policy"](obs)
+        action = self.policy(obs)
         next_obs, dist_params = self.transition(obs, action)
 
         delta = self.temporal_diff_error(obs, action, next_obs)
         grad_loss = self.gradient_loss(delta, action)
         td_reg = self.temporal_diff_loss(delta)
-        loss = grad_loss + self.lambda_ * td_reg
+        loss = grad_loss + self.lambd * td_reg
 
         info = {
             "loss(critics)": loss.item(),
@@ -109,20 +89,18 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         return loss, info
 
     def temporal_diff_error(
-        self, obs: Tensor, action: Tensor, next_obs: Tensor,
+        self,
+        obs: Tensor,
+        action: Tensor,
+        next_obs: Tensor,
     ) -> Tensor:
-        """Returns the temporal difference error with clipped action values."""
-        critics = self._modules["critics"]
-        target_policy = self._modules["target_policy"]
-        target_critics = self._modules["target_critics"]
-
+        """Returns the temporal difference error."""
         reward = self._env.reward(obs, action, next_obs)  # (*,)
         done = self._env.termination(obs, action, next_obs)  # (*,)
-        next_action = target_policy(next_obs)  # (*, A)
-        next_val = QValueEnsemble.clipped(target_critics(next_obs, next_action))  # (*,)
+        next_val = self.target_critic(next_obs)  # (*,)
         target = torch.where(done, reward, reward + self.gamma * next_val)  # (*,)
 
-        values = critics(obs, action)  # [(*,)] * N
+        values = self.critics(obs, action)  # [(*,)] * N
         return torch.stack([target - v for v in values], dim=-1)  # (*, N)
 
     @staticmethod

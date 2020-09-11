@@ -123,7 +123,7 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
         """Compute gradient norms and policy statistics."""
         grad_norms = {
             f"grad_norm({k})": nn.utils.clip_grad_norm_(
-                self.module[k].parameters(), float("inf")
+                getattr(self.module, k).parameters(), float("inf")
             )
             for k in "model actor critic".split()
         }

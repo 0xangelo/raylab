@@ -93,10 +93,14 @@ def select_axis_keys(exps_data):
     plottable_keys = exp_util.get_plottable_keys(exps_data)
     x_plottable_keys = exp_util.get_x_plottable_keys(plottable_keys, exps_data)
     x_key = st.selectbox(
-        "X axis:", x_plottable_keys, index=x_plottable_keys.index("timesteps_total"),
+        "X axis:",
+        x_plottable_keys,
+        index=x_plottable_keys.index("timesteps_total"),
     )
     y_key = st.selectbox(
-        "Y axis:", plottable_keys, index=plottable_keys.index("episode_reward_mean"),
+        "Y axis:",
+        plottable_keys,
+        index=plottable_keys.index("episode_reward_mean"),
     )
     return x_key, y_key
 

@@ -7,7 +7,9 @@ from .mb_ddpg import ModelBasedDDPG
 from .mb_sac import ModelBasedSAC
 from .naf import NAF
 from .sac import SAC
-from .v0.catalog import get_module as get_module_v0
+from .svg import SoftSVG
+from .svg import SVG
+from .trpo import TRPO
 
 MODULES = {}
 
@@ -21,6 +23,17 @@ class RepeatedModuleNameError(Exception):
 
     def __init__(self, cls: type):
         super().__init__(f"Module class {cls.__name__} already in catalog")
+
+
+class UnknownModuleError(Exception):
+    """Exception raised for attempting to query an unkown module.
+
+    Args:
+        name: NN module name
+    """
+
+    def __init__(self, name: str):
+        super().__init__(f"No module registered with name '{name}' in catalog")
 
 
 def register(cls: type):
@@ -37,7 +50,7 @@ def register(cls: type):
     try:
         MODULES[cls.__name__] = cls
     except KeyError:
-        raise RepeatedModuleNameError(cls)
+        raise RepeatedModuleNameError(cls)  # pylint:disable=raise-missing-from
 
     return cls
 
@@ -52,12 +65,12 @@ def get_module(obs_space: Space, action_space: Space, config: dict) -> nn.Module
     """
     type_ = config.pop("type")
     if type_ not in MODULES:
-        return get_module_v0(obs_space, action_space, {"type": type_, **config})
+        raise UnknownModuleError(type_)
 
     cls = MODULES[type_]
     spec = cls.spec_cls.from_dict(config)
     return cls(obs_space, action_space, spec)
 
 
-for _cls in (DDPG, NAF, SAC, ModelBasedDDPG, ModelBasedSAC):
+for _cls in (DDPG, NAF, SAC, ModelBasedDDPG, ModelBasedSAC, SVG, SoftSVG, TRPO):
     register(_cls)

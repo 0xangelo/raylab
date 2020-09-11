@@ -61,7 +61,7 @@ similarities: ## check code duplication with pylint
 	poetry run pylint raylab -d all -e similarities
 
 test: ## run tests quickly with the default Python
-	poetry run pytest --ignore=tests/raylab/policy/modules/v0
+	poetry run pytest
 
 test-all: ## run tests on every Python version with tox
 	poetry run tox

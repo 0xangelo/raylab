@@ -8,7 +8,7 @@ from ray.rllib.utils import override
 from torch import Tensor
 
 import raylab.utils.dictionaries as dutil
-from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
+from raylab.policy.modules.actor import StochasticPolicy
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -49,7 +49,10 @@ class ISFittedVIteration(Loss):
     def sampled_one_step_state_values(self, batch: TensorDict) -> Tensor:
         """Bootstrapped approximation of true state-value using sampled transition."""
         next_obs, rewards, dones = dutil.get_keys(
-            batch, SampleBatch.NEXT_OBS, SampleBatch.REWARDS, SampleBatch.DONES,
+            batch,
+            SampleBatch.NEXT_OBS,
+            SampleBatch.REWARDS,
+            SampleBatch.DONES,
         )
         return torch.where(
             dones,
@@ -93,7 +96,10 @@ class ISSoftVIteration(ISFittedVIteration):
                 entropy = -logp
 
         next_obs, rewards, dones = dutil.get_keys(
-            batch, SampleBatch.NEXT_OBS, SampleBatch.REWARDS, SampleBatch.DONES,
+            batch,
+            SampleBatch.NEXT_OBS,
+            SampleBatch.REWARDS,
+            SampleBatch.DONES,
         )
         augmented_rewards = rewards + self.alpha * entropy
         return torch.where(

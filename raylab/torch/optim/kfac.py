@@ -310,7 +310,14 @@ class EKFAC(KFACMixin, Optimizer):
     # pylint:disable=invalid-name
 
     def __init__(
-        self, net, eps, update_freq=1, alpha=1.0, kl_clip=1e-3, eta=1.0, lr=1.0,
+        self,
+        net,
+        eps,
+        update_freq=1,
+        alpha=1.0,
+        kl_clip=1e-3,
+        eta=1.0,
+        lr=1.0,
     ):
         # pylint:disable=too-many-arguments
         assert isinstance(net, nn.Module), "EKFAC needs access to module structure."

@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from raylab.policy.modules.actor.policy.deterministic import MLPDeterministicPolicy
+from raylab.policy.modules.actor import MLPDeterministicPolicy
 from raylab.policy.modules.critic.naf_value import NAFQValue
 
 

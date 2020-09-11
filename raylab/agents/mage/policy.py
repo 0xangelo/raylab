@@ -5,7 +5,7 @@ from raylab.policy import ModelTrainingMixin
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import MAGE
 from raylab.policy.losses import MaximumLikelihood
-from raylab.policy.losses.mage import MAGEModules
+from raylab.policy.modules.critic import HardValue
 from raylab.torch.optim import build_optimizer
 
 
@@ -22,19 +22,25 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
+        self._set_model_loss()
+        self._set_critic_loss()
 
+    def _set_model_loss(self):
+        self.loss_model = MaximumLikelihood(self.module.models)
+
+    def _set_critic_loss(self):
         module = self.module
-        self.loss_model = MaximumLikelihood(module.models)
-        mage_modules = MAGEModules(
+        target_critic = HardValue(
+            policy=module.target_actor, q_value=module.target_critics
+        )
+        self.loss_critic = MAGE(
             critics=module.critics,
-            target_critics=module.target_critics,
             policy=module.actor,
-            target_policy=module.target_actor,
+            target_critic=target_critic,
             models=module.models,
         )
-        self.loss_critic = MAGE(mage_modules)
         self.loss_critic.gamma = self.config["gamma"]
-        self.loss_critic.lambda_ = self.config["lambda"]
+        self.loss_critic.lambd = self.config["lambda"]
 
     @property
     def options(self):

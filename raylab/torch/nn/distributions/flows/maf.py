@@ -22,7 +22,10 @@ class ARMLP(nn.Module):
     def __init__(self, in_features, out_features, hidden_dim):
         super().__init__()
         self.net = MADE(
-            in_features, (hidden_dim,) * 3, out_features, natural_ordering=True,
+            in_features,
+            (hidden_dim,) * 3,
+            out_features,
+            natural_ordering=True,
         )
 
     def forward(self, inputs):  # pylint:disable=arguments-differ

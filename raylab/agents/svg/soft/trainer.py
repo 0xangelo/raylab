@@ -17,12 +17,6 @@ TORCH_OPTIMIZERS = {
     "alpha": {"type": "Adam", "lr": 1e-3},
 }
 
-DEFAULT_MODULE = {"type": "MaxEntModelBased-v0", "critic": {"target_vf": True}}
-EXPLORATION_CONFIG = {
-    "type": "raylab.utils.exploration.StochasticActor",
-    "pure_exploration_steps": 1000,
-}
-
 
 @trainer.configure
 @trainer.option(
@@ -48,8 +42,13 @@ H = -dim(A), where A is the action space
     0.995,
     help="Interpolation factor in polyak averaging for target networks.",
 )
-@trainer.option("module", DEFAULT_MODULE, override=True)
-@trainer.option("exploration_config", EXPLORATION_CONFIG, override=True)
+@trainer.option("module/type", "SoftSVG")
+@trainer.option(
+    "exploration_config/type",
+    "raylab.utils.exploration.StochasticActor",
+    override=True,
+)
+@trainer.option("exploration_config/pure_exploration_steps", 1000)
 @trainer.option("evaluation_config/explore", False, override=True)
 class SoftSVGTrainer(OffPolicyTrainer):
     """Single agent trainer for SoftSVG."""

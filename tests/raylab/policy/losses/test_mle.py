@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from raylab.policy.losses import MaximumLikelihood
-from raylab.policy.modules.model.stochastic.ensemble import SME
+from raylab.policy.modules.model import SME
 
 
 @pytest.fixture

@@ -1,4 +1,4 @@
-"""SVG model architecture."""
+# pylint:disable=missing-module-docstring
 from dataclasses import dataclass
 
 import torch
@@ -8,10 +8,11 @@ from ray.rllib.utils import override
 
 import raylab.torch.nn as nnx
 import raylab.torch.nn.distributions as ptd
-from raylab.policy.modules.model.stochastic.single import ResidualMixin
-from raylab.policy.modules.model.stochastic.single import StochasticModel
 from raylab.policy.modules.networks.mlp import StateActionMLP
 from raylab.torch.nn.init import initialize_
+
+from .single import ResidualMixin
+from .single import StochasticModel
 
 
 @dataclass
@@ -39,23 +40,10 @@ class SVGModelSpec(StateActionMLP.spec_cls):
     residual: bool = True
 
 
-class SVGModelMixin:
-    # pylint:disable=missing-docstring,too-few-public-methods
-    @staticmethod
-    def _make_model(obs_space, action_space, config):
-        spec = SVGModelSpec.from_dict(config.get("model", {}))
-
-        if spec.residual:
-            model = ResidualSVGModel(obs_space, action_space, spec)
-        else:
-            model = SVGModel(obs_space, action_space, spec)
-
-        return {"model": model}
-
-
 class SVGModel(StochasticModel):
     """Model from Stochastic Value Gradients."""
 
+    # pylint:disable=abstract-method
     spec_cls = SVGModelSpec
 
     def __init__(self, obs_space: Box, action_space: Box, spec: SVGModelSpec):
@@ -75,7 +63,7 @@ class SVGModel(StochasticModel):
 
 
 class ResidualSVGModel(ResidualMixin, SVGModel):
-    # pylint:disable=missing-docstring
+    # pylint:disable=missing-docstring,abstract-method
     pass
 
 
@@ -85,6 +73,7 @@ class SVGDynamicsParams(nn.Module):
     subnetworks for each output dimension.
     """
 
+    # pylint:disable=abstract-method
     spec_cls = SVGModelSpec
 
     def __init__(self, obs_space, action_space, spec: SVGModelSpec):

@@ -44,7 +44,7 @@ from .policy import SVGOneTorchPolicy
     that generated the replay pool.
     """,
 )
-@trainer.option("module", {"type": "SVGModule-v0"}, override=True)
+@trainer.option("module", {"type": "SVG"}, override=True)
 @trainer.option(
     "exploration_config/type", "raylab.utils.exploration.StochasticActor", override=True
 )

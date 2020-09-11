@@ -6,12 +6,13 @@ import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
 
-from .actor.policy.deterministic import MLPDeterministicPolicy
+from .actor import DeterministicPolicy
+from .actor import MLPDeterministicPolicy
+from .critic import ForkedQValueEnsemble
+from .critic import ForkedVValueEnsemble
+from .critic import QValueEnsemble
+from .critic import VValueEnsemble
 from .critic.naf_value import NAFQValue
-from .critic.q_value import ForkedQValueEnsemble
-from .critic.q_value import QValueEnsemble
-from .critic.v_value import ForkedVValueEnsemble
-from .critic.v_value import VValueEnsemble
 
 
 MLPPolicySpec = MLPDeterministicPolicy.spec_cls
@@ -40,18 +41,20 @@ class NAF(nn.Module):
             return MLPDeterministicPolicy(obs_space, action_space, spec.policy)
 
         policies = [make_policy() for _ in range(1 + spec.double_q)]
-        self.actor = policies[0]
-        self.behavior = self.actor
+        self.actor: DeterministicPolicy = policies[0]
+        self.behavior: DeterministicPolicy = self.actor
         if spec.separate_behavior:
             self.behavior = make_policy()
             self.behavior.load_state_dict(self.actor.state_dict())
 
         ensemble_cls = ForkedQValueEnsemble if spec.parallelized else QValueEnsemble
-        self.critics = ensemble_cls([NAFQValue(action_space, pol) for pol in policies])
+        self.critics: QValueEnsemble = ensemble_cls(
+            [NAFQValue(action_space, pol) for pol in policies]
+        )
 
         ensemble_cls = ForkedVValueEnsemble if spec.parallelized else VValueEnsemble
-        self.vcritics = ensemble_cls([q.v_value for q in self.critics])
-        self.target_vcritics = ensemble_cls(
+        self.vcritics: VValueEnsemble = ensemble_cls([q.v_value for q in self.critics])
+        self.target_vcritics: VValueEnsemble = ensemble_cls(
             [NAFQValue(action_space, make_policy()).v_value for _ in self.critics]
         )
         self.target_vcritics.load_state_dict(self.vcritics.state_dict())

@@ -4,7 +4,7 @@ from gym.spaces import Box
 from torch import Tensor
 
 import raylab.torch.nn as nnx
-from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
+from raylab.policy.modules.actor import DeterministicPolicy
 
 from .q_value import QValue
 from .v_value import VValue

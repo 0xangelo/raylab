@@ -2,7 +2,7 @@
 from raylab.agents import trainer
 from raylab.agents.model_based import ModelBasedTrainer
 from raylab.agents.sop.trainer import sop_config
-from raylab.policy.model_based.training_mixin import TrainingSpec
+from raylab.policy.model_based.training import TrainingSpec
 
 from .policy import MAGETorchPolicy
 

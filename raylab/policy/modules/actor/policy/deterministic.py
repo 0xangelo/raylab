@@ -124,7 +124,10 @@ class MLPDeterministicPolicy(DeterministicPolicy):
     spec_cls = MLPDeterministicPolicySpec
 
     def __init__(
-        self, obs_space: Box, action_space: Box, spec: MLPDeterministicPolicySpec,
+        self,
+        obs_space: Box,
+        action_space: Box,
+        spec: MLPDeterministicPolicySpec,
     ):
         encoder = StateMLP(obs_space, spec)
 

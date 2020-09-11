@@ -42,7 +42,10 @@ class StateMLP(nnx.FullyConnected):
     def __init__(self, obs_space: Box, spec: StateMLPSpec):
         obs_size = obs_space.shape[0]
         super().__init__(
-            obs_size, spec.units, spec.activation, layer_norm=spec.layer_norm,
+            obs_size,
+            spec.units,
+            spec.activation,
+            layer_norm=spec.layer_norm,
         )
         self.spec = spec
 

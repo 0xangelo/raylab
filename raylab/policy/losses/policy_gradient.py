@@ -1,14 +1,18 @@
 """Losses for computing policy gradients."""
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 import torch
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.policy.modules.actor.policy.deterministic import DeterministicPolicy
-from raylab.policy.modules.actor.policy.stochastic import StochasticPolicy
-from raylab.policy.modules.critic.q_value import QValueEnsemble
+from raylab.policy.modules.actor import Alpha
+from raylab.policy.modules.actor import DeterministicPolicy
+from raylab.policy.modules.actor import StochasticPolicy
+from raylab.policy.modules.critic import ClippedQValue
+from raylab.policy.modules.critic import QValue
+from raylab.policy.modules.critic import QValueEnsemble
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 
@@ -17,33 +21,36 @@ from .utils import action_dpg
 from .utils import dist_params_stats
 
 
+def clip_if_needed(critic: Union[QValue, QValueEnsemble]) -> QValue:
+    if isinstance(critic, QValueEnsemble):
+        critic = ClippedQValue(critic)
+    return critic
+
+
 class DeterministicPolicyGradient(Loss):
     """Loss function for Deterministic Policy Gradient.
 
     Args:
         actor: deterministic policy
-        critics: callables for action-values
+        critic: action-value function (single or ensemble)
     """
 
     batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
 
-    def __init__(self, actor: DeterministicPolicy, critics: QValueEnsemble):
+    def __init__(
+        self, actor: DeterministicPolicy, critic: Union[QValue, QValueEnsemble]
+    ):
         self.actor = actor
-        self.critics = critics
+        self.critic = clip_if_needed(critic)
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         obs = batch[SampleBatch.CUR_OBS]
-
-        values = self.state_value(obs)
-        loss = -torch.mean(values)
+        act = self.actor(obs)
+        val = self.critic(obs, act)
+        loss = -torch.mean(val)
 
         stats = {"loss(actor)": loss.item()}
         return loss, stats
-
-    def state_value(self, obs: Tensor) -> Tensor:
-        """Compute the state value by combining policy and action-value function."""
-        actions = self.actor(obs)
-        return QValueEnsemble.clipped(self.critics(obs, actions))
 
 
 class ReparameterizedSoftPG(Loss):
@@ -51,26 +58,27 @@ class ReparameterizedSoftPG(Loss):
 
     Args:
         actor: stochastic reparameterized policy
-        critics: callables for action-values
-
-    Attributes:
-        alpha: entropy coefficient schedule
+        critic: action-value function (single or ensemble)
+        alpha: entropy coefficient
     """
 
     batch_keys: Tuple[str] = (SampleBatch.CUR_OBS,)
-    alpha: float = 0.05
 
     def __init__(
-        self, actor: StochasticPolicy, critics: QValueEnsemble,
+        self,
+        actor: StochasticPolicy,
+        critic: Union[QValue, QValueEnsemble],
+        alpha: Alpha,
     ):
         self.actor = actor
-        self.critics = critics
+        self.critic = clip_if_needed(critic)
+        self.alpha = alpha
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         obs = batch[SampleBatch.CUR_OBS]
 
         action_values, entropy, stats = self.action_value_plus_entropy(obs)
-        loss = -torch.mean(action_values + self.alpha * entropy)
+        loss = -torch.mean(action_values + self.alpha() * entropy)
 
         stats.update({"loss(actor)": loss.item(), "entropy": entropy.mean().item()})
         return loss, stats
@@ -79,11 +87,11 @@ class ReparameterizedSoftPG(Loss):
         """
         Compute the action-value and a single sample estimate of the policy's entropy.
         """
-        dist_params = self.actor(obs)
-        info = dist_params_stats(dist_params, name="policy")
+        params = self.actor(obs)
+        info = dist_params_stats(params, name="policy")
 
-        actions, logp = self.actor.dist.rsample(dist_params)
-        action_values = QValueEnsemble.clipped(self.critics(obs, actions))
+        act, logp = self.actor.dist.rsample(params)
+        action_values = self.critic(obs, act)
         return action_values, -logp, info
 
 
@@ -92,7 +100,7 @@ class ActionDPG(Loss):
 
     Args:
         actor: deterministic policy
-        critics: Q-value functions
+        critic: Q-value function (single or ensemble)
 
     Attributes:
         dqda_clipping: Optional value by which to clip the action gradients
@@ -103,18 +111,20 @@ class ActionDPG(Loss):
     dqda_clipping: Optional[float] = None
     clip_norm: bool = True
 
-    def __init__(self, actor: DeterministicPolicy, critics: QValueEnsemble):
+    def __init__(
+        self, actor: DeterministicPolicy, critic: Union[QValue, QValueEnsemble]
+    ):
         self.actor = actor
-        self.critics = critics
+        self.critic = clip_if_needed(critic)
 
     def compile(self):
         self.actor = torch.jit.script(self.actor)
-        self.critics = torch.jit.script(self.critics)
+        self.critic = torch.jit.script(self.critic)
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         obs = batch[SampleBatch.CUR_OBS]
         a_max = self.actor(obs)
-        q_max = QValueEnsemble.clipped(self.critics(obs, a_max))
+        q_max = self.critic(obs, a_max)
 
         loss, dqda_norm = action_dpg(q_max, a_max, self.dqda_clipping, self.clip_norm)
         loss = loss.mean()
