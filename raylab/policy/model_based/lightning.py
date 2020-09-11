@@ -150,13 +150,14 @@ class LightningModel(pl.LightningModule):
     def __init__(self, model: nn.Module, loss: Loss, optimizer: Optimizer):
         super().__init__()
         self.model = model
-
-        self.train_loss = self.val_loss = self.test_loss = loss
-
+        self.configure_losses(loss)
         self.optimizer = optimizer
 
     def configure_optimizers(self) -> Optimizer:
         return self.optimizer
+
+    def configure_losses(self, loss: Loss):
+        self.train_loss = self.val_loss = self.test_loss = loss
 
     def forward(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         return self.train_loss(batch)
@@ -219,6 +220,8 @@ class LightningModelMixin(ABC):
     """
 
     model_training_spec: TrainingSpec
+    model_warmup_spec: TrainingSpec
+    _pl_model: LightningModel = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -277,9 +280,15 @@ class LightningModelMixin(ABC):
         return [np.nan for _ in self.module.models], info
 
     def get_lightning_model(self, loss_fn: Loss) -> LightningModel:
-        return LightningModel(
-            model=self.module.models, loss=loss_fn, optimizer=self.optimizers["models"]
-        )
+        if self._pl_model is None:
+            self._pl_model = LightningModel(
+                model=self.module.models,
+                loss=loss_fn,
+                optimizer=self.optimizers["models"],
+            )
+
+        self._pl_model.configure_losses(loss_fn)
+        return self._pl_model
 
     @staticmethod
     def get_trainer(spec: TrainingSpec) -> pl.Trainer:
