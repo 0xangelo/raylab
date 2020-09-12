@@ -4,7 +4,7 @@ from typing import Callable
 from typing import Optional
 
 from ray.rllib import Policy
-from ray.rllib.agents.trainer import Trainer as RLlibTrainer
+from ray.rllib.agents import Trainer as RLlibTrainer
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.utils import override as overrides
 from ray.tune import Trainable

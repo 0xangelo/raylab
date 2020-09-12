@@ -6,6 +6,25 @@ from ray.rllib import Policy
 from raylab.utils.debug import fake_batch
 
 
+@pytest.fixture(scope="module")
+def trainable_info_keys():
+    """Keys returned on any call to a subclass of `ray.tune.Trainable`."""
+    return {
+        "experiment_id",
+        "date",
+        "timestamp",
+        "time_this_iter_s",
+        "time_total_s",
+        "pid",
+        "hostname",
+        "node_ip",
+        "config",
+        "time_since_restore",
+        "timesteps_since_restore",
+        "iterations_since_restore",
+    }
+
+
 @pytest.fixture
 def model_update_interval():
     return 1
@@ -62,10 +81,8 @@ def dummy_policy_cls():
         # pylint:disable=abstract-method,too-many-arguments
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            self.param = 0
             self.param_seq = itertools.count()
-            next(self.param_seq)
-
+            self.param = next(self.param_seq)
             self.exploration = self._create_exploration()
 
         def compute_actions(

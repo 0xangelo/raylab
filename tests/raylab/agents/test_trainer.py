@@ -78,25 +78,6 @@ def test_metrics_creation(trainer_cls, workers):
     assert not should_have_workers or hasattr(trainer, "metrics")
 
 
-@pytest.fixture(scope="module")
-def trainable_info_keys():
-    """Keys returned on any call to a subclass of `ray.tune.Trainable`."""
-    return {
-        "experiment_id",
-        "date",
-        "timestamp",
-        "time_this_iter_s",
-        "time_total_s",
-        "pid",
-        "hostname",
-        "node_ip",
-        "config",
-        "time_since_restore",
-        "timesteps_since_restore",
-        "iterations_since_restore",
-    }
-
-
 @pytest.fixture
 def trainer(trainer_cls, workers):
     return trainer_cls(config=dict(workers=workers, num_workers=0))
