@@ -96,3 +96,6 @@ def test_train(trainer, timesteps_per_iteration, trainable_info_keys):
     assert all(key in res_keys for key in trainable_info_keys)
     assert res.get("timesteps_total") == timesteps_per_iteration
     assert "timesteps_this_iter" not in res
+
+    policy = trainer.get_policy()
+    assert policy.global_timestep == timesteps_per_iteration
