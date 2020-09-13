@@ -14,34 +14,11 @@ from .policy import SVGInfTorchPolicy
 
 
 @configure
-@option(
-    "vf_loss_coeff",
-    1.0,
-    help="Weight of the fitted V loss in the joint model-value loss",
-)
-@option("max_grad_norm", 10.0, help="Clip gradient norms by this value")
-@option("max_is_ratio", 5.0, help="Clip importance sampling weights by this value")
-@option(
-    "polyak",
-    0.995,
-    help="Interpolation factor in polyak averaging for target networks.",
-)
-@option("torch_optimizer/on_policy", {"type": "Adam", "lr": 1e-3})
-@option("torch_optimizer/off_policy", {"type": "Adam", "lr": 1e-3})
+@option("buffer_size", 500000, help="Size of the replay buffer")
 @option(
     "updates_per_step",
     1.0,
     help="Model and Value function updates per step in the environment",
-)
-@option("buffer_size", 500000, help="Size of the replay buffer")
-@option(
-    "kl_schedule/",
-    help="Options for adaptive KL coefficient. See raylab.utils.adaptive_kl",
-    allow_unknown_subkeys=True,
-)
-@option("module", {"type": "SVG"}, override=True)
-@option(
-    "exploration_config/type", "raylab.utils.exploration.StochasticActor", override=True
 )
 @option("evaluation_config/explore", True)
 @option("num_workers", 0, override=True)

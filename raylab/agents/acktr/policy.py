@@ -11,6 +11,9 @@ from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.utils import override
 
 import raylab.utils.dictionaries as dutil
+from raylab.agents.trpo.policy import LINESEARCH_DEFAULTS
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.torch.nn.distributions import Normal
@@ -48,20 +51,39 @@ DEFAULT_OPTIM_CONFIG = {
 }
 
 
+@configure
+@option("delta", 0.01, help="Trust region constraint")
+@option(
+    "fvp_samples",
+    10,
+    help="Number of actions to sample per state for Fisher vector-product calculation",
+)
+@option("lambda", 0.97, help=r"For GAE(\gamma, \lambda)")
+@option("val_iters", 80, help="Number of iterations to fit value function")
+@option("use_gae", True, help="Whether to use Generalized Advantage Estimation")
+@option("cg_iters", 10, help="Number of iterations for Conjugate Gradient")
+@option(
+    "cg_damping",
+    1e-3,
+    help="Damping factor to avoid singular matrix multiplication in Conjugate Gradient",
+)
+@option(
+    "line_search",
+    True,
+    help="""
+    Whether to use a line search to calculate policy update.
+    Effectively turns TRPO into Natural PG when turned off.
+    """,
+)
+@option("line_search_options", LINESEARCH_DEFAULTS)
+@option("module/type", "TRPO")
+@option("torch_optimizer", DEFAULT_OPTIM_CONFIG, override=True)
+@option("exploration_config/type", "raylab.utils.exploration.StochasticActor")
 class ACKTRTorchPolicy(TorchPolicy):
     """Policy class for Actor-Critic with Kronecker factored Trust Region."""
 
     # pylint:disable=abstract-method
     dist_class = WrapStochasticPolicy
-
-    @property
-    @override(TorchPolicy)
-    def options(self):
-        """Return the default configuration for ACKTR."""
-        # pylint:disable=cyclic-import
-        from raylab.agents.acktr import ACKTRTrainer
-
-        return ACKTRTrainer.options
 
     @override(TorchPolicy)
     def _make_optimizers(self):

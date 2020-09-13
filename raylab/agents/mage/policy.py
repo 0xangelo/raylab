@@ -1,14 +1,30 @@
 """Policy for MAGE using PyTorch."""
 from raylab.agents.sop import SOPTorchPolicy
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import EnvFnMixin
 from raylab.policy import ModelTrainingMixin
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import MAGE
 from raylab.policy.losses import MaximumLikelihood
+from raylab.policy.model_based.training import TrainingSpec
 from raylab.policy.modules.critic import HardValue
 from raylab.torch.optim import build_optimizer
 
 
+@configure
+@option("lambda", default=0.05, help="TD error regularization for MAGE loss")
+@option("model_training", default=TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
+@option(
+    "model_warmup",
+    default=TrainingSpec().to_dict(),
+    help="""Specifications for model warm-up.
+
+    Same configurations as 'model_training'.
+    """,
+)
+@option("module/type", "ModelBasedDDPG", override=True)
+@option("torch_optimizer/models", {"type": "Adam"})
 class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
     """MAGE policy in PyTorch to use with RLlib.
 
@@ -41,13 +57,6 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
         )
         self.loss_critic.gamma = self.config["gamma"]
         self.loss_critic.lambd = self.config["lambda"]
-
-    @property
-    def options(self):
-        # pylint:disable=cyclic-import
-        from raylab.agents.mage import MAGETrainer
-
-        return MAGETrainer.options
 
     @property
     def model_training_loss(self):

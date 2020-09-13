@@ -21,6 +21,11 @@ from . import compat
 # ==============================================================================
 @configure
 @option(
+    "policy/",
+    allow_unknown_subkeys=True,
+    help="""Sub-configurations for the policy class.""",
+)
+@option(
     "wandb/",
     allow_unknown_subkeys=True,
     help="""Configs for integration with Weights & Biases.
@@ -41,18 +46,6 @@ from . import compat
     Check out the Quickstart for more information:
     `https://docs.wandb.com/quickstart`
     """,
-)
-@option("compile_policy", False, help="Whether to optimize the policy's backend")
-@option(
-    "module/",
-    help="Type and config of the PyTorch NN module.",
-    allow_unknown_subkeys=True,
-    override_all_if_type_changes=True,
-)
-@option(
-    "torch_optimizer/",
-    help="Config dict for PyTorch optimizers.",
-    allow_unknown_subkeys=True,
 )
 @option("framework", default="torch", override=True)
 class Trainer(RLlibTrainer, metaclass=ABCMeta):
@@ -134,7 +127,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
                 num_workers=config["evaluation_num_workers"],
             )
 
-        if self.config["compile_policy"]:
+        if self.config["policy"].get("compile", False):
             self._optimize_policy_backend()
 
         self.wandb = WandBLogger(self.config, self._name)

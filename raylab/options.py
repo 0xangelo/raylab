@@ -33,7 +33,6 @@ __all__ = [
 
 Config = Dict[str, Union[Json, "Config"]]
 Info = Dict[str, Union[str, "Info"]]
-Option = namedtuple("Option", "key parameters")
 
 
 # ==============================================================================
@@ -99,6 +98,9 @@ def option(
 # ==============================================================================
 # Configuration objects
 # ==============================================================================
+Option = namedtuple("Option", "key parameters")
+
+
 @dataclass
 class RaylabOptions:
     """Configuration object for Raylab objects.

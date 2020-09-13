@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import FittedQLearning
@@ -11,6 +13,22 @@ from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
 
 
+@configure
+@option("torch_optimizer/type", "Adam")
+@option("torch_optimizer/lr", 3e-4)
+@option(
+    "polyak",
+    0.995,
+    help="Interpolation factor in polyak averaging for target networks.",
+)
+@option("module/type", "NAF")
+@option("module/separate_behavior", True)
+@option("exploration_config/type", "raylab.utils.exploration.ParameterNoise")
+@option(
+    "exploration_config/param_noise_spec",
+    {"initial_stddev": 0.1, "desired_action_stddev": 0.2, "adaptation_coeff": 1.01},
+)
+@option("exploration_config/pure_exploration_steps", 1000)
 class NAFTorchPolicy(TorchPolicy):
     """Normalized Advantage Function policy in Pytorch to use with RLlib."""
 
@@ -23,14 +41,6 @@ class NAFTorchPolicy(TorchPolicy):
             self.module.critics, ClippedVValue(self.module.target_vcritics)
         )
         self.loss_fn.gamma = self.config["gamma"]
-
-    @property
-    @override(TorchPolicy)
-    def options(self):
-        # pylint:disable=cyclic-import
-        from raylab.agents.naf import NAFTrainer
-
-        return NAFTrainer.options
 
     @override(TorchPolicy)
     def _make_module(self, obs_space, action_space, config):

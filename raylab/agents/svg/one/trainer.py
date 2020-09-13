@@ -13,29 +13,6 @@ from .policy import SVGOneTorchPolicy
 
 @configure
 @option(
-    "torch_optimizer/type", "Adam", help="Optimizer type for model, actor, and critic"
-)
-@option("torch_optimizer/model", {"lr": 1e-3})
-@option("torch_optimizer/actor", {"lr": 1e-3})
-@option("torch_optimizer/critic", {"lr": 1e-3})
-@option(
-    "vf_loss_coeff",
-    1.0,
-    help="Weight of the fitted V loss in the joint model-value loss",
-)
-@option("max_grad_norm", 10.0, help="Clip gradient norms by this value")
-@option("max_is_ratio", 5.0, help="Clip importance sampling weights by this value")
-@option(
-    "polyak",
-    0.995,
-    help="Interpolation factor in polyak averaging for target networks.",
-)
-@option(
-    "kl_schedule",
-    {"initial_coeff": 0},
-    help="Options for adaptive KL coefficient. See raylab.utils.adaptive_kl",
-)
-@option(
     "replay_kl",
     True,
     help="""
@@ -43,11 +20,6 @@ from .policy import SVGOneTorchPolicy
     that generated the replay pool.
     """,
 )
-@option("module", {"type": "SVG"}, override=True)
-@option(
-    "exploration_config/type", "raylab.utils.exploration.StochasticActor", override=True
-)
-@option("exploration_config/pure_exploration_steps", 1000)
 @option("evaluation_config/explore", False)
 class SVGOneTrainer(OffPolicyTrainer):
     """Single agent trainer for SVG(1)."""

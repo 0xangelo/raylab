@@ -26,8 +26,20 @@ def termination_fn():
 
 
 @pytest.fixture
-def policy(obs_space, action_space, reward_fn, termination_fn):
-    policy = MAGETorchPolicy(obs_space, action_space, {})
+def policy_cls():
+    return MAGETorchPolicy
+
+
+def test_default_config(policy_cls):
+    defaults = policy_cls.options.defaults
+    assert "polyak" in defaults
+    assert "model_training" in defaults
+    assert "model_sampling" not in defaults
+
+
+@pytest.fixture
+def policy(policy_cls, obs_space, action_space, reward_fn, termination_fn):
+    policy = policy_cls(obs_space, action_space, {})
     policy.set_reward_from_callable(reward_fn)
     policy.set_termination_from_callable(termination_fn)
     return policy

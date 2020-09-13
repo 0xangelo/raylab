@@ -1,7 +1,7 @@
 """Base for all PyTorch policies."""
 import textwrap
-from abc import abstractmethod
 from typing import List
+from typing import Set
 from typing import Tuple
 
 import torch
@@ -19,20 +19,47 @@ from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.tune.logger import pretty_print
 from torch import Tensor
 
+from raylab.options import configure
+from raylab.options import option
 from raylab.options import RaylabOptions
 from raylab.torch.utils import convert_to_tensor
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
-from raylab.utils.dictionaries import deep_merge
 
 from .modules import get_module
 from .optimizer_collection import OptimizerCollection
 
 
+@configure
+@option("env", default=None)
+@option("env_config/", allow_unknown_subkeys=True)
+@option("explore", default=True)
+@option(
+    "exploration_config/", allow_unknown_subkeys=True, override_all_if_type_changes=True
+)
+@option("gamma", default=0.99)
+@option("num_workers", default=0)
+@option("seed", default=None)
+@option("worker_index", default=0)
+@option(
+    "module/",
+    help="Type and config of the PyTorch NN module.",
+    allow_unknown_subkeys=True,
+    override_all_if_type_changes=True,
+)
+@option(
+    "torch_optimizer/",
+    help="Config dict for PyTorch optimizers.",
+    allow_unknown_subkeys=True,
+)
+@option("compile", False, help="Whether to optimize the policy's backend")
 class TorchPolicy(Policy):
     """A Policy that uses PyTorch as a backend.
 
     Attributes:
+        observation_space: Space of possible observation inputs
+        action_space: Space of possible action outputs
+        config: Policy configuration
         dist_class: Action distribution class for computing actions. Must be set
             by subclasses before calling `__init__`.
         device: Device in which the parameter tensors reside. All input samples
@@ -40,25 +67,23 @@ class TorchPolicy(Policy):
         module: The policy's neural network module. Should be compilable to
             TorchScript
         optimizers: The optimizers bound to the neural network (or submodules)
+        options: Configuration object for this class
     """
 
+    # pylint:disable=abstract-method
+    observation_space: Space
+    action_space: Space
+    config: dict
+    global_config: dict
     device: torch.device
     module: nn.Module
     optimizers: OptimizerCollection
+    options: RaylabOptions = RaylabOptions()
 
     def __init__(self, observation_space: Space, action_space: Space, config: dict):
-        options = self.options
-        config = deep_merge(
-            options.defaults,
-            config,
-            new_keys_allowed=True,
-            allow_new_subkey_list=options.allow_unknown_subkeys,
-            override_all_if_type_changes=options.override_all_if_type_changes,
-        )
-
         # Allow subclasses to set `dist_class` before calling init
         action_dist = getattr(self, "dist_class", None)
-        super().__init__(observation_space, action_space, config)
+        super().__init__(observation_space, action_space, self._build_config(config))
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.module = self._make_module(observation_space, action_space, self.config)
@@ -77,17 +102,30 @@ class TorchPolicy(Policy):
     # ==========================================================================
 
     @property
+    def pull_from_global(self) -> Set[str]:
+        """Keys to pull from global configuration.
+
+        Configurations passed down from caller (usually by the trainer) that are
+        not under the `policy` config.
+        """
+        return {
+            "env",
+            "env_config",
+            "explore",
+            # "exploration_config",
+            "gamma",
+            "num_workers",
+            "seed",
+            "worker_index",
+        }
+
+    @property
     def model(self):
         """The policy's NN module.
 
         Mostly for compatibility with RLlib's API.
         """
         return self.module
-
-    @property
-    @abstractmethod
-    def options(self) -> RaylabOptions:
-        """Return the options for this policy class."""
 
     def compile(self):
         """Optimize modules with TorchScript.
@@ -255,6 +293,18 @@ class TorchPolicy(Policy):
     # ==========================================================================
     # InternalAPI
     # ==========================================================================
+
+    def _build_config(self, config: dict) -> dict:
+        if not self.options.all_options_set:
+            raise RuntimeError(
+                f"{type(self).__name__} still has configs to be set."
+                " Did you call `configure` as the last decorator?"
+            )
+
+        passed = config.get("policy", {}).copy()
+        passed.update({k: config[k] for k in self.pull_from_global if k in config})
+        new = self.options.merge_defaults_with(passed)
+        return new
 
     @staticmethod
     def _make_module(obs_space: Space, action_space: Space, config: dict) -> nn.Module:

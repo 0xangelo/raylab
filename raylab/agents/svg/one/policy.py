@@ -7,6 +7,8 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
 from raylab.agents.svg import SVGTorchPolicy
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
 from raylab.policy import TorchPolicy
@@ -14,6 +16,41 @@ from raylab.policy.losses import OneStepSVG
 from raylab.torch.optim import get_optimizer_class
 
 
+@configure
+@option(
+    "torch_optimizer/type", "Adam", help="Optimizer type for model, actor, and critic"
+)
+@option("torch_optimizer/model", {"lr": 1e-3})
+@option("torch_optimizer/actor", {"lr": 1e-3})
+@option("torch_optimizer/critic", {"lr": 1e-3})
+@option(
+    "vf_loss_coeff",
+    1.0,
+    help="Weight of the fitted V loss in the joint model-value loss",
+)
+@option("max_grad_norm", 10.0, help="Clip gradient norms by this value")
+@option("max_is_ratio", 5.0, help="Clip importance sampling weights by this value")
+@option(
+    "polyak",
+    0.995,
+    help="Interpolation factor in polyak averaging for target networks.",
+)
+@option(
+    "replay_kl",
+    True,
+    help="""
+    Whether to penalize KL divergence with the current policy or past policies
+    that generated the replay pool.
+    """,
+)
+@option(
+    "kl_schedule",
+    {"initial_coeff": 0},
+    help="Options for adaptive KL coefficient. See raylab.utils.adaptive_kl",
+)
+@option("module/type", default="SVG")
+@option("exploration_config/type", "raylab.utils.exploration.StochasticActor")
+@option("exploration_config/pure_exploration_steps", 1000)
 class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
 
@@ -29,12 +66,8 @@ class SVGOneTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
         self.loss_actor.gamma = self.config["gamma"]
 
     @property
-    @override(SVGTorchPolicy)
-    def options(self):
-        # pylint:disable=cyclic-import
-        from raylab.agents.svg.one import SVGOneTrainer
-
-        return SVGOneTrainer.options
+    def pull_from_global(self):
+        return super().pull_from_global.union({"replay_kl"})
 
     @override(TorchPolicy)
     def compile(self):

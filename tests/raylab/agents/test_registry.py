@@ -48,15 +48,8 @@ def trainer(trainer_cls, compile_policy):
         config["policy_improvements"] = 1
     if "learning_starts" in defaults and name not in {"TRPO", "ACKTR"}:
         config["learning_starts"] = 1
-    if "model_warmup" in defaults:
-        config["model_warmup"] = {"max_epochs": 1}
-    if "model_training" in defaults:
-        config["model_training"] = {"max_epochs": 1}
 
-    if issubclass(trainer_cls, SimpleTrainer):
-        config["policy"] = {"compile": compile_policy}
-    else:
-        config["compile_policy"] = compile_policy
+    config["policy"] = {"compile": compile_policy}
 
     return trainer_cls(env="MockEnv", config=config)
 

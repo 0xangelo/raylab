@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import ActionDPG
@@ -13,6 +15,64 @@ from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
 
 
+def sop_config(cls: type) -> type:
+    """Add configurations for Streamlined Off-Policy-based agents."""
+    for config_setter in [
+        option(
+            "dpg_loss",
+            "default",
+            help="""
+            Type of Deterministic Policy Gradient to use.
+
+            'default' backpropagates Q-value gradients through the critic network.
+
+            'acme' uses Acme's implementation which recovers DPG via a MSE loss between
+            the actor's action and the action + Q-value gradient. Allows monitoring the
+            magnitude of the action-value gradient.""",
+        ),
+        option(
+            "dqda_clipping",
+            None,
+            help="""
+            Optional value by which to clip the action gradients. Only used with
+            dpg_loss='acme'.""",
+        ),
+        option(
+            "clip_dqda_norm",
+            False,
+            help="""
+            Whether to clip action grads by norm or value. Only used with
+            dpg_loss='acme'.""",
+        ),
+        option("torch_optimizer/actor", {"type": "Adam", "lr": 1e-3}),
+        option("torch_optimizer/critics", {"type": "Adam", "lr": 1e-3}),
+        option(
+            "polyak",
+            0.995,
+            help="Interpolation factor in polyak averaging for target networks.",
+        ),
+        option(
+            "policy_delay",
+            1,
+            help="Update policy every this number of calls to `learn_on_batch`",
+        ),
+    ]:
+        cls = config_setter(cls)
+
+    return cls
+
+
+@configure
+@sop_config
+@option("module/type", "DDPG")
+@option("module/actor/separate_behavior", True)
+@option("exploration_config/type", "raylab.utils.exploration.ParameterNoise")
+@option(
+    "exploration_config/param_noise_spec",
+    {"initial_stddev": 0.1, "desired_action_stddev": 0.2, "adaptation_coeff": 1.01},
+    help="Options for parameter noise exploration",
+)
+@option("exploration_config/pure_exploration_steps", 1000)
 class SOPTorchPolicy(TorchPolicy):
     """Streamlined Off-Policy policy in PyTorch to use with RLlib."""
 
@@ -27,14 +87,6 @@ class SOPTorchPolicy(TorchPolicy):
         self.loss_critic = FittedQLearning(self.module.critics, target_value)
         self.loss_critic.gamma = self.config["gamma"]
         self._grad_step = 0
-
-    @property
-    @override(TorchPolicy)
-    def options(self):
-        # pylint:disable=cyclic-import
-        from raylab.agents.sop import SOPTrainer
-
-        return SOPTrainer.options
 
     def _make_actor_loss(self):
         if self.config["dpg_loss"] == "default":
