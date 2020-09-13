@@ -38,6 +38,11 @@ def train_batch_size():
     return 1
 
 
+@pytest.fixture(params=(0, 1000), ids=lambda x: f"LearningStarts:{x}")
+def learning_starts(request):
+    return request.param
+
+
 @pytest.fixture
 def policy_config():
     return {}
@@ -53,15 +58,18 @@ def config(
     rollout_fragment_length,
     timesteps_per_iteration,
     train_batch_size,
+    learning_starts,
     policy_config,
     wandb_config,
 ):
+    # pylint:disable=too-many-arguments
     return {
         "env": "MockEnv",
         "rollout_fragment_length": rollout_fragment_length,
         "batch_mode": "truncate_episodes",
         "timesteps_per_iteration": timesteps_per_iteration,
         "train_batch_size": train_batch_size,
+        "learning_starts": learning_starts,
         "policy": policy_config,
         "wandb": wandb_config,
     }
@@ -89,13 +97,31 @@ def test_config(trainer):
     assert "wandb" in trainer.config
 
 
-def test_train(trainer, timesteps_per_iteration, trainable_info_keys):
+def test_first_train(
+    trainer, timesteps_per_iteration, learning_starts, trainable_info_keys
+):
+    expected_timesteps = max(timesteps_per_iteration, learning_starts)
     res = trainer.train()
 
     res_keys = set(res.keys())
     assert all(key in res_keys for key in trainable_info_keys)
-    assert res.get("timesteps_total") == timesteps_per_iteration
+    assert res.get("timesteps_total") == expected_timesteps
     assert "timesteps_this_iter" not in res
 
     policy = trainer.get_policy()
-    assert policy.global_timestep == timesteps_per_iteration
+    assert policy.global_timestep == expected_timesteps
+
+
+def test_second_train(trainer, timesteps_per_iteration, learning_starts):
+    expected_timesteps = (
+        max(timesteps_per_iteration, learning_starts) + timesteps_per_iteration
+    )
+
+    for _ in range(2):
+        res = trainer.train()
+
+    assert res["timesteps_total"] == expected_timesteps
+    assert "timesteps_this_iter" not in res
+
+    policy = trainer.get_policy()
+    assert policy.global_timestep == expected_timesteps
