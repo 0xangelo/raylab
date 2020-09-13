@@ -1,10 +1,8 @@
 """Trainer and configuration for TRPO."""
-from ray.rllib.agents.trainer_template import default_execution_plan
 from ray.rllib.utils import override
-from ray.tune import Trainable
 
-from raylab.agents import Trainer
 from raylab.agents import trainer
+from raylab.agents.simple_trainer import SimpleTrainer
 
 from .policy import TRPOTorchPolicy
 
@@ -53,24 +51,19 @@ LINESEARCH_OPTIONS = {
     "raylab.utils.exploration.StochasticActor",
     override=True,
 )
-class TRPOTrainer(Trainer):
+class TRPOTrainer(SimpleTrainer):
     """Single agent trainer for TRPO."""
 
+    # pylint:disable=abstract-method
     _name = "TRPO"
-    _policy = TRPOTorchPolicy
 
-    # pylint:disable=attribute-defined-outside-init
+    @staticmethod
+    @override(SimpleTrainer)
+    def validate_config(config: dict):
+        assert not config[
+            "learning_starts"
+        ], "No point in having a warmup for an on-policy algorithm."
 
-    @override(Trainer)
-    def _init(self, config, env_creator):
-        self._validate_config(config)
-        self.workers = self._make_workers(
-            env_creator, self._policy, config, num_workers=config["num_workers"]
-        )
-
-        self.execution_plan = default_execution_plan
-        self.train_exec_impl = self.execution_plan(self.workers, config)
-
-    @override(Trainable)
-    def step(self):
-        return next(self.train_exec_impl)
+    @override(SimpleTrainer)
+    def get_policy_class(self, _):
+        return TRPOTorchPolicy

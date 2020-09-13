@@ -11,5 +11,8 @@ from .policy import DEFAULT_OPTIM_CONFIG
 class ACKTRTrainer(TRPOTrainer):
     """Single agent trainer for ACKTR."""
 
+    # pylint:disable=abstract-method
     _name = "ACKTR"
-    _policy = ACKTRTorchPolicy
+
+    def get_policy_class(self, _):
+        return ACKTRTorchPolicy
