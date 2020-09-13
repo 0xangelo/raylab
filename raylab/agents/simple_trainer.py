@@ -26,16 +26,12 @@ from ray.rllib.utils.types import TrainerConfigDict
 from ray.tune.trainable import Trainable
 
 from raylab.execution import LearningStarts
+from raylab.options import configure
+from raylab.options import option
+from raylab.options import TrainerOptions
 from raylab.utils.wandb import WandBLogger
 
-from .options import TrainerOptions
-from .trainer import configure
-from .trainer import option
-
-
 logger = logging.getLogger(__name__)
-
-RESERVED_KEYS = {"policy", "wandb"}
 
 
 # ==============================================================================

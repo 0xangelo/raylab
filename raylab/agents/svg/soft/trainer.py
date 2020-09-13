@@ -2,9 +2,10 @@
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
-from raylab.agents import trainer
 from raylab.agents.model_based import set_policy_with_env_fn
 from raylab.agents.off_policy import OffPolicyTrainer
+from raylab.options import configure
+from raylab.options import option
 from raylab.utils.replay_buffer import ReplayField
 
 from .policy import SoftSVGTorchPolicy
@@ -18,8 +19,8 @@ TORCH_OPTIMIZERS = {
 }
 
 
-@trainer.configure
-@trainer.option(
+@configure
+@option(
     "target_entropy",
     None,
     help="""
@@ -28,28 +29,26 @@ If "auto", will use the heuristic provided in the SAC paper,
 H = -dim(A), where A is the action space
 """,
 )
-@trainer.option("torch_optimizer", TORCH_OPTIMIZERS, override=True)
-@trainer.option(
+@option("torch_optimizer", TORCH_OPTIMIZERS, override=True)
+@option(
     "vf_loss_coeff",
     1.0,
     help="Weight of the fitted V loss in the joint model-value loss",
 )
-@trainer.option(
-    "max_is_ratio", 5.0, help="Clip importance sampling weights by this value"
-)
-@trainer.option(
+@option("max_is_ratio", 5.0, help="Clip importance sampling weights by this value")
+@option(
     "polyak",
     0.995,
     help="Interpolation factor in polyak averaging for target networks.",
 )
-@trainer.option("module/type", "SoftSVG")
-@trainer.option(
+@option("module/type", "SoftSVG")
+@option(
     "exploration_config/type",
     "raylab.utils.exploration.StochasticActor",
     override=True,
 )
-@trainer.option("exploration_config/pure_exploration_steps", 1000)
-@trainer.option("evaluation_config/explore", False, override=True)
+@option("exploration_config/pure_exploration_steps", 1000)
+@option("evaluation_config/explore", False, override=True)
 class SoftSVGTrainer(OffPolicyTrainer):
     """Single agent trainer for SoftSVG."""
 

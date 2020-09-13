@@ -2,8 +2,9 @@
 Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning
 with a Stochastic Actor.
 """
-from raylab.agents import trainer
 from raylab.agents.off_policy import OffPolicyTrainer
+from raylab.options import configure
+from raylab.options import option
 
 from .policy import SACTorchPolicy
 
@@ -12,7 +13,7 @@ def sac_config(cls: type) -> type:
     """Add configurations for Soft Actor-Critic-based agents."""
 
     for config_setter in [
-        trainer.option(
+        option(
             "target_entropy",
             None,
             help="""Target entropy for temperature parameter optimization.
@@ -24,15 +25,15 @@ def sac_config(cls: type) -> type:
             H = -dim(A) / 2, where A is the action space
             """,
         ),
-        trainer.option("torch_optimizer/actor", {"type": "Adam", "lr": 1e-3}),
-        trainer.option("torch_optimizer/critics", {"type": "Adam", "lr": 1e-3}),
-        trainer.option("torch_optimizer/alpha", {"type": "Adam", "lr": 1e-3}),
-        trainer.option(
+        option("torch_optimizer/actor", {"type": "Adam", "lr": 1e-3}),
+        option("torch_optimizer/critics", {"type": "Adam", "lr": 1e-3}),
+        option("torch_optimizer/alpha", {"type": "Adam", "lr": 1e-3}),
+        option(
             "polyak",
             0.995,
             help="Interpolation factor in polyak averaging for target networks.",
         ),
-        trainer.option(
+        option(
             "exploration_config/type",
             "raylab.utils.exploration.StochasticActor",
             override=True,
@@ -43,11 +44,11 @@ def sac_config(cls: type) -> type:
     return cls
 
 
-@trainer.configure
+@configure
 @sac_config
-@trainer.option("module", {"type": "SAC", "critic": {"double_q": True}}, override=True)
-@trainer.option("exploration_config/pure_exploration_steps", 1000)
-@trainer.option("evaluation_config/explore", False, override=True)
+@option("module", {"type": "SAC", "critic": {"double_q": True}}, override=True)
+@option("exploration_config/pure_exploration_steps", 1000)
+@option("evaluation_config/explore", False, override=True)
 class SACTrainer(OffPolicyTrainer):
     """Single agent trainer for SAC."""
 

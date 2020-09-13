@@ -4,51 +4,50 @@ from ray.rllib.utils import override
 from ray.tune import Trainable
 
 from raylab.agents import Trainer
-from raylab.agents import trainer
 from raylab.agents.model_based import set_policy_with_env_fn
+from raylab.options import configure
+from raylab.options import option
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 from raylab.utils.replay_buffer import ReplayField
 
 from .policy import SVGInfTorchPolicy
 
 
-@trainer.configure
-@trainer.option(
+@configure
+@option(
     "vf_loss_coeff",
     1.0,
     help="Weight of the fitted V loss in the joint model-value loss",
 )
-@trainer.option("max_grad_norm", 10.0, help="Clip gradient norms by this value")
-@trainer.option(
-    "max_is_ratio", 5.0, help="Clip importance sampling weights by this value"
-)
-@trainer.option(
+@option("max_grad_norm", 10.0, help="Clip gradient norms by this value")
+@option("max_is_ratio", 5.0, help="Clip importance sampling weights by this value")
+@option(
     "polyak",
     0.995,
     help="Interpolation factor in polyak averaging for target networks.",
 )
-@trainer.option("torch_optimizer/on_policy", {"type": "Adam", "lr": 1e-3})
-@trainer.option("torch_optimizer/off_policy", {"type": "Adam", "lr": 1e-3})
-@trainer.option(
+@option("torch_optimizer/on_policy", {"type": "Adam", "lr": 1e-3})
+@option("torch_optimizer/off_policy", {"type": "Adam", "lr": 1e-3})
+@option(
     "updates_per_step",
     1.0,
     help="Model and Value function updates per step in the environment",
 )
-@trainer.option("buffer_size", 500000, help="Size of the replay buffer")
-@trainer.option(
+@option("buffer_size", 500000, help="Size of the replay buffer")
+@option(
     "kl_schedule/",
     help="Options for adaptive KL coefficient. See raylab.utils.adaptive_kl",
     allow_unknown_subkeys=True,
 )
-@trainer.option("module", {"type": "SVG"}, override=True)
-@trainer.option(
+@option("module", {"type": "SVG"}, override=True)
+@option(
     "exploration_config/type", "raylab.utils.exploration.StochasticActor", override=True
 )
-@trainer.option("evaluation_config/explore", True)
-@trainer.option("num_workers", 0, override=True)
-@trainer.option("rollout_fragment_length", 1, override=True)
-@trainer.option("batch_mode", "complete_episodes", override=True)
-@trainer.option("train_batch_size", 128, override=True)
+@option("evaluation_config/explore", True)
+@option("num_workers", 0, override=True)
+@option("rollout_fragment_length", 1, override=True)
+@option("batch_mode", "complete_episodes", override=True)
+@option("train_batch_size", 128, override=True)
 class SVGInfTrainer(Trainer):
     """Single agent trainer for SVG(inf)."""
 

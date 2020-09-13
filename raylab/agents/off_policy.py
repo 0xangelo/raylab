@@ -6,13 +6,14 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 from ray.tune import Trainable
 
-from raylab.agents import trainer
 from raylab.agents.trainer import Trainer
+from raylab.options import configure
+from raylab.options import option
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
-@trainer.configure
-@trainer.option(
+@configure
+@option(
     "policy_improvements",
     default=1,
     help="""Policy improvement steps after each sample call to the rollout worker.
@@ -23,15 +24,15 @@ from raylab.utils.replay_buffer import NumpyReplayBuffer
         environment step.
     """,
 )
-@trainer.option(
+@option(
     "learning_starts",
     default=0,
     help="Sample this many steps before starting optimization.",
 )
-@trainer.option("train_batch_size", default=128, override=True)
-@trainer.option("rollout_fragment_length", default=1, override=True)
-@trainer.option("num_workers", default=0, override=True)
-@trainer.option("buffer_size", default=500000, help="Size of the replay buffer")
+@option("train_batch_size", default=128, override=True)
+@option("rollout_fragment_length", default=1, override=True)
+@option("num_workers", default=0, override=True)
+@option("buffer_size", default=500000, help="Size of the replay buffer")
 class OffPolicyTrainer(Trainer):
     """Generic trainer for off-policy agents."""
 

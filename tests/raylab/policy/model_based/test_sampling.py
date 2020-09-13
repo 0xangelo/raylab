@@ -6,7 +6,7 @@ import pytest
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.agents.options import RaylabOptions
+from raylab.options import RaylabOptions
 from raylab.policy import ModelSamplingMixin
 from raylab.policy import TorchPolicy
 from raylab.utils.debug import fake_batch

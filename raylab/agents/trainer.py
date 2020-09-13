@@ -8,12 +8,12 @@ from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.utils import override as overrides
 from ray.tune import Trainable
 
+from raylab.options import configure
+from raylab.options import option
+from raylab.options import TrainerOptions
 from raylab.utils.wandb import WandBLogger
 
 from . import compat
-from .options import configure
-from .options import option
-from .options import TrainerOptions
 
 
 # ==============================================================================
@@ -104,7 +104,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         if not self.options.all_options_set:
             raise RuntimeError(
                 f"{type(self).__name__} still has configs to be set."
-                " Did you call `trainer.configure` as the last decorator?"
+                " Did you call `configure` as the last decorator?"
             )
 
         self.config = config = self.options.merge_defaults_with(config)

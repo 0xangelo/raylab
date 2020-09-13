@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from raylab.agents.options import recursive_check_info
+from raylab.options import recursive_check_info
 
 
 @pytest.fixture()
@@ -14,7 +14,7 @@ def common_config():
 
 @pytest.fixture()
 def common_info():
-    from raylab.agents.options import with_rllib_info
+    from raylab.options import with_rllib_info
 
     return with_rllib_info({})
 

@@ -5,7 +5,7 @@ import pytest
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.agents.options import RaylabOptions
+from raylab.options import RaylabOptions
 from raylab.policy import ModelTrainingMixin
 from raylab.policy import OptimizerCollection
 from raylab.policy.model_based.training import Evaluator

@@ -12,7 +12,7 @@ import torch
 from ray.rllib import SampleBatch
 from torch.utils.data import DataLoader
 
-from raylab.agents.options import RaylabOptions
+from raylab.options import RaylabOptions
 from raylab.policy import OptimizerCollection
 from raylab.policy.losses import Loss
 from raylab.policy.model_based.lightning import LightningModel

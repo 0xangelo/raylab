@@ -3,8 +3,8 @@ import math
 import pytest
 import torch
 
-from raylab.agents.options import RaylabOptions
 from raylab.envs import get_reward_fn
+from raylab.options import RaylabOptions
 from raylab.policy import EnvFnMixin
 from raylab.utils.debug import fake_space_samples
 

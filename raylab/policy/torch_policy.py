@@ -19,7 +19,7 @@ from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.tune.logger import pretty_print
 from torch import Tensor
 
-from raylab.agents.options import RaylabOptions
+from raylab.options import RaylabOptions
 from raylab.torch.utils import convert_to_tensor
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
