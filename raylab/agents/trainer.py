@@ -1,6 +1,5 @@
 """Primitives for all Trainers."""
 from abc import ABCMeta
-from typing import Callable
 from typing import Optional
 
 from ray.rllib import Policy
@@ -12,68 +11,9 @@ from ray.tune import Trainable
 from raylab.utils.wandb import WandBLogger
 
 from . import compat
-from .options import Json
-from .options import RaylabOptions
-
-
-# ==============================================================================
-# Programatic config setting
-# ==============================================================================
-def configure(cls: type) -> type:
-    """Decorator for finishing the configuration setup for a Trainer class.
-
-    Should be called after all :func:`config` decorators have been applied,
-    i.e., as the top-most decorator.
-    """
-    cls.options = cls.options.copy_and_set_queued_options()
-    return cls
-
-
-def option(
-    key: str,
-    default: Json = None,
-    *,
-    help: Optional[str] = None,
-    override: bool = False,
-    allow_unknown_subkeys: bool = False,
-    override_all_if_type_changes: bool = False,
-    separator: str = "/",
-) -> Callable[[type], type]:
-    """Returns a decorator for adding/overriding a Trainer class config.
-
-    If `key` ends in a separator and `default` is None, treats the option as a
-    nested dict of options and sets the default to an empty dictionary.
-
-    Args:
-        key: Name of the config paremeter which the use can tune
-        default: Default Jsonable value to set for the parameter
-        info: Parameter help text explaining what the parameter does
-        override: Whether to override an existing parameter
-        allow_unknown_subkeys: Whether to allow new keys for dict parameters.
-            This is only at the top level
-        override_all_if_type_changes: Whether to override the entire value
-            (dict) iff the 'type' key in this value dict changes. This is only
-            at the top level
-        separator: String token separating nested keys
-
-    Raises:
-        RuntimeError: If attempting to set an existing parameter with `override`
-            set to `False`.
-    """
-    # pylint:disable=too-many-arguments,redefined-builtin
-    def _queue(cls):
-        cls.options.add_option_to_queue(
-            key=key,
-            default=default,
-            info=help,
-            override=override,
-            allow_unknown_subkeys=allow_unknown_subkeys,
-            override_all_if_type_changes=override_all_if_type_changes,
-            separator=separator,
-        )
-        return cls
-
-    return _queue
+from .options import configure
+from .options import option
+from .options import TrainerOptions
 
 
 # ==============================================================================
@@ -137,7 +77,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     _name: str = ""
     _policy: Optional[Policy] = None
     # Handle all config merging in RaylabOptions
-    options: RaylabOptions = RaylabOptions()
+    options: TrainerOptions = TrainerOptions()
 
     @overrides(RLlibTrainer)
     def train(self):

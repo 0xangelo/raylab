@@ -28,7 +28,7 @@ from ray.tune.trainable import Trainable
 from raylab.execution import LearningStarts
 from raylab.utils.wandb import WandBLogger
 
-from .options import RaylabOptions
+from .options import TrainerOptions
 from .trainer import configure
 from .trainer import option
 
@@ -106,7 +106,7 @@ class SimpleTrainer(RLlibTrainer, metaclass=ABCMeta):
     evaluation_workers: Optional[WorkerSet]
     train_exec_impl: Iterable[ResultDict]
     wandb: WandBLogger
-    options: RaylabOptions = RaylabOptions()
+    options: TrainerOptions = TrainerOptions()
     _name: str
     _policy: Type[Policy]
     _env_id: str
