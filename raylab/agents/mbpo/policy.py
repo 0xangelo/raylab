@@ -1,4 +1,6 @@
 """Policy for MBPO using PyTorch."""
+from ray.rllib import SampleBatch
+
 from raylab.agents.sac import SACTorchPolicy
 from raylab.options import configure
 from raylab.options import option
@@ -61,6 +63,15 @@ class MBPOTorchPolicy(
         super().__init__(observation_space, action_space, config)
         models = self.module.models
         self.loss_model = MaximumLikelihood(models)
+
+    def build_replay_buffer(self):
+        pass
+
+    def learn_on_batch(self, samples: SampleBatch) -> dict:
+        batch = self.lazy_tensor_dict(samples)
+        info = self.improve_policy(batch)
+        info.update(self.get_exploration_info())
+        return info
 
     @property
     def model_training_loss(self):
