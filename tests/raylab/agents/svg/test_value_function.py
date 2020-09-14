@@ -7,7 +7,7 @@ from raylab.utils.dictionaries import get_keys
 
 @pytest.fixture
 def policy_and_batch(policy_and_batch_fn, svg_policy):
-    return policy_and_batch_fn(svg_policy, {"polyak": 0.5})
+    return policy_and_batch_fn(svg_policy, {"policy": {"polyak": 0.5}})
 
 
 def test_compute_value_targets(policy_and_batch):

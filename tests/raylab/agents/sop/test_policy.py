@@ -12,7 +12,8 @@ def double_q(request):
 
 @pytest.fixture
 def config(double_q):
-    return {"module": {"critic": {"double_q": double_q}}, "policy_delay": 2}
+    options = {"module": {"critic": {"double_q": double_q}}, "policy_delay": 2}
+    return {"policy": options}
 
 
 @pytest.fixture
