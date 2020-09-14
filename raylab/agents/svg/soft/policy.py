@@ -5,6 +5,8 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
 from raylab.agents.svg import SVGTorchPolicy
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import EnvFnMixin
 from raylab.policy.losses import ISSoftVIteration
 from raylab.policy.losses import MaximumEntropyDual
@@ -12,6 +14,43 @@ from raylab.policy.losses import OneStepSoftSVG
 from raylab.torch.optim import build_optimizer
 
 
+TORCH_OPTIMIZERS = {
+    "model": {"type": "Adam", "lr": 1e-3},
+    "actor": {"type": "Adam", "lr": 1e-3},
+    "critic": {"type": "Adam", "lr": 1e-3},
+    "alpha": {"type": "Adam", "lr": 1e-3},
+}
+
+
+@configure
+@option(
+    "target_entropy",
+    None,
+    help="""
+Target entropy to optimize the temperature parameter towards
+If "auto", will use the heuristic provided in the SAC paper,
+H = -dim(A), where A is the action space
+""",
+)
+@option("torch_optimizer", TORCH_OPTIMIZERS, override=True)
+@option(
+    "vf_loss_coeff",
+    1.0,
+    help="Weight of the fitted V loss in the joint model-value loss",
+)
+@option("max_is_ratio", 5.0, help="Clip importance sampling weights by this value")
+@option(
+    "polyak",
+    0.995,
+    help="Interpolation factor in polyak averaging for target networks.",
+)
+@option("module/type", "SoftSVG")
+@option(
+    "exploration_config/type",
+    "raylab.utils.exploration.StochasticActor",
+    override=True,
+)
+@option("exploration_config/pure_exploration_steps", 1000)
 class SoftSVGTorchPolicy(SVGTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
 
@@ -41,14 +80,6 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
         self.loss_alpha = MaximumEntropyDual(
             self.module.alpha, self.module.actor.sample, target_entropy
         )
-
-    @property
-    @override(SVGTorchPolicy)
-    def options(self):
-        # pylint:disable=cyclic-import
-        from raylab.agents.svg.soft import SoftSVGTrainer
-
-        return SoftSVGTrainer.options
 
     @override(EnvFnMixin)
     def _set_reward_hook(self):

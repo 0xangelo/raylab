@@ -7,12 +7,36 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
 from raylab.agents.svg import SVGTorchPolicy
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
 from raylab.policy.losses import TrajectorySVG
 from raylab.torch.optim import build_optimizer
 
 
+@configure
+@option(
+    "vf_loss_coeff",
+    1.0,
+    help="Weight of the fitted V loss in the joint model-value loss",
+)
+@option("max_grad_norm", 10.0, help="Clip gradient norms by this value")
+@option("max_is_ratio", 5.0, help="Clip importance sampling weights by this value")
+@option(
+    "polyak",
+    0.995,
+    help="Interpolation factor in polyak averaging for target networks.",
+)
+@option("torch_optimizer/on_policy", {"type": "Adam", "lr": 1e-3})
+@option("torch_optimizer/off_policy", {"type": "Adam", "lr": 1e-3})
+@option(
+    "kl_schedule/",
+    help="Options for adaptive KL coefficient. See raylab.utils.adaptive_kl",
+    allow_unknown_subkeys=True,
+)
+@option("module/type", default="SVG")
+@option("exploration_config/type", "raylab.utils.exploration.StochasticActor")
 class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
     """Stochastic Value Gradients policy for full trajectories."""
 
@@ -28,14 +52,6 @@ class SVGInfTorchPolicy(AdaptiveKLCoeffMixin, SVGTorchPolicy):
             self.module.actor,
             self.module.critic,
         )
-
-    @property
-    @override(SVGTorchPolicy)
-    def options(self):
-        # pylint:disable=cyclic-import
-        from raylab.agents.svg.inf import SVGInfTrainer
-
-        return SVGInfTrainer.options
 
     @override(EnvFnMixin)
     def _set_reward_hook(self):

@@ -5,6 +5,7 @@ import textwrap
 from collections import namedtuple
 from dataclasses import dataclass
 from dataclasses import field
+from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -32,42 +33,94 @@ __all__ = [
 
 Config = Dict[str, Union[Json, "Config"]]
 Info = Dict[str, Union[str, "Info"]]
+
+
+# ==============================================================================
+# Programatic config setting
+# ==============================================================================
+def configure(cls: type) -> type:
+    """Decorator for finishing the configuration setup for a class.
+
+    Should be called after all :func:`config` decorators have been applied,
+    i.e., as the top-most decorator.
+    """
+    cls.options = cls.options.copy_and_set_queued_options()
+    return cls
+
+
+def option(
+    key: str,
+    default: Json = None,
+    *,
+    help: Optional[str] = None,
+    override: bool = False,
+    allow_unknown_subkeys: bool = False,
+    override_all_if_type_changes: bool = False,
+    separator: str = "/",
+) -> Callable[[type], type]:
+    """Returns a decorator for adding/overriding a class config.
+
+    If `key` ends in a separator and `default` is None, treats the option as a
+    nested dict of options and sets the default to an empty dictionary.
+
+    Args:
+        key: Name of the config paremeter which the user can tune
+        default: Default Jsonable value to set for the parameter
+        info: Parameter help text explaining what the parameter does
+        override: Whether to override an existing parameter
+        allow_unknown_subkeys: Whether to allow new keys for dict parameters.
+            This is only at the top level
+        override_all_if_type_changes: Whether to override the entire value
+            (dict) iff the 'type' key in this value dict changes. This is only
+            at the top level
+        separator: String token separating nested keys
+
+    Raises:
+        RuntimeError: If attempting to set an existing parameter with `override`
+            set to `False`.
+    """
+    # pylint:disable=too-many-arguments,redefined-builtin
+    def _queue(cls):
+        cls.options.add_option_to_queue(
+            key=key,
+            default=default,
+            info=help,
+            override=override,
+            allow_unknown_subkeys=allow_unknown_subkeys,
+            override_all_if_type_changes=override_all_if_type_changes,
+            separator=separator,
+        )
+        return cls
+
+    return _queue
+
+
+# ==============================================================================
+# Configuration objects
+# ==============================================================================
 Option = namedtuple("Option", "key parameters")
 
 
 @dataclass
 class RaylabOptions:
-    """Configuration object for Raylab trainers.
+    """Configuration object for Raylab objects.
 
     Attributes:
-        rllib_keys: Common config keys for RLlib trainers
+        defaults: Default configurations
+        infos: Help msgs for each configuration
     """
 
-    defaults: Config = field(default_factory=lambda: with_rllib_config({}))
-    infos: Info = field(default_factory=lambda: with_rllib_info({}))
-    # pylint:disable=protected-access
-    allow_unknown_subkeys: Set[str] = field(
-        default_factory=lambda: set(Trainer._allow_unknown_subkeys)
-    )
-    override_all_if_type_changes: Set[str] = field(
-        default_factory=lambda: set(Trainer._override_all_subkeys_if_type_changes)
-    )
-    # pylint:enable=protected-access
+    defaults: Config = field(default_factory=dict)
+    infos: Info = field(default_factory=dict)
+    allow_unknown_subkeys: Set[str] = field(default_factory=set)
+    override_all_if_type_changes: Set[str] = field(default_factory=set)
     dict_info_key: str = field(default="__help__", init=False, repr=False)
     _options_to_set: List[Option] = field(default_factory=list, init=False, repr=False)
-    _rllib_keys: Set[str] = field(
-        default_factory=lambda: set(COMMON_CONFIG.keys()), init=False, repr=False
-    )
 
     @property
     def all_options_set(self) -> bool:
         """Whether all queued options have been set and returned as a new config."""
         return not bool(self._options_to_set)
-
-    @property
-    def rllib_defaults(self) -> Config:
-        """Default configurations for RLlib trainers."""
-        return {k: v for k, v in self.defaults.items() if k in self._rllib_keys}
 
     def add_option_to_queue(
         self,
@@ -140,8 +193,8 @@ class RaylabOptions:
 
         to_set = self._options_to_set
         self._options_to_set = []
-        for option in sorted(to_set, key=lambda x: x.key):
-            new.set_option(key=option.key, **option.parameters)
+        for opt in sorted(to_set, key=lambda x: x.key):
+            new.set_option(key=opt.key, **opt.parameters)
 
         return new
 
@@ -219,24 +272,16 @@ class RaylabOptions:
             else:
                 info_[key_] = help_txt
 
-    def rllib_subconfig(self, config: dict) -> dict:
-        """Get the rllib subconfig from `config`."""
-        return {k: v for k, v in config.items() if k in self._rllib_keys}
-
     # ==========================================================================
     # Help with options
     # ==========================================================================
-    def help(
-        self, key: Optional[str] = None, separator: str = "/", with_rllib: bool = False
-    ) -> str:
+    def help(self, key: Optional[str] = None, separator: str = "/") -> str:
         """Returns a help text for options.
 
         Args:
             key: String name of the option to be described. If None, lists all
                 toplevel options descriptions
             separator: String token separating nested option names
-            with_rllib: Whether to include RLlib's common config descriptions if
-                listing all options descriptions
 
         Raises:
             UnknownOptionError: If failing to find a specific given `key`
@@ -245,8 +290,6 @@ class RaylabOptions:
             return self.find_config_info(key, separator)
 
         toplevel_keys = set(self.infos.keys())
-        if not with_rllib:
-            toplevel_keys.difference_update(set(self._rllib_keys))
 
         msgs = [
             self.parse_info(self.defaults, self.infos, k) for k in sorted(toplevel_keys)
@@ -315,6 +358,62 @@ class RaylabOptions:
         msg = f"{key}: {default}\n"
         msg = msg + textwrap.indent(f"{help_}", prefix=" " * 4)
         return msg
+
+
+@dataclass
+class TrainerOptions(RaylabOptions):
+    """Configuration object for Raylab trainers."""
+
+    defaults: Config = field(default_factory=lambda: with_rllib_config({}))
+    infos: Info = field(default_factory=lambda: with_rllib_info({}))
+    # pylint:disable=protected-access
+    allow_unknown_subkeys: Set[str] = field(
+        default_factory=lambda: set(Trainer._allow_unknown_subkeys)
+    )
+    override_all_if_type_changes: Set[str] = field(
+        default_factory=lambda: set(Trainer._override_all_subkeys_if_type_changes)
+    )
+    # pylint:enable=protected-access
+    _rllib_keys: Set[str] = field(
+        default_factory=lambda: set(COMMON_CONFIG.keys()), init=False, repr=False
+    )
+
+    @property
+    def rllib_defaults(self) -> Config:
+        """Default configurations for RLlib trainers."""
+        return {k: v for k, v in self.defaults.items() if k in self._rllib_keys}
+
+    def rllib_subconfig(self, config: dict) -> dict:
+        """Get the rllib subconfig from `config`."""
+        return {k: v for k, v in config.items() if k in self._rllib_keys}
+
+    def help(
+        self, key: Optional[str] = None, separator: str = "/", with_rllib: bool = False
+    ) -> str:
+        """Returns a help text for options.
+
+        Args:
+            key: String name of the option to be described. If None, lists all
+                toplevel options descriptions
+            separator: String token separating nested option names
+            with_rllib: Whether to include RLlib's common config descriptions if
+                listing all options descriptions
+
+        Raises:
+            UnknownOptionError: If failing to find a specific given `key`
+        """
+        # pylint:disable=arguments-differ
+        if key is not None:
+            return self.find_config_info(key, separator)
+
+        toplevel_keys = set(self.infos.keys())
+        if not with_rllib:
+            toplevel_keys.difference_update(set(self._rllib_keys))
+
+        msgs = [
+            self.parse_info(self.defaults, self.infos, k) for k in sorted(toplevel_keys)
+        ]
+        return "\n".join(msgs)
 
 
 # ================================================================================

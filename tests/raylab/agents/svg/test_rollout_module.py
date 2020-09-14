@@ -4,15 +4,18 @@ from ray.rllib import SampleBatch
 
 
 @pytest.fixture
-def policy_and_batch(policy_and_batch_fn, svg_inf_policy):
-    policy, batch = policy_and_batch_fn(svg_inf_policy, {})
+def policy(policy_fn, svg_inf_policy):
+    policy = policy_fn(svg_inf_policy, {})
     policy.set_reward_from_config()
-    return policy, batch
+    return policy
 
 
-def test_reproduce_rewards(policy_and_batch):
-    policy, batch = policy_and_batch
+@pytest.fixture
+def batch(policy, batch_fn):
+    return batch_fn(policy)
 
+
+def test_reproduce_rewards(policy, batch):
     with torch.no_grad():
         rewards = policy.loss_actor._rollout(
             batch[SampleBatch.ACTIONS],
@@ -23,9 +26,7 @@ def test_reproduce_rewards(policy_and_batch):
     assert torch.allclose(batch[SampleBatch.REWARDS], rewards, atol=1e-6)
 
 
-def test_propagates_gradients(policy_and_batch):
-    policy, batch = policy_and_batch
-
+def test_propagates_gradients(policy, batch):
     rewards = policy.loss_actor._rollout(
         batch[SampleBatch.ACTIONS],
         batch[SampleBatch.NEXT_OBS],

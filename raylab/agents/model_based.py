@@ -10,8 +10,9 @@ from ray.rllib import SampleBatch
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.utils import override
 
-from raylab.agents import trainer
 from raylab.agents.off_policy import OffPolicyTrainer
+from raylab.options import configure
+from raylab.options import option
 from raylab.utils.annotations import StatDict
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 from raylab.utils.timer import TimerStat
@@ -60,8 +61,8 @@ def _set_from_env_if_possible(policy: Policy, env: Any, fn_type: str = "reward")
         raise ValueError(f"Invalid env function type '{fn_type}'")
 
 
-@trainer.configure
-@trainer.option(
+@configure
+@option(
     "model_update_interval",
     default=1,
     help="""Number of calls to rollout worker between each model update run.
@@ -75,7 +76,7 @@ def _set_from_env_if_possible(policy: Policy, env: Any, fn_type: str = "reward")
         loop.
     """,
 )
-@trainer.option(
+@option(
     "policy_improvement_interval",
     default=1,
     help="""Number of rollout worker calls between each `policy.learn_on_batch` call.
@@ -215,13 +216,13 @@ class ModelBasedTrainer(OffPolicyTrainer):
         return metrics
 
 
-@trainer.configure
-@trainer.option(
+@configure
+@option(
     "virtual_buffer_size",
     default=int(1e6),
     help="Size of the buffer for virtual samples",
 )
-@trainer.option(
+@option(
     "model_rollouts",
     default=40,
     help="""Number of model rollouts to add to virtual buffer each policy interval.
@@ -230,7 +231,7 @@ class ModelBasedTrainer(OffPolicyTrainer):
     improvement.
     """,
 )
-@trainer.option(
+@option(
     "real_data_ratio",
     default=0.1,
     help="Fraction of each policy minibatch to sample from environment replay pool",

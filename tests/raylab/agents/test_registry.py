@@ -5,6 +5,7 @@ from ray.rllib import RolloutWorker
 from ray.rllib import SampleBatch
 
 from raylab.agents.registry import AGENTS
+from raylab.agents.simple_trainer import SimpleTrainer
 from raylab.envs import get_env_creator
 
 TRAINER_NAMES, TRAINER_IMPORTS = zip(*AGENTS.items())
@@ -28,11 +29,6 @@ def trainer_cls(request):
     return request.param()
 
 
-@pytest.fixture
-def policy_cls(trainer_cls):
-    return trainer_cls._policy
-
-
 @pytest.fixture(
     scope="module",
     params=(True, False),
@@ -50,16 +46,19 @@ def trainer(trainer_cls, compile_policy):
 
     if "policy_improvements" in defaults:
         config["policy_improvements"] = 1
-    if "learning_starts" in defaults:
+    if "learning_starts" in defaults and name not in {"TRPO", "ACKTR"}:
         config["learning_starts"] = 1
-    if "model_warmup" in defaults:
-        config["model_warmup"] = {"max_epochs": 1}
-    if "model_training" in defaults:
-        config["model_training"] = {"max_epochs": 1}
 
-    config["compile_policy"] = compile_policy
+    config["policy"] = {"compile": compile_policy}
 
     return trainer_cls(env="MockEnv", config=config)
+
+
+@pytest.fixture
+def policy_cls(trainer):
+    if isinstance(trainer, SimpleTrainer):
+        return trainer.get_policy_class(trainer.config)
+    return trainer._policy
 
 
 @pytest.mark.slow
@@ -94,8 +93,8 @@ def worker(env_name, policy_cls, worker_kwargs):
     )
 
 
-def test_compute_single_action(envs, env_name, policy_cls):
-    env = envs[env_name]({})
+def test_compute_single_action(env_, env_name, policy_cls):
+    env = env_
     policy = policy_cls(env.observation_space, env.action_space, {"env": env_name})
 
     obs = env.observation_space.sample()

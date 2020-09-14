@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import FittedQLearning
@@ -13,6 +15,41 @@ from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
 
 
+def sac_config(cls: type) -> type:
+    """Add configurations for Soft Actor-Critic-based agents."""
+
+    for config_setter in [
+        option(
+            "target_entropy",
+            None,
+            help="""Target entropy for temperature parameter optimization.
+
+            If 'auto', will use the heuristic provided in the SAC paper,
+            H = -dim(A), where A is the action space
+
+            If 'tf-agents', will use the TFAgents implementation,
+            H = -dim(A) / 2, where A is the action space
+            """,
+        ),
+        option("torch_optimizer/actor", {"type": "Adam", "lr": 1e-3}),
+        option("torch_optimizer/critics", {"type": "Adam", "lr": 1e-3}),
+        option("torch_optimizer/alpha", {"type": "Adam", "lr": 1e-3}),
+        option(
+            "polyak",
+            0.995,
+            help="Interpolation factor in polyak averaging for target networks.",
+        ),
+        option("exploration_config/type", "raylab.utils.exploration.StochasticActor"),
+    ]:
+        cls = config_setter(cls)
+
+    return cls
+
+
+@configure
+@sac_config
+@option("module", {"type": "SAC", "critic": {"double_q": True}}, override=True)
+@option("exploration_config/pure_exploration_steps", 1000)
 class SACTorchPolicy(TorchPolicy):
     """Soft Actor-Critic policy in PyTorch to use with RLlib."""
 
@@ -49,14 +86,6 @@ class SACTorchPolicy(TorchPolicy):
         self.loss_alpha = MaximumEntropyDual(
             self.module.alpha, self.module.actor.sample, target_entropy
         )
-
-    @property
-    @override(TorchPolicy)
-    def options(self):
-        # pylint:disable=cyclic-import
-        from raylab.agents.sac import SACTrainer
-
-        return SACTrainer.options
 
     @override(TorchPolicy)
     def _make_optimizers(self):
