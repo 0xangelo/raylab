@@ -2,7 +2,7 @@
 from ray.rllib.utils import override
 
 from raylab.agents.model_based import set_policy_with_env_fn
-from raylab.agents.simple_trainer import SimpleTrainer
+from raylab.agents.trainer import Trainer
 from raylab.options import configure
 from raylab.options import option
 
@@ -14,18 +14,18 @@ from .policy import SVGInfTorchPolicy
 @option("batch_mode", "complete_episodes", override=True)
 @option("num_workers", default=0, override=True)
 @option("evaluation_config/explore", True)
-class SVGInfTrainer(SimpleTrainer):
+class SVGInfTrainer(Trainer):
     """Single agent trainer for SVG(inf)."""
 
     # pylint:disable=abstract-method
     _name = "SVG(inf)"
 
-    @override(SimpleTrainer)
+    @override(Trainer)
     def get_policy_class(self, _):
         return SVGInfTorchPolicy
 
     @staticmethod
-    @override(SimpleTrainer)
+    @override(Trainer)
     def validate_config(config: dict):
         """Assert configuration values are valid."""
         assert config["num_workers"] == 0, "No point in using additional workers."
@@ -42,7 +42,7 @@ class SVGInfTrainer(SimpleTrainer):
     def optimize_policy_backend(self):
         pass
 
-    @override(SimpleTrainer)
+    @override(Trainer)
     def after_init(self):
         set_policy_with_env_fn(self.workers, fn_type="reward")
         super().optimize_policy_backend()

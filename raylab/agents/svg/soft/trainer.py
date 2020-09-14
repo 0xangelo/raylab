@@ -2,12 +2,12 @@
 from ray.rllib.utils import override
 
 from raylab.agents.model_based import set_policy_with_env_fn
-from raylab.agents.off_policy import SimpleOffPolicy
+from raylab.agents.off_policy import OffPolicyTrainer
 
 from .policy import SoftSVGTorchPolicy
 
 
-class SoftSVGTrainer(SimpleOffPolicy):
+class SoftSVGTrainer(OffPolicyTrainer):
     """Single agent trainer for SoftSVG."""
 
     # pylint:disable=attribute-defined-outside-init
@@ -19,7 +19,7 @@ class SoftSVGTrainer(SimpleOffPolicy):
     def optimize_policy_backend(self):
         pass
 
-    @override(SimpleOffPolicy)
+    @override(OffPolicyTrainer)
     def after_init(self):
         set_policy_with_env_fn(self.workers, fn_type="reward")
         super().optimize_policy_backend()

@@ -92,7 +92,7 @@ def default_execution_plan(workers: WorkerSet, config: TrainerConfigDict):
     default=0,
     help="""Hold this number of timesteps before first training operation.""",
 )
-class SimpleTrainer(RLlibTrainer, metaclass=ABCMeta):
+class Trainer(RLlibTrainer, metaclass=ABCMeta):
     # pylint:disable=missing-docstring
     config: TrainerConfigDict
     raw_user_config: PartialTrainerConfigDict

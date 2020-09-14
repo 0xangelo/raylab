@@ -2,14 +2,14 @@
 from raylab.options import configure
 from raylab.options import option
 
-from .simple_trainer import SimpleTrainer
+from .trainer import Trainer
 
 
 @configure
 @option("rollout_fragment_length", default=1, override=True)
 @option("num_workers", default=0, override=True)
 @option("evaluation_config/explore", False, override=True)
-class SimpleOffPolicy(SimpleTrainer):
+class OffPolicyTrainer(Trainer):
     """Generic trainer for off-policy agents."""
 
     # pylint:disable=abstract-method

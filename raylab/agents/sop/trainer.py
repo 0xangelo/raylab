@@ -1,10 +1,10 @@
 """Trainer and configuration for SOP."""
-from raylab.agents.off_policy import SimpleOffPolicy
+from raylab.agents.off_policy import OffPolicyTrainer
 
 from .policy import SOPTorchPolicy
 
 
-class SOPTrainer(SimpleOffPolicy):
+class SOPTrainer(OffPolicyTrainer):
     """Single agent trainer for the Streamlined Off-Policy algorithm."""
 
     # pytlint:disable=abstract-method

@@ -11,7 +11,7 @@ from ray.rllib.utils.types import PartialTrainerConfigDict
 
 from raylab.utils.wandb import WandBLogger
 
-from .simple_trainer import SimpleTrainer
+from .trainer import Trainer
 
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ def _set_from_env_if_possible(policy: Policy, env: Any, fn_type: str = "reward")
         raise ValueError(f"Invalid env function type '{fn_type}'")
 
 
-class SimpleModelBased(SimpleTrainer):
+class ModelBasedTrainer(Trainer):
     """Generic trainer for model-based agents.
 
     Sets reward and termination functions for policies. These functions must be

@@ -1,10 +1,10 @@
 """Continuous Q-Learning with Normalized Advantage Functions."""
-from raylab.agents.off_policy import SimpleOffPolicy
+from raylab.agents.off_policy import OffPolicyTrainer
 
 from .policy import NAFTorchPolicy
 
 
-class NAFTrainer(SimpleOffPolicy):
+class NAFTrainer(OffPolicyTrainer):
     """Single agent trainer for NAF."""
 
     _name = "NAF"

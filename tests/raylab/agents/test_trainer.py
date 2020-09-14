@@ -2,7 +2,7 @@ import pytest
 from ray.rllib import Policy
 from ray.rllib.agents.trainer import COMMON_CONFIG
 
-from raylab.agents.simple_trainer import SimpleTrainer
+from raylab.agents.trainer import Trainer
 
 
 @pytest.fixture
@@ -19,13 +19,13 @@ def policy_cls(dummy_policy_cls):
 
 @pytest.fixture
 def trainer_cls(policy_cls):
-    class Trainer(SimpleTrainer):
+    class Sub(Trainer):
         _name = "Dummy"
 
         def get_policy_class(self, config):
             return policy_cls
 
-    return Trainer
+    return Sub
 
 
 @pytest.fixture

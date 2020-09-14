@@ -5,7 +5,7 @@ from ray.rllib import RolloutWorker
 from ray.rllib import SampleBatch
 
 from raylab.agents.registry import AGENTS
-from raylab.agents.simple_trainer import SimpleTrainer
+from raylab.agents.trainer import Trainer
 from raylab.envs import get_env_creator
 
 TRAINER_NAMES, TRAINER_IMPORTS = zip(*AGENTS.items())
@@ -58,7 +58,7 @@ def trainer(trainer_cls, compile_policy):
 
 @pytest.fixture
 def policy_cls(trainer):
-    if isinstance(trainer, SimpleTrainer):
+    if isinstance(trainer, Trainer):
         return trainer.get_policy_class(trainer.config)
     return trainer._policy
 

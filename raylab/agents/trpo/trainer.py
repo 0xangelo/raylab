@@ -1,24 +1,24 @@
 """Trainer and configuration for TRPO."""
 from ray.rllib.utils import override
 
-from raylab.agents.simple_trainer import SimpleTrainer
+from raylab.agents.trainer import Trainer
 
 from .policy import TRPOTorchPolicy
 
 
-class TRPOTrainer(SimpleTrainer):
+class TRPOTrainer(Trainer):
     """Single agent trainer for TRPO."""
 
     # pylint:disable=abstract-method
     _name = "TRPO"
 
     @staticmethod
-    @override(SimpleTrainer)
+    @override(Trainer)
     def validate_config(config: dict):
         assert not config[
             "learning_starts"
         ], "No point in having a warmup for an on-policy algorithm."
 
-    @override(SimpleTrainer)
+    @override(Trainer)
     def get_policy_class(self, _):
         return TRPOTorchPolicy

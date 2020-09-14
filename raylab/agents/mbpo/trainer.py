@@ -1,10 +1,10 @@
 """Trainer and configuration for MBPO."""
-from raylab.agents.model_based import SimpleModelBased
+from raylab.agents.model_based import ModelBasedTrainer
 
 from .policy import MBPOTorchPolicy
 
 
-class MBPOTrainer(SimpleModelBased):
+class MBPOTrainer(ModelBasedTrainer):
     """Model-based trainer using SAC for policy improvement."""
 
     _name = "MBPO"
