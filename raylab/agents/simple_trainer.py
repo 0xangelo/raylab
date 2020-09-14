@@ -109,6 +109,8 @@ class SimpleTrainer(RLlibTrainer, metaclass=ABCMeta):
     _true_config: TrainerConfigDict
 
     def setup(self, config: PartialTrainerConfigDict):
+        if self._env_id:
+            config["env"] = self._env_id
         self._true_config = self.options.merge_defaults_with(config)
         super().setup(self.options.rllib_subconfig(self._true_config))
 
