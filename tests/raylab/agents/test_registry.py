@@ -46,8 +46,10 @@ def trainer(trainer_cls, compile_policy):
 
     if "policy_improvements" in defaults:
         config["policy_improvements"] = 1
-    if "learning_starts" in defaults and name not in {"TRPO", "ACKTR"}:
+    if "learning_starts" in defaults and name not in {"TRPO", "ACKTR", "SVG(inf)"}:
         config["learning_starts"] = 1
+    if name == "SVG(inf)":
+        config["batch_mode"] = "complete_episodes"
 
     config["policy"] = {"compile": compile_policy}
 
