@@ -92,7 +92,7 @@ def config(
     max_epochs, max_steps, improvement_delta, patience, holdout_ratio, ensemble_size
 ):
     # pylint:disable=too-many-arguments
-    return {
+    options = {
         "model_training": {
             "dataloader": {"batch_size": 32, "shuffle": True},
             "max_epochs": max_epochs,
@@ -111,6 +111,7 @@ def config(
         },
         "module": {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}},
     }
+    return {"policy": options}
 
 
 @pytest.fixture
