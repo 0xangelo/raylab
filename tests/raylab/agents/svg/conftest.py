@@ -1,14 +1,12 @@
 import pytest
 from ray.rllib import SampleBatch
 
-from raylab.agents.registry import AGENTS
+from raylab.agents.registry import get_agent_cls
 
 
-@pytest.fixture(
-    params=[AGENTS[k] for k in "SVG(1) SVG(inf)".split()], ids=("SVG(1)", "SVF(inf)")
-)
+@pytest.fixture(params="SVG(1) SVG(inf)".split())
 def svg_trainer(request):
-    return request.param()
+    return get_agent_cls(request.param)
 
 
 @pytest.fixture
@@ -18,7 +16,7 @@ def svg_policy(svg_trainer):
 
 @pytest.fixture
 def svg_one_trainer():
-    return AGENTS["SVG(1)"]()
+    return get_agent_cls("SVG(1)")
 
 
 @pytest.fixture
@@ -28,7 +26,7 @@ def svg_one_policy(svg_one_trainer):
 
 @pytest.fixture
 def svg_inf_trainer():
-    return AGENTS["SVG(inf)"]()
+    return get_agent_cls("SVG(inf)")
 
 
 @pytest.fixture
@@ -37,18 +35,14 @@ def svg_inf_policy(svg_inf_trainer):
 
 
 @pytest.fixture
-def policy_and_batch_fn(policy_and_batch_):
-    from raylab.envs import get_reward_fn
-
-    def make_policy_and_batch(policy_cls, config):
-        config["env"] = "MockEnv"
-        policy, batch = policy_and_batch_(policy_cls, config)
-        reward_fn = get_reward_fn(config["env"])
-        batch[SampleBatch.REWARDS] = reward_fn(
+def batch_fn(env_samples):
+    def maker(policy):
+        batch = policy.lazy_tensor_dict(env_samples)
+        batch[SampleBatch.REWARDS] = policy.reward_fn(
             batch[SampleBatch.CUR_OBS],
             batch[SampleBatch.ACTIONS],
             batch[SampleBatch.NEXT_OBS],
         )
-        return policy, batch
+        return batch
 
-    return make_policy_and_batch
+    return maker

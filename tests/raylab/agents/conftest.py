@@ -112,31 +112,27 @@ def dummy_policy_cls():
     return DummyPolicy
 
 
-@pytest.fixture(scope="module")
-def policy_and_batch_(obs_space, action_space):
-    def make_policy_and_batch(policy_cls, config):
-        policy = policy_cls(obs_space, action_space, config)
-        batch = policy.lazy_tensor_dict(
-            fake_batch(obs_space, action_space, batch_size=10)
-        )
-        return policy, batch
-
-    return make_policy_and_batch
-
-
 @pytest.fixture(scope="module", params="MockEnv Navigation".split())
 def env_name(request):
     return request.param
 
 
 @pytest.fixture(scope="module")
-def policy_fn(env_name):
+def env_(env_name):
     from raylab.envs import get_env_creator
 
-    env = get_env_creator(env_name)({})
+    return get_env_creator(env_name)({})
 
+
+@pytest.fixture(scope="module")
+def policy_fn(env_, env_name):
     def make_policy(policy_cls, config):
         config["env"] = env_name
-        return policy_cls(env.observation_space, env.action_space, config)
+        return policy_cls(env_.observation_space, env_.action_space, config)
 
     return make_policy
+
+
+@pytest.fixture
+def env_samples(env_):
+    return fake_batch(env_.observation_space, env_.action_space, batch_size=10)

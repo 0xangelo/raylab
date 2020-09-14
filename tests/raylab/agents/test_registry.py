@@ -93,8 +93,8 @@ def worker(env_name, policy_cls, worker_kwargs):
     )
 
 
-def test_compute_single_action(envs, env_name, policy_cls):
-    env = envs[env_name]({})
+def test_compute_single_action(env_, env_name, policy_cls):
+    env = env_
     policy = policy_cls(env.observation_space, env.action_space, {"env": env_name})
 
     obs = env.observation_space.sample()
