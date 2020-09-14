@@ -5,7 +5,8 @@ import pytest
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.options import RaylabOptions
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import ModelTrainingMixin
 from raylab.policy import OptimizerCollection
 from raylab.policy.model_based.training import Evaluator
@@ -32,24 +33,16 @@ def samples(obs_space, action_space):
 
 @pytest.fixture(scope="module")
 def policy_cls(base_policy_cls):
+    @configure
+    @option("model_training", ModelTrainingMixin.model_training_defaults())
+    @option("model_warmup", ModelTrainingMixin.model_training_defaults())
+    @option("module/type", "ModelBasedSAC")
     class Policy(ModelTrainingMixin, base_policy_cls):
         # pylint:disable=abstract-method
         def __init__(self, config):
             super().__init__(config)
             self.loss_train = DummyLoss(len(self.module.models))
             self.loss_warmup = DummyLoss(len(self.module.models))
-
-        @property
-        def options(self):
-            options = RaylabOptions()
-            options.set_option(
-                "model_training", ModelTrainingMixin.model_training_defaults()
-            )
-            options.set_option(
-                "model_warmup", ModelTrainingMixin.model_training_defaults()
-            )
-            options.set_option("model/type", "ModelBasedSAC")
-            return options
 
         @property
         def model_training_loss(self):
@@ -73,11 +66,16 @@ def ensemble_size(request):
 
 
 @pytest.fixture
-def config(ensemble_size):
-    return {
+def max_epochs():
+    return 5
+
+
+@pytest.fixture
+def config(ensemble_size, max_epochs):
+    options = {
         "model_training": {
             "dataloader": {"batch_size": 32, "replacement": False},
-            "max_epochs": 5,
+            "max_epochs": max_epochs,
             "max_grad_steps": None,
             "max_time": None,
             "improvement_threshold": 0,
@@ -86,7 +84,7 @@ def config(ensemble_size):
         },
         "model_warmup": {
             "dataloader": {"batch_size": 64, "replacement": True},
-            "max_epochs": 10,
+            "max_epochs": max_epochs * 2,
             "max_grad_steps": None,
             "max_time": None,
             "improvement_threshold": None,
@@ -94,6 +92,7 @@ def config(ensemble_size):
         },
         "module": {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}},
     }
+    return {"policy": options}
 
 
 @pytest.fixture
@@ -101,7 +100,7 @@ def policy(policy_cls, config):
     return policy_cls(config)
 
 
-def test_optimize_model(policy, mocker, samples):
+def test_optimize_model(policy, mocker, samples, max_epochs):
     init = mocker.spy(Evaluator, "__init__")
     # train_loss = mocker.spy(DummyLoss, "__call__")
     # _train_model_epochs = mocker.spy(ModelTrainingMixin, "_train_model_epochs")
@@ -117,13 +116,13 @@ def test_optimize_model(policy, mocker, samples):
 
     assert isinstance(info, dict)
     assert "model_epochs" in info
-    assert info["model_epochs"] == 5
+    assert info["model_epochs"] == max_epochs
     assert "train/loss(models)" in info
     assert "eval/loss(models)" in info
     assert "grad_norm(models)" in info
 
 
-def test_warmup_model(policy, mocker, samples):
+def test_warmup_model(policy, mocker, samples, max_epochs):
     init = mocker.spy(Evaluator, "__init__")
     # warmup_loss = mocker.spy(DummyLoss, "__call__")
     # _train_model_epochs = mocker.spy(ModelTrainingMixin, "_train_model_epochs")
@@ -139,13 +138,13 @@ def test_warmup_model(policy, mocker, samples):
 
     assert isinstance(info, dict)
     assert "model_epochs" in info
-    assert info["model_epochs"] == 10
+    assert info["model_epochs"] == max_epochs * 2
     assert "train/loss(models)" in info
     assert "eval/loss(models)" not in info
     assert "grad_norm(models)" in info
 
 
-def test_optimize_with_no_eval(policy, mocker, samples):
+def test_optimize_with_no_eval(policy, mocker, samples, max_epochs):
     init = mocker.spy(Evaluator, "__init__")
     policy.model_training_spec.holdout_ratio = 0.0
     losses, info = policy.optimize_model(samples, warmup=False)
@@ -156,7 +155,7 @@ def test_optimize_with_no_eval(policy, mocker, samples):
 
     assert isinstance(info, dict)
     assert "model_epochs" in info
-    assert info["model_epochs"] == 5
+    assert info["model_epochs"] == max_epochs
     assert "train/loss(models)" in info
     assert "eval/loss(models)" not in info
     assert "grad_norm(models)" in info
@@ -181,7 +180,7 @@ def patient_policy(patience_epochs, policy_cls, config):
         "holdout_ratio": 0.2,
         "max_holdout": None,
     }
-    config["model_training"].update(model_training)
+    config["policy"]["model_training"].update(model_training)
     return policy_cls(config)
 
 

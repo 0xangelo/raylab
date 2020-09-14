@@ -12,7 +12,8 @@ import torch
 from ray.rllib import SampleBatch
 from torch.utils.data import DataLoader
 
-from raylab.options import RaylabOptions
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import OptimizerCollection
 from raylab.policy.losses import Loss
 from raylab.policy.model_based.lightning import LightningModel
@@ -35,22 +36,14 @@ class DummyLoss(Loss):
 
 @pytest.fixture(scope="module")
 def policy_cls(base_policy_cls):
+    @configure
+    @option("model_training", LightningModelMixin.model_training_defaults())
+    @option("model_warmup", LightningModelMixin.model_training_defaults())
     class Policy(LightningModelMixin, base_policy_cls):
         # pylint:disable=abstract-method
         def __init__(self, model_loss, config):
             super().__init__(config)
             self.loss_train = model_loss(self.module.models)
-
-        @property
-        def options(self):
-            options = RaylabOptions()
-            options.set_option(
-                "model_training", LightningModelMixin.model_training_defaults()
-            )
-            options.set_option(
-                "model_warmup", LightningModelMixin.model_training_defaults()
-            )
-            return options
 
         @property
         def model_training_loss(self):
