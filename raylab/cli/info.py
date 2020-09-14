@@ -28,7 +28,7 @@ def info_cli():
 @click.pass_context
 def list_(ctx, agent, key, separator, rllib):
     """Retrieve and echo a help text for the given agent's config."""
-    from raylab.agents.options import UnknownOptionError
+    from raylab.options import UnknownOptionError
     from raylab.agents.registry import AGENTS
 
     cls = AGENTS[agent]()
