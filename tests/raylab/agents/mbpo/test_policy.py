@@ -1,18 +1,20 @@
 import pytest
 
-ENSEMBLE_SIZE = (1, 4)
 
-
-@pytest.fixture(
-    scope="module", params=ENSEMBLE_SIZE, ids=(f"Ensemble({s})" for s in ENSEMBLE_SIZE)
-)
+@pytest.fixture(scope="module", params=(1, 4), ids=lambda s: f"Ensemble:{s}")
 def ensemble_size(request):
     return request.param
 
 
+@pytest.fixture(scope="module", params=(0.0, 0.5, 1.0), ids=lambda x: f"RealData%:{x}")
+def real_data_ratio(request):
+    return request.param
+
+
 @pytest.fixture(scope="module")
-def config(ensemble_size):
+def config(ensemble_size, real_data_ratio):
     return {
+        "real_data_ratio": real_data_ratio,
         "model_training": {
             "dataloader": {"batch_size": 32, "replacement": False},
             "max_epochs": 10,
@@ -38,3 +40,6 @@ def test_policy_creation(policy):
     assert "actor" in policy.optimizers
     assert "critics" in policy.optimizers
     assert "alpha" in policy.optimizers
+
+    for attr in "replay virtual_replay".split():
+        assert hasattr(policy, attr)

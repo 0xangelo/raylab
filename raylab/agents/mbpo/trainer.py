@@ -1,17 +1,13 @@
 """Trainer and configuration for MBPO."""
-from raylab.agents.model_based import DynaLikeTrainer
-from raylab.options import configure
-from raylab.options import option
+from raylab.agents.model_based import SimpleModelBased
 
 from .policy import MBPOTorchPolicy
 
 
-@configure
-@option("model_rollouts", 20, override=True)
-@option("learning_starts", 5000, override=True)
-@option("train_batch_size", 512, override=True)
-class MBPOTrainer(DynaLikeTrainer):
+class MBPOTrainer(SimpleModelBased):
     """Model-based trainer using SAC for policy improvement."""
 
     _name = "MBPO"
-    _policy = MBPOTorchPolicy
+
+    def get_policy_class(self, _):
+        return MBPOTorchPolicy
