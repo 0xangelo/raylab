@@ -1,15 +1,14 @@
 """Trainer and configuration for SOP."""
-from raylab.agents.off_policy import OffPolicyTrainer
-from raylab.options import configure
-from raylab.options import option
+from raylab.agents.off_policy import SimpleOffPolicy
 
 from .policy import SOPTorchPolicy
 
 
-@configure
-@option("evaluation_config/explore", False, override=True)
-class SOPTrainer(OffPolicyTrainer):
+class SOPTrainer(SimpleOffPolicy):
     """Single agent trainer for the Streamlined Off-Policy algorithm."""
 
+    # pytlint:disable=abstract-method
     _name = "SOP"
-    _policy = SOPTorchPolicy
+
+    def get_policy_class(self, _):
+        return SOPTorchPolicy

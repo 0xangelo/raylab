@@ -11,59 +11,53 @@ from raylab.policy.losses import ActionDPG
 from raylab.policy.losses import DeterministicPolicyGradient
 from raylab.policy.losses import FittedQLearning
 from raylab.policy.modules.critic import HardValue
+from raylab.policy.off_policy import off_policy_options
+from raylab.policy.off_policy import OffPolicyMixin
 from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
-
-
-def sop_config(cls: type) -> type:
-    """Add configurations for Streamlined Off-Policy-based agents."""
-    for config_setter in [
-        option(
-            "dpg_loss",
-            "default",
-            help="""
-            Type of Deterministic Policy Gradient to use.
-
-            'default' backpropagates Q-value gradients through the critic network.
-
-            'acme' uses Acme's implementation which recovers DPG via a MSE loss between
-            the actor's action and the action + Q-value gradient. Allows monitoring the
-            magnitude of the action-value gradient.""",
-        ),
-        option(
-            "dqda_clipping",
-            None,
-            help="""
-            Optional value by which to clip the action gradients. Only used with
-            dpg_loss='acme'.""",
-        ),
-        option(
-            "clip_dqda_norm",
-            False,
-            help="""
-            Whether to clip action grads by norm or value. Only used with
-            dpg_loss='acme'.""",
-        ),
-        option("torch_optimizer/actor", {"type": "Adam", "lr": 1e-3}),
-        option("torch_optimizer/critics", {"type": "Adam", "lr": 1e-3}),
-        option(
-            "polyak",
-            0.995,
-            help="Interpolation factor in polyak averaging for target networks.",
-        ),
-        option(
-            "policy_delay",
-            1,
-            help="Update policy every this number of calls to `learn_on_batch`",
-        ),
-    ]:
-        cls = config_setter(cls)
-
-    return cls
+from raylab.utils.annotations import TensorDict
 
 
 @configure
-@sop_config
+@off_policy_options
+@option(
+    "dpg_loss",
+    "default",
+    help="""
+    Type of Deterministic Policy Gradient to use.
+
+    'default' backpropagates Q-value gradients through the critic network.
+
+    'acme' uses Acme's implementation which recovers DPG via a MSE loss between
+    the actor's action and the action + Q-value gradient. Allows monitoring the
+    magnitude of the action-value gradient.""",
+)
+@option(
+    "dqda_clipping",
+    None,
+    help="""
+    Optional value by which to clip the action gradients. Only used with
+    dpg_loss='acme'.""",
+)
+@option(
+    "clip_dqda_norm",
+    False,
+    help="""
+    Whether to clip action grads by norm or value. Only used with
+    dpg_loss='acme'.""",
+)
+@option("torch_optimizer/actor", {"type": "Adam", "lr": 1e-3})
+@option("torch_optimizer/critics", {"type": "Adam", "lr": 1e-3})
+@option(
+    "polyak",
+    0.995,
+    help="Interpolation factor in polyak averaging for target networks.",
+)
+@option(
+    "policy_delay",
+    1,
+    help="Update policy every this number of calls to `learn_on_batch`",
+)
 @option("module/type", "DDPG")
 @option("module/actor/separate_behavior", True)
 @option("exploration_config/type", "raylab.utils.exploration.ParameterNoise")
@@ -73,7 +67,7 @@ def sop_config(cls: type) -> type:
     help="Options for parameter noise exploration",
 )
 @option("exploration_config/pure_exploration_steps", 1000)
-class SOPTorchPolicy(TorchPolicy):
+class SOPTorchPolicy(OffPolicyMixin, TorchPolicy):
     """Streamlined Off-Policy policy in PyTorch to use with RLlib."""
 
     # pylint:disable=abstract-method
@@ -87,6 +81,8 @@ class SOPTorchPolicy(TorchPolicy):
         self.loss_critic = FittedQLearning(self.module.critics, target_value)
         self.loss_critic.gamma = self.config["gamma"]
         self._grad_step = 0
+
+        self.build_replay_buffer()
 
     def _make_actor_loss(self):
         if self.config["dpg_loss"] == "default":
@@ -119,19 +115,17 @@ class SOPTorchPolicy(TorchPolicy):
         optimizers.update(mapping)
         return optimizers
 
-    @override(TorchPolicy)
-    def learn_on_batch(self, samples):
-        batch_tensors = self.lazy_tensor_dict(samples)
-
+    @override(OffPolicyMixin)
+    def improve_policy(self, batch: TensorDict):
         info = {}
         self._grad_step += 1
-        info.update(self._update_critic(batch_tensors))
-        if self._grad_step % self.config["policy_delay"] == 0:
-            info.update(self._update_policy(batch_tensors))
 
-        update_polyak(
-            self.module.critics, self.module.target_critics, self.config["polyak"]
-        )
+        info.update(self._update_critic(batch))
+        if self._grad_step % self.config["policy_delay"] == 0:
+            info.update(self._update_policy(batch))
+
+        critics, target_critics = self.module.critics, self.module.target_critics
+        update_polyak(critics, target_critics, self.config["polyak"])
         return info
 
     def _update_critic(self, batch_tensors):

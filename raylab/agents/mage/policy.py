@@ -34,12 +34,16 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
         loss_critic: model-based action-value-gradient estimator loss
     """
 
+    # pylint:disable=too-many-ancestors
     dist_class = WrapDeterministicPolicy
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
         self._set_model_loss()
         self._set_critic_loss()
+
+    def build_replay_buffer(self):
+        pass
 
     def _set_model_loss(self):
         self.loss_model = MaximumLikelihood(self.module.models)
@@ -57,6 +61,12 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
         )
         self.loss_critic.gamma = self.config["gamma"]
         self.loss_critic.lambd = self.config["lambda"]
+
+    def learn_on_batch(self, samples):
+        batch = self.lazy_tensor_dict(samples)
+        info = self.improve_policy(batch)
+        info.update(self.get_exploration_info())
+        return info
 
     @property
     def model_training_loss(self):
