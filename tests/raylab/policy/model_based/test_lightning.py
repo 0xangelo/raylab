@@ -242,9 +242,8 @@ def test_trainer_output(policy, model_trainer, samples):
 
 
 class WorseningLoss(DummyLoss):
-    def __init__(self, models):
-        super().__init__(models)
-        self.models = models
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._increasing_seq = itertools.count()
 
     def _losses(self):
@@ -253,15 +252,6 @@ class WorseningLoss(DummyLoss):
             fill_value=float(next(self._increasing_seq)),
             requires_grad=True,
         )
-
-    def _perturb_models(self):
-        perturbations = [torch.randn_like(p) * 0.01 for p in self.models.parameters()]
-        for par, per in zip(self.models.parameters(), perturbations):
-            par.data.add_(per)
-
-    def __call__(self, *args, **kwargs):
-        self._perturb_models()
-        return super().__call__(*args, **kwargs)
 
 
 @pytest.fixture
