@@ -10,16 +10,13 @@ from .policy import SoftSVGTorchPolicy
 class SoftSVGTrainer(OffPolicyTrainer):
     """Single agent trainer for SoftSVG."""
 
-    # pylint:disable=attribute-defined-outside-init
+    # pylint:disable=abstract-method
     _name = "SoftSVG"
 
     def get_policy_class(self, _):
         return SoftSVGTorchPolicy
 
-    def optimize_policy_backend(self):
-        pass
-
     @override(OffPolicyTrainer)
     def after_init(self):
+        super().after_init()
         set_policy_with_env_fn(self.workers, fn_type="reward")
-        super().optimize_policy_backend()

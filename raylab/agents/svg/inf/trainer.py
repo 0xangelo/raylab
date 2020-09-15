@@ -39,10 +39,7 @@ class SVGInfTrainer(Trainer):
             config["learning_starts"] == 0
         ), "No point in having a warmup/exploration phase"
 
-    def optimize_policy_backend(self):
-        pass
-
     @override(Trainer)
     def after_init(self):
+        super().after_init()
         set_policy_with_env_fn(self.workers, fn_type="reward")
-        super().optimize_policy_backend()

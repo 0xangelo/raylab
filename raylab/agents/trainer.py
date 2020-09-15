@@ -132,11 +132,12 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         # Creating all workers (excluding evaluation workers).
         num_workers = config["num_workers"]
         self.workers = self._make_workers(env_creator, cls, config, num_workers)
-        self.optimize_policy_backend()
         self.train_exec_impl = self.execution_plan(self.workers, config)
         self.wandb = WandBLogger(config, self._name)
 
         self.after_init()
+
+        self.optimize_policy_backend()
 
     def restore_reserved(self) -> TrainerConfigDict:
         restored = self._true_config
@@ -171,8 +172,9 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     def after_init(self):
         """Arbitrary setup after default initialization.
 
-        Called last in the :meth:`_init` procedure, after the worker set,
-        execution plan, and wandb logger have been created.
+        Called second-to-last in the :meth:`_init` procedure, after worker set,
+        execution plan, and wandb logger creation and before
+        :meth:`optimize_policy_backend`.
         """
 
     def optimize_policy_backend(self):

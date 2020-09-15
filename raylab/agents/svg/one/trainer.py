@@ -16,10 +16,7 @@ class SVGOneTrainer(OffPolicyTrainer):
     def get_policy_class(self, _):
         return SVGOneTorchPolicy
 
-    def optimize_policy_backend(self):
-        pass
-
     @override(OffPolicyTrainer)
     def after_init(self):
+        super().after_init()
         set_policy_with_env_fn(self.workers, fn_type="reward")
-        super().optimize_policy_backend()

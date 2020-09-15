@@ -1,15 +1,9 @@
 """Generic Trainer and base configuration for model-based agents."""
 import logging
 from typing import Any
-from typing import Callable
 
 from ray.rllib import Policy
-from ray.rllib.env.env_context import EnvContext
 from ray.rllib.evaluation.worker_set import WorkerSet
-from ray.rllib.utils.types import EnvType
-from ray.rllib.utils.types import PartialTrainerConfigDict
-
-from raylab.utils.wandb import WandBLogger
 
 from .trainer import Trainer
 
@@ -71,28 +65,9 @@ class ModelBasedTrainer(Trainer):
     """
 
     # pylint:disable=abstract-method
-    _name: str
-
-    def _init(
-        self,
-        config: PartialTrainerConfigDict,
-        env_creator: Callable[[EnvContext], EnvType],
-    ):
-        self.config = config = self.restore_reserved()
-        self.validate_config(config)
-        self._policy = cls = self.get_policy_class(config)
-
-        self.before_init()
-
-        # Creating all workers (excluding evaluation workers).
-        num_workers = config["num_workers"]
-        self.workers = self._make_workers(env_creator, cls, config, num_workers)
+    def after_init(self):
+        super().after_init()
         self.set_env_fns()
-        self.optimize_policy_backend()
-        self.train_exec_impl = self.execution_plan(self.workers, config)
-        self.wandb = WandBLogger(config, self._name)
-
-        self.after_init()
 
     def set_env_fns(self):
         """Set reward and termination functions for policies."""
