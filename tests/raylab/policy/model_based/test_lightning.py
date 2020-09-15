@@ -29,9 +29,12 @@ class DummyLoss(Loss):
     def __init__(self, models):
         self.ensemble_size = len(models)
 
+    def _losses(self):
+        return torch.randn(self.ensemble_size)
+
     def __call__(self, _):
-        losses = torch.randn(self.ensemble_size).requires_grad_(True)
-        return losses.sum(), {"loss(models)": losses.mean().item()}
+        self.last_losses = losses = self._losses().requires_grad_(True)
+        return losses.mean(), {"loss(models)": losses.mean().item()}
 
 
 @pytest.fixture(scope="module")
@@ -217,20 +220,17 @@ def test_trainer_output(policy, samples):
     assert "test/loss(models)" in info
 
 
-class WorseningLoss(Loss):
-    batch_keys = (SampleBatch.CUR_OBS, SampleBatch.ACTIONS, SampleBatch.NEXT_OBS)
-
-    def __init__(self, models):
-        self.ensemble_size = len(models)
+class WorseningLoss(DummyLoss):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._increasing_seq = itertools.count()
 
-    def __call__(self, _):
-        losses = torch.full(
+    def _losses(self):
+        return torch.full(
             (self.ensemble_size,),
             fill_value=float(next(self._increasing_seq)),
             requires_grad=True,
         )
-        return losses.sum(), {"loss(models)": losses.mean().item()}
 
 
 @pytest.fixture

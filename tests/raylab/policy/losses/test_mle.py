@@ -10,11 +10,6 @@ def loss_fn(models):
     return MaximumLikelihood(models)
 
 
-@pytest.fixture
-def n_models(models):
-    return len(models)
-
-
 def test_init(loss_fn, models):
     assert hasattr(loss_fn, "batch_keys")
     assert hasattr(loss_fn, "models")
@@ -22,11 +17,11 @@ def test_init(loss_fn, models):
     assert all([m is n for m, n in zip(models, loss_fn.models)])
 
 
-def test_call(loss_fn, batch, n_models):
+def test_call(loss_fn, batch):
     loss, info = loss_fn(batch)
 
     assert torch.is_tensor(loss)
-    assert loss.shape == (n_models,)
+    assert loss.shape == ()
     assert isinstance(info, dict)
     assert all([isinstance(k, str) for k in info.keys()])
     assert all([isinstance(v, float) for v in info.values()])

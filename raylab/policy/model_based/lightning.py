@@ -2,14 +2,15 @@
 import warnings
 from abc import ABC
 from abc import abstractmethod
+from collections import deque
 from dataclasses import dataclass
 from dataclasses import field
 from typing import List
 from typing import Optional
 from typing import Tuple
 
-import numpy as np
 import pytorch_lightning as pl
+import torch
 import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from ray.rllib import SampleBatch
@@ -196,8 +197,38 @@ class LightningModel(pl.LightningModule):
 
 
 class EarlyStopping(pl.callbacks.EarlyStopping):
+    losses_history: deque
+    _epoch_losses: List[Tensor]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.losses_history = deque(maxlen=self.patience + 1)
+
     def __warn_deprecated_monitor_key(self):
         pass  # Disable annoying UserWarning
+
+    def on_validation_epoch_start(self, trainer, pl_module):
+        self._epoch_losses = []
+        super().on_validation_epoch_start(trainer, pl_module)
+
+    def on_validation_batch_end(
+        self, trainer, pl_module, batch, batch_idx, dataloader_idx
+    ):
+        # pylint:disable=too-many-arguments
+        self._epoch_losses += [pl_module.val_loss.last_losses]
+        super().on_validation_batch_end(
+            trainer, pl_module, batch, batch_idx, dataloader_idx
+        )
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        model_losses = torch.stack(self._epoch_losses, dim=0).mean(dim=0)
+        self.losses_history += [model_losses]
+        super().on_validation_epoch_end(trainer, pl_module)
+
+    @property
+    def best_losses(self) -> List[float]:
+        """Return the corresponding losses of the checkpointed models."""
+        return self.losses_history[-self.wait_count - 1].tolist()
 
 
 # ======================================================================================
@@ -277,7 +308,7 @@ class LightningModelMixin(ABC):
 
         info = self.run_training(model=model, trainer=trainer, train=train, val=val)
         info.update({"model_epochs": trainer.current_epoch + 1})
-        return [np.nan for _ in self.module.models], info
+        return trainer.early_stop_callback.best_losses, info
 
     def get_lightning_model(self, loss_fn: Loss) -> LightningModel:
         if self._pl_model is None:

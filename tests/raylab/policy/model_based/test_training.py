@@ -21,9 +21,14 @@ class DummyLoss:
     def __init__(self, ensemble_size):
         self.ensemble_size = ensemble_size
 
+    def _losses(self):
+        return torch.randn(self.ensemble_size)
+
     def __call__(self, _):
-        losses = torch.randn(self.ensemble_size).requires_grad_(True)
-        return losses, {"loss(models)": losses.mean().item()}
+        self.last_losses = losses = self._losses()
+        return losses.requires_grad_(True).mean(), {
+            "loss(models)": losses.mean().item()
+        }
 
 
 @pytest.fixture
@@ -184,11 +189,16 @@ def patient_policy(patience_epochs, policy_cls, config):
     return policy_cls(config)
 
 
-def test_early_stop(patient_policy, patience_epochs, ensemble_size, mocker, samples):
-    mock = mocker.patch.object(DummyLoss, "__call__")
-    mock.side_effect = lambda _: (torch.ones(ensemble_size).requires_grad_(), {})
+class WorseningLoss(DummyLoss):
+    def _losses(self):
+        return torch.ones(self.ensemble_size)
+
+
+def test_early_stop(patient_policy, patience_epochs, ensemble_size, samples):
+    patient_policy.loss_train = patient_policy.loss_warmup = WorseningLoss(
+        ensemble_size
+    )
 
     _, info = patient_policy.optimize_model(samples, warmup=False)
 
-    assert mock.called
     assert info["model_epochs"] == patience_epochs

@@ -79,8 +79,8 @@ class Evaluator:
     patience_epochs: Optional[int]
 
     def __post_init__(self):
-        eval_losses, _ = self.loss_fn(self.eval_tensors)
-        eval_losses = eval_losses.tolist()
+        self.loss_fn(self.eval_tensors)
+        eval_losses = self.loss_fn.last_losses.tolist()
         self._snapshots = [
             ModelSnapshot(epoch=-1, loss=loss, state_dict=copy.deepcopy(m.state_dict()))
             for m, loss in zip(self.models, eval_losses)
@@ -96,8 +96,8 @@ class Evaluator:
             A tuple with two values: whether or not to early stop training based
             on validation loss improvement and a dict with validation loss info
         """
-        eval_losses, eval_info = self.loss_fn(self.eval_tensors)
-        eval_losses = eval_losses.tolist()
+        _, eval_info = self.loss_fn(self.eval_tensors)
+        eval_losses = self.loss_fn.last_losses.tolist()
         eval_info = {"eval/" + k: v for k, v in eval_info.items()}
 
         self._update_snapshots(epoch, eval_losses)
@@ -354,8 +354,8 @@ class ModelTrainingMixin(ABC):
         for epoch in spec.epochs():
             for minibatch in dataloader:
                 with self.optimizers.optimize("models"):
-                    losses, train_info = loss_fn(minibatch)
-                    losses.sum().backward()
+                    loss, train_info = loss_fn(minibatch)
+                    loss.backward()
 
                 info.update({"train/" + k: v for k, v in train_info.items()})
                 grad_steps += 1
