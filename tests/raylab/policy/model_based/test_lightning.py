@@ -13,12 +13,12 @@ from ray.rllib import SampleBatch
 from torch.utils.data import DataLoader
 
 from raylab.options import configure
-from raylab.options import option
 from raylab.policy import OptimizerCollection
 from raylab.policy.losses import Loss
 from raylab.policy.model_based.lightning import LightningModel
-from raylab.policy.model_based.lightning import LightningModelMixin
+from raylab.policy.model_based.lightning import LightningModelTrainer
 from raylab.torch.optim import build_optimizer
+from raylab.torch.utils import convert_to_tensor
 from raylab.utils.debug import fake_batch
 
 
@@ -42,18 +42,15 @@ class DummyLoss(Loss):
 @pytest.fixture(scope="module")
 def policy_cls(base_policy_cls):
     @configure
-    @option("model_training", LightningModelMixin.model_training_defaults())
-    @option("model_warmup", LightningModelMixin.model_training_defaults())
-    class Policy(LightningModelMixin, base_policy_cls):
+    @LightningModelTrainer.add_options
+    class Policy(base_policy_cls):
         # pylint:disable=abstract-method
         def __init__(self, model_loss, config):
             super().__init__(config)
-            self.loss_train = model_loss(self.module.models)
-            self.build_lightning_model()
-
-        @property
-        def model_training_loss(self):
-            return self.loss_train
+            models = self.module.models
+            self.model_trainer = LightningModelTrainer(
+                models, model_loss(models), self.optimizers["models"], self.config
+            )
 
         def _make_optimizers(self):
             optimizers = super()._make_optimizers()
@@ -131,17 +128,21 @@ def test_init(
     holdout_ratio,
 ):
     # pylint:disable=too-many-arguments
+    model_trainer = mocker.spy(LightningModelTrainer, "__init__")
     pl_module = mocker.spy(pl.LightningModule, "__init__")
 
     policy = policy_cls(DummyLoss, config)
 
-    for spec in (policy.model_training_spec, policy.model_warmup_spec):
+    assert pl_module.called
+    assert model_trainer.called
+
+    trainer = policy.model_trainer
+    for spec in (trainer.model_training_spec, trainer.model_warmup_spec):
         assert spec.max_epochs == max_epochs
         assert spec.max_steps == max_steps
         assert spec.improvement_delta == improvement_delta
         assert spec.patience == patience
         assert spec.holdout_ratio == holdout_ratio
-    assert pl_module.called
 
 
 @pytest.fixture
@@ -172,7 +173,7 @@ def _test_optimization(policy, mocker, samples, warmup):
 
     stderr, stdout = io.StringIO(), io.StringIO()
     with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(stdout):
-        losses, info = policy.optimize_model(samples, warmup=warmup)
+        losses, info = policy.model_trainer.optimize(samples, warmup=warmup)
 
     assert not stderr.getvalue()
     assert not stdout.getvalue()
@@ -191,7 +192,7 @@ def _test_optimization(policy, mocker, samples, warmup):
 
 
 def test_model(policy):
-    model = policy.pl_model
+    model = policy.model_trainer.pl_model
     model_params = set(model.parameters())
 
     assert isinstance(model, LightningModel)
@@ -203,26 +204,33 @@ def test_model(policy):
     assert not set.symmetric_difference(model_params, optim_params)
 
 
+@pytest.fixture
+def model_trainer(policy):
+    return policy.model_trainer
+
+
 @pytest.mark.slow
-def test_trainer_output(policy, samples):
-    spec = policy.model_training_spec
-    loss_fn = policy.model_training_loss
+def test_trainer_output(policy, model_trainer, samples):
+    spec = model_trainer.model_training_spec
+    loss_fn = model_trainer.model_training_loss
+    pl_model = model_trainer.pl_model
     train, val = spec.train_val_loaders(
-        *spec.train_val_tensors(samples, loss_fn.batch_keys, policy.convert_to_tensor)
+        *spec.train_val_tensors(
+            samples,
+            loss_fn.batch_keys,
+            lambda x: convert_to_tensor(x, device=pl_model.device),
+        )
     )
 
     assert isinstance(train, DataLoader)
     assert isinstance(val, DataLoader)
 
-    model = LightningModel(
-        model=policy.module.models, loss=loss_fn, optimizer=policy.optimizers["models"]
-    )
-    trainer = policy.get_trainer(spec)
+    trainer = spec.build_trainer()
     assert isinstance(trainer, pl.Trainer)
 
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", module="pytorch_lightning*")
-        outputs = trainer.test(model, test_dataloaders=val)
+        outputs = trainer.test(pl_model, test_dataloaders=val)
 
     assert isinstance(outputs, (list, tuple))
     assert len(outputs) == 1
@@ -253,14 +261,14 @@ def worsening_policy(policy_cls, config):
 
 @pytest.mark.slow
 def test_checkpointing(worsening_policy, samples):
-    policy = worsening_policy
+    trainer = worsening_policy.model_trainer
     patience = 2
-    policy.model_training_spec.max_epochs = 1000
-    policy.model_training_spec.patience = patience
+    trainer.model_training_spec.max_epochs = 1000
+    trainer.model_training_spec.patience = patience
 
-    init_params = copy.deepcopy(list(policy.module.models.parameters()))
-    losses, info = policy.optimize_model(samples, warmup=False)
+    init_params = copy.deepcopy(list(trainer.pl_model.model.parameters()))
+    losses, info = trainer.optimize(samples, warmup=False)
     assert info["model_epochs"] == patience + 1
 
-    after_params = list(policy.module.models.parameters())
+    after_params = list(trainer.pl_model.model.parameters())
     assert all([torch.allclose(i, p) for i, p in zip(init_params, after_params)])

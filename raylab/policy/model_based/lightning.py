@@ -1,8 +1,6 @@
 # pylint:disable=missing-docstring
 import statistics as stats
 import warnings
-from abc import ABC
-from abc import abstractmethod
 from collections import deque
 from dataclasses import dataclass
 from dataclasses import field
@@ -19,13 +17,112 @@ from torch import Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
+from raylab.options import option
 from raylab.policy.losses import Loss
+from raylab.policy.modules.model import SME
 from raylab.torch.utils import convert_to_tensor
 from raylab.torch.utils import TensorDictDataset
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 from raylab.utils.lightning import supress_stderr
 from raylab.utils.lightning import supress_stdout
+
+
+# ======================================================================================
+# LightningModel
+# ======================================================================================
+
+
+class LightningModel(pl.LightningModule):
+    # pylint:disable=too-many-ancestors,arguments-differ
+    def __init__(self, model: nn.Module, loss: Loss, optimizer: Optimizer):
+        super().__init__()
+        self.model = model
+        self.configure_losses(loss)
+        self.optimizer = optimizer
+
+    def configure_optimizers(self) -> Optimizer:
+        return self.optimizer
+
+    def configure_losses(self, loss: Loss):
+        self.train_loss = self.val_loss = self.test_loss = loss
+
+    def forward(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
+        return self.train_loss(batch)
+
+    def training_step(self, batch: TensorDict, _) -> pl.TrainResult:
+        loss, info = self.train_loss(batch)
+        info = self.stat_to_tensor_dict(info)
+        result = pl.TrainResult(loss)
+        result.log("train/loss", loss)
+        result.log_dict({"train/" + k: v for k, v in info.items()})
+        return result
+
+    def validation_step(self, batch: TensorDict, _) -> pl.EvalResult:
+        loss, info = self.val_loss(batch)
+        info = self.stat_to_tensor_dict(info)
+        result = pl.EvalResult(early_stop_on=loss)
+        result.log("val/loss", loss)
+        result.log_dict({"val/" + k: v for k, v in info.items()})
+        return result
+
+    def test_step(self, batch: TensorDict, _) -> pl.EvalResult:
+        loss, info = self.test_loss(batch)
+        info = self.stat_to_tensor_dict(info)
+        result = pl.EvalResult()
+        result.log("test/loss", loss)
+        result.log_dict({"test/" + k: v for k, v in info.items()})
+        return result
+
+    def stat_to_tensor_dict(self, info: StatDict) -> TensorDict:
+        return {k: convert_to_tensor(v, self.device) for k, v in info.items()}
+
+
+# ======================================================================================
+# EarlyStopping
+# ======================================================================================
+
+
+class EarlyStopping(pl.callbacks.EarlyStopping):
+    losses_history: deque
+    _epoch_outputs: List[Tuple[Tensor, StatDict]]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.losses_history = deque(maxlen=self.patience + 1)
+
+    def __warn_deprecated_monitor_key(self):
+        pass  # Disable annoying UserWarning
+
+    def on_validation_epoch_start(self, trainer, pl_module):
+        self._epoch_outputs = []
+        super().on_validation_epoch_start(trainer, pl_module)
+
+    def on_validation_batch_end(
+        self, trainer, pl_module, batch, batch_idx, dataloader_idx
+    ):
+        # pylint:disable=too-many-arguments
+        self._epoch_outputs += [pl_module.val_loss.last_output]
+        super().on_validation_batch_end(
+            trainer, pl_module, batch, batch_idx, dataloader_idx
+        )
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        epoch_losses, epoch_infos = zip(*self._epoch_outputs)
+        model_losses = torch.stack(epoch_losses, dim=0).mean(dim=0).tolist()
+        model_infos = {k: stats.mean(i[k] for i in epoch_infos) for k in epoch_infos[0]}
+        self.losses_history += [(model_losses, model_infos)]
+        super().on_validation_epoch_end(trainer, pl_module)
+
+    @property
+    def best_outputs(self) -> Tuple[List[float], StatDict]:
+        """Best computed losses for each individual model and associated info."""
+        return self.losses_history[-self.wait_count - 1]
+
+
+# ======================================================================================
+# Policy Mixin
+# ======================================================================================
 
 
 @dataclass
@@ -141,151 +238,52 @@ class TrainingSpec(DataClassJsonMixin):
         )
         return train, val
 
-
-# ======================================================================================
-# LightningModel
-# ======================================================================================
-
-
-class LightningModel(pl.LightningModule):
-    # pylint:disable=too-many-ancestors,arguments-differ
-    def __init__(self, model: nn.Module, loss: Loss, optimizer: Optimizer):
-        super().__init__()
-        self.model = model
-        self.configure_losses(loss)
-        self.optimizer = optimizer
-
-    def configure_optimizers(self) -> Optimizer:
-        return self.optimizer
-
-    def configure_losses(self, loss: Loss):
-        self.train_loss = self.val_loss = self.test_loss = loss
-
-    def forward(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
-        return self.train_loss(batch)
-
-    def training_step(self, batch: TensorDict, _) -> pl.TrainResult:
-        loss, info = self.train_loss(batch)
-        info = self.stat_to_tensor_dict(info)
-        result = pl.TrainResult(loss)
-        result.log("train/loss", loss)
-        result.log_dict({"train/" + k: v for k, v in info.items()})
-        return result
-
-    def validation_step(self, batch: TensorDict, _) -> pl.EvalResult:
-        loss, info = self.val_loss(batch)
-        info = self.stat_to_tensor_dict(info)
-        result = pl.EvalResult(early_stop_on=loss)
-        result.log("val/loss", loss)
-        result.log_dict({"val/" + k: v for k, v in info.items()})
-        return result
-
-    def test_step(self, batch: TensorDict, _) -> pl.EvalResult:
-        loss, info = self.test_loss(batch)
-        info = self.stat_to_tensor_dict(info)
-        result = pl.EvalResult()
-        result.log("test/loss", loss)
-        result.log_dict({"test/" + k: v for k, v in info.items()})
-        return result
-
-    def stat_to_tensor_dict(self, info: StatDict) -> TensorDict:
-        return {k: convert_to_tensor(v, self.device) for k, v in info.items()}
-
-
-# ======================================================================================
-# EarlyStopping
-# ======================================================================================
-
-
-class EarlyStopping(pl.callbacks.EarlyStopping):
-    losses_history: deque
-    _epoch_outputs: List[Tuple[Tensor, StatDict]]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.losses_history = deque(maxlen=self.patience + 1)
-
-    def __warn_deprecated_monitor_key(self):
-        pass  # Disable annoying UserWarning
-
-    def on_validation_epoch_start(self, trainer, pl_module):
-        self._epoch_outputs = []
-        super().on_validation_epoch_start(trainer, pl_module)
-
-    def on_validation_batch_end(
-        self, trainer, pl_module, batch, batch_idx, dataloader_idx
-    ):
-        # pylint:disable=too-many-arguments
-        self._epoch_outputs += [pl_module.val_loss.last_output]
-        super().on_validation_batch_end(
-            trainer, pl_module, batch, batch_idx, dataloader_idx
+    def build_trainer(self) -> pl.Trainer:
+        return pl.Trainer(
+            logger=False,
+            early_stop_callback=EarlyStopping(
+                min_delta=self.improvement_delta,
+                patience=self.patience,
+                mode="min",
+                strict=False,
+            ),
+            max_epochs=self.max_epochs,
+            max_steps=self.max_steps,
+            progress_bar_refresh_rate=0,
+            track_grad_norm=2,
+            # gradient_clip_val=1e4,  # Broken
         )
 
-    def on_validation_epoch_end(self, trainer, pl_module):
-        epoch_losses, epoch_infos = zip(*self._epoch_outputs)
-        model_losses = torch.stack(epoch_losses, dim=0).mean(dim=0).tolist()
-        model_infos = {k: stats.mean(i[k] for i in epoch_infos) for k in epoch_infos[0]}
-        self.losses_history += [(model_losses, model_infos)]
-        super().on_validation_epoch_end(trainer, pl_module)
 
-    @property
-    def best_outputs(self) -> Tuple[List[float], StatDict]:
-        """Best computed losses for each individual model and associated info."""
-        return self.losses_history[-self.wait_count - 1]
+class LightningModelTrainer:
+    """Model training behavior for TorchPolicy instances via PyTorch Lightning.
 
-
-# ======================================================================================
-# Policy Mixin
-# ======================================================================================
-
-
-class LightningModelMixin(ABC):
-    """Adds model training behavior to a TorchPolicy class via PyTorch Lightning.
-
-    Expects:
-    * A `models` attribute in `self.module`
-    * A `model_training` dict in `self.config`
-    * A `model_warmup` dict in `self.config`
-    * A 'models' optimizer in `self.optimizers`
+    Args:
+        models: Stochastic model ensemble
+        loss_fn: Loss associated with the model ensemble
+        optimizer: Optimizer associated with the model ensemble
+        config: Dictionary containg `model_training` and `model_warmup` dicts
 
     Attributes:
         model_training_spec: Specifications for training the model
         model_warmup_spec: Specifications for model warm-up
+        model_training_loss: Loss function used for normal model training and
+            evaluation
+        model_warmup_loss: Loss function used for model warm-up.
     """
 
     model_training_spec: TrainingSpec
     model_warmup_spec: TrainingSpec
     pl_model: LightningModel
 
-    def build_lightning_model(self):
-        self.model_training_spec = TrainingSpec.from_dict(self.config["model_training"])
-        self.model_warmup_spec = TrainingSpec.from_dict(self.config["model_warmup"])
-        self.pl_model = LightningModel(
-            model=self.module.models,
-            loss=self.model_training_loss,
-            optimizer=self.optimizers["models"],
-        )
+    def __init__(self, models: SME, loss_fn: Loss, optimizer: Optimizer, config: dict):
+        self.model_training_spec = TrainingSpec.from_dict(config["model_training"])
+        self.model_warmup_spec = TrainingSpec.from_dict(config["model_warmup"])
+        self.model_training_loss = self.model_warmup_loss = loss_fn
+        self.pl_model = LightningModel(model=models, loss=loss_fn, optimizer=optimizer)
 
-    @property
-    @abstractmethod
-    def model_training_loss(self) -> Loss:
-        """Loss function used for normal model training and evaluation.
-
-        Must return a 1d Tensor with each model's losses and an info dict.
-        """
-
-    @property
-    def model_warmup_loss(self) -> Loss:
-        """Loss function used for model warm-up.
-
-        Must return a 1d Tensor with each model's losses and an info dict.
-        """
-        return self.model_training_loss
-
-    def optimize_model(
-        self,
-        samples: SampleBatch,
-        warmup: bool = False,
+    def optimize(
+        self, samples: SampleBatch, warmup: bool = False
     ) -> Tuple[List[float], StatDict]:
         """Update models with samples.
 
@@ -300,40 +298,26 @@ class LightningModelMixin(ABC):
         loss_fn = self.model_warmup_loss if warmup else self.model_training_loss
         spec = self.model_warmup_spec if warmup else self.model_training_spec
 
+        pl_model = self.pl_model
+        pl_model.configure_losses(loss_fn)
         train_tensors, val_tensors = spec.train_val_tensors(
-            samples, loss_fn.batch_keys, self.convert_to_tensor
+            samples,
+            loss_fn.batch_keys,
+            lambda x: convert_to_tensor(x, device=pl_model.device),
         )
         # Fit scalers for each model here
-        for model in self.module.models:
+        for model in pl_model.model:
             model.encoder.fit_scaler(
                 train_tensors[SampleBatch.CUR_OBS], train_tensors[SampleBatch.ACTIONS]
             )
 
-        self.pl_model.configure_losses(loss_fn)
-        trainer = self.get_trainer(spec)
+        trainer = spec.build_trainer()
         train, val = spec.train_val_loaders(train_tensors, val_tensors)
 
         losses, info = self.run_training(
             model=self.pl_model, trainer=trainer, train=train, val=val
         )
         return losses, info
-
-    @staticmethod
-    def get_trainer(spec: TrainingSpec) -> pl.Trainer:
-        return pl.Trainer(
-            logger=False,
-            early_stop_callback=EarlyStopping(
-                min_delta=spec.improvement_delta,
-                patience=spec.patience,
-                mode="min",
-                strict=False,
-            ),
-            max_epochs=spec.max_epochs,
-            max_steps=spec.max_steps,
-            progress_bar_refresh_rate=0,
-            track_grad_norm=2,
-            # gradient_clip_val=1e4,  # Broken
-        )
 
     @staticmethod
     @supress_stderr
@@ -350,6 +334,20 @@ class LightningModelMixin(ABC):
         return losses, info
 
     @staticmethod
-    def model_training_defaults():
-        """The default configuration dict for model training."""
-        return TrainingSpec().to_dict()
+    def add_options(cls_: type) -> type:
+        """Add options for classes that may use this class."""
+        cls = cls_
+        for opt in [
+            option(
+                "model_training",
+                default=TrainingSpec().to_dict(),
+                help=TrainingSpec.__doc__,
+            ),
+            option(
+                "model_warmup",
+                default=TrainingSpec().to_dict(),
+                help="Specifications for model warm-up; same as 'model_training'",
+            ),
+        ]:
+            cls = opt(cls)
+        return cls

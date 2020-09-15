@@ -7,9 +7,8 @@ from raylab.options import option
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import MaximumLikelihood
 from raylab.policy.model_based import EnvFnMixin
-from raylab.policy.model_based import LightningModelMixin
+from raylab.policy.model_based import LightningModelTrainer
 from raylab.policy.model_based import ModelSamplingMixin
-from raylab.policy.model_based.lightning import TrainingSpec
 from raylab.policy.model_based.policy import MBPolicyMixin
 from raylab.policy.model_based.policy import model_based_options
 from raylab.policy.model_based.sampling import SamplingSpec
@@ -42,6 +41,7 @@ DEFAULT_MODULE = {
 
 @configure
 @model_based_options
+@LightningModelTrainer.add_options
 @option(
     "virtual_buffer_size",
     default=int(1e6),
@@ -66,23 +66,13 @@ DEFAULT_MODULE = {
     "torch_optimizer/models",
     default={"type": "Adam", "lr": 3e-4, "weight_decay": 0.0001},
 )
-@option("model_training", default=TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
-@option(
-    "model_warmup",
-    default=TrainingSpec().to_dict(),
-    help="""Specifications for model warm-up.
-
-    Same configurations as 'model_training'.
-    """,
-)
 @option("model_sampling", default=SamplingSpec().to_dict(), help=SamplingSpec.__doc__)
-class MBPOTorchPolicy(
-    MBPolicyMixin, EnvFnMixin, LightningModelMixin, ModelSamplingMixin, SACTorchPolicy
-):
+class MBPOTorchPolicy(MBPolicyMixin, EnvFnMixin, ModelSamplingMixin, SACTorchPolicy):
     """Model-Based Policy Optimization policy in PyTorch to use with RLlib."""
 
     # pylint:disable=too-many-ancestors
     virtual_replay: NumpyReplayBuffer
+    model_trainer: LightningModelTrainer
     dist_class = WrapStochasticPolicy
 
     def __init__(self, observation_space, action_space, config):
@@ -91,7 +81,9 @@ class MBPOTorchPolicy(
         self.loss_model = MaximumLikelihood(models)
 
         self.build_timers()
-        self.build_lightning_model()
+        self.model_trainer = LightningModelTrainer(
+            self.module.models, self.loss_model, self.optimizers["models"], self.config
+        )
 
     @property
     def model_training_loss(self):
@@ -139,6 +131,9 @@ class MBPOTorchPolicy(
 
         info.update(self.timer_stats())
         return info
+
+    def optimize_model(self, samples, warmup):
+        return self.model_trainer.optimize(samples, warmup=warmup)
 
     def populate_virtual_buffer(self):
         # pylint:disable=missing-function-docstring
