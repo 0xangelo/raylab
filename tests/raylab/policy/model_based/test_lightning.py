@@ -242,9 +242,14 @@ def test_trainer_output(policy, model_trainer, samples):
 
 
 class WorseningLoss(DummyLoss):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, models):
+        super().__init__(models)
         self._increasing_seq = itertools.count()
+        self.models = models
+
+    def set_grads(self):
+        for par in self.models.parameters():
+            par.grad = torch.ones_like(par)
 
     def _losses(self):
         return torch.full(
@@ -252,6 +257,10 @@ class WorseningLoss(DummyLoss):
             fill_value=float(next(self._increasing_seq)),
             requires_grad=True,
         )
+
+    def __call__(self, *args, **kwargs):
+        self.set_grads()
+        return super().__call__(*args, **kwargs)
 
 
 @pytest.fixture
@@ -263,12 +272,23 @@ def worsening_policy(policy_cls, config):
 def test_checkpointing(worsening_policy, samples):
     trainer = worsening_policy.model_trainer
     patience = 2
-    trainer.model_training_spec.max_epochs = 1000
-    trainer.model_training_spec.patience = patience
+    spec = trainer.model_training_spec
+    spec.max_epochs = 1000
+    spec.patience = patience
 
-    init_params = copy.deepcopy(list(trainer.pl_model.model.parameters()))
-    losses, info = trainer.optimize(samples, warmup=False)
+    pl_model = trainer.pl_model
+    train_tensors, val_tensors = spec.train_val_tensors(
+        samples,
+        pl_model.train_loss.batch_keys,
+        lambda x: convert_to_tensor(x, device=pl_model.device),
+    )
+
+    pl_trainer = spec.build_trainer()
+    train, val = spec.train_val_loaders(train_tensors, val_tensors)
+
+    before_params = copy.deepcopy(list(pl_model.parameters()))
+    losses, info = trainer.run_training(pl_model, pl_trainer, train, val)
     assert info["model_epochs"] == patience + 1
 
-    after_params = list(trainer.pl_model.model.parameters())
-    assert all([torch.allclose(i, p) for i, p in zip(init_params, after_params)])
+    after_params = list(pl_model.parameters())
+    assert all([torch.allclose(b, a) for b, a in zip(before_params, after_params)])
