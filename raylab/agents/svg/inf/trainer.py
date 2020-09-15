@@ -31,9 +31,6 @@ class SVGInfTrainer(Trainer):
         assert (
             config["batch_mode"] == "complete_episodes"
         ), "SVG(inf) uses full rollouts"
-        assert (
-            config["learning_starts"] == 0
-        ), "No point in having a warmup/exploration phase"
 
     @override(Trainer)
     def after_init(self):

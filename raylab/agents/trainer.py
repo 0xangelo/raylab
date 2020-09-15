@@ -11,12 +11,9 @@ from ray.exceptions import RayError
 from ray.rllib import Policy
 from ray.rllib.agents import Trainer as RLlibTrainer
 from ray.rllib.agents.trainer import MAX_WORKER_FAILURE_RETRIES
+from ray.rllib.agents.trainer_template import default_execution_plan
 from ray.rllib.env.env_context import EnvContext
 from ray.rllib.evaluation.worker_set import WorkerSet
-from ray.rllib.execution.metric_ops import StandardMetricsReporting
-from ray.rllib.execution.rollout_ops import ConcatBatches
-from ray.rllib.execution.rollout_ops import ParallelRollouts
-from ray.rllib.execution.train_ops import TrainOneStep
 from ray.rllib.utils import override as overrides
 from ray.rllib.utils.types import EnvType
 from ray.rllib.utils.types import PartialTrainerConfigDict
@@ -24,35 +21,12 @@ from ray.rllib.utils.types import ResultDict
 from ray.rllib.utils.types import TrainerConfigDict
 from ray.tune.trainable import Trainable
 
-from raylab.execution import LearningStarts
 from raylab.options import configure
 from raylab.options import option
 from raylab.options import TrainerOptions
 from raylab.utils.wandb import WandBLogger
 
 logger = logging.getLogger(__name__)
-
-
-# ==============================================================================
-# Default Execution Plan
-# ==============================================================================
-def default_execution_plan(workers: WorkerSet, config: TrainerConfigDict):
-    """RLlib's default execution plan with an added warmup phase."""
-    # Collects experiences in parallel from multiple RolloutWorker actors.
-    rollouts = ParallelRollouts(workers, mode="bulk_sync")
-
-    # On the first iteration, hold until we have at least `learning_starts` timesteps.
-    # Combine experiences batches until we hit `train_batch_size` in size.
-    # Then, train the policy on those experiences and update the workers.
-    train_op = (
-        rollouts.combine(LearningStarts(learning_starts=config["learning_starts"]))
-        .combine(ConcatBatches(min_batch_size=config["train_batch_size"]))
-        .for_each(TrainOneStep(workers))
-    )
-
-    # Add on the standard episode reward, etc. metrics reporting. This returns
-    # a LocalIterator[metrics_dict] representing metrics for each train step.
-    return StandardMetricsReporting(train_op, workers, config)
 
 
 # ==============================================================================
@@ -85,11 +59,6 @@ def default_execution_plan(workers: WorkerSet, config: TrainerConfigDict):
     Check out the Quickstart for more information:
     `https://docs.wandb.com/quickstart`
     """,
-)
-@option(
-    "learning_starts",
-    default=0,
-    help="""Hold this number of timesteps before first training operation.""",
 )
 class Trainer(RLlibTrainer, metaclass=ABCMeta):
     """Base class for raylab trainers."""

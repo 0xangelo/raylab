@@ -1,25 +1,20 @@
 import pytest
-from ray.rllib import Policy
-from ray.rllib.agents.trainer import COMMON_CONFIG
 
+from raylab.agents.off_policy import OffPolicyMixin
 from raylab.agents.trainer import Trainer
+from raylab.options import configure
 
 
 @pytest.fixture
 def policy_cls(dummy_policy_cls):
-    class CLS(dummy_policy_cls):
-        # pylint:disable=all
-        compiled: bool = False
-
-        def compile(self):
-            self.compiled = True
-
-    return CLS
+    return dummy_policy_cls
 
 
 @pytest.fixture
 def trainer_cls(policy_cls):
-    class Sub(Trainer):
+    @configure
+    @OffPolicyMixin.add_options
+    class Sub(OffPolicyMixin, Trainer):
         _name = "Dummy"
         _policy = policy_cls
 
@@ -42,22 +37,11 @@ def learning_starts(request):
 
 
 @pytest.fixture
-def policy_config():
-    return {}
-
-
-@pytest.fixture
-def wandb_config():
-    return {}
-
-
-@pytest.fixture
 def config(
     rollout_fragment_length,
     timesteps_per_iteration,
     train_batch_size,
-    policy_config,
-    wandb_config,
+    learning_starts,
 ):
     # pylint:disable=too-many-arguments
     return {
@@ -66,15 +50,8 @@ def config(
         "batch_mode": "truncate_episodes",
         "timesteps_per_iteration": timesteps_per_iteration,
         "train_batch_size": train_batch_size,
-        "policy": policy_config,
-        "wandb": wandb_config,
+        "learning_starts": learning_starts,
     }
-
-
-def test_optimize_policy_backend(trainer_cls, config):
-    config = {**config, "policy": {"compile": True}}
-    trainer = trainer_cls(config=config)
-    assert trainer.get_policy().compiled
 
 
 @pytest.fixture
@@ -82,19 +59,10 @@ def trainer(trainer_cls, config):
     return trainer_cls(config=config)
 
 
-def test_policy(trainer):
-    policy = trainer.get_policy()
-    assert isinstance(policy, Policy)
-
-
-def test_config(trainer):
-    assert set(COMMON_CONFIG.keys()).issubset(set(trainer.config.keys()))
-    assert "policy" in trainer.config
-    assert "wandb" in trainer.config
-
-
-def test_first_train(trainer, timesteps_per_iteration, trainable_info_keys):
-    expected_timesteps = timesteps_per_iteration
+def test_first_train(
+    trainer, timesteps_per_iteration, learning_starts, trainable_info_keys
+):
+    expected_timesteps = max(timesteps_per_iteration, learning_starts)
     res = trainer.train()
 
     res_keys = set(res.keys())
@@ -106,8 +74,10 @@ def test_first_train(trainer, timesteps_per_iteration, trainable_info_keys):
     assert policy.global_timestep == expected_timesteps
 
 
-def test_second_train(trainer, timesteps_per_iteration):
-    expected_timesteps = timesteps_per_iteration * 2
+def test_second_train(trainer, timesteps_per_iteration, learning_starts):
+    expected_timesteps = (
+        max(timesteps_per_iteration, learning_starts) + timesteps_per_iteration
+    )
 
     for _ in range(2):
         res = trainer.train()
