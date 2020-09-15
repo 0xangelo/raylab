@@ -6,7 +6,8 @@ import pytest
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.agents.options import RaylabOptions
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import ModelSamplingMixin
 from raylab.policy import TorchPolicy
 from raylab.utils.debug import fake_batch
@@ -17,6 +18,10 @@ ROLLOUT_SCHEDULE = ([(0, 1), (200, 10)], [(7, 2)])
 
 @pytest.fixture(scope="module")
 def policy_cls(base_policy_cls):
+    @configure
+    @option("model_sampling", ModelSamplingMixin.model_sampling_defaults())
+    @option("module/type", "ModelBasedSAC")
+    @option("seed", 1, override=True)
     class Policy(ModelSamplingMixin, base_policy_cls):
         # pylint:disable=all
 
@@ -31,16 +36,6 @@ def policy_cls(base_policy_cls):
 
             self.reward_fn = reward_fn
             self.termination_fn = termination_fn
-
-        @property
-        def options(self):
-            options = RaylabOptions()
-            options.set_option(
-                "model_sampling", ModelSamplingMixin.model_sampling_defaults()
-            )
-            options.set_option("module/type", "ModelBasedSAC")
-            options.set_option("seed", 1, override=True)
-            return options
 
     return Policy
 
@@ -63,7 +58,7 @@ def rollout_schedule(request):
 
 @pytest.fixture(scope="module")
 def config(ensemble_size, rollout_schedule):
-    return {
+    options = {
         "model_sampling": {
             "num_elites": (ensemble_size + 1) // 2,
             "rollout_schedule": rollout_schedule,
@@ -71,6 +66,7 @@ def config(ensemble_size, rollout_schedule):
         "module": {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}},
         "seed": 123,
     }
+    return {"policy": options}
 
 
 @pytest.fixture(scope="module")

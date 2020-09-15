@@ -44,6 +44,13 @@ def disable_gym_logger_warnings():
 
 
 @pytest.fixture(autouse=True, scope="session")
+def register_agents():
+    import raylab
+
+    raylab.register_all_agents()
+
+
+@pytest.fixture(autouse=True, scope="session")
 def register_envs():
     import raylab
     from raylab.envs.registry import ENVS

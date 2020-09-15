@@ -3,20 +3,19 @@ import math
 import pytest
 import torch
 
-from raylab.agents.options import RaylabOptions
 from raylab.envs import get_reward_fn
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import EnvFnMixin
 from raylab.utils.debug import fake_space_samples
 
 
 @pytest.fixture
 def policy_cls(base_policy_cls):
+    @configure
+    @option("module/type", "ModelBasedSAC")
     class Policy(EnvFnMixin, base_policy_cls):
-        @property
-        def options(self):
-            options = RaylabOptions()
-            options.set_option("module/type", "ModelBasedSAC")
-            return options
+        pass
 
     return Policy
 

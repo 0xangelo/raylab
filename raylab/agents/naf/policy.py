@@ -3,15 +3,37 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import FittedQLearning
 from raylab.policy.modules.critic import ClippedVValue
+from raylab.policy.off_policy import off_policy_options
+from raylab.policy.off_policy import OffPolicyMixin
 from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
+from raylab.utils.annotations import TensorDict
 
 
-class NAFTorchPolicy(TorchPolicy):
+@configure
+@off_policy_options
+@option("torch_optimizer/type", "Adam")
+@option("torch_optimizer/lr", 3e-4)
+@option(
+    "polyak",
+    0.995,
+    help="Interpolation factor in polyak averaging for target networks.",
+)
+@option("module/type", "NAF")
+@option("module/separate_behavior", True)
+@option("exploration_config/type", "raylab.utils.exploration.ParameterNoise")
+@option(
+    "exploration_config/param_noise_spec",
+    {"initial_stddev": 0.1, "desired_action_stddev": 0.2, "adaptation_coeff": 1.01},
+)
+@option("exploration_config/pure_exploration_steps", 1000)
+class NAFTorchPolicy(OffPolicyMixin, TorchPolicy):
     """Normalized Advantage Function policy in Pytorch to use with RLlib."""
 
     # pylint:disable=abstract-method
@@ -24,13 +46,7 @@ class NAFTorchPolicy(TorchPolicy):
         )
         self.loss_fn.gamma = self.config["gamma"]
 
-    @property
-    @override(TorchPolicy)
-    def options(self):
-        # pylint:disable=cyclic-import
-        from raylab.agents.naf import NAFTrainer
-
-        return NAFTrainer.options
+        self.build_replay_buffer()
 
     @override(TorchPolicy)
     def _make_module(self, obs_space, action_space, config):
@@ -47,17 +63,16 @@ class NAFTorchPolicy(TorchPolicy):
         )
         return optimizers
 
-    @override(TorchPolicy)
-    def learn_on_batch(self, samples):
-        batch_tensors = self.lazy_tensor_dict(samples)
+    @override(OffPolicyMixin)
+    def improve_policy(self, batch: TensorDict) -> dict:
         with self.optimizers.optimize("naf"):
-            loss, info = self.loss_fn(batch_tensors)
+            loss, info = self.loss_fn(batch)
             loss.backward()
 
         info.update(self.extra_grad_info())
-        update_polyak(
-            self.module.vcritics, self.module.target_vcritics, self.config["polyak"]
-        )
+
+        vcritics, target_vcritics = self.module.vcritics, self.module.target_vcritics
+        update_polyak(vcritics, target_vcritics, self.config["polyak"])
         return info
 
     @torch.no_grad()

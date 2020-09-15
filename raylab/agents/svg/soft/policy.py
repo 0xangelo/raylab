@@ -5,14 +5,58 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
 from raylab.agents.svg import SVGTorchPolicy
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import EnvFnMixin
 from raylab.policy.losses import ISSoftVIteration
 from raylab.policy.losses import MaximumEntropyDual
 from raylab.policy.losses import OneStepSoftSVG
+from raylab.policy.off_policy import off_policy_options
+from raylab.policy.off_policy import OffPolicyMixin
 from raylab.torch.optim import build_optimizer
+from raylab.utils.annotations import TensorDict
+from raylab.utils.replay_buffer import ReplayField
 
 
-class SoftSVGTorchPolicy(SVGTorchPolicy):
+TORCH_OPTIMIZERS = {
+    "model": {"type": "Adam", "lr": 1e-3},
+    "actor": {"type": "Adam", "lr": 1e-3},
+    "critic": {"type": "Adam", "lr": 1e-3},
+    "alpha": {"type": "Adam", "lr": 1e-3},
+}
+
+
+@configure
+@off_policy_options
+@option(
+    "target_entropy",
+    None,
+    help="""
+Target entropy to optimize the temperature parameter towards
+If "auto", will use the heuristic provided in the SAC paper,
+H = -dim(A), where A is the action space
+""",
+)
+@option("torch_optimizer", TORCH_OPTIMIZERS, override=True)
+@option(
+    "vf_loss_coeff",
+    1.0,
+    help="Weight of the fitted V loss in the joint model-value loss",
+)
+@option("max_is_ratio", 5.0, help="Clip importance sampling weights by this value")
+@option(
+    "polyak",
+    0.995,
+    help="Interpolation factor in polyak averaging for target networks.",
+)
+@option("module/type", "SoftSVG")
+@option(
+    "exploration_config/type",
+    "raylab.utils.exploration.StochasticActor",
+    override=True,
+)
+@option("exploration_config/pure_exploration_steps", 1000)
+class SoftSVGTorchPolicy(OffPolicyMixin, SVGTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
 
     # pylint:disable=abstract-method
@@ -42,13 +86,11 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
             self.module.alpha, self.module.actor.sample, target_entropy
         )
 
-    @property
-    @override(SVGTorchPolicy)
-    def options(self):
-        # pylint:disable=cyclic-import
-        from raylab.agents.svg.soft import SoftSVGTrainer
+        self.build_replay_buffer()
 
-        return SoftSVGTrainer.options
+    def build_replay_buffer(self):
+        super().build_replay_buffer()
+        self.replay.add_fields(ReplayField(SampleBatch.ACTION_LOGP))
 
     @override(EnvFnMixin)
     def _set_reward_hook(self):
@@ -77,15 +119,16 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def add_truncated_importance_sampling_ratios(self, batch_tensors):
         """Compute and add truncated importance sampling ratios to tensor batch."""
+        batch = batch_tensors
         curr_logp = self.module.actor.log_prob(
-            batch_tensors[SampleBatch.CUR_OBS], batch_tensors[SampleBatch.ACTIONS]
+            batch[SampleBatch.CUR_OBS], batch[SampleBatch.ACTIONS]
         )
 
-        is_ratios = torch.exp(curr_logp - batch_tensors[SampleBatch.ACTION_LOGP])
+        is_ratios = torch.exp(curr_logp - batch[SampleBatch.ACTION_LOGP])
         _is_ratios = torch.clamp(is_ratios, max=self.config["max_is_ratio"])
 
-        batch_tensors[self.loss_actor.IS_RATIOS] = _is_ratios
-        batch_tensors[self.loss_critic.IS_RATIOS] = _is_ratios
+        batch[self.loss_actor.IS_RATIOS] = _is_ratios
+        batch[self.loss_critic.IS_RATIOS] = _is_ratios
 
         info = {
             "is_ratio_max": is_ratios.max().item(),
@@ -93,62 +136,59 @@ class SoftSVGTorchPolicy(SVGTorchPolicy):
             "is_ratio_min": is_ratios.min().item(),
             "cross_entropy": -curr_logp.mean().item(),
         }
-        return batch_tensors, info
+        return batch, info
 
-    @override(SVGTorchPolicy)
-    def learn_on_batch(self, samples):
-        batch_tensors = self.lazy_tensor_dict(samples)
-        batch_tensors, info = self.add_truncated_importance_sampling_ratios(
-            batch_tensors
-        )
+    @override(OffPolicyMixin)
+    def improve_policy(self, batch: TensorDict) -> dict:
+        batch, info = self.add_truncated_importance_sampling_ratios(batch)
 
         alpha = self.module.alpha().item()
         self.loss_critic.alpha = alpha
         self.loss_actor.alpha = alpha
 
-        info.update(self._update_model(batch_tensors))
-        info.update(self._update_critic(batch_tensors))
-        info.update(self._update_actor(batch_tensors))
+        info.update(self._update_model(batch))
+        info.update(self._update_critic(batch))
+        info.update(self._update_actor(batch))
         if self.config["target_entropy"] is not None:
-            info.update(self._update_alpha(batch_tensors))
+            info.update(self._update_alpha(batch))
 
         self._update_polyak()
         return info
 
-    def _update_model(self, batch_tensors):
+    def _update_model(self, batch: TensorDict) -> dict:
         with self.optimizers.optimize("model"):
-            model_loss, info = self.loss_model(batch_tensors)
+            model_loss, info = self.loss_model(batch)
             model_loss.backward()
 
         info.update(self.extra_grad_info("model"))
         return info
 
-    def _update_critic(self, batch_tensors):
+    def _update_critic(self, batch: TensorDict) -> dict:
         with self.optimizers.optimize("critic"):
-            value_loss, info = self.loss_critic(batch_tensors)
+            value_loss, info = self.loss_critic(batch)
             value_loss.backward()
 
         info.update(self.extra_grad_info("critic"))
         return info
 
-    def _update_actor(self, batch_tensors):
+    def _update_actor(self, batch: TensorDict) -> dict:
         with self.optimizers.optimize("actor"):
-            svg_loss, info = self.loss_actor(batch_tensors)
+            svg_loss, info = self.loss_actor(batch)
             svg_loss.backward()
 
         info.update(self.extra_grad_info("actor"))
         return info
 
-    def _update_alpha(self, batch_tensors):
+    def _update_alpha(self, batch: TensorDict) -> dict:
         with self.optimizers.optimize("alpha"):
-            alpha_loss, info = self.loss_alpha(batch_tensors)
+            alpha_loss, info = self.loss_alpha(batch)
             alpha_loss.backward()
 
         info.update(self.extra_grad_info("alpha"))
         return info
 
     @torch.no_grad()
-    def extra_grad_info(self, component):
+    def extra_grad_info(self, component: str) -> dict:
         """Return gradient statistics for component."""
         fetches = {
             f"grad_norm({component})": nn.utils.clip_grad_norm_(

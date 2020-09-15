@@ -28,11 +28,6 @@ def trainer_cls(request):
     return request.param()
 
 
-@pytest.fixture
-def policy_cls(trainer_cls):
-    return trainer_cls._policy
-
-
 @pytest.fixture(
     scope="module",
     params=(True, False),
@@ -48,18 +43,19 @@ def trainer(trainer_cls, compile_policy):
     defaults = trainer_cls.options.defaults
     config = CONFIG[name].copy()
 
-    if "policy_improvements" in defaults:
-        config["policy_improvements"] = 1
-    if "learning_starts" in defaults:
+    if "learning_starts" in defaults and name not in {"TRPO", "ACKTR", "SVG(inf)"}:
         config["learning_starts"] = 1
-    if "model_warmup" in defaults:
-        config["model_warmup"] = {"max_epochs": 1}
-    if "model_training" in defaults:
-        config["model_training"] = {"max_epochs": 1}
+    if name == "SVG(inf)":
+        config["batch_mode"] = "complete_episodes"
 
-    config["compile_policy"] = compile_policy
+    config["policy"] = {"compile": compile_policy}
 
     return trainer_cls(env="MockEnv", config=config)
+
+
+@pytest.fixture
+def policy_cls(trainer):
+    return trainer.get_policy_class()
 
 
 @pytest.mark.slow
@@ -94,8 +90,8 @@ def worker(env_name, policy_cls, worker_kwargs):
     )
 
 
-def test_compute_single_action(envs, env_name, policy_cls):
-    env = envs[env_name]({})
+def test_compute_single_action(env_, env_name, policy_cls):
+    env = env_
     policy = policy_cls(env.observation_space, env.action_space, {"env": env_name})
 
     obs = env.observation_space.sample()

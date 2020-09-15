@@ -13,8 +13,13 @@ from .model import SVGModel
 
 
 ModelSpec = SVGModel.spec_cls
-ActorSpec = StochasticActor.spec_cls
 CriticSpec = MLPVValue.spec_cls
+
+
+@dataclass
+class ActorSpec(StochasticActor.spec_cls):
+    # pylint:disable=missing-class-docstring
+    old_policy: bool = False
 
 
 @dataclass
@@ -46,6 +51,8 @@ class SVG(nn.Module):
     def _make_actor(self, obs_space: Box, action_space: Box, spec: ActorSpec):
         actor = StochasticActor(obs_space, action_space, spec)
         self.actor = actor.policy
+        if spec.old_policy:
+            self.old_actor = StochasticActor(obs_space, action_space, spec).policy
 
     def _make_critic(self, obs_space: Box, spec: CriticSpec):
         critic = MLPVValue(obs_space, spec)

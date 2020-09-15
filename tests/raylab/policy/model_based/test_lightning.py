@@ -12,7 +12,8 @@ import torch
 from ray.rllib import SampleBatch
 from torch.utils.data import DataLoader
 
-from raylab.agents.options import RaylabOptions
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import OptimizerCollection
 from raylab.policy.losses import Loss
 from raylab.policy.model_based.lightning import LightningModel
@@ -35,22 +36,14 @@ class DummyLoss(Loss):
 
 @pytest.fixture(scope="module")
 def policy_cls(base_policy_cls):
+    @configure
+    @option("model_training", LightningModelMixin.model_training_defaults())
+    @option("model_warmup", LightningModelMixin.model_training_defaults())
     class Policy(LightningModelMixin, base_policy_cls):
         # pylint:disable=abstract-method
         def __init__(self, model_loss, config):
             super().__init__(config)
             self.loss_train = model_loss(self.module.models)
-
-        @property
-        def options(self):
-            options = RaylabOptions()
-            options.set_option(
-                "model_training", LightningModelMixin.model_training_defaults()
-            )
-            options.set_option(
-                "model_warmup", LightningModelMixin.model_training_defaults()
-            )
-            return options
 
         @property
         def model_training_loss(self):
@@ -99,7 +92,7 @@ def config(
     max_epochs, max_steps, improvement_delta, patience, holdout_ratio, ensemble_size
 ):
     # pylint:disable=too-many-arguments
-    return {
+    options = {
         "model_training": {
             "dataloader": {"batch_size": 32, "shuffle": True},
             "max_epochs": max_epochs,
@@ -118,6 +111,7 @@ def config(
         },
         "module": {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}},
     }
+    return {"policy": options}
 
 
 @pytest.fixture
@@ -141,10 +135,12 @@ def samples(obs_space, action_space):
     return fake_batch(obs_space, action_space, batch_size=256)
 
 
+@pytest.mark.slow
 def test_optimize_model(policy, mocker, samples):
     _test_optimization(policy, mocker, samples, warmup=False)
 
 
+@pytest.mark.slow
 def test_warmup_model(policy, mocker, samples):
     _test_optimization(policy, mocker, samples, warmup=True)
 
@@ -191,6 +187,7 @@ def test_model(policy):
     assert not set.symmetric_difference(model_params, optim_params)
 
 
+@pytest.mark.slow
 def test_trainer_output(policy, samples):
     spec = policy.model_training_spec
     loss_fn = policy.model_training_loss
@@ -241,6 +238,7 @@ def worsening_policy(policy_cls, config):
     return policy_cls(WorseningLoss, config)
 
 
+@pytest.mark.slow
 def test_checkpointing(worsening_policy, samples):
     policy = worsening_policy
     patience = 2

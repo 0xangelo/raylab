@@ -26,8 +26,20 @@ def termination_fn():
 
 
 @pytest.fixture
-def policy(obs_space, action_space, reward_fn, termination_fn):
-    policy = MAGETorchPolicy(obs_space, action_space, {})
+def policy_cls():
+    return MAGETorchPolicy
+
+
+def test_default_config(policy_cls):
+    defaults = policy_cls.options.defaults
+    assert "polyak" in defaults
+    assert "model_training" in defaults
+    assert "model_sampling" not in defaults
+
+
+@pytest.fixture
+def policy(policy_cls, obs_space, action_space, reward_fn, termination_fn):
+    policy = policy_cls(obs_space, action_space, {})
     policy.set_reward_from_callable(reward_fn)
     policy.set_termination_from_callable(termination_fn)
     return policy
@@ -74,7 +86,7 @@ def test_learn_on_batch(policy, samples):
     assert "loss(critics)" in info
     assert "grad_norm(actor)" in info
     assert "grad_norm(critics)" in info
-    assert "grad_norm(models)" not in info
+    assert "grad_norm(models)" in info
 
     assert np.isfinite(info["loss(actor)"])
     assert np.isfinite(info["loss(critics)"])

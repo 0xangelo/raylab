@@ -157,10 +157,10 @@ class TrainingSpec(DataClassJsonMixin):
 
     # pylint:disable=too-many-instance-attributes
     dataloader: DataloaderSpec = field(default_factory=DataloaderSpec, repr=True)
-    max_epochs: Optional[int] = 120
-    max_grad_steps: Optional[int] = 120
-    max_time: Optional[float] = 20
-    patience_epochs: Optional[int] = 5
+    max_epochs: Optional[int] = 1
+    max_grad_steps: Optional[int] = 1
+    max_time: Optional[float] = None
+    patience_epochs: Optional[int] = 1
     improvement_threshold: Optional[float] = 0.01
     holdout_ratio: float = 0.0
     max_holdout: Optional[int] = None

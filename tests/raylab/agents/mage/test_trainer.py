@@ -15,9 +15,6 @@ def trainer(trainer_cls):
 
 def test_default_config(trainer_cls):
     defaults = trainer_cls.options.defaults
-    assert "polyak" in defaults
-    assert "model_training" in defaults
-    assert "model_sampling" not in defaults
     assert "virtual_buffer_size" not in defaults
     assert "model_rollouts" not in defaults
     assert "real_data_ratio" not in defaults

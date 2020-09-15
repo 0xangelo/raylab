@@ -6,13 +6,18 @@ from raylab.utils.dictionaries import get_keys
 
 
 @pytest.fixture
-def policy_and_batch(policy_and_batch_fn, svg_policy):
-    return policy_and_batch_fn(svg_policy, {"polyak": 0.5})
+def policy(policy_fn, svg_policy):
+    policy = policy_fn(svg_policy, {})
+    policy.set_reward_from_config()
+    return policy
 
 
-def test_compute_value_targets(policy_and_batch):
-    policy, batch = policy_and_batch
+@pytest.fixture
+def batch(policy, batch_fn):
+    return batch_fn(policy)
 
+
+def test_compute_value_targets(policy, batch):
     rewards, dones = get_keys(batch, SampleBatch.REWARDS, SampleBatch.DONES)
     targets = policy.loss_critic.sampled_one_step_state_values(batch)
     assert targets.shape == (10,)
@@ -27,8 +32,7 @@ def test_compute_value_targets(policy_and_batch):
     assert all(p.grad is None for p in other_params)
 
 
-def test_importance_sampling_weighted_loss(policy_and_batch):
-    policy, batch = policy_and_batch
+def test_importance_sampling_weighted_loss(policy, batch):
     batch[policy.loss_critic.IS_RATIOS] = torch.randn_like(batch[SampleBatch.REWARDS])
 
     loss, info = policy.loss_critic(batch)
