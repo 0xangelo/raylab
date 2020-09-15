@@ -9,16 +9,12 @@ from .policy import TRPOTorchPolicy
 class TRPOTrainer(Trainer):
     """Single agent trainer for TRPO."""
 
-    # pylint:disable=abstract-method
     _name = "TRPO"
+    _policy = TRPOTorchPolicy
 
-    @staticmethod
     @override(Trainer)
-    def validate_config(config: dict):
+    def validate_config(self, config: dict):
+        super().validate_config(config)
         assert not config[
             "learning_starts"
         ], "No point in having a warmup for an on-policy algorithm."
-
-    @override(Trainer)
-    def get_policy_class(self, _):
-        return TRPOTorchPolicy

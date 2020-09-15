@@ -2,7 +2,6 @@
 import logging
 import time
 from abc import ABCMeta
-from abc import abstractmethod
 from typing import Callable
 from typing import Iterable
 from typing import Optional
@@ -93,7 +92,8 @@ def default_execution_plan(workers: WorkerSet, config: TrainerConfigDict):
     help="""Hold this number of timesteps before first training operation.""",
 )
 class Trainer(RLlibTrainer, metaclass=ABCMeta):
-    # pylint:disable=missing-docstring
+    """Base class for raylab trainers."""
+
     config: TrainerConfigDict
     raw_user_config: PartialTrainerConfigDict
     env_creator: Callable[[EnvContext], EnvType]
@@ -125,7 +125,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     ):
         self.config = config = self.restore_reserved()
         self.validate_config(config)
-        self._policy = cls = self.get_policy_class(config)
+        self._policy = cls = self.get_policy_class()
 
         self.before_init()
 
@@ -140,20 +140,23 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         self.optimize_policy_backend()
 
     def restore_reserved(self) -> TrainerConfigDict:
+        """Returns the final configuration."""
         restored = self._true_config
         del self._true_config
         return restored
 
-    @staticmethod
-    def validate_config(config: dict):
-        pass
+    def validate_config(self, config: dict):
+        """Assert final configurations are valid."""
 
-    @abstractmethod
-    def get_policy_class(self, config: dict) -> Type[Policy]:
+    def get_policy_class(self) -> Type[Policy]:
         """Returns the Policy type to be set as the `_policy` attribute.
+
+        Returns the `_policy` attribute by default. May be overriden to select a
+        policy class depending on, e.g., the config dict.
 
         Called after :meth:`validate_config` and before :meth:`before_init`.
         """
+        return self._policy
 
     def before_init(self):
         """Arbitrary setup before default initialization.
@@ -216,26 +219,30 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         if hasattr(self, "workers") and isinstance(self.workers, WorkerSet):
             self._sync_filters_if_needed(self.workers)
 
-        print(f"OLD EVAL ITER: {self.iteration}")
         return result
 
     @overrides(RLlibTrainer)
     def step(self) -> dict:
         res = next(self.train_exec_impl)
-        res = self.evaluate_if_needed(res)
+        res.update(self.evaluate_if_needed())
         return res
 
-    def evaluate_if_needed(self, result: dict) -> dict:
+    def evaluate_if_needed(self) -> dict:
+        """Runs evaluation episodes if configured to do so.
+
+        Returns:
+            A dictionary with evaluation info
+        """
         iteration, interval = self.iteration + 1, self.config["evaluation_interval"]
-        print(f"NEW EVAL ITER: {iteration}")
+
         if interval == 1 or (iteration > 0 and interval and iteration % interval == 0):
             evaluation_metrics = self._evaluate()
             assert isinstance(
                 evaluation_metrics, dict
             ), "_evaluate() needs to return a dict."
-            return {**result, **evaluation_metrics}
+            return evaluation_metrics
 
-        return result
+        return {}
 
     @overrides(RLlibTrainer)
     def log_result(self, result: ResultDict):
@@ -259,3 +266,16 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         super().cleanup()
         if self.wandb.enabled:
             self.wandb.stop()
+
+    # ==================================================================================
+    # Avoid annoying pylint "abstract-method" warnings
+    # ==================================================================================
+
+    def _restore(self, checkpoint):
+        del checkpoint
+
+    def _save(self, tmp_checkpoint_dir):
+        del tmp_checkpoint_dir
+
+    def _train(self):
+        pass

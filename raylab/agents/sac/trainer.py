@@ -1,16 +1,18 @@
+"""Soft Actor-Critic.
+
+Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor.
 """
-Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning
-with a Stochastic Actor.
-"""
-from raylab.agents.off_policy import OffPolicyTrainer
+from raylab.agents import Trainer
+from raylab.agents.off_policy import OffPolicyMixin
+from raylab.options import configure
 
 from .policy import SACTorchPolicy
 
 
-class SACTrainer(OffPolicyTrainer):
+@configure
+@OffPolicyMixin.add_options
+class SACTrainer(OffPolicyMixin, Trainer):
     """Single agent trainer for SAC."""
 
     _name = "SoftAC"
-
-    def get_policy_class(self, _):
-        return SACTorchPolicy
+    _policy = SACTorchPolicy

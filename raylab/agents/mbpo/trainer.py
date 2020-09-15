@@ -1,13 +1,16 @@
 """Trainer and configuration for MBPO."""
-from raylab.agents.model_based import ModelBasedTrainer
+from raylab.agents import Trainer
+from raylab.agents.model_based import ModelBasedMixin
+from raylab.agents.off_policy import OffPolicyMixin
+from raylab.options import configure
 
 from .policy import MBPOTorchPolicy
 
 
-class MBPOTrainer(ModelBasedTrainer):
+@configure
+@OffPolicyMixin.add_options
+class MBPOTrainer(ModelBasedMixin, OffPolicyMixin, Trainer):
     """Model-based trainer using SAC for policy improvement."""
 
     _name = "MBPO"
-
-    def get_policy_class(self, _):
-        return MBPOTorchPolicy
+    _policy = MBPOTorchPolicy

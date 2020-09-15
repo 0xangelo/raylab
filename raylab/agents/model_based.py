@@ -5,8 +5,6 @@ from typing import Any
 from ray.rllib import Policy
 from ray.rllib.evaluation.worker_set import WorkerSet
 
-from .trainer import Trainer
-
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +49,8 @@ def _set_from_env_if_possible(policy: Policy, env: Any, fn_type: str = "reward")
         raise ValueError(f"Invalid env function type '{fn_type}'")
 
 
-class ModelBasedTrainer(Trainer):
-    """Generic trainer for model-based agents.
+class ModelBasedMixin:
+    """Mixin for model-based agents.
 
     Sets reward and termination functions for policies. These functions must be
     either:
@@ -64,8 +62,8 @@ class ModelBasedTrainer(Trainer):
       and next state) i.e., the states should be markovian.
     """
 
-    # pylint:disable=abstract-method
     def after_init(self):
+        # pylint:disable=missing-function-docstring
         super().after_init()
         self.set_env_fns()
 

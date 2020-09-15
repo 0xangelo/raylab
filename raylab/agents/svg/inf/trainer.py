@@ -17,17 +17,13 @@ from .policy import SVGInfTorchPolicy
 class SVGInfTrainer(Trainer):
     """Single agent trainer for SVG(inf)."""
 
-    # pylint:disable=abstract-method
     _name = "SVG(inf)"
+    _policy = SVGInfTorchPolicy
 
     @override(Trainer)
-    def get_policy_class(self, _):
-        return SVGInfTorchPolicy
-
-    @staticmethod
-    @override(Trainer)
-    def validate_config(config: dict):
+    def validate_config(self, config: dict):
         """Assert configuration values are valid."""
+        super().validate_config(config)
         assert config["num_workers"] == 0, "No point in using additional workers."
         assert (
             config["rollout_fragment_length"] >= 1

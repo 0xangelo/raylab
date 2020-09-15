@@ -1,22 +1,20 @@
 """Trainer and configuration for SVG(1)."""
-from ray.rllib.utils import override
-
+from raylab.agents import Trainer
 from raylab.agents.model_based import set_policy_with_env_fn
-from raylab.agents.off_policy import OffPolicyTrainer
+from raylab.agents.off_policy import OffPolicyMixin
+from raylab.options import configure
 
 from .policy import SVGOneTorchPolicy
 
 
-class SVGOneTrainer(OffPolicyTrainer):
+@configure
+@OffPolicyMixin.add_options
+class SVGOneTrainer(OffPolicyMixin, Trainer):
     """Single agent trainer for SVG(1)."""
 
-    # pylint:disable=abstract-method
     _name = "SVG(1)"
+    _policy = SVGOneTorchPolicy
 
-    def get_policy_class(self, _):
-        return SVGOneTorchPolicy
-
-    @override(OffPolicyTrainer)
     def after_init(self):
         super().after_init()
         set_policy_with_env_fn(self.workers, fn_type="reward")
