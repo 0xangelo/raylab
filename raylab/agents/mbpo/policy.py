@@ -1,4 +1,6 @@
 """Policy for MBPO using PyTorch."""
+from ray.rllib import SampleBatch
+
 from raylab.agents.sac import SACTorchPolicy
 from raylab.options import configure
 from raylab.options import option
@@ -7,9 +9,14 @@ from raylab.policy import ModelSamplingMixin
 from raylab.policy import ModelTrainingMixin
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import MaximumLikelihood
+from raylab.policy.model_based.policy import MBPolicyMixin
+from raylab.policy.model_based.policy import model_based_options
 from raylab.policy.model_based.sampling import SamplingSpec
 from raylab.policy.model_based.training import TrainingSpec
 from raylab.torch.optim import build_optimizer
+from raylab.utils.annotations import StatDict
+from raylab.utils.replay_buffer import NumpyReplayBuffer
+from raylab.utils.timer import TimerStat
 
 
 DEFAULT_MODULE = {
@@ -34,6 +41,26 @@ DEFAULT_MODULE = {
 
 
 @configure
+@model_based_options
+@option(
+    "virtual_buffer_size",
+    default=int(1e6),
+    help="Size of the buffer for virtual samples",
+)
+@option(
+    "model_rollouts",
+    default=40,
+    help="""Number of model rollouts to add to virtual buffer each policy interval.
+
+    Populates virtual replay with this many model rollouts before each policy
+    improvement.
+    """,
+)
+@option(
+    "real_data_ratio",
+    default=0.1,
+    help="Fraction of each policy minibatch to sample from environment replay pool",
+)
 @option("module", default=DEFAULT_MODULE, override=True)
 @option(
     "torch_optimizer/models",
@@ -50,17 +77,20 @@ DEFAULT_MODULE = {
 )
 @option("model_sampling", default=SamplingSpec().to_dict(), help=SamplingSpec.__doc__)
 class MBPOTorchPolicy(
-    EnvFnMixin, ModelTrainingMixin, ModelSamplingMixin, SACTorchPolicy
+    MBPolicyMixin, EnvFnMixin, ModelTrainingMixin, ModelSamplingMixin, SACTorchPolicy
 ):
     """Model-Based Policy Optimization policy in PyTorch to use with RLlib."""
 
     # pylint:disable=too-many-ancestors
+    virtual_replay: NumpyReplayBuffer
     dist_class = WrapStochasticPolicy
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
         models = self.module.models
         self.loss_model = MaximumLikelihood(models)
+
+        self.build_timers()
 
     @property
     def model_training_loss(self):
@@ -71,3 +101,68 @@ class MBPOTorchPolicy(
         config = self.config["torch_optimizer"]
         optimizers["models"] = build_optimizer(self.module.models, config["models"])
         return optimizers
+
+    def build_replay_buffer(self):
+        super().build_replay_buffer()
+        self.virtual_replay = NumpyReplayBuffer(
+            self.observation_space,
+            self.action_space,
+            self.config["virtual_buffer_size"],
+        )
+        self.virtual_replay.seed(self.config["seed"])
+
+    def build_timers(self):
+        super().build_timers()
+        self.timers["augmentation"] = TimerStat()
+
+    def learn_on_batch(self, samples: SampleBatch) -> dict:
+        self.add_to_buffer(samples)
+        self._learn_calls += 1
+
+        info = {}
+        warmup = self._learn_calls == 1
+        if self._learn_calls % self.config["model_update_interval"] == 0 or warmup:
+            with self.timers["model"] as timer:
+                losses, model_info = self.train_dynamics_model(warmup=warmup)
+                timer.push_units_processed(model_info["model_epochs"])
+                info.update(model_info)
+            self.set_new_elite(losses)
+
+        self.populate_virtual_buffer()
+
+        with self.timers["policy"] as timer:
+            times = self.config["improvement_steps"]
+            policy_info = self.update_policy(times=times)
+            timer.push_units_processed(times)
+            info.update(policy_info)
+
+        info.update(self.timer_stats())
+        return info
+
+    def populate_virtual_buffer(self):
+        num_rollouts = self.config["model_rollouts"]
+        real_data_ratio = self.config["real_data_ratio"]
+        if not (num_rollouts and real_data_ratio < 1.0):
+            return
+
+        real_samples = self.replay.sample(num_rollouts)
+        virtual_samples = self.generate_virtual_sample_batch(real_samples)
+        for row in virtual_samples.rows():
+            self.virtual_replay.add(row)
+
+    def update_policy(self, times: int) -> StatDict:
+        batch_size = self.config["batch_size"]
+        env_batch_size = int(batch_size * self.config["real_data_ratio"])
+        model_batch_size = batch_size - env_batch_size
+
+        for _ in range(times):
+            samples = []
+            if env_batch_size:
+                samples += [self.replay.sample(env_batch_size)]
+            if model_batch_size:
+                samples += [self.virtual_replay.sample(model_batch_size)]
+            batch = SampleBatch.concat_samples(samples)
+            batch = self.lazy_tensor_dict(batch)
+            info = self.improve_policy(batch)
+
+        return info

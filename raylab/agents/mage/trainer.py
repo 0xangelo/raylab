@@ -1,16 +1,15 @@
 """Trainer and default config for MAGE."""
-from raylab.agents.model_based import ModelBasedTrainer
+from raylab.agents import Trainer
+from raylab.agents.model_based import ModelBasedMixin
+from raylab.agents.off_policy import OffPolicyMixin
 from raylab.options import configure
-from raylab.options import option
 
 from .policy import MAGETorchPolicy
 
 
 @configure
-@option("holdout_ratio", default=0, override=True)
-@option("max_holdout", default=0, override=True)
-@option("evaluation_config/explore", False, override=True)
-class MAGETrainer(ModelBasedTrainer):
+@OffPolicyMixin.add_options
+class MAGETrainer(ModelBasedMixin, OffPolicyMixin, Trainer):
     """Single agent trainer for MAGE."""
 
     _name = "MAGE"

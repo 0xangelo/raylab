@@ -2,6 +2,8 @@ import pytest
 from ray.rllib import SampleBatch
 
 from raylab.agents.registry import get_agent_cls
+from raylab.agents.svg.inf import SVGInfTorchPolicy
+from raylab.agents.svg.one import SVGOneTorchPolicy
 
 
 @pytest.fixture(params="SVG(1) SVG(inf)".split())
@@ -9,9 +11,11 @@ def svg_trainer(request):
     return get_agent_cls(request.param)
 
 
-@pytest.fixture
-def svg_policy(svg_trainer):
-    return svg_trainer._policy
+@pytest.fixture(
+    params=(SVGInfTorchPolicy, SVGOneTorchPolicy), ids=lambda x: f"{x.__name__}"
+)
+def svg_policy(request):
+    return request.param
 
 
 @pytest.fixture
@@ -20,8 +24,8 @@ def svg_one_trainer():
 
 
 @pytest.fixture
-def svg_one_policy(svg_one_trainer):
-    return svg_one_trainer._policy
+def svg_one_policy():
+    return SVGOneTorchPolicy
 
 
 @pytest.fixture
@@ -30,8 +34,8 @@ def svg_inf_trainer():
 
 
 @pytest.fixture
-def svg_inf_policy(svg_inf_trainer):
-    return svg_inf_trainer._policy
+def svg_inf_policy():
+    return SVGInfTorchPolicy
 
 
 @pytest.fixture

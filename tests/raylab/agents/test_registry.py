@@ -5,7 +5,6 @@ from ray.rllib import RolloutWorker
 from ray.rllib import SampleBatch
 
 from raylab.agents.registry import AGENTS
-from raylab.agents.simple_trainer import SimpleTrainer
 from raylab.envs import get_env_creator
 
 TRAINER_NAMES, TRAINER_IMPORTS = zip(*AGENTS.items())
@@ -44,10 +43,10 @@ def trainer(trainer_cls, compile_policy):
     defaults = trainer_cls.options.defaults
     config = CONFIG[name].copy()
 
-    if "policy_improvements" in defaults:
-        config["policy_improvements"] = 1
-    if "learning_starts" in defaults and name not in {"TRPO", "ACKTR"}:
+    if "learning_starts" in defaults and name not in {"TRPO", "ACKTR", "SVG(inf)"}:
         config["learning_starts"] = 1
+    if name == "SVG(inf)":
+        config["batch_mode"] = "complete_episodes"
 
     config["policy"] = {"compile": compile_policy}
 
@@ -56,9 +55,7 @@ def trainer(trainer_cls, compile_policy):
 
 @pytest.fixture
 def policy_cls(trainer):
-    if isinstance(trainer, SimpleTrainer):
-        return trainer.get_policy_class(trainer.config)
-    return trainer._policy
+    return trainer.get_policy_class()
 
 
 @pytest.mark.slow

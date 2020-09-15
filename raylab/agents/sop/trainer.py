@@ -1,14 +1,14 @@
 """Trainer and configuration for SOP."""
-from raylab.agents.off_policy import OffPolicyTrainer
+from raylab.agents import Trainer
+from raylab.agents.off_policy import OffPolicyMixin
 from raylab.options import configure
-from raylab.options import option
 
 from .policy import SOPTorchPolicy
 
 
 @configure
-@option("evaluation_config/explore", False, override=True)
-class SOPTrainer(OffPolicyTrainer):
+@OffPolicyMixin.add_options
+class SOPTrainer(OffPolicyMixin, Trainer):
     """Single agent trainer for the Streamlined Off-Policy algorithm."""
 
     _name = "SOP"

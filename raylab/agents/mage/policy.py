@@ -7,12 +7,15 @@ from raylab.policy import ModelTrainingMixin
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import MAGE
 from raylab.policy.losses import MaximumLikelihood
+from raylab.policy.model_based.policy import MBPolicyMixin
+from raylab.policy.model_based.policy import model_based_options
 from raylab.policy.model_based.training import TrainingSpec
 from raylab.policy.modules.critic import HardValue
 from raylab.torch.optim import build_optimizer
 
 
 @configure
+@model_based_options
 @option("lambda", default=0.05, help="TD error regularization for MAGE loss")
 @option("model_training", default=TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
 @option(
@@ -25,7 +28,7 @@ from raylab.torch.optim import build_optimizer
 )
 @option("module/type", "ModelBasedDDPG", override=True)
 @option("torch_optimizer/models", {"type": "Adam"})
-class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
+class MAGETorchPolicy(MBPolicyMixin, ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
     """MAGE policy in PyTorch to use with RLlib.
 
     Attributes:
@@ -34,12 +37,14 @@ class MAGETorchPolicy(ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
         loss_critic: model-based action-value-gradient estimator loss
     """
 
+    # pylint:disable=too-many-ancestors
     dist_class = WrapDeterministicPolicy
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
         self._set_model_loss()
         self._set_critic_loss()
+        self.build_timers()
 
     def _set_model_loss(self):
         self.loss_model = MaximumLikelihood(self.module.models)

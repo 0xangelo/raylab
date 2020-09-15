@@ -86,7 +86,7 @@ def test_learn_on_batch(policy, samples):
     assert "loss(critics)" in info
     assert "grad_norm(actor)" in info
     assert "grad_norm(critics)" in info
-    assert "grad_norm(models)" not in info
+    assert "grad_norm(models)" in info
 
     assert np.isfinite(info["loss(actor)"])
     assert np.isfinite(info["loss(critics)"])
