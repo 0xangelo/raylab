@@ -1,4 +1,5 @@
 # pylint:disable=missing-docstring
+import statistics as stats
 import warnings
 from abc import ABC
 from abc import abstractmethod
@@ -198,7 +199,7 @@ class LightningModel(pl.LightningModule):
 
 class EarlyStopping(pl.callbacks.EarlyStopping):
     losses_history: deque
-    _epoch_losses: List[Tensor]
+    _epoch_outputs: List[Tuple[Tensor, StatDict]]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -208,27 +209,29 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
         pass  # Disable annoying UserWarning
 
     def on_validation_epoch_start(self, trainer, pl_module):
-        self._epoch_losses = []
+        self._epoch_outputs = []
         super().on_validation_epoch_start(trainer, pl_module)
 
     def on_validation_batch_end(
         self, trainer, pl_module, batch, batch_idx, dataloader_idx
     ):
         # pylint:disable=too-many-arguments
-        self._epoch_losses += [pl_module.val_loss.last_losses]
+        self._epoch_outputs += [pl_module.val_loss.last_output]
         super().on_validation_batch_end(
             trainer, pl_module, batch, batch_idx, dataloader_idx
         )
 
     def on_validation_epoch_end(self, trainer, pl_module):
-        model_losses = torch.stack(self._epoch_losses, dim=0).mean(dim=0)
-        self.losses_history += [model_losses]
+        epoch_losses, epoch_infos = zip(*self._epoch_outputs)
+        model_losses = torch.stack(epoch_losses, dim=0).mean(dim=0).tolist()
+        model_infos = {k: stats.mean(i[k] for i in epoch_infos) for k in epoch_infos[0]}
+        self.losses_history += [(model_losses, model_infos)]
         super().on_validation_epoch_end(trainer, pl_module)
 
     @property
-    def best_losses(self) -> List[float]:
-        """Return the corresponding losses of the checkpointed models."""
-        return self.losses_history[-self.wait_count - 1].tolist()
+    def best_outputs(self) -> Tuple[List[float], StatDict]:
+        """Best computed losses for each individual model and associated info."""
+        return self.losses_history[-self.wait_count - 1]
 
 
 # ======================================================================================
@@ -252,12 +255,16 @@ class LightningModelMixin(ABC):
 
     model_training_spec: TrainingSpec
     model_warmup_spec: TrainingSpec
-    _pl_model: LightningModel = None
+    pl_model: LightningModel
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def build_lightning_model(self):
         self.model_training_spec = TrainingSpec.from_dict(self.config["model_training"])
         self.model_warmup_spec = TrainingSpec.from_dict(self.config["model_warmup"])
+        self.pl_model = LightningModel(
+            model=self.module.models,
+            loss=self.model_training_loss,
+            optimizer=self.optimizers["models"],
+        )
 
     @property
     @abstractmethod
@@ -302,24 +309,14 @@ class LightningModelMixin(ABC):
                 train_tensors[SampleBatch.CUR_OBS], train_tensors[SampleBatch.ACTIONS]
             )
 
-        model = self.get_lightning_model(loss_fn)
+        self.pl_model.configure_losses(loss_fn)
         trainer = self.get_trainer(spec)
         train, val = spec.train_val_loaders(train_tensors, val_tensors)
 
-        info = self.run_training(model=model, trainer=trainer, train=train, val=val)
-        info.update({"model_epochs": trainer.current_epoch + 1})
-        return trainer.early_stop_callback.best_losses, info
-
-    def get_lightning_model(self, loss_fn: Loss) -> LightningModel:
-        if self._pl_model is None:
-            self._pl_model = LightningModel(
-                model=self.module.models,
-                loss=loss_fn,
-                optimizer=self.optimizers["models"],
-            )
-
-        self._pl_model.configure_losses(loss_fn)
-        return self._pl_model
+        losses, info = self.run_training(
+            model=self.pl_model, trainer=trainer, train=train, val=val
+        )
+        return losses, info
 
     @staticmethod
     def get_trainer(spec: TrainingSpec) -> pl.Trainer:
@@ -341,11 +338,16 @@ class LightningModelMixin(ABC):
     @staticmethod
     @supress_stderr
     @supress_stdout
-    def run_training(model, trainer, train, val):
+    def run_training(
+        model: LightningModel, trainer: pl.Trainer, train: DataLoader, val: DataLoader
+    ) -> Tuple[List[float], StatDict]:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="pytorch_lightning*")
             trainer.fit(model, train_dataloader=train, val_dataloaders=val)
-            return trainer.test(model, test_dataloaders=val)[0]
+
+        losses, info = trainer.early_stop_callback.best_outputs
+        info.update({"model_epochs": trainer.current_epoch + 1})
+        return losses, info
 
     @staticmethod
     def model_training_defaults():

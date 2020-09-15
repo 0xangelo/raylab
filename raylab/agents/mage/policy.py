@@ -3,13 +3,13 @@ from raylab.agents.sop import SOPTorchPolicy
 from raylab.options import configure
 from raylab.options import option
 from raylab.policy import EnvFnMixin
-from raylab.policy import ModelTrainingMixin
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import MAGE
 from raylab.policy.losses import MaximumLikelihood
+from raylab.policy.model_based import LightningModelMixin
+from raylab.policy.model_based.lightning import TrainingSpec
 from raylab.policy.model_based.policy import MBPolicyMixin
 from raylab.policy.model_based.policy import model_based_options
-from raylab.policy.model_based.training import TrainingSpec
 from raylab.policy.modules.critic import HardValue
 from raylab.torch.optim import build_optimizer
 
@@ -28,7 +28,7 @@ from raylab.torch.optim import build_optimizer
 )
 @option("module/type", "ModelBasedDDPG", override=True)
 @option("torch_optimizer/models", {"type": "Adam"})
-class MAGETorchPolicy(MBPolicyMixin, ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
+class MAGETorchPolicy(MBPolicyMixin, LightningModelMixin, EnvFnMixin, SOPTorchPolicy):
     """MAGE policy in PyTorch to use with RLlib.
 
     Attributes:
@@ -45,6 +45,7 @@ class MAGETorchPolicy(MBPolicyMixin, ModelTrainingMixin, EnvFnMixin, SOPTorchPol
         self._set_model_loss()
         self._set_critic_loss()
         self.build_timers()
+        self.build_lightning_model()
 
     def _set_model_loss(self):
         self.loss_model = MaximumLikelihood(self.module.models)

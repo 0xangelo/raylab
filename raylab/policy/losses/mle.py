@@ -95,7 +95,7 @@ class MaximumLikelihood(Loss):
         SampleBatch.ACTIONS,
         SampleBatch.NEXT_OBS,
     )
-    _last_losses: Tensor
+    _last_output: Tuple[Tensor, StatDict]
 
     def __init__(self, models: Union[StochasticModel, SME]):
         if isinstance(models, StochasticModel):
@@ -114,9 +114,9 @@ class MaximumLikelihood(Loss):
         self.loss_fns = cls(losses)
 
     @property
-    def last_losses(self) -> Tensor:
-        """Last computed losses for each individual model."""
-        return self._last_losses
+    def last_output(self) -> Tuple[Tensor, StatDict]:
+        """Last computed losses for each individual model and associated info."""
+        return self._last_output
 
     def compile(self):
         # pylint:disable=missing-function-docstring,attribute-defined-outside-init
@@ -131,7 +131,8 @@ class MaximumLikelihood(Loss):
         """
         obs, act, new_obs = get_keys(batch, *self.batch_keys)
         nlls = self.loss_fns(obs, act, new_obs)
-        self._last_losses = torch.stack(nlls)
 
+        losses = torch.stack(nlls)
         info = {f"{self.tag}(models[{i}])": n.item() for i, n in enumerate(nlls)}
-        return self.last_losses.mean(), info
+        self._last_output = (losses, info)
+        return losses.mean(), info

@@ -4,15 +4,15 @@ from ray.rllib import SampleBatch
 from raylab.agents.sac import SACTorchPolicy
 from raylab.options import configure
 from raylab.options import option
-from raylab.policy import EnvFnMixin
-from raylab.policy import ModelSamplingMixin
-from raylab.policy import ModelTrainingMixin
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import MaximumLikelihood
+from raylab.policy.model_based import EnvFnMixin
+from raylab.policy.model_based import LightningModelMixin
+from raylab.policy.model_based import ModelSamplingMixin
+from raylab.policy.model_based.lightning import TrainingSpec
 from raylab.policy.model_based.policy import MBPolicyMixin
 from raylab.policy.model_based.policy import model_based_options
 from raylab.policy.model_based.sampling import SamplingSpec
-from raylab.policy.model_based.training import TrainingSpec
 from raylab.torch.optim import build_optimizer
 from raylab.utils.annotations import StatDict
 from raylab.utils.replay_buffer import NumpyReplayBuffer
@@ -77,7 +77,7 @@ DEFAULT_MODULE = {
 )
 @option("model_sampling", default=SamplingSpec().to_dict(), help=SamplingSpec.__doc__)
 class MBPOTorchPolicy(
-    MBPolicyMixin, EnvFnMixin, ModelTrainingMixin, ModelSamplingMixin, SACTorchPolicy
+    MBPolicyMixin, EnvFnMixin, LightningModelMixin, ModelSamplingMixin, SACTorchPolicy
 ):
     """Model-Based Policy Optimization policy in PyTorch to use with RLlib."""
 
@@ -91,6 +91,7 @@ class MBPOTorchPolicy(
         self.loss_model = MaximumLikelihood(models)
 
         self.build_timers()
+        self.build_lightning_model()
 
     @property
     def model_training_loss(self):
@@ -140,6 +141,7 @@ class MBPOTorchPolicy(
         return info
 
     def populate_virtual_buffer(self):
+        # pylint:disable=missing-function-docstring
         num_rollouts = self.config["model_rollouts"]
         real_data_ratio = self.config["real_data_ratio"]
         if not (num_rollouts and real_data_ratio < 1.0):

@@ -33,8 +33,10 @@ class DummyLoss(Loss):
         return torch.randn(self.ensemble_size)
 
     def __call__(self, _):
-        self.last_losses = losses = self._losses().requires_grad_(True)
-        return losses.mean(), {"loss(models)": losses.mean().item()}
+        losses = self._losses().requires_grad_(True)
+        info = {"loss(models)": losses.mean().item()}
+        self.last_output = (losses, info)
+        return losses.mean(), info
 
 
 @pytest.fixture(scope="module")
@@ -47,6 +49,7 @@ def policy_cls(base_policy_cls):
         def __init__(self, model_loss, config):
             super().__init__(config)
             self.loss_train = model_loss(self.module.models)
+            self.build_lightning_model()
 
         @property
         def model_training_loss(self):
@@ -117,20 +120,33 @@ def config(
     return {"policy": options}
 
 
-@pytest.fixture
-def policy(policy_cls, config):
-    return policy_cls(DummyLoss, config)
-
-
 def test_init(
-    policy, max_epochs, max_steps, improvement_delta, patience, holdout_ratio
+    mocker,
+    policy_cls,
+    config,
+    max_epochs,
+    max_steps,
+    improvement_delta,
+    patience,
+    holdout_ratio,
 ):
+    # pylint:disable=too-many-arguments
+    pl_module = mocker.spy(pl.LightningModule, "__init__")
+
+    policy = policy_cls(DummyLoss, config)
+
     for spec in (policy.model_training_spec, policy.model_warmup_spec):
         assert spec.max_epochs == max_epochs
         assert spec.max_steps == max_steps
         assert spec.improvement_delta == improvement_delta
         assert spec.patience == patience
         assert spec.holdout_ratio == holdout_ratio
+    assert pl_module.called
+
+
+@pytest.fixture
+def policy(policy_cls, config):
+    return policy_cls(DummyLoss, config)
 
 
 @pytest.fixture
@@ -149,7 +165,6 @@ def test_warmup_model(policy, mocker, samples):
 
 
 def _test_optimization(policy, mocker, samples, warmup):
-    pl_module = mocker.spy(pl.LightningModule, "__init__")
     early_stop = mocker.spy(pl.callbacks.EarlyStopping, "__init__")
     trainer_init = mocker.spy(pl.Trainer, "__init__")
     trainer_fit = mocker.spy(pl.Trainer, "fit")
@@ -162,11 +177,10 @@ def _test_optimization(policy, mocker, samples, warmup):
     assert not stderr.getvalue()
     assert not stdout.getvalue()
 
-    assert pl_module.called
     assert early_stop.called
     assert trainer_init.called
     assert trainer_fit.called
-    assert trainer_test.called
+    assert not trainer_test.called
 
     assert isinstance(losses, list)
     assert all(isinstance(loss, float) for loss in losses)
@@ -177,8 +191,7 @@ def _test_optimization(policy, mocker, samples, warmup):
 
 
 def test_model(policy):
-    loss_fn = policy.model_training_loss
-    model = policy.get_lightning_model(loss_fn)
+    model = policy.pl_model
     model_params = set(model.parameters())
 
     assert isinstance(model, LightningModel)
