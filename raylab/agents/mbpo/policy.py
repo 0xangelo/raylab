@@ -120,9 +120,10 @@ class MBPOTorchPolicy(
         self._learn_calls += 1
 
         info = {}
-        if self._learn_calls % self.config["model_update_interval"] == 0:
+        warmup = self._learn_calls == 1
+        if self._learn_calls % self.config["model_update_interval"] == 0 or warmup:
             with self.timers["model"] as timer:
-                losses, model_info = self.train_dynamics_model(warmup=False)
+                losses, model_info = self.train_dynamics_model(warmup=warmup)
                 timer.push_units_processed(model_info["model_epochs"])
                 info.update(model_info)
             self.set_new_elite(losses)
