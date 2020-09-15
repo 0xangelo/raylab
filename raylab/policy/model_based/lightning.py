@@ -1,7 +1,7 @@
 # pylint:disable=missing-docstring
+import copy
 import statistics as stats
 import warnings
-from collections import deque
 from dataclasses import dataclass
 from dataclasses import field
 from typing import List
@@ -84,12 +84,14 @@ class LightningModel(pl.LightningModule):
 
 
 class EarlyStopping(pl.callbacks.EarlyStopping):
-    losses_history: deque
     _epoch_outputs: List[Tuple[Tensor, StatDict]]
+    _best_outputs: Tuple[List[float], StatDict]
+    _module_state: dict
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.losses_history = deque(maxlen=self.patience + 1)
+    def on_fit_start(self, trainer, pl_module):
+        super().on_fit_start(trainer, pl_module)
+        self._best_outputs = None
+        self.save_module_state(pl_module)
 
     def __warn_deprecated_monitor_key(self):
         pass  # Disable annoying UserWarning
@@ -107,17 +109,34 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
             trainer, pl_module, batch, batch_idx, dataloader_idx
         )
 
-    def on_validation_epoch_end(self, trainer, pl_module):
+    def on_validation_end(self, trainer, pl_module):
+        is_start = not torch.isfinite(self.best_score).item()
+        super().on_validation_end(trainer, pl_module)
+        if self.wait_count == 0 and not is_start:  # Improved
+            self.save_outputs()
+            self.save_module_state(pl_module)
+        elif self._best_outputs is None:
+            self.save_outputs()
+
+    def save_outputs(self):
         epoch_losses, epoch_infos = zip(*self._epoch_outputs)
         model_losses = torch.stack(epoch_losses, dim=0).mean(dim=0).tolist()
         model_infos = {k: stats.mean(i[k] for i in epoch_infos) for k in epoch_infos[0]}
-        self.losses_history += [(model_losses, model_infos)]
-        super().on_validation_epoch_end(trainer, pl_module)
+        self._best_outputs = (model_losses, model_infos)
 
-    @property
-    def best_outputs(self) -> Tuple[List[float], StatDict]:
-        """Best computed losses for each individual model and associated info."""
-        return self.losses_history[-self.wait_count - 1]
+    def save_module_state(self, pl_module):
+        self._module_state = copy.deepcopy(pl_module.state_dict())
+
+    def state_dict(self):
+        state = super().state_dict()
+        state.update(best_outputs=self._best_outputs, module=self._module_state)
+        return state
+
+    def load_state_dict(self, state_dict):
+        self._best_outputs = state_dict["best_outputs"]
+        self._module_state = copy.deepcopy(state_dict["module"])
+        used = set("best_outputs module".split())
+        super().load_state_dict({k: v for k, v in state_dict.items() if k not in used})
 
 
 # ======================================================================================
@@ -238,9 +257,10 @@ class TrainingSpec(DataClassJsonMixin):
         )
         return train, val
 
-    def build_trainer(self) -> pl.Trainer:
+    def build_trainer(self, check_val: bool) -> pl.Trainer:
         return pl.Trainer(
             logger=False,
+            num_sanity_val_steps=2 if check_val else 0,
             early_stop_callback=EarlyStopping(
                 min_delta=self.improvement_delta,
                 patience=self.patience,
@@ -311,7 +331,7 @@ class LightningModelTrainer:
                 train_tensors[SampleBatch.CUR_OBS], train_tensors[SampleBatch.ACTIONS]
             )
 
-        trainer = spec.build_trainer()
+        trainer = spec.build_trainer(check_val=warmup)
         train, val = spec.train_val_loaders(train_tensors, val_tensors)
 
         losses, info = self.run_training(
@@ -329,7 +349,9 @@ class LightningModelTrainer:
             warnings.filterwarnings("ignore", module="pytorch_lightning*")
             trainer.fit(model, train_dataloader=train, val_dataloaders=val)
 
-        losses, info = trainer.early_stop_callback.best_outputs
+        saved_state = trainer.early_stop_callback.state_dict()
+        model.load_state_dict(saved_state["module"])
+        losses, info = saved_state["best_outputs"]
         info.update({"model_epochs": trainer.current_epoch + 1})
         return losses, info
 

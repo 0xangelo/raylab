@@ -225,7 +225,7 @@ def test_trainer_output(policy, model_trainer, samples):
     assert isinstance(train, DataLoader)
     assert isinstance(val, DataLoader)
 
-    trainer = spec.build_trainer()
+    trainer = spec.build_trainer(False)
     assert isinstance(trainer, pl.Trainer)
 
     with warnings.catch_warnings():
@@ -283,7 +283,7 @@ def test_checkpointing(worsening_policy, samples):
         lambda x: convert_to_tensor(x, device=pl_model.device),
     )
 
-    pl_trainer = spec.build_trainer()
+    pl_trainer = spec.build_trainer(check_val=False)
     train, val = spec.train_val_loaders(train_tensors, val_tensors)
 
     before_params = copy.deepcopy(list(pl_model.parameters()))
