@@ -55,7 +55,7 @@ def trainer(trainer_cls, compile_policy):
 
 @pytest.fixture
 def policy_cls(trainer):
-    return trainer.get_policy_class(trainer.config)
+    return trainer.get_policy_class()
 
 
 @pytest.mark.slow
