@@ -4,7 +4,6 @@ from typing import Iterable
 
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.execution.metric_ops import StandardMetricsReporting
-from ray.rllib.execution.rollout_ops import ConcatBatches
 from ray.rllib.execution.rollout_ops import ParallelRollouts
 from ray.rllib.execution.train_ops import TrainOneStep
 from ray.rllib.utils.types import ResultDict
@@ -18,15 +17,13 @@ def off_policy_execution_plan(workers: WorkerSet, config: TrainerConfigDict):
     """RLlib's default execution plan with an added warmup phase."""
     # Collects experiences in parallel from multiple RolloutWorker actors.
     rollouts = ParallelRollouts(workers, mode="bulk_sync")
-
-    # On the first iteration, hold until we have at least `learning_starts` timesteps.
-    # Combine experiences batches until we hit `train_batch_size` in size.
-    # Then, train the policy on those experiences and update the workers.
-    train_op = (
-        rollouts.combine(LearningStarts(learning_starts=config["learning_starts"]))
-        .combine(ConcatBatches(min_batch_size=config["train_batch_size"]))
-        .for_each(TrainOneStep(workers))
+    # On the first iteration, combine experience batches until we hit `learning_starts`
+    # in size.
+    rollouts = rollouts.combine(
+        LearningStarts(learning_starts=config["learning_starts"])
     )
+    # Then, train the policy on those experiences and update the workers.
+    train_op = rollouts.for_each(TrainOneStep(workers))
 
     # Add on the standard episode reward, etc. metrics reporting. This returns
     # a LocalIterator[metrics_dict] representing metrics for each train step.
