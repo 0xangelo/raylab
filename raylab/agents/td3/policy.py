@@ -56,6 +56,7 @@ class TD3TorchPolicy(OffPolicyMixin, TorchPolicy):
         self._make_actor_loss()
         self._make_critic_loss()
         self._grad_step = 0
+        self._info = {}
 
         self.build_replay_buffer()
 
@@ -80,14 +81,13 @@ class TD3TorchPolicy(OffPolicyMixin, TorchPolicy):
 
     @override(OffPolicyMixin)
     def improve_policy(self, batch: TensorDict) -> dict:
-        info = {}
         self._grad_step += 1
 
-        info.update(self._update_critic(batch))
+        self._info.update(self._update_critic(batch))
         if self._grad_step % self.config["policy_delay"] == 0:
-            info.update(self._update_policy(batch))
+            self._info.update(self._update_policy(batch))
 
-        return info
+        return self._info.copy()
 
     def _update_critic(self, batch: TensorDict) -> dict:
         with self.optimizers.optimize("critics"):

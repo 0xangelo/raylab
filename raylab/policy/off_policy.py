@@ -8,6 +8,8 @@ from raylab.options import option
 from raylab.utils.annotations import TensorDict
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 
+from .stats import learner_stats
+
 
 def off_policy_options(cls: type) -> type:
     """Decorator to add default off-policy options used by OffPolicyMixin."""
@@ -55,6 +57,7 @@ class OffPolicyMixin(ABC):
         )
         self.replay.seed(self.config["seed"])
 
+    @learner_stats
     def learn_on_batch(self, samples: SampleBatch):
         """Run one logical iteration of training.
 

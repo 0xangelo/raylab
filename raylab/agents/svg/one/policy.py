@@ -13,6 +13,7 @@ from raylab.options import configure
 from raylab.options import option
 from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
+from raylab.policy import learner_stats
 from raylab.policy import TorchPolicy
 from raylab.policy.losses import OneStepSVG
 from raylab.policy.off_policy import off_policy_options
@@ -110,6 +111,7 @@ class SVGOneTorchPolicy(OffPolicyMixin, AdaptiveKLCoeffMixin, SVGTorchPolicy):
         optimizers["all"] = cls(param_groups)
         return optimizers
 
+    @learner_stats
     @override(OffPolicyMixin)
     def learn_on_batch(self, samples: SampleBatch) -> dict:
         self.update_old_policy()

@@ -7,6 +7,7 @@ from ray.rllib import SampleBatch
 from raylab.agents.sac import SACTorchPolicy
 from raylab.options import configure
 from raylab.options import option
+from raylab.policy import learner_stats
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import MaximumLikelihood
 from raylab.policy.model_based import EnvFnMixin
@@ -111,6 +112,7 @@ class MBPOTorchPolicy(MBPolicyMixin, EnvFnMixin, ModelSamplingMixin, SACTorchPol
         super().build_timers()
         self.timers["augmentation"] = TimerStat()
 
+    @learner_stats
     def learn_on_batch(self, samples: SampleBatch) -> dict:
         self.add_to_buffer(samples)
         self._learn_calls += 1

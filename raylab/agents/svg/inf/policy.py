@@ -9,6 +9,7 @@ from raylab.options import configure
 from raylab.options import option
 from raylab.policy import AdaptiveKLCoeffMixin
 from raylab.policy import EnvFnMixin
+from raylab.policy import learner_stats
 from raylab.policy.losses import TrajectorySVG
 from raylab.policy.off_policy import off_policy_options
 from raylab.policy.off_policy import OffPolicyMixin
@@ -95,6 +96,7 @@ class SVGInfTorchPolicy(OffPolicyMixin, AdaptiveKLCoeffMixin, SVGTorchPolicy):
     def improve_policy(self, _):
         pass
 
+    @learner_stats
     @override(SVGTorchPolicy)
     def learn_on_batch(self, samples: SampleBatch) -> dict:
         traj_len = samples.count

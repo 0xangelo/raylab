@@ -11,6 +11,8 @@ from raylab.options import option
 from raylab.utils.annotations import StatDict
 from raylab.utils.timer import TimerStat
 
+from ..stats import learner_stats
+
 
 def model_based_options(cls: type) -> type:
     """Decorator to add default model-based options used by MBPolicyMixin."""
@@ -41,6 +43,7 @@ class MBPolicyMixin(ABC):
         """Create timers for model and policy training."""
         self.timers = {"model": TimerStat(), "policy": TimerStat()}
 
+    @learner_stats
     def learn_on_batch(self, samples: SampleBatch) -> dict:
         # pylint:disable=missing-function-docstring
         self.add_to_buffer(samples)
