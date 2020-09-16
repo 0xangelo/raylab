@@ -9,6 +9,7 @@ from .naf import NAF
 from .sac import SAC
 from .svg import SoftSVG
 from .svg import SVG
+from .td3 import TD3
 from .trpo import TRPO
 
 MODULES = {}
@@ -72,5 +73,5 @@ def get_module(obs_space: Space, action_space: Space, config: dict) -> nn.Module
     return cls(obs_space, action_space, spec)
 
 
-for _cls in (DDPG, NAF, SAC, ModelBasedDDPG, ModelBasedSAC, SVG, SoftSVG, TRPO):
+for _cls in (DDPG, NAF, SAC, ModelBasedDDPG, ModelBasedSAC, SVG, SoftSVG, TD3, TRPO):
     register(_cls)
