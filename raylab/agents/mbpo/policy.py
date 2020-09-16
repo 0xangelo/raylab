@@ -1,18 +1,20 @@
 """Policy for MBPO using PyTorch."""
+from typing import List
+from typing import Tuple
+
 from ray.rllib import SampleBatch
 
 from raylab.agents.sac import SACTorchPolicy
 from raylab.options import configure
 from raylab.options import option
-from raylab.policy import EnvFnMixin
-from raylab.policy import ModelSamplingMixin
-from raylab.policy import ModelTrainingMixin
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import MaximumLikelihood
+from raylab.policy.model_based import EnvFnMixin
+from raylab.policy.model_based import LightningModelTrainer
+from raylab.policy.model_based import ModelSamplingMixin
 from raylab.policy.model_based.policy import MBPolicyMixin
 from raylab.policy.model_based.policy import model_based_options
 from raylab.policy.model_based.sampling import SamplingSpec
-from raylab.policy.model_based.training import TrainingSpec
 from raylab.torch.optim import build_optimizer
 from raylab.utils.annotations import StatDict
 from raylab.utils.replay_buffer import NumpyReplayBuffer
@@ -42,6 +44,7 @@ DEFAULT_MODULE = {
 
 @configure
 @model_based_options
+@LightningModelTrainer.add_options
 @option(
     "virtual_buffer_size",
     default=int(1e6),
@@ -66,23 +69,13 @@ DEFAULT_MODULE = {
     "torch_optimizer/models",
     default={"type": "Adam", "lr": 3e-4, "weight_decay": 0.0001},
 )
-@option("model_training", default=TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
-@option(
-    "model_warmup",
-    default=TrainingSpec().to_dict(),
-    help="""Specifications for model warm-up.
-
-    Same configurations as 'model_training'.
-    """,
-)
 @option("model_sampling", default=SamplingSpec().to_dict(), help=SamplingSpec.__doc__)
-class MBPOTorchPolicy(
-    MBPolicyMixin, EnvFnMixin, ModelTrainingMixin, ModelSamplingMixin, SACTorchPolicy
-):
+class MBPOTorchPolicy(MBPolicyMixin, EnvFnMixin, ModelSamplingMixin, SACTorchPolicy):
     """Model-Based Policy Optimization policy in PyTorch to use with RLlib."""
 
     # pylint:disable=too-many-ancestors
     virtual_replay: NumpyReplayBuffer
+    model_trainer: LightningModelTrainer
     dist_class = WrapStochasticPolicy
 
     def __init__(self, observation_space, action_space, config):
@@ -91,10 +84,13 @@ class MBPOTorchPolicy(
         self.loss_model = MaximumLikelihood(models)
 
         self.build_timers()
-
-    @property
-    def model_training_loss(self):
-        return self.loss_model
+        self.model_trainer = LightningModelTrainer(
+            models=self.module.models,
+            loss_fn=self.loss_model,
+            optimizer=self.optimizers["models"],
+            replay=self.replay,
+            config=self.config,
+        )
 
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
@@ -128,7 +124,10 @@ class MBPOTorchPolicy(
                 info.update(model_info)
             self.set_new_elite(losses)
 
-        self.populate_virtual_buffer()
+        with self.timers["augmentation"] as timer:
+            count_before = len(self.virtual_replay)
+            self.populate_virtual_buffer()
+            timer.push_units_processed(len(self.virtual_replay) - count_before)
 
         with self.timers["policy"] as timer:
             times = self.config["improvement_steps"]
@@ -139,7 +138,13 @@ class MBPOTorchPolicy(
         info.update(self.timer_stats())
         return info
 
+    def train_dynamics_model(
+        self, warmup: bool = False
+    ) -> Tuple[List[float], StatDict]:
+        return self.model_trainer.optimize(warmup=warmup)
+
     def populate_virtual_buffer(self):
+        # pylint:disable=missing-function-docstring
         num_rollouts = self.config["model_rollouts"]
         real_data_ratio = self.config["real_data_ratio"]
         if not (num_rollouts and real_data_ratio < 1.0):
@@ -166,3 +171,12 @@ class MBPOTorchPolicy(
             info = self.improve_policy(batch)
 
         return info
+
+    def timer_stats(self) -> dict:
+        stats = super().timer_stats()
+        augmentation_timer = self.timers["augmentation"]
+        stats.update(
+            augmentation_time_s=round(augmentation_timer.mean, 3),
+            augmentation_throughput=round(augmentation_timer.mean_throughput, 3),
+        )
+        return stats

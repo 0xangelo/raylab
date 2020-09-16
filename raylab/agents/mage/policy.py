@@ -1,34 +1,29 @@
 """Policy for MAGE using PyTorch."""
+from typing import List
+from typing import Tuple
+
 from raylab.agents.sop import SOPTorchPolicy
 from raylab.options import configure
 from raylab.options import option
 from raylab.policy import EnvFnMixin
-from raylab.policy import ModelTrainingMixin
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import MAGE
 from raylab.policy.losses import MaximumLikelihood
+from raylab.policy.model_based import LightningModelTrainer
 from raylab.policy.model_based.policy import MBPolicyMixin
 from raylab.policy.model_based.policy import model_based_options
-from raylab.policy.model_based.training import TrainingSpec
 from raylab.policy.modules.critic import HardValue
 from raylab.torch.optim import build_optimizer
+from raylab.utils.annotations import StatDict
 
 
 @configure
 @model_based_options
+@LightningModelTrainer.add_options
 @option("lambda", default=0.05, help="TD error regularization for MAGE loss")
-@option("model_training", default=TrainingSpec().to_dict(), help=TrainingSpec.__doc__)
-@option(
-    "model_warmup",
-    default=TrainingSpec().to_dict(),
-    help="""Specifications for model warm-up.
-
-    Same configurations as 'model_training'.
-    """,
-)
 @option("module/type", "ModelBasedDDPG", override=True)
 @option("torch_optimizer/models", {"type": "Adam"})
-class MAGETorchPolicy(MBPolicyMixin, ModelTrainingMixin, EnvFnMixin, SOPTorchPolicy):
+class MAGETorchPolicy(MBPolicyMixin, EnvFnMixin, SOPTorchPolicy):
     """MAGE policy in PyTorch to use with RLlib.
 
     Attributes:
@@ -39,12 +34,20 @@ class MAGETorchPolicy(MBPolicyMixin, ModelTrainingMixin, EnvFnMixin, SOPTorchPol
 
     # pylint:disable=too-many-ancestors
     dist_class = WrapDeterministicPolicy
+    model_trainer = LightningModelTrainer
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
         self._set_model_loss()
         self._set_critic_loss()
         self.build_timers()
+        self.model_trainer = LightningModelTrainer(
+            models=self.module.models,
+            loss_fn=self.loss_model,
+            optimizer=self.optimizers["models"],
+            replay=self.replay,
+            config=self.config,
+        )
 
     def _set_model_loss(self):
         self.loss_model = MaximumLikelihood(self.module.models)
@@ -63,9 +66,10 @@ class MAGETorchPolicy(MBPolicyMixin, ModelTrainingMixin, EnvFnMixin, SOPTorchPol
         self.loss_critic.gamma = self.config["gamma"]
         self.loss_critic.lambd = self.config["lambda"]
 
-    @property
-    def model_training_loss(self):
-        return self.loss_model
+    def train_dynamics_model(
+        self, warmup: bool = False
+    ) -> Tuple[List[float], StatDict]:
+        return self.model_trainer.optimize(warmup=warmup)
 
     def compile(self):
         super().compile()

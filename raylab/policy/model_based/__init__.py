@@ -1,14 +1,12 @@
 """Mixins for model-based policies."""
 from .envfn import EnvFnMixin
-from .lightning import LightningModelMixin
+from .lightning import LightningModelTrainer
 from .policy import MBPolicyMixin
 from .sampling import ModelSamplingMixin
-from .training import ModelTrainingMixin
 
 __all__ = [
     "EnvFnMixin",
+    "LightningModelTrainer",
     "MBPolicyMixin",
-    "LightningModelMixin",
     "ModelSamplingMixin",
-    "ModelTrainingMixin",
 ]

@@ -95,6 +95,7 @@ class MaximumLikelihood(Loss):
         SampleBatch.ACTIONS,
         SampleBatch.NEXT_OBS,
     )
+    _last_output: Tuple[Tensor, StatDict]
 
     def __init__(self, models: Union[StochasticModel, SME]):
         if isinstance(models, StochasticModel):
@@ -103,17 +104,23 @@ class MaximumLikelihood(Loss):
         self.models = models
         self.tag = "nll"
         self.build_losses()
+        self._last_losses = torch.zeros(len(self.models))
 
     def build_losses(self):
         # pylint:disable=missing-function-docstring
         models = self.models
         losses = [NLLLoss(m) for m in models]
         cls = ForkedLosses if isinstance(models, ForkedSME) else Losses
-        self.losses = cls(losses)
+        self.loss_fns = cls(losses)
+
+    @property
+    def last_output(self) -> Tuple[Tensor, StatDict]:
+        """Last computed losses for each individual model and associated info."""
+        return self._last_output
 
     def compile(self):
         # pylint:disable=missing-function-docstring,attribute-defined-outside-init
-        self.losses = torch.jit.script(self.losses)
+        self.loss_fns = torch.jit.script(self.loss_fns)
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         """Compute Maximum Likelihood Estimation (MLE) model loss.
@@ -123,7 +130,9 @@ class MaximumLikelihood(Loss):
             dictionary of loss statistics
         """
         obs, act, new_obs = get_keys(batch, *self.batch_keys)
-        nlls = self.losses(obs, act, new_obs)
+        nlls = self.loss_fns(obs, act, new_obs)
 
+        losses = torch.stack(nlls)
         info = {f"{self.tag}(models[{i}])": n.item() for i, n in enumerate(nlls)}
-        return torch.stack(nlls), info
+        self._last_output = (losses, info)
+        return losses.mean(), info
