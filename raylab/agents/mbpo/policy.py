@@ -124,7 +124,10 @@ class MBPOTorchPolicy(MBPolicyMixin, EnvFnMixin, ModelSamplingMixin, SACTorchPol
                 info.update(model_info)
             self.set_new_elite(losses)
 
-        self.populate_virtual_buffer()  # TODO: time this
+        with self.timers["augmentation"] as timer:
+            count_before = len(self.virtual_replay)
+            self.populate_virtual_buffer()
+            timer.push_units_processed(len(self.virtual_replay) - count_before)
 
         with self.timers["policy"] as timer:
             times = self.config["improvement_steps"]
@@ -168,3 +171,12 @@ class MBPOTorchPolicy(MBPolicyMixin, EnvFnMixin, ModelSamplingMixin, SACTorchPol
             info = self.improve_policy(batch)
 
         return info
+
+    def timer_stats(self) -> dict:
+        stats = super().timer_stats()
+        augmentation_timer = self.timers["augmentation"]
+        stats.update(
+            augmentation_time_s=round(augmentation_timer.mean, 3),
+            augmentation_throughput=round(augmentation_timer.mean_throughput, 3),
+        )
+        return stats
