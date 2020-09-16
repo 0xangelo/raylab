@@ -19,6 +19,7 @@ from ray.rllib.utils.types import EnvType
 from ray.rllib.utils.types import PartialTrainerConfigDict
 from ray.rllib.utils.types import ResultDict
 from ray.rllib.utils.types import TrainerConfigDict
+from ray.tune.resources import Resources
 from ray.tune.trainable import Trainable
 
 from raylab.options import configure
@@ -235,6 +236,23 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         super().cleanup()
         if self.wandb.enabled:
             self.wandb.stop()
+
+    @classmethod
+    def default_resource_request(cls, config: PartialTrainerConfigDict) -> Resources:
+        cnf = dict(cls.options.rllib_defaults, **config)
+        cls._validate_config(cnf)
+        num_workers = cnf["num_workers"] + cnf["evaluation_num_workers"]
+        return Resources(
+            cpu=cnf["num_cpus_for_driver"],
+            gpu=cnf["num_gpus"],
+            memory=cnf["memory"],
+            object_store_memory=cnf["object_store_memory"],
+            extra_cpu=cnf["num_cpus_per_worker"] * num_workers,
+            extra_gpu=cnf["num_gpus_per_worker"] * num_workers,
+            extra_memory=cnf["memory_per_worker"] * num_workers,
+            extra_object_store_memory=cnf["object_store_memory_per_worker"]
+            * num_workers,
+        )
 
     # ==================================================================================
     # Avoid annoying pylint "abstract-method" warnings
