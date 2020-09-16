@@ -1,4 +1,4 @@
-# pylint:disable=missing-docstring
+# pylint:disable=missing-module-docstring
 import copy
 import statistics as stats
 import warnings
@@ -12,20 +12,21 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
-from ray.rllib import SampleBatch
 from torch import Tensor
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
+from torch.utils.data import Dataset
+from torch.utils.data import random_split
 
 from raylab.options import option
 from raylab.policy.losses import Loss
 from raylab.policy.modules.model import SME
 from raylab.torch.utils import convert_to_tensor
-from raylab.torch.utils import TensorDictDataset
 from raylab.utils.annotations import StatDict
 from raylab.utils.annotations import TensorDict
 from raylab.utils.lightning import supress_stderr
 from raylab.utils.lightning import supress_stdout
+from raylab.utils.replay_buffer import NumpyReplayBuffer
 
 
 # ======================================================================================
@@ -34,7 +35,7 @@ from raylab.utils.lightning import supress_stdout
 
 
 class LightningModel(pl.LightningModule):
-    # pylint:disable=too-many-ancestors,arguments-differ
+    # pylint:disable=too-many-ancestors,arguments-differ,missing-docstring
     def __init__(self, model: nn.Module, loss: Loss, optimizer: Optimizer):
         super().__init__()
         self.model = model
@@ -79,11 +80,104 @@ class LightningModel(pl.LightningModule):
 
 
 # ======================================================================================
+# DataModule
+# ======================================================================================
+
+
+@dataclass
+class DatamoduleSpec(DataClassJsonMixin):
+    """Specifications for creating the data module.
+
+    Attributes:
+        holdout_ratio: Fraction of replay buffer to use as validation dataset
+        max_holdout: Maximum number of samples to use as validation dataset
+        batch_size: Size of minibatch for dynamics model training
+        shuffle: set to ``True`` to have the data reshuffled
+            at every epoch (default: ``True``).
+        num_workers: How many subprocesses to use for data loading.
+            ``0`` means that the data will be loaded in the main process.
+    """
+
+    holdout_ratio: float = 0.2
+    max_holdout: Optional[int] = None
+    batch_size: int = 64
+    shuffle: bool = True
+    num_workers: int = 0  # Use at least one worker for speedup
+
+    def __post_init__(self):
+        assert self.holdout_ratio < 1.0, "Holdout data cannot be the entire dataset"
+        assert (
+            not self.max_holdout or self.max_holdout >= 0
+        ), "Maximum number of holdout samples must be non-negative"
+        assert self.batch_size > 0, "Model batch size must be positive"
+
+
+class DataModule(pl.LightningDataModule):
+    """Data module from experience replay buffer
+
+    Args:
+        replay: Experience replay buffer
+        spec: Data loading especifications
+    """
+
+    # pylint:disable=abstract-method
+    train_dataset: Dataset
+    val_dataset: Dataset
+
+    def __init__(self, replay: NumpyReplayBuffer, spec: DatamoduleSpec):
+        assert isinstance(replay, NumpyReplayBuffer)
+        super().__init__()
+        self.replay_dataset = ReplayDataset(replay)
+        self.spec = spec
+
+    def setup(self, stage=None):
+        dataset = self.replay_dataset
+        spec = self.spec
+        replay_count = len(dataset)
+        max_holdout = spec.max_holdout or replay_count
+        val_size = min(round(replay_count * spec.holdout_ratio), max_holdout)
+        self.train_dataset, self.val_dataset = random_split(
+            dataset, (replay_count - val_size, val_size)
+        )
+
+    def train_dataloader(self, *args, **kwargs):
+        spec = self.spec
+        kwargs = dict(
+            shuffle=spec.shuffle,
+            batch_size=spec.batch_size,
+            num_workers=spec.num_workers,
+        )
+        return DataLoader(self.train_dataset, **kwargs)
+
+    def val_dataloader(self, *args, **kwargs):
+        spec = self.spec
+        kwargs = dict(
+            shuffle=False, batch_size=spec.batch_size, num_workers=spec.num_workers
+        )
+        return DataLoader(self.val_dataset, **kwargs)
+
+
+class ReplayDataset(Dataset):
+    """Adapter for using a replay buffer as an map-style dataset."""
+
+    def __init__(self, replay: NumpyReplayBuffer):
+        self.replay = replay
+
+    def __len__(self):
+        return len(self.replay)
+
+    def __getitem__(self, idx: int):
+        # pylint:disable=protected-access
+        return {k: v[idx] for k, v in self.replay._storage.items()}
+
+
+# ======================================================================================
 # EarlyStopping
 # ======================================================================================
 
 
 class EarlyStopping(pl.callbacks.EarlyStopping):
+    # pylint:disable=missing-docstring
     _epoch_outputs: List[Tuple[Tensor, StatDict]]
     _best_outputs: Tuple[List[float], StatDict]
     _module_state: dict
@@ -140,67 +234,26 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
 
 
 # ======================================================================================
-# Policy Mixin
+# Model Trainer
 # ======================================================================================
 
 
 @dataclass
-class DataloaderSpec(DataClassJsonMixin):
-    """Specifications for creating the data loader.
+class LightningTrainerSpec(DataClassJsonMixin):
+    """Specifications for Lightning trainers.
 
     Attributes:
-        batch_size: Size of minibatch for dynamics model training
-        shuffle: set to ``True`` to have the data reshuffled
-            at every epoch (default: ``True``).
-        num_workers: How many subprocesses to use for data loading.
-            ``0`` means that the data will be loaded in the main process.
-    """
-
-    batch_size: int = 64
-    shuffle: bool = True
-    num_workers: int = 1  # Use at least one worker for speedup
-
-    def __post_init__(self):
-        assert self.batch_size > 0, "Model batch size must be positive"
-
-    def build_dataloader(self, tensors: TensorDict, train: bool = True) -> DataLoader:
-        """Returns a dataloader for the given tensors based on specifications.
-
-        Args:
-            train: Whether the output is intended to be a train dataloader. If
-                false, disables shuffling even if `self.shuffle` is true.
-        """
-        return DataLoader(
-            dataset=TensorDictDataset(tensors),
-            shuffle=False if not train else self.shuffle,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-        )
-
-
-@dataclass
-class TrainingSpec(DataClassJsonMixin):
-    """Specifications for training the model.
-
-    Attributes:
-        dataloader: specifications for creating the data loader
         max_epochs: Maximum number of full model passes through the data
         max_steps: Maximum number of model gradient steps
         patience: Number of epochs to wait for validation loss to improve
         improvement_delta: Minimum expected relative improvement in model
             validation loss
-        holdout_ratio: Fraction of replay buffer to use as validation dataset
-        max_holdout: Maximum number of samples to use as validation dataset
     """
 
-    # pylint:disable=too-many-instance-attributes
-    dataloader: DataloaderSpec = field(default_factory=DataloaderSpec, repr=True)
     max_epochs: int = 1
     max_steps: Optional[int] = None
     patience: Optional[int] = 1
     improvement_delta: Optional[float] = 0.0
-    holdout_ratio: float = 0.2
-    max_holdout: Optional[int] = None
 
     def __post_init__(self):
         assert (
@@ -218,46 +271,9 @@ class TrainingSpec(DataClassJsonMixin):
         assert (
             self.improvement_delta is None or self.improvement_delta >= 0
         ), "Improvement threshold must be nonnegative"
-        assert self.holdout_ratio < 1.0, "Holdout data cannot be the entire dataset"
-        assert (
-            not self.max_holdout or self.max_holdout >= 0
-        ), "Maximum number of holdout samples must be non-negative"
-
-    def train_val_tensors(
-        self, samples: SampleBatch, batch_keys: List[str], tensor_map_fn: callable
-    ) -> Tuple[TensorDict, Optional[TensorDict]]:
-        """Returns a tensor dict dataset split into training and validation.
-
-        Shuffles the samples before splitting them.
-        """
-        total_count = samples.count
-        holdout = int(total_count * self.holdout_ratio)
-        if self.max_holdout is not None:
-            holdout = min(holdout, self.max_holdout)
-
-        samples.shuffle()
-        train_data, eval_data = samples.slice(holdout, None), samples.slice(0, holdout)
-
-        train_tensors = {k: tensor_map_fn(train_data[k]) for k in batch_keys}
-        if eval_data.count == 0:
-            eval_tensors = None
-        else:
-            eval_tensors = {k: tensor_map_fn(eval_data[k]) for k in batch_keys}
-
-        return train_tensors, eval_tensors
-
-    def train_val_loaders(
-        self, train_tensors: TensorDict, val_tensors: Optional[TensorDict]
-    ) -> Tuple[DataLoader, Optional[DataLoader]]:
-        train = self.dataloader.build_dataloader(train_tensors, train=True)
-        val = (
-            self.dataloader.build_dataloader(val_tensors, train=False)
-            if val_tensors
-            else None
-        )
-        return train, val
 
     def build_trainer(self, check_val: bool) -> pl.Trainer:
+        """Returns the Pytorch Lightning configured with this spec."""
         return pl.Trainer(
             logger=False,
             num_sanity_val_steps=2 if check_val else 0,
@@ -275,6 +291,21 @@ class TrainingSpec(DataClassJsonMixin):
         )
 
 
+@dataclass
+class TrainingSpec(DataClassJsonMixin):
+    """Specifications for training the model.
+
+    Attributes:
+        dataloader: specifications for creating the data loader
+        training: specifications for model training
+        warmup: specifications for model warmup
+    """
+
+    datamodule: DatamoduleSpec = field(default_factory=DatamoduleSpec)
+    training: LightningTrainerSpec = field(default_factory=LightningTrainerSpec)
+    warmup: LightningTrainerSpec = field(default_factory=LightningTrainerSpec)
+
+
 class LightningModelTrainer:
     """Model training behavior for TorchPolicy instances via PyTorch Lightning.
 
@@ -282,60 +313,53 @@ class LightningModelTrainer:
         models: Stochastic model ensemble
         loss_fn: Loss associated with the model ensemble
         optimizer: Optimizer associated with the model ensemble
+        replay: Experience replay buffer
         config: Dictionary containg `model_training` and `model_warmup` dicts
 
     Attributes:
-        model_training_spec: Specifications for training the model
-        model_warmup_spec: Specifications for model warm-up
-        model_training_loss: Loss function used for normal model training and
-            evaluation
-        model_warmup_loss: Loss function used for model warm-up.
+        pl_model: Pytorch Lightning model
+        datamodule: Lightning data module
+        spec: Specifications for training the model
+        training_loss: Loss function used for model training and evaluation
+        warmup_loss: Loss function used for model warm-up.
     """
 
-    model_training_spec: TrainingSpec
-    model_warmup_spec: TrainingSpec
     pl_model: LightningModel
+    datamodule: DataModule
+    spec: TrainingSpec
 
-    def __init__(self, models: SME, loss_fn: Loss, optimizer: Optimizer, config: dict):
-        self.model_training_spec = TrainingSpec.from_dict(config["model_training"])
-        self.model_warmup_spec = TrainingSpec.from_dict(config["model_warmup"])
-        self.model_training_loss = self.model_warmup_loss = loss_fn
+    def __init__(
+        self,
+        models: SME,
+        loss_fn: Loss,
+        optimizer: Optimizer,
+        replay: NumpyReplayBuffer,
+        config: dict,
+    ):
+        # pylint:disable=too-many-arguments
+        self.spec = TrainingSpec.from_dict(config["model_training"])
         self.pl_model = LightningModel(model=models, loss=loss_fn, optimizer=optimizer)
+        self.datamodule = DataModule(replay, self.spec.datamodule)
+        self.training_loss = self.warmup_loss = loss_fn
 
-    def optimize(
-        self, samples: SampleBatch, warmup: bool = False
-    ) -> Tuple[List[float], StatDict]:
-        """Update models with samples.
+    def optimize(self, warmup: bool = False) -> Tuple[List[float], StatDict]:
+        """Update models using replay buffer data.
 
         Args:
-            samples: Dataset as sample batches. Usually the entire replay buffer
             warmup: Whether to train with warm-up loss and spec
 
         Returns:
             A tuple with a list of each model's evaluation loss and a dictionary
             with training statistics
         """
-        loss_fn = self.model_warmup_loss if warmup else self.model_training_loss
-        spec = self.model_warmup_spec if warmup else self.model_training_spec
+        loss_fn = self.warmup_loss if warmup else self.training_loss
+        self.pl_model.configure_losses(loss_fn)
 
-        pl_model = self.pl_model
-        pl_model.configure_losses(loss_fn)
-        train_tensors, val_tensors = spec.train_val_tensors(
-            samples,
-            loss_fn.batch_keys,
-            lambda x: convert_to_tensor(x, device=pl_model.device),
-        )
-        # Fit scalers for each model here
-        for model in pl_model.model:
-            model.encoder.fit_scaler(
-                train_tensors[SampleBatch.CUR_OBS], train_tensors[SampleBatch.ACTIONS]
-            )
-
-        trainer = spec.build_trainer(check_val=warmup)
-        train, val = spec.train_val_loaders(train_tensors, val_tensors)
+        trainer_spec = self.spec.warmup if warmup else self.spec.training
+        trainer = trainer_spec.build_trainer(check_val=warmup)
 
         losses, info = self.run_training(
-            model=self.pl_model, trainer=trainer, train=train, val=val
+            model=self.pl_model, trainer=trainer, datamodule=self.datamodule
         )
         return losses, info
 
@@ -343,11 +367,12 @@ class LightningModelTrainer:
     @supress_stderr
     @supress_stdout
     def run_training(
-        model: LightningModel, trainer: pl.Trainer, train: DataLoader, val: DataLoader
+        model: LightningModel, trainer: pl.Trainer, datamodule: DataModule
     ) -> Tuple[List[float], StatDict]:
+        """Trains model and handles checkpointing."""
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="pytorch_lightning*")
-            trainer.fit(model, train_dataloader=train, val_dataloaders=val)
+            trainer.fit(model, datamodule=datamodule)
 
         saved_state = trainer.early_stop_callback.state_dict()
         model.load_state_dict(saved_state["module"])
@@ -358,18 +383,8 @@ class LightningModelTrainer:
     @staticmethod
     def add_options(cls_: type) -> type:
         """Add options for classes that may use this class."""
-        cls = cls_
-        for opt in [
-            option(
-                "model_training",
-                default=TrainingSpec().to_dict(),
-                help=TrainingSpec.__doc__,
-            ),
-            option(
-                "model_warmup",
-                default=TrainingSpec().to_dict(),
-                help="Specifications for model warm-up; same as 'model_training'",
-            ),
-        ]:
-            cls = opt(cls)
-        return cls
+        return option(
+            "model_training",
+            default=TrainingSpec().to_dict(),
+            help=TrainingSpec.__doc__,
+        )(cls_)

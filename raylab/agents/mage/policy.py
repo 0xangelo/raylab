@@ -2,8 +2,6 @@
 from typing import List
 from typing import Tuple
 
-from ray.rllib import SampleBatch
-
 from raylab.agents.sop import SOPTorchPolicy
 from raylab.options import configure
 from raylab.options import option
@@ -44,7 +42,11 @@ class MAGETorchPolicy(MBPolicyMixin, EnvFnMixin, SOPTorchPolicy):
         self._set_critic_loss()
         self.build_timers()
         self.model_trainer = LightningModelTrainer(
-            self.module.models, self.loss_model, self.optimizers["models"], self.config
+            models=self.module.models,
+            loss_fn=self.loss_model,
+            optimizer=self.optimizers["models"],
+            replay=self.replay,
+            config=self.config,
         )
 
     def _set_model_loss(self):
@@ -64,6 +66,11 @@ class MAGETorchPolicy(MBPolicyMixin, EnvFnMixin, SOPTorchPolicy):
         self.loss_critic.gamma = self.config["gamma"]
         self.loss_critic.lambd = self.config["lambda"]
 
+    def train_dynamics_model(
+        self, warmup: bool = False
+    ) -> Tuple[List[float], StatDict]:
+        return self.model_trainer.optimize(warmup=warmup)
+
     def compile(self):
         super().compile()
         for loss in (self.loss_model, self.loss_actor, self.loss_critic):
@@ -81,8 +88,3 @@ class MAGETorchPolicy(MBPolicyMixin, EnvFnMixin, SOPTorchPolicy):
             self.module.models, self.config["torch_optimizer"]["models"]
         )
         return optimizers
-
-    def optimize_model(
-        self, samples: SampleBatch, warmup: bool
-    ) -> Tuple[List[float], StatDict]:
-        return self.model_trainer.optimize(samples, warmup=warmup)

@@ -1,4 +1,7 @@
 """Policy for MBPO using PyTorch."""
+from typing import List
+from typing import Tuple
+
 from ray.rllib import SampleBatch
 
 from raylab.agents.sac import SACTorchPolicy
@@ -82,12 +85,12 @@ class MBPOTorchPolicy(MBPolicyMixin, EnvFnMixin, ModelSamplingMixin, SACTorchPol
 
         self.build_timers()
         self.model_trainer = LightningModelTrainer(
-            self.module.models, self.loss_model, self.optimizers["models"], self.config
+            models=self.module.models,
+            loss_fn=self.loss_model,
+            optimizer=self.optimizers["models"],
+            replay=self.replay,
+            config=self.config,
         )
-
-    @property
-    def model_training_loss(self):
-        return self.loss_model
 
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
@@ -121,7 +124,7 @@ class MBPOTorchPolicy(MBPolicyMixin, EnvFnMixin, ModelSamplingMixin, SACTorchPol
                 info.update(model_info)
             self.set_new_elite(losses)
 
-        self.populate_virtual_buffer()
+        self.populate_virtual_buffer()  # TODO: time this
 
         with self.timers["policy"] as timer:
             times = self.config["improvement_steps"]
@@ -132,8 +135,10 @@ class MBPOTorchPolicy(MBPolicyMixin, EnvFnMixin, ModelSamplingMixin, SACTorchPol
         info.update(self.timer_stats())
         return info
 
-    def optimize_model(self, samples, warmup):
-        return self.model_trainer.optimize(samples, warmup=warmup)
+    def train_dynamics_model(
+        self, warmup: bool = False
+    ) -> Tuple[List[float], StatDict]:
+        return self.model_trainer.optimize(warmup=warmup)
 
     def populate_virtual_buffer(self):
         # pylint:disable=missing-function-docstring
