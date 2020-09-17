@@ -2,17 +2,14 @@ LEARNING_STARTS = 10000
 
 
 def module_config() -> dict:
-    from raylab.policy.modules.ddpg import DDPGSpec
+    from raylab.policy.modules.sac import SACSpec
 
-    spec = DDPGSpec()
-    spec.actor.network.units = (256, 256)
-    spec.actor.network.activation = "ReLU"
-    spec.actor.network.layer_norm = False
-    spec.actor.network.norm_beta = 1.2
-    spec.actor.separate_behavior = False
-    spec.actor.smooth_target_policy = True
-    spec.actor.target_gaussian_sigma = 0.3
-    spec.actor.separate_target_policy = False
+    spec = SACSpec()
+    spec.actor.encoder.units = (256, 256)
+    spec.actor.encoder.activation = "ReLU"
+    spec.actor.encoder.layer_norm = False
+    spec.actor.input_dependent_scale = True
+    spec.actor.initial_entropy_coeff = 1.0  # Taken from pfrl
     # spec.actor.initializer = {"name": "xavier_uniform"}
 
     spec.critic.encoder.units = (256, 256)
@@ -23,7 +20,7 @@ def module_config() -> dict:
     spec.critic.parallelize = True
     # spec.critic.initializer = {"name": "xavier_uniform"}
 
-    return {"type": "DDPG", **spec.to_dict()}
+    return {"type": "SAC", **spec.to_dict()}
 
 
 def policy_config() -> dict:
@@ -32,18 +29,15 @@ def policy_config() -> dict:
         "torch_optimizer": {
             "actor": {"type": "Adam", "lr": 3e-4},
             "critics": {"type": "Adam", "lr": 3e-4},
+            "alpha": {"type": "Adam", "lr": 3e-4},  # Taken from pfrl
         },
         "buffer_size": int(1e6),
         "batch_size": 256,
         "improvement_steps": 1,
         "gamma": 0.99,
         "polyak": 0.995,
-        "policy_delay": 1,
-        "exploration_config": {
-            "type": "raylab.utils.exploration.GaussianNoise",
-            "noise_stddev": 0.3,
-            "pure_exploration_steps": LEARNING_STARTS,
-        },
+        "target_entropy": "auto",
+        "exploration_config": {"pure_exploration_steps": LEARNING_STARTS},
     }
 
 
