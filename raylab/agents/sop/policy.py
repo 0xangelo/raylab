@@ -81,6 +81,7 @@ class SOPTorchPolicy(OffPolicyMixin, TorchPolicy):
         self.loss_critic = FittedQLearning(self.module.critics, target_value)
         self.loss_critic.gamma = self.config["gamma"]
         self._grad_step = 0
+        self._info = {}
 
         self.build_replay_buffer()
 
@@ -117,16 +118,16 @@ class SOPTorchPolicy(OffPolicyMixin, TorchPolicy):
 
     @override(OffPolicyMixin)
     def improve_policy(self, batch: TensorDict):
-        info = {}
         self._grad_step += 1
+        self._info["grad_steps"] = self._grad_step
 
-        info.update(self._update_critic(batch))
+        self._info.update(self._update_critic(batch))
         if self._grad_step % self.config["policy_delay"] == 0:
-            info.update(self._update_policy(batch))
+            self._info.update(self._update_policy(batch))
 
         critics, target_critics = self.module.critics, self.module.target_critics
         update_polyak(critics, target_critics, self.config["polyak"])
-        return info
+        return self._info.copy()
 
     def _update_critic(self, batch_tensors):
         with self.optimizers.optimize("critics"):

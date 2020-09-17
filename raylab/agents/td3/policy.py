@@ -82,6 +82,7 @@ class TD3TorchPolicy(OffPolicyMixin, TorchPolicy):
     @override(OffPolicyMixin)
     def improve_policy(self, batch: TensorDict) -> dict:
         self._grad_step += 1
+        self._info["grad_steps"] = self._grad_step
 
         self._info.update(self._update_critic(batch))
         if self._grad_step % self.config["policy_delay"] == 0:
