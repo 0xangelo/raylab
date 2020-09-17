@@ -2,28 +2,47 @@
 from typing import List
 from typing import Tuple
 
-from raylab.agents.sop import SOPTorchPolicy
+from raylab.agents.td3 import TD3TorchPolicy
 from raylab.options import configure
 from raylab.options import option
 from raylab.policy import EnvFnMixin
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import MAGE
 from raylab.policy.losses import MaximumLikelihood
-from raylab.policy.model_based import LightningModelTrainer
+from raylab.policy.model_based.lightning import LightningModelTrainer
+from raylab.policy.model_based.lightning import TrainingSpec
 from raylab.policy.model_based.policy import MBPolicyMixin
-from raylab.policy.model_based.policy import model_based_options
 from raylab.policy.modules.critic import HardValue
 from raylab.torch.optim import build_optimizer
 from raylab.utils.annotations import StatDict
 
 
+def default_model_training() -> dict:
+    """Model training routine used by MAGE paper."""
+    spec = TrainingSpec()
+    spec.datamodule.holdout_ratio = 0.0
+    spec.datamodule.max_holdout = 0
+    spec.datamodule.batch_size = 256
+    spec.datamodule.shuffle = True
+    spec.datamodule.num_workers = 0
+    spec.training.max_epochs = None
+    spec.training.max_steps = 120
+    spec.patience = None
+    return spec.to_dict()
+
+
 @configure
-@model_based_options
-@LightningModelTrainer.add_options
+@option("model_training", default=default_model_training())
+@option("model_update_interval", default=25)
+@option("improvement_steps", default=10, override=True)
+@option("policy_delay", default=2, override=True)
+@option("batch_size", default=1024, override=True)
 @option("lambda", default=0.05, help="TD error regularization for MAGE loss")
-@option("module/type", "ModelBasedDDPG", override=True)
-@option("torch_optimizer/models", {"type": "Adam"})
-class MAGETorchPolicy(MBPolicyMixin, EnvFnMixin, SOPTorchPolicy):
+@option("module/type", "MAGE", override=True)
+@option("optimizer/models", default={"type": "Adam", "lr": 1e-4, "weight_decay": 1e-4})
+@option("optimizer/actor", default={"type": "Adam", "lr": 1e-4}, override=True)
+@option("optimizer/critics", default={"type": "Adam", "lr": 1e-4}, override=True)
+class MAGETorchPolicy(MBPolicyMixin, EnvFnMixin, TD3TorchPolicy):
     """MAGE policy in PyTorch to use with RLlib.
 
     Attributes:
@@ -34,7 +53,7 @@ class MAGETorchPolicy(MBPolicyMixin, EnvFnMixin, SOPTorchPolicy):
 
     # pylint:disable=too-many-ancestors
     dist_class = WrapDeterministicPolicy
-    model_trainer = LightningModelTrainer
+    model_trainer: LightningModelTrainer
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
