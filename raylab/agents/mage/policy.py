@@ -35,7 +35,6 @@ def default_model_training() -> dict:
 @option("model_training", default=default_model_training())
 @option("model_update_interval", default=25)
 @option("improvement_steps", default=10, override=True)
-@option("policy_delay", default=2, override=True)
 @option("batch_size", default=1024, override=True)
 @option("lambda", default=0.05, help="TD error regularization for MAGE loss")
 @option("module/type", "MAGE", override=True)
