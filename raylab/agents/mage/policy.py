@@ -27,7 +27,8 @@ def default_model_training() -> dict:
     spec.datamodule.num_workers = 0
     spec.training.max_epochs = None
     spec.training.max_steps = 120
-    spec.patience = None
+    spec.training.patience = None
+    spec.warmup = spec.training
     return spec.to_dict()
 
 
