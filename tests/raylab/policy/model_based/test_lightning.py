@@ -62,17 +62,13 @@ def optimizer(models):
     return build_optimizer(models, {"type": "Adam"})
 
 
-MAXS = (dict(max_epochs=1, max_steps=None), dict(max_epochs=None, max_steps=10))
-VALS = (
-    dict(patience=None, holdout_ratio=0.2),
-    dict(patience=3, holdout_ratio=0.0),
-    dict(patience=3, holdout_ratio=0.2),
-)
+MAXS = ((1, None), (10, 10))
 
 
-@pytest.fixture(params=(MAXS))
+@pytest.fixture(params=(MAXS), ids=lambda x: f"MaxEpochs:{x[0]}-MaxSteps:{x[1]}")
 def maxs(request):
-    return request.param
+    max_epochs, max_steps = request.param
+    return dict(max_epochs=max_epochs, max_steps=max_steps)
 
 
 @pytest.fixture
@@ -90,9 +86,13 @@ def improvement_delta():
     return 0.0
 
 
-@pytest.fixture(params=VALS)
+VALS = ((None, 0.2), (3, 0.0), (3, 0.2))
+
+
+@pytest.fixture(params=VALS, ids=lambda x: f"Patience:{x[0]}-Holdout%:{x[1]}")
 def vals(request):
-    return request.param
+    patience, holdout_ratio = request.param
+    return dict(patience=patience, holdout_ratio=holdout_ratio)
 
 
 @pytest.fixture
@@ -171,7 +171,7 @@ def test_init(
         assert subspec.max_epochs == max_epochs
         assert subspec.max_steps == max_steps
         assert subspec.improvement_delta == improvement_delta
-        assert subspec.patience == patience
+        assert subspec.patience == (patience or max_epochs)
     assert spec.datamodule.holdout_ratio == holdout_ratio
 
 
@@ -229,7 +229,7 @@ def test_model(trainer, models):
     assert not set.symmetric_difference(model_params, optim_params)
 
 
-def test_test(trainer: LightningModelTrainer):
+def test_test(trainer: LightningModelTrainer, holdout_ratio):
     spec: TrainingSpec = trainer.spec
     pl_model: LightningModel = trainer.pl_model
     datamodule: DataModule = trainer.datamodule
@@ -238,11 +238,12 @@ def test_test(trainer: LightningModelTrainer):
     assert isinstance(pl_trainer, pl.Trainer)
     datamodule.setup(None)
 
-    with warnings.catch_warnings():
-        # warnings.filterwarnings("ignore", module="pytorch_lightning*")
-        outputs = pl_trainer.test(
-            pl_model, test_dataloaders=datamodule.val_dataloader()
-        )
+    dataloader = (
+        datamodule.val_dataloader() if holdout_ratio else datamodule.train_dataloader()
+    )
+    # with warnings.catch_warnings():
+    #     # warnings.filterwarnings("ignore", module="pytorch_lightning*")
+    outputs = pl_trainer.test(pl_model, test_dataloaders=dataloader)
 
     assert isinstance(outputs, (list, tuple))
     assert len(outputs) == 1
@@ -280,6 +281,7 @@ def test_checkpointing(build_trainer):
     patience = 2
     spec = trainer.spec.training
     spec.max_epochs = 1000
+    spec.max_steps = None
     spec.patience = patience
 
     pl_model = trainer.pl_model
