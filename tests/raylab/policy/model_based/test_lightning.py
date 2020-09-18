@@ -50,14 +50,39 @@ def ensemble_size(request):
     return request.param
 
 
-@pytest.fixture(params=(1,), ids=lambda x: f"MaxEpochs:{x}")
-def max_epochs(request):
+@pytest.fixture
+def models(obs_space, action_space, ensemble_size):
+    cnf = {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}}
+    module = get_module(obs_space, action_space, cnf)
+    return module.models
+
+
+@pytest.fixture
+def optimizer(models):
+    return build_optimizer(models, {"type": "Adam"})
+
+
+MAXS = (dict(max_epochs=1, max_steps=None), dict(max_epochs=None, max_steps=10))
+VALS = (
+    dict(patience=None, holdout_ratio=0.2),
+    dict(patience=3, holdout_ratio=0.0),
+    dict(patience=3, holdout_ratio=0.2),
+)
+
+
+@pytest.fixture(params=(MAXS))
+def maxs(request):
     return request.param
 
 
-@pytest.fixture(params=(None,), ids=lambda x: f"MaxSteps:{x}")
-def max_steps(request):
-    return request.param
+@pytest.fixture
+def max_epochs(maxs):
+    return maxs["max_epochs"]
+
+
+@pytest.fixture
+def max_steps(maxs):
+    return maxs["max_steps"]
 
 
 @pytest.fixture
@@ -65,21 +90,23 @@ def improvement_delta():
     return 0.0
 
 
-@pytest.fixture
-def patience():
-    return 3
+@pytest.fixture(params=VALS)
+def vals(request):
+    return request.param
 
 
 @pytest.fixture
-def holdout_ratio():
-    return 0.2
+def patience(vals):
+    return vals["patience"]
 
 
 @pytest.fixture
-def config(
-    max_epochs, max_steps, improvement_delta, patience, holdout_ratio, ensemble_size
-):
-    # pylint:disable=too-many-arguments
+def holdout_ratio(vals):
+    return vals["holdout_ratio"]
+
+
+@pytest.fixture
+def config(max_epochs, max_steps, improvement_delta, patience, holdout_ratio):
     options = {
         "model_training": {
             "datamodule": {
@@ -93,15 +120,9 @@ def config(
                 "improvement_delta": improvement_delta,
                 "patience": patience,
             },
-            "warmup": {
-                "max_epochs": max_epochs,
-                "max_steps": max_steps,
-                "improvement_delta": improvement_delta,
-                "patience": patience,
-            },
         },
-        "module": {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}},
     }
+    options["model_training"]["warmup"] = options["model_training"]["training"]
     return options
 
 
@@ -116,17 +137,6 @@ def replay(obs_space, action_space, samples):
     for row in samples.rows():
         replay.add(row)
     return replay
-
-
-@pytest.fixture
-def models(obs_space, action_space, config):
-    module = get_module(obs_space, action_space, config["module"])
-    return module.models
-
-
-@pytest.fixture
-def optimizer(models):
-    return build_optimizer(models, {"type": "Adam"})
 
 
 @pytest.fixture
