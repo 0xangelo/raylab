@@ -103,6 +103,6 @@ class MAGETorchPolicy(MBPolicyMixin, EnvFnMixin, TD3TorchPolicy):
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
         optimizers["models"] = build_optimizer(
-            self.module.models, self.config["torch_optimizer"]["models"]
+            self.module.models, self.config["optimizer"]["models"]
         )
         return optimizers
