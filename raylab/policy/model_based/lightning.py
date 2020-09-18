@@ -170,8 +170,7 @@ class ReplayDataset(Dataset):
         return len(self.replay)
 
     def __getitem__(self, idx: int):
-        # pylint:disable=protected-access
-        return {k: v[idx] for k, v in self.replay._storage.items()}
+        return self.replay[idx]
 
 
 # ======================================================================================

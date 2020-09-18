@@ -18,6 +18,11 @@ def off_policy_options(cls: type) -> type:
         default=int(1e4),
         help="""Size (number of transitions) of the replay buffer.""",
     )
+    std_obs = option(
+        "std_obs",
+        default=False,
+        help="Wheter to normalize replayed observations by the empirical mean and std.",
+    )
     improvement_steps = option(
         "improvement_steps",
         default=1,
@@ -35,7 +40,7 @@ def off_policy_options(cls: type) -> type:
         help="Size of replay buffer batches sampled on each call to `improve_policy`.",
     )
 
-    options = [buffer_size, improvement_steps, batch_size]
+    options = [buffer_size, std_obs, improvement_steps, batch_size]
     for opt in options:
         cls = opt(cls)
 
@@ -78,8 +83,9 @@ class OffPolicyMixin(ABC):
 
     def add_to_buffer(self, samples: SampleBatch):
         """Add sample batch to replay buffer"""
-        for row in samples.rows():
-            self.replay.add(row)
+        self.replay.add(samples)
+        if self.config["std_obs"]:
+            self.replay.update_obs_stats()
 
     @abstractmethod
     def improve_policy(self, batch: TensorDict) -> dict:
