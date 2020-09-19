@@ -1988,7 +1988,7 @@ description = "The fastest way to build data apps in Python"
 name = "streamlit"
 optional = false
 python-versions = ">=3.6"
-version = "0.66.0"
+version = "0.67.0"
 
 [package.dependencies]
 altair = ">=3.2.0"
@@ -2398,7 +2398,8 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "985c6cdf69b08226a7dc5456809665dbef0edc5df4ff884e0fb62f805a0366af"
+content-hash = "d50646fbbec41e87247de39d8340d35eec7dc835a78054141d92c6960a516402"
+lock-version = "1.0"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -2497,7 +2498,6 @@ beautifulsoup4 = [
     {file = "beautifulsoup4-4.9.1.tar.gz", hash = "sha256:73cc4d115b96f79c7d77c1c7f7a0a8d4c57860d1041df407dd1aae7f07a77fd7"},
 ]
 black = [
-    {file = "black-20.8b1-py3-none-any.whl", hash = "sha256:70b62ef1527c950db59062cda342ea224d772abdf6adc58b86a45421bab20a6b"},
     {file = "black-20.8b1.tar.gz", hash = "sha256:1c02557aa099101b9d21496f8a914e9ed2222ef70336404eeeac8edba836fbea"},
 ]
 bleach = [
@@ -3555,7 +3555,7 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 streamlit = [
-    {file = "streamlit-0.66.0-py2.py3-none-any.whl", hash = "sha256:383f16b6e84eebe9f99e1da5d3fae914874a44f797176b67ef7e34ad214fd005"},
+    {file = "streamlit-0.67.0-py2.py3-none-any.whl", hash = "sha256:8117c1f6fbd5518fd4d4a0448074688a28e7a7b7c28546e09cae6ab6b5bfc029"},
 ]
 stringcase = [
     {file = "stringcase-1.2.0.tar.gz", hash = "sha256:48a06980661908efe8d9d34eab2b6c13aefa2163b3ced26972902e3bdfd87008"},
