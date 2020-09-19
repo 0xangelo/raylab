@@ -75,7 +75,13 @@ class ActionValueCritic(nn.Module):
         q_values.initialize_parameters(spec.initializer)
 
         target_q_values = make_q_value_ensemble()
+        main, target = set(q_values.parameters()), set(target_q_values.parameters())
+        assert not main.intersection(
+            target
+        ), "Main and target Q nets cannot share params."
         target_q_values.load_state_dict(q_values.state_dict())
+        for par in target:
+            par.requires_grad = False
 
         self.q_values = q_values
         self.target_q_values = target_q_values
