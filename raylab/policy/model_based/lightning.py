@@ -54,7 +54,7 @@ class LightningModel(pl.LightningModule):
     def training_step(self, batch: TensorDict, _) -> pl.TrainResult:
         loss, info = self.train_loss(batch)
         info = self.stat_to_tensor_dict(info)
-        result = pl.TrainResult(loss)
+        result = pl.TrainResult(loss, early_stop_on=loss)
         result.log("train/loss", loss)
         result.log_dict({"train/" + k: v for k, v in info.items()})
         return result
@@ -150,6 +150,9 @@ class DataModule(pl.LightningDataModule):
         return DataLoader(self.train_dataset, **kwargs)
 
     def val_dataloader(self, *args, **kwargs):
+        if len(self.val_dataset) == 0:
+            return None
+
         spec = self.spec
         kwargs = dict(
             shuffle=False, batch_size=spec.batch_size, num_workers=spec.num_workers
@@ -167,8 +170,7 @@ class ReplayDataset(Dataset):
         return len(self.replay)
 
     def __getitem__(self, idx: int):
-        # pylint:disable=protected-access
-        return {k: v[idx] for k, v in self.replay._storage.items()}
+        return self.replay[idx]
 
 
 # ======================================================================================
@@ -178,7 +180,8 @@ class ReplayDataset(Dataset):
 
 class EarlyStopping(pl.callbacks.EarlyStopping):
     # pylint:disable=missing-docstring
-    _epoch_outputs: List[Tuple[Tensor, StatDict]]
+    _train_outputs: List[Tuple[Tensor, StatDict]]
+    _val_outputs: List[Tuple[Tensor, StatDict]]
     _best_outputs: Tuple[List[float], StatDict]
     _module_state: dict
 
@@ -190,22 +193,31 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
     def __warn_deprecated_monitor_key(self):
         pass  # Disable annoying UserWarning
 
+    def on_train_epoch_start(self, trainer, pl_module):
+        self._train_outputs = []
+        super().on_train_epoch_start(trainer, pl_module)
+
+    def on_train_batch_end(self, trainer, pl_module, batch, batch_idx, dataloader_idx):
+        # pylint:disable=too-many-arguments
+        self._train_outputs += [pl_module.val_loss.last_output]
+        super().on_train_batch_end(trainer, pl_module, batch, batch_idx, dataloader_idx)
+
     def on_validation_epoch_start(self, trainer, pl_module):
-        self._epoch_outputs = []
+        self._val_outputs = []
         super().on_validation_epoch_start(trainer, pl_module)
 
     def on_validation_batch_end(
         self, trainer, pl_module, batch, batch_idx, dataloader_idx
     ):
         # pylint:disable=too-many-arguments
-        self._epoch_outputs += [pl_module.val_loss.last_output]
+        self._val_outputs += [pl_module.val_loss.last_output]
         super().on_validation_batch_end(
             trainer, pl_module, batch, batch_idx, dataloader_idx
         )
 
-    def on_validation_end(self, trainer, pl_module):
+    def _run_early_stopping_check(self, trainer, pl_module):
         is_start = not torch.isfinite(self.best_score).item()
-        super().on_validation_end(trainer, pl_module)
+        super()._run_early_stopping_check(trainer, pl_module)
         if self.wait_count == 0 and not is_start:  # Improved
             self.save_outputs()
             self.save_module_state(pl_module)
@@ -213,7 +225,12 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
             self.save_outputs()
 
     def save_outputs(self):
-        epoch_losses, epoch_infos = zip(*self._epoch_outputs)
+        if self.monitor == "val_early_stop_on":
+            epoch_outputs = self._val_outputs
+        else:
+            epoch_outputs = self._train_outputs
+
+        epoch_losses, epoch_infos = zip(*epoch_outputs)
         model_losses = torch.stack(epoch_losses, dim=0).mean(dim=0).tolist()
         model_infos = {k: stats.mean(i[k] for i in epoch_infos) for k in epoch_infos[0]}
         self._best_outputs = (model_losses, model_infos)
@@ -246,43 +263,41 @@ class LightningTrainerSpec(DataClassJsonMixin):
         max_epochs: Maximum number of full model passes through the data
         max_steps: Maximum number of model gradient steps
         patience: Number of epochs to wait for validation loss to improve
-        improvement_delta: Minimum expected relative improvement in model
+        improvement_delta: Minimum expected absolute improvement in model
             validation loss
     """
 
-    max_epochs: int = 1
+    max_epochs: Optional[int] = 1
     max_steps: Optional[int] = None
     patience: Optional[int] = 1
-    improvement_delta: Optional[float] = 0.0
+    improvement_delta: float = 0.0
 
     def __post_init__(self):
-        assert (
-            not self.max_epochs or self.max_epochs > 0
-        ), "Cannot train model for a negative number of epochs"
+        if self.max_epochs is None:
+            self.max_epochs = self.max_steps
+
+        if self.patience is None:
+            self.patience = self.max_epochs
+
+        assert self.max_epochs > 0, "Maximum number of epochs must be positive"
         assert not self.max_steps or self.max_steps > 0
-        assert (
-            self.max_epochs
-            or self.max_steps
-            or (self.improvement_delta is not None and self.patience)
-        ), "Need at least one stopping criterion"
-        assert (
-            not self.patience or self.patience > 0
-        ), "Must wait a positive number of epochs for any model to improve"
-        assert (
-            self.improvement_delta is None or self.improvement_delta >= 0
-        ), "Improvement threshold must be nonnegative"
+        assert self.patience >= 0, "Patience must be nonnegative"
+        assert isinstance(
+            self.improvement_delta, float
+        ), "Improvement threshold must be a scalar"
 
     def build_trainer(self, check_val: bool) -> pl.Trainer:
         """Returns the Pytorch Lightning configured with this spec."""
+        early_stopping = EarlyStopping(
+            min_delta=self.improvement_delta,
+            patience=self.patience,
+            mode="min",
+            strict=False,
+        )
         return pl.Trainer(
             logger=False,
             num_sanity_val_steps=2 if check_val else 0,
-            early_stop_callback=EarlyStopping(
-                min_delta=self.improvement_delta,
-                patience=self.patience,
-                mode="min",
-                strict=False,
-            ),
+            early_stop_callback=early_stopping,
             max_epochs=self.max_epochs,
             max_steps=self.max_steps,
             progress_bar_refresh_rate=0,

@@ -6,6 +6,7 @@ from raylab.agents.mage import MAGETorchPolicy
 from raylab.policy.losses import DeterministicPolicyGradient
 from raylab.policy.losses import MAGE
 from raylab.policy.losses import MaximumLikelihood
+from raylab.policy.stats import LEARNER_STATS_KEY
 from raylab.utils.debug import fake_batch
 
 
@@ -38,8 +39,17 @@ def test_default_config(policy_cls):
 
 
 @pytest.fixture
-def policy(policy_cls, obs_space, action_space, reward_fn, termination_fn):
-    policy = policy_cls(obs_space, action_space, {})
+def policy_config():
+    training = {"max_steps": 1}
+    return {"model_training": {"training": training, "warmup": training}}
+
+
+@pytest.fixture
+def policy(
+    policy_cls, obs_space, action_space, reward_fn, termination_fn, policy_config
+):
+    # pylint:disable=too-many-arguments
+    policy = policy_cls(obs_space, action_space, {"policy": policy_config})
     policy.set_reward_from_callable(reward_fn)
     policy.set_termination_from_callable(termination_fn)
     return policy
@@ -81,7 +91,8 @@ def test_learn_on_batch(policy, samples):
         f"train_loss(models[{i}])" not in info for i in range(len(policy.module.models))
     )
     assert "learner" not in info
-    assert "learner_stats" not in info
+    assert LEARNER_STATS_KEY in info
+    info = info[LEARNER_STATS_KEY]
     assert "loss(actor)" in info
     assert "loss(critics)" in info
     assert "grad_norm(actor)" in info

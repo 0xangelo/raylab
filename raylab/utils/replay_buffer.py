@@ -2,6 +2,7 @@
 import random
 import sys
 from dataclasses import dataclass
+from typing import Union
 
 import numpy as np
 from gym.spaces import Space
@@ -156,7 +157,6 @@ class NumpyReplayBuffer:
     """
 
     def __init__(self, obs_space: Space, action_space: Space, size: int):
-        # pylint:disable=too-many-arguments
         self._maxsize = size
         self.fields = (
             ReplayField(
@@ -176,6 +176,7 @@ class NumpyReplayBuffer:
         self._next_idx = 0
         self._curr_size = 0
         self._rng = np.random.default_rng()
+        self._obs_stats = None
 
     def __len__(self) -> int:
         return self._curr_size
@@ -190,6 +191,17 @@ class NumpyReplayBuffer:
         """Seed the random number generator for sampling minibatches."""
         self._rng = np.random.default_rng(seed)
 
+    def update_obs_stats(self):
+        """Compute mean and standard deviation for observation normalization.
+
+        Subsequent batches sampled from this buffer will use these statistics to
+        normalize the current and next observation fields.
+        """
+        cur_obs = self._storage[SampleBatch.CUR_OBS]
+        mean = np.mean(cur_obs, axis=-1)
+        std = np.std(cur_obs, axis=-1)
+        self._obs_stats = (mean, std)
+
     def add_fields(self, *fields: ReplayField):
         """Add fields to the replay buffer and build the corresponding storage."""
         new_names = {f.name for f in fields}
@@ -201,7 +213,28 @@ class NumpyReplayBuffer:
         self.fields = self.fields + fields
         self._build_buffers(*fields)
 
-    def add(self, row: dict):  # pylint:disable=arguments-differ
+    def add(self, samples: SampleBatch):
+        """Add a SampleBatch to storage.
+
+        Optimized to avoid several queries for large sample batches.
+
+        Args:
+            samples: The sample batch
+        """
+        if samples.count >= self._maxsize:
+            samples = samples.slice(samples.count - self._maxsize, None)
+            start_idx, end_idx = 0, self._maxsize
+        else:
+            start_idx = self._next_idx
+            end_idx = (self._next_idx + samples.count) % self._maxsize
+
+        for field in self.fields:
+            self._storage[field.name][start_idx:end_idx] = samples[field.name]
+
+        self._next_idx = end_idx
+        self._curr_size = min(self._curr_size + samples.count, self._maxsize)
+
+    def add_row(self, row: dict):
         """Add a row from a SampleBatch to storage.
 
         Args:
@@ -216,19 +249,20 @@ class NumpyReplayBuffer:
 
     def sample(self, batch_size: int) -> SampleBatch:
         """Transition batch uniformly sampled with replacement."""
-        return self.sample_with_idxes(self.sample_idxes(batch_size))
+        return SampleBatch(self[self.sample_idxes(batch_size)])
 
     def sample_idxes(self, batch_size: int) -> np.ndarray:
         """Get random transition indexes uniformly sampled with replacement."""
         return self._rng.integers(self._curr_size, size=batch_size)
 
-    def sample_with_idxes(self, idxes: np.ndarray) -> SampleBatch:
-        """Transition batch corresponding with the given indexes."""
-        batch = {k: self._storage[k][idxes] for k in (f.name for f in self.fields)}
-        return SampleBatch(batch)
-
     def all_samples(self) -> SampleBatch:
         """All stored transitions."""
-        return SampleBatch(
-            {k: self._storage[k][: len(self)] for k in (f.name for f in self.fields)}
-        )
+        return SampleBatch(self[: len(self)])
+
+    def __getitem__(self, index: Union[int, np.ndarray, slice]) -> SampleBatch:
+        batch = {k: self._storage[k][index] for k in (f.name for f in self.fields)}
+        if self._obs_stats:
+            mean, std = self._obs_stats
+            batch[SampleBatch.CUR_OBS] = (batch[SampleBatch.CUR_OBS] - mean) / std
+            batch[SampleBatch.NEXT_OBS] = (batch[SampleBatch.CUR_OBS] - mean) / std
+        return batch

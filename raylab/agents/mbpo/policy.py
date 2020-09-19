@@ -7,6 +7,7 @@ from ray.rllib import SampleBatch
 from raylab.agents.sac import SACTorchPolicy
 from raylab.options import configure
 from raylab.options import option
+from raylab.policy import learner_stats
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import MaximumLikelihood
 from raylab.policy.model_based import EnvFnMixin
@@ -111,6 +112,7 @@ class MBPOTorchPolicy(MBPolicyMixin, EnvFnMixin, ModelSamplingMixin, SACTorchPol
         super().build_timers()
         self.timers["augmentation"] = TimerStat()
 
+    @learner_stats
     def learn_on_batch(self, samples: SampleBatch) -> dict:
         self.add_to_buffer(samples)
         self._learn_calls += 1
@@ -152,8 +154,7 @@ class MBPOTorchPolicy(MBPolicyMixin, EnvFnMixin, ModelSamplingMixin, SACTorchPol
 
         real_samples = self.replay.sample(num_rollouts)
         virtual_samples = self.generate_virtual_sample_batch(real_samples)
-        for row in virtual_samples.rows():
-            self.virtual_replay.add(row)
+        self.virtual_replay.add(virtual_samples)
 
     def update_policy(self, times: int) -> StatDict:
         batch_size = self.config["batch_size"]

@@ -7,13 +7,13 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.postprocessing import compute_advantages
 from ray.rllib.evaluation.postprocessing import Postprocessing
-from ray.rllib.policy.policy import LEARNER_STATS_KEY
 from ray.rllib.utils import override
 
 import raylab.utils.dictionaries as dutil
 from raylab.agents.trpo.policy import LINESEARCH_DEFAULTS
 from raylab.options import configure
 from raylab.options import option
+from raylab.policy import learner_stats
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.torch.nn.distributions import Normal
@@ -137,6 +137,7 @@ class ACKTRTorchPolicy(TorchPolicy):
         )
         return sample_batch
 
+    @learner_stats
     @override(TorchPolicy)
     def learn_on_batch(self, samples):
         batch_tensors = self.lazy_tensor_dict(samples)
@@ -147,7 +148,7 @@ class ACKTRTorchPolicy(TorchPolicy):
         info.update(self.extra_grad_info(batch_tensors))
         info.update(self.get_exploration_info())
 
-        return {LEARNER_STATS_KEY: info}
+        return info
 
     def _update_actor(self, batch_tensors):
         info = {}

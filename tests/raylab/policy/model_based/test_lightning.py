@@ -50,14 +50,35 @@ def ensemble_size(request):
     return request.param
 
 
-@pytest.fixture(params=(1,), ids=lambda x: f"MaxEpochs:{x}")
-def max_epochs(request):
-    return request.param
+@pytest.fixture
+def models(obs_space, action_space, ensemble_size):
+    cnf = {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}}
+    module = get_module(obs_space, action_space, cnf)
+    return module.models
 
 
-@pytest.fixture(params=(None,), ids=lambda x: f"MaxSteps:{x}")
-def max_steps(request):
-    return request.param
+@pytest.fixture
+def optimizer(models):
+    return build_optimizer(models, {"type": "Adam"})
+
+
+MAXS = ((1, None), (10, 10))
+
+
+@pytest.fixture(params=(MAXS), ids=lambda x: f"MaxEpochs:{x[0]}-MaxSteps:{x[1]}")
+def maxs(request):
+    max_epochs, max_steps = request.param
+    return dict(max_epochs=max_epochs, max_steps=max_steps)
+
+
+@pytest.fixture
+def max_epochs(maxs):
+    return maxs["max_epochs"]
+
+
+@pytest.fixture
+def max_steps(maxs):
+    return maxs["max_steps"]
 
 
 @pytest.fixture
@@ -65,44 +86,44 @@ def improvement_delta():
     return 0.0
 
 
-@pytest.fixture
-def patience():
-    return 3
+VALS = ((None, 0.2), (3, 0.0), (3, 0.2))
+
+
+@pytest.fixture(params=VALS, ids=lambda x: f"Patience:{x[0]}-Holdout%:{x[1]}")
+def vals(request):
+    patience, holdout_ratio = request.param
+    return dict(patience=patience, holdout_ratio=holdout_ratio)
 
 
 @pytest.fixture
-def holdout_ratio():
-    return 0.2
+def patience(vals):
+    return vals["patience"]
 
 
 @pytest.fixture
-def config(
-    max_epochs, max_steps, improvement_delta, patience, holdout_ratio, ensemble_size
-):
-    # pylint:disable=too-many-arguments
-    options = {
+def holdout_ratio(vals):
+    return vals["holdout_ratio"]
+
+
+@pytest.fixture
+def config(max_epochs, max_steps, improvement_delta, patience, holdout_ratio):
+    trainer_cfg = {
+        "max_epochs": max_epochs,
+        "max_steps": max_steps,
+        "improvement_delta": improvement_delta,
+        "patience": patience,
+    }
+    return {
         "model_training": {
             "datamodule": {
                 "batch_size": 32,
                 "shuffle": True,
                 "holdout_ratio": holdout_ratio,
             },
-            "training": {
-                "max_epochs": max_epochs,
-                "max_steps": max_steps,
-                "improvement_delta": improvement_delta,
-                "patience": patience,
-            },
-            "warmup": {
-                "max_epochs": max_epochs,
-                "max_steps": max_steps,
-                "improvement_delta": improvement_delta,
-                "patience": patience,
-            },
+            "training": trainer_cfg,
+            "warmup": trainer_cfg,
         },
-        "module": {"type": "ModelBasedSAC", "model": {"ensemble_size": ensemble_size}},
     }
-    return options
 
 
 @pytest.fixture(scope="module")
@@ -113,20 +134,8 @@ def samples(obs_space, action_space):
 @pytest.fixture(scope="module")
 def replay(obs_space, action_space, samples):
     replay = NumpyReplayBuffer(obs_space, action_space, size=samples.count)
-    for row in samples.rows():
-        replay.add(row)
+    replay.add(samples)
     return replay
-
-
-@pytest.fixture
-def models(obs_space, action_space, config):
-    module = get_module(obs_space, action_space, config["module"])
-    return module.models
-
-
-@pytest.fixture
-def optimizer(models):
-    return build_optimizer(models, {"type": "Adam"})
 
 
 @pytest.fixture
@@ -161,7 +170,7 @@ def test_init(
         assert subspec.max_epochs == max_epochs
         assert subspec.max_steps == max_steps
         assert subspec.improvement_delta == improvement_delta
-        assert subspec.patience == patience
+        assert subspec.patience == (patience or max_epochs)
     assert spec.datamodule.holdout_ratio == holdout_ratio
 
 
@@ -219,7 +228,7 @@ def test_model(trainer, models):
     assert not set.symmetric_difference(model_params, optim_params)
 
 
-def test_test(trainer: LightningModelTrainer):
+def test_test(trainer: LightningModelTrainer, holdout_ratio):
     spec: TrainingSpec = trainer.spec
     pl_model: LightningModel = trainer.pl_model
     datamodule: DataModule = trainer.datamodule
@@ -228,11 +237,12 @@ def test_test(trainer: LightningModelTrainer):
     assert isinstance(pl_trainer, pl.Trainer)
     datamodule.setup(None)
 
-    with warnings.catch_warnings():
-        # warnings.filterwarnings("ignore", module="pytorch_lightning*")
-        outputs = pl_trainer.test(
-            pl_model, test_dataloaders=datamodule.val_dataloader()
-        )
+    dataloader = (
+        datamodule.val_dataloader() if holdout_ratio else datamodule.train_dataloader()
+    )
+    # with warnings.catch_warnings():
+    #     # warnings.filterwarnings("ignore", module="pytorch_lightning*")
+    outputs = pl_trainer.test(pl_model, test_dataloaders=dataloader)
 
     assert isinstance(outputs, (list, tuple))
     assert len(outputs) == 1
@@ -270,6 +280,7 @@ def test_checkpointing(build_trainer):
     patience = 2
     spec = trainer.spec.training
     spec.max_epochs = 1000
+    spec.max_steps = None
     spec.patience = patience
 
     pl_model = trainer.pl_model
