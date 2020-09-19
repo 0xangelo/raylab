@@ -2,7 +2,7 @@
 from typing import List
 from typing import Tuple
 
-from raylab.agents.td3 import TD3TorchPolicy
+from raylab.agents.sop import SOPTorchPolicy
 from raylab.options import configure
 from raylab.options import option
 from raylab.policy import EnvFnMixin
@@ -36,13 +36,15 @@ def default_model_training() -> dict:
 @option("model_training", default=default_model_training())
 @option("model_update_interval", default=25)
 @option("improvement_steps", default=10, override=True)
+@option("policy_delay", 2, override=True)
 @option("batch_size", default=1024, override=True)
 @option("lambda", default=0.05, help="TD error regularization for MAGE loss")
 @option("module/type", "MAGE", override=True)
 @option("optimizer/models", default={"type": "Adam", "lr": 1e-4, "weight_decay": 1e-4})
 @option("optimizer/actor", default={"type": "Adam", "lr": 1e-4}, override=True)
 @option("optimizer/critics", default={"type": "Adam", "lr": 1e-4}, override=True)
-class MAGETorchPolicy(MBPolicyMixin, EnvFnMixin, TD3TorchPolicy):
+@option("exploration_config/pure_exploration_steps", 1000, override=True)
+class MAGETorchPolicy(MBPolicyMixin, EnvFnMixin, SOPTorchPolicy):
     """MAGE policy in PyTorch to use with RLlib.
 
     Attributes:
@@ -103,7 +105,6 @@ class MAGETorchPolicy(MBPolicyMixin, EnvFnMixin, TD3TorchPolicy):
 
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
-        optimizers["models"] = build_optimizer(
-            self.module.models, self.config["optimizer"]["models"]
-        )
+        config = self.config["optimizer"]
+        optimizers["models"] = build_optimizer(self.module.models, config["models"])
         return optimizers

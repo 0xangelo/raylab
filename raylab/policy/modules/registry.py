@@ -8,6 +8,7 @@ from .mb_ddpg import ModelBasedDDPG
 from .mb_sac import ModelBasedSAC
 from .naf import NAF
 from .sac import SAC
+from .sop import SOP
 from .svg import SoftSVG
 from .svg import SVG
 from .td3 import TD3
@@ -79,6 +80,7 @@ for _cls in (
     MAGE,
     NAF,
     SAC,
+    SOP,
     ModelBasedDDPG,
     ModelBasedSAC,
     SVG,

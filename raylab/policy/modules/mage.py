@@ -6,10 +6,10 @@ from gym.spaces import Box
 
 from .model.stochastic import build_ensemble
 from .model.stochastic import EnsembleSpec
-from .td3 import ActorSpec
-from .td3 import CriticSpec
-from .td3 import TD3
-from .td3 import TD3Spec
+from .sop import ActorSpec
+from .sop import CriticSpec
+from .sop import SOP
+from .sop import SOPSpec
 
 
 def default_models() -> EnsembleSpec:
@@ -35,9 +35,7 @@ def default_actor() -> ActorSpec:
     spec.network.layer_norm = False
     spec.network.norm_beta = 1.2
     spec.separate_behavior = False
-    spec.smooth_target_policy = True
     spec.target_gaussian_sigma = 0.3
-    spec.separate_target_policy = True
     return spec
 
 
@@ -54,7 +52,7 @@ def default_critic() -> CriticSpec:
 
 
 @dataclass
-class MAGESpec(TD3Spec):
+class MAGESpec(SOPSpec):
     """Specifications for NNs used in MAGE.
 
     Args:
@@ -77,13 +75,13 @@ class MAGESpec(TD3Spec):
             self.model.initializer = self.initializer
 
 
-class MAGE(TD3):
+class MAGE(SOP):
     """NN module for MAGE algorithm
 
     Args:
         obs_space: Observation space
         action_space: Action space
-        spec: Specifications for model-based TD3 modules
+        spec: Specifications for NNs used in MAGE
 
     Attributes:
         model (SME): Stochastic dynamics model ensemble

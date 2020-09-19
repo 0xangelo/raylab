@@ -42,6 +42,7 @@ def test_forward(v_value_ensemble, obs, n_critics):
 @pytest.fixture
 def critics(action_critics):
     _, target_critics = action_critics
+    target_critics.requires_grad_(True)
     return target_critics
 
 
