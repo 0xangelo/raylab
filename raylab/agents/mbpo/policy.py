@@ -154,8 +154,7 @@ class MBPOTorchPolicy(MBPolicyMixin, EnvFnMixin, ModelSamplingMixin, SACTorchPol
 
         real_samples = self.replay.sample(num_rollouts)
         virtual_samples = self.generate_virtual_sample_batch(real_samples)
-        for row in virtual_samples.rows():
-            self.virtual_replay.add(row)
+        self.virtual_replay.add(virtual_samples)
 
     def update_policy(self, times: int) -> StatDict:
         batch_size = self.config["batch_size"]

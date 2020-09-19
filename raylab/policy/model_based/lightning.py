@@ -267,12 +267,15 @@ class LightningTrainerSpec(DataClassJsonMixin):
             validation loss
     """
 
-    max_epochs: int = 1
+    max_epochs: Optional[int] = 1
     max_steps: Optional[int] = None
     patience: Optional[int] = 1
     improvement_delta: float = 0.0
 
     def __post_init__(self):
+        if self.max_epochs is None:
+            self.max_epochs = self.max_steps
+
         if self.patience is None:
             self.patience = self.max_epochs
 

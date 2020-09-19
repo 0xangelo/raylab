@@ -107,23 +107,23 @@ def holdout_ratio(vals):
 
 @pytest.fixture
 def config(max_epochs, max_steps, improvement_delta, patience, holdout_ratio):
-    options = {
+    trainer_cfg = {
+        "max_epochs": max_epochs,
+        "max_steps": max_steps,
+        "improvement_delta": improvement_delta,
+        "patience": patience,
+    }
+    return {
         "model_training": {
             "datamodule": {
                 "batch_size": 32,
                 "shuffle": True,
                 "holdout_ratio": holdout_ratio,
             },
-            "training": {
-                "max_epochs": max_epochs,
-                "max_steps": max_steps,
-                "improvement_delta": improvement_delta,
-                "patience": patience,
-            },
+            "training": trainer_cfg,
+            "warmup": trainer_cfg,
         },
     }
-    options["model_training"]["warmup"] = options["model_training"]["training"]
-    return options
 
 
 @pytest.fixture(scope="module")
@@ -134,8 +134,7 @@ def samples(obs_space, action_space):
 @pytest.fixture(scope="module")
 def replay(obs_space, action_space, samples):
     replay = NumpyReplayBuffer(obs_space, action_space, size=samples.count)
-    for row in samples.rows():
-        replay.add(row)
+    replay.add(samples)
     return replay
 
 
