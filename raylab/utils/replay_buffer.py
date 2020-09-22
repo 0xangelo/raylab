@@ -197,9 +197,9 @@ class NumpyReplayBuffer:
         Subsequent batches sampled from this buffer will use these statistics to
         normalize the current and next observation fields.
         """
-        cur_obs = self._storage[SampleBatch.CUR_OBS]
-        mean = np.mean(cur_obs, axis=-1)
-        std = np.std(cur_obs, axis=-1)
+        cur_obs = self._storage[SampleBatch.CUR_OBS][: len(self)]
+        mean = np.mean(cur_obs, axis=0)
+        std = np.std(cur_obs, axis=0)
         self._obs_stats = (mean, std)
 
     def add_fields(self, *fields: ReplayField):
