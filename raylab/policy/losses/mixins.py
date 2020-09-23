@@ -47,7 +47,7 @@ class EnvFunctionsMixin:
 class UniformModelPriorMixin:
     """Add methods for using model ensembles with uniform prior distribution.
 
-    Expects a model ensemble as a `_models` instance attribute.
+    Expects a model ensemble as a `models` instance attribute.
 
     Attributes:
         models: Module list of dynamics models
