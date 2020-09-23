@@ -260,9 +260,9 @@ class NumpyReplayBuffer:
         return SampleBatch(self[: len(self)])
 
     def __getitem__(self, index: Union[int, np.ndarray, slice]) -> SampleBatch:
-        batch = {k: self._storage[k][index] for k in (f.name for f in self.fields)}
+        batch = {f.name: self._storage[f.name][index] for f in self.fields}
         if self._obs_stats:
             mean, std = self._obs_stats
-            batch[SampleBatch.CUR_OBS] = (batch[SampleBatch.CUR_OBS] - mean) / std
-            batch[SampleBatch.NEXT_OBS] = (batch[SampleBatch.CUR_OBS] - mean) / std
+            for key in SampleBatch.CUR_OBS, SampleBatch.NEXT_OBS:
+                batch[key] = (batch[key] - mean) / (std + 1e-7)
         return batch
