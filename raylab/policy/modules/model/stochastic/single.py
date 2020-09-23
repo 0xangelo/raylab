@@ -11,7 +11,7 @@ from torch import Tensor
 import raylab.torch.nn as nnx
 import raylab.torch.nn.distributions as ptd
 from raylab.policy.modules.networks.mlp import StateActionMLP
-from raylab.utils.annotations import TensorDict
+from raylab.utils.types import TensorDict
 
 
 SampleLogp = Tuple[Tensor, Tensor]

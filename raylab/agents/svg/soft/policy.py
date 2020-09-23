@@ -14,8 +14,8 @@ from raylab.policy.losses import OneStepSoftSVG
 from raylab.policy.off_policy import off_policy_options
 from raylab.policy.off_policy import OffPolicyMixin
 from raylab.torch.optim import build_optimizer
-from raylab.utils.annotations import TensorDict
 from raylab.utils.replay_buffer import ReplayField
+from raylab.utils.types import TensorDict
 
 
 TORCH_OPTIMIZERS = {

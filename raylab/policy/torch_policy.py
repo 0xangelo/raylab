@@ -23,8 +23,8 @@ from raylab.options import configure
 from raylab.options import option
 from raylab.options import RaylabOptions
 from raylab.torch.utils import convert_to_tensor
-from raylab.utils.annotations import StatDict
-from raylab.utils.annotations import TensorDict
+from raylab.utils.types import StatDict
+from raylab.utils.types import TensorDict
 
 from .modules import get_module
 from .optimizer_collection import OptimizerCollection

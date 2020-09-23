@@ -6,8 +6,8 @@ from typing import Tuple
 import numpy as np
 import torch.nn as nn
 
-from raylab.utils.annotations import RewardFn
-from raylab.utils.annotations import TerminationFn
+from raylab.utils.types import RewardFn
+from raylab.utils.types import TerminationFn
 
 
 @dataclass
@@ -47,7 +47,7 @@ class EnvFunctionsMixin:
 class UniformModelPriorMixin:
     """Add methods for using model ensembles with uniform prior distribution.
 
-    Expects a model ensemble as a `_models` instance attribute.
+    Expects a model ensemble as a `models` instance attribute.
 
     Attributes:
         models: Module list of dynamics models
