@@ -2,6 +2,7 @@
 import random
 import sys
 from dataclasses import dataclass
+from typing import Dict
 from typing import Union
 
 import numpy as np
@@ -259,7 +260,9 @@ class NumpyReplayBuffer:
         """All stored transitions."""
         return SampleBatch(self[: len(self)])
 
-    def __getitem__(self, index: Union[int, np.ndarray, slice]) -> SampleBatch:
+    def __getitem__(
+        self, index: Union[int, np.ndarray, slice]
+    ) -> Dict[str, np.ndarray]:
         batch = {f.name: self._storage[f.name][index] for f in self.fields}
         if self._obs_stats:
             mean, std = self._obs_stats
