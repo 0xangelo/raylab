@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "raylab"
-version = "0.14.1"
+version = "0.14.2"
 description = "Reinforcement learning algorithms in RLlib and PyTorch."
 authors = ["Ângelo Gregório Lovatto <angelolovatto@gmail.com>"]
 license = "MIT"
