@@ -311,9 +311,9 @@ class TrainingSpec(DataClassJsonMixin):
     """Specifications for training the model.
 
     Attributes:
-        dataloader: specifications for creating the data loader
-        training: specifications for model training
-        warmup: specifications for model warmup
+        datamodule: Specifications for creating the data module
+        training: Specifications for model training
+        warmup: Specifications for model warmup
     """
 
     datamodule: DatamoduleSpec = field(default_factory=DatamoduleSpec)
