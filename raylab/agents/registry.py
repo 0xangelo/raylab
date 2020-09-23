@@ -62,6 +62,12 @@ def _import_mage():
     return MAGETrainer
 
 
+def _import_td3():
+    from raylab.agents.td3 import TD3Trainer
+
+    return TD3Trainer
+
+
 AGENTS = {
     "NAF": _import_naf,
     "SVG(inf)": _import_svg_inf,
@@ -73,6 +79,7 @@ AGENTS = {
     "ACKTR": _import_acktr,
     "MBPO": _import_mbpo,
     "MAGE": _import_mage,
+    "raylab/TD3": _import_td3,
 }
 
 

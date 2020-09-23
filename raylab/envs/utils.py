@@ -11,6 +11,7 @@ from ray.tune.registry import _global_registry
 from ray.tune.registry import ENV_CREATOR
 
 from .wrappers import AddRelativeTimestep
+from .wrappers import SinglePrecision
 
 
 def has_env_creator(env_id: str) -> bool:
@@ -32,8 +33,11 @@ def wrap_if_needed(env_creator):
     def wrapped(config):
         tmp = config.copy()
         time_limit = [tmp.pop(k, None) for k in ("time_aware", "max_episode_steps")]
+        single_precision = tmp.pop("single_precision", False)
         env = env_creator(tmp)
         env = wrap_time_limit(env, *time_limit)
+        if single_precision:
+            env = SinglePrecision(env)
         return env
 
     return wrapped

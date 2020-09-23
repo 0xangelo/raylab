@@ -18,7 +18,9 @@ def critics(action_critics):
 def target_critic(deterministic_policies, action_critics):
     _, target_policy = deterministic_policies
     _, target_critics = action_critics
-    return HardValue(target_policy, target_critics)
+    module = HardValue(target_policy, target_critics)
+    module.requires_grad_(True)
+    return module
 
 
 @pytest.fixture

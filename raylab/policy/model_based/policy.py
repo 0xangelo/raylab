@@ -1,4 +1,6 @@
 # pylint:disable=missing-module-docstring
+from abc import ABC
+from abc import abstractmethod
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -8,6 +10,8 @@ from ray.rllib import SampleBatch
 from raylab.options import option
 from raylab.utils.annotations import StatDict
 from raylab.utils.timer import TimerStat
+
+from ..stats import learner_stats
 
 
 def model_based_options(cls: type) -> type:
@@ -29,7 +33,7 @@ def model_based_options(cls: type) -> type:
     return cls
 
 
-class MBPolicyMixin:
+class MBPolicyMixin(ABC):
     """Off-policy mixin with dynamics model learning."""
 
     timers: Dict[str, TimerStat]
@@ -39,6 +43,7 @@ class MBPolicyMixin:
         """Create timers for model and policy training."""
         self.timers = {"model": TimerStat(), "policy": TimerStat()}
 
+    @learner_stats
     def learn_on_batch(self, samples: SampleBatch) -> dict:
         # pylint:disable=missing-function-docstring
         self.add_to_buffer(samples)
@@ -61,6 +66,7 @@ class MBPolicyMixin:
         info.update(self.timer_stats())
         return info
 
+    @abstractmethod
     def train_dynamics_model(
         self, warmup: bool = False
     ) -> Tuple[List[float], StatDict]:
@@ -76,9 +82,6 @@ class MBPolicyMixin:
             A tuple containing the list of evaluation losses for each model and
             a dictionary of training statistics
         """
-        samples = self.replay.all_samples()
-        eval_losses, stats = self.optimize_model(samples, warmup=warmup)
-        return eval_losses, stats
 
     def update_policy(self, times: int) -> StatDict:
         """Improve the policy on previously collected environment data.

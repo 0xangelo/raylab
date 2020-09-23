@@ -3,12 +3,15 @@ import torch.nn as nn
 from gym.spaces import Space
 
 from .ddpg import DDPG
+from .mage import MAGE
 from .mb_ddpg import ModelBasedDDPG
 from .mb_sac import ModelBasedSAC
 from .naf import NAF
 from .sac import SAC
+from .sop import SOP
 from .svg import SoftSVG
 from .svg import SVG
+from .td3 import TD3
 from .trpo import TRPO
 
 MODULES = {}
@@ -72,5 +75,17 @@ def get_module(obs_space: Space, action_space: Space, config: dict) -> nn.Module
     return cls(obs_space, action_space, spec)
 
 
-for _cls in (DDPG, NAF, SAC, ModelBasedDDPG, ModelBasedSAC, SVG, SoftSVG, TRPO):
+for _cls in (
+    DDPG,
+    MAGE,
+    NAF,
+    SAC,
+    SOP,
+    ModelBasedDDPG,
+    ModelBasedSAC,
+    SVG,
+    SoftSVG,
+    TD3,
+    TRPO,
+):
     register(_cls)

@@ -1,7 +1,7 @@
 """SOP policy class using PyTorch."""
 import torch
-import torch.nn as nn
 from ray.rllib.utils import override
+from torch.nn.utils import clip_grad_norm_
 
 from raylab.options import configure
 from raylab.options import option
@@ -11,7 +11,6 @@ from raylab.policy.losses import ActionDPG
 from raylab.policy.losses import DeterministicPolicyGradient
 from raylab.policy.losses import FittedQLearning
 from raylab.policy.modules.critic import HardValue
-from raylab.policy.off_policy import off_policy_options
 from raylab.policy.off_policy import OffPolicyMixin
 from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
@@ -19,7 +18,10 @@ from raylab.utils.annotations import TensorDict
 
 
 @configure
-@off_policy_options
+@option("buffer_size", int(1e6))
+@option("batch_size", 256)
+@option("std_obs", False)
+@option("improvement_steps", 1)
 @option(
     "dpg_loss",
     "default",
@@ -46,8 +48,8 @@ from raylab.utils.annotations import TensorDict
     Whether to clip action grads by norm or value. Only used with
     dpg_loss='acme'.""",
 )
-@option("torch_optimizer/actor", {"type": "Adam", "lr": 1e-3})
-@option("torch_optimizer/critics", {"type": "Adam", "lr": 1e-3})
+@option("optimizer/actor", {"type": "Adam", "lr": 3e-4})
+@option("optimizer/critics", {"type": "Adam", "lr": 3e-4})
 @option(
     "polyak",
     0.995,
@@ -58,15 +60,10 @@ from raylab.utils.annotations import TensorDict
     1,
     help="Update policy every this number of calls to `learn_on_batch`",
 )
-@option("module/type", "DDPG")
-@option("module/actor/separate_behavior", True)
-@option("exploration_config/type", "raylab.utils.exploration.ParameterNoise")
-@option(
-    "exploration_config/param_noise_spec",
-    {"initial_stddev": 0.1, "desired_action_stddev": 0.2, "adaptation_coeff": 1.01},
-    help="Options for parameter noise exploration",
-)
-@option("exploration_config/pure_exploration_steps", 1000)
+@option("module/type", "SOP")
+@option("exploration_config/type", "raylab.utils.exploration.GaussianNoise")
+@option("exploration_config/noise_stddev", 0.3)
+@option("exploration_config/pure_exploration_steps", 10000)
 class SOPTorchPolicy(OffPolicyMixin, TorchPolicy):
     """Streamlined Off-Policy policy in PyTorch to use with RLlib."""
 
@@ -81,6 +78,7 @@ class SOPTorchPolicy(OffPolicyMixin, TorchPolicy):
         self.loss_critic = FittedQLearning(self.module.critics, target_value)
         self.loss_critic.gamma = self.config["gamma"]
         self._grad_step = 0
+        self._info = {}
 
         self.build_replay_buffer()
 
@@ -104,29 +102,23 @@ class SOPTorchPolicy(OffPolicyMixin, TorchPolicy):
     @override(TorchPolicy)
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
-        config = self.config["torch_optimizer"]
-        components = "actor critics".split()
-
-        mapping = {
-            name: build_optimizer(getattr(self.module, name), config[name])
-            for name in components
-        }
-
-        optimizers.update(mapping)
+        config = self.config["optimizer"]
+        optimizers["actor"] = build_optimizer(self.module.actor, config["actor"])
+        optimizers["critics"] = build_optimizer(self.module.critics, config["critics"])
         return optimizers
 
     @override(OffPolicyMixin)
     def improve_policy(self, batch: TensorDict):
-        info = {}
         self._grad_step += 1
+        self._info["grad_steps"] = self._grad_step
 
-        info.update(self._update_critic(batch))
+        self._info.update(self._update_critic(batch))
         if self._grad_step % self.config["policy_delay"] == 0:
-            info.update(self._update_policy(batch))
+            self._info.update(self._update_policy(batch))
 
         critics, target_critics = self.module.critics, self.module.target_critics
         update_polyak(critics, target_critics, self.config["polyak"])
-        return info
+        return self._info.copy()
 
     def _update_critic(self, batch_tensors):
         with self.optimizers.optimize("critics"):
@@ -147,11 +139,8 @@ class SOPTorchPolicy(OffPolicyMixin, TorchPolicy):
     @torch.no_grad()
     def extra_grad_info(self, component):
         """Return statistics right after components are updated."""
-        return {
-            f"grad_norm({component})": nn.utils.clip_grad_norm_(
-                getattr(self.module, component).parameters(), float("inf")
-            ).item()
-        }
+        params = getattr(self.module, component).parameters()
+        return {f"grad_norm({component})": clip_grad_norm_(params, float("inf")).item()}
 
     @override(TorchPolicy)
     def get_weights(self):
