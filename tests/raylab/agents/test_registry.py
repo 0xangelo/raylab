@@ -29,9 +29,7 @@ def trainer_cls(request):
 
 
 @pytest.fixture(
-    scope="module",
-    params=(True, False),
-    ids=(f"CompilePolicy({b})" for b in (True, False)),
+    scope="module", params=(True, False), ids=lambda b: f"CompilePolicy:{b}"
 )
 def compile_policy(request):
     return request.param
@@ -43,7 +41,7 @@ def trainer(trainer_cls, compile_policy):
     defaults = trainer_cls.options.defaults
     config = CONFIG[name].copy()
 
-    if "learning_starts" in defaults and name not in {"TRPO", "ACKTR", "SVG(inf)"}:
+    if "learning_starts" in defaults:
         config["learning_starts"] = 1
     if name == "SVG(inf)":
         config["batch_mode"] = "complete_episodes"
