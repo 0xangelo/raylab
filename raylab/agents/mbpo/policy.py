@@ -67,7 +67,7 @@ DEFAULT_MODULE = {
 )
 @option("module", default=DEFAULT_MODULE, override=True)
 @option(
-    "torch_optimizer/models",
+    "optimizer/models",
     default={"type": "Adam", "lr": 3e-4, "weight_decay": 0.0001},
 )
 @option("model_sampling", default=SamplingSpec().to_dict(), help=SamplingSpec.__doc__)
@@ -95,7 +95,7 @@ class MBPOTorchPolicy(MBPolicyMixin, EnvFnMixin, ModelSamplingMixin, SACTorchPol
 
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
-        config = self.config["torch_optimizer"]
+        config = self.config["optimizer"]
         optimizers["models"] = build_optimizer(self.module.models, config["models"])
         return optimizers
 

@@ -16,7 +16,7 @@ def get_config():
         # Number of iterations to fit value function
         "val_iters": 40,
         # Options for critic optimizer
-        "torch_optimizer": {"type": "Adam", "lr": 1e-2},
+        "optimizer": {"type": "Adam", "lr": 1e-2},
         # === RolloutWorker ===
         "num_workers": 0,
         "num_envs_per_worker": 18,

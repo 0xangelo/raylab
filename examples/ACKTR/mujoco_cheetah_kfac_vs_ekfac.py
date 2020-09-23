@@ -39,7 +39,7 @@ def get_config():
         # Value function iterations per actor step
         "vf_iters": 40,
         # PyTorch optimizers to use
-        "torch_optimizer": {
+        "optimizer": {
             "actor": tune.grid_search([KFAC, EKFAC]),
             "critic": {"type": "Adam", "lr": 1e-2},
         },

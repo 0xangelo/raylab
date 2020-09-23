@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "raylab"
-version = "0.14.1"
+version = "0.14.2"
 description = "Reinforcement learning algorithms in RLlib and PyTorch."
 authors = ["Ângelo Gregório Lovatto <angelolovatto@gmail.com>"]
 license = "MIT"
@@ -25,6 +25,12 @@ dataclasses-json = "^0.5.1"
 opencv-python = "^4.2.0"
 poetry-version = "^0.1.5"
 pytorch-lightning = "^0.9.0"
+# A list of all of the optional dependencies, some of which are included in the
+# below `extras`. They can be opted into by apps.
+wandb = { version = "^0.10", optional = true }
+
+[tool.poetry.extras]
+wandb = ["wandb"]
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.8.3"

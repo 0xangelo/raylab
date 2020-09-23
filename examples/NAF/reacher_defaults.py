@@ -11,7 +11,7 @@ def get_config():
         "clipped_double_q": True,
         # === Optimization ===
         # PyTorch optimizer and options to use
-        "torch_optimizer": {"type": "Adam", "lr": 3e-4},
+        "optimizer": {"type": "Adam", "lr": 3e-4},
         # === Replay Buffer ===
         "buffer_size": int(2e4),
         # === Network ===

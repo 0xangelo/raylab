@@ -32,9 +32,9 @@ from raylab.utils.annotations import TensorDict
     H = -dim(A) / 2, where A is the action space
     """,
 )
-@option("torch_optimizer/actor", {"type": "Adam", "lr": 1e-3})
-@option("torch_optimizer/critics", {"type": "Adam", "lr": 1e-3})
-@option("torch_optimizer/alpha", {"type": "Adam", "lr": 1e-3})
+@option("optimizer/actor", {"type": "Adam", "lr": 1e-3})
+@option("optimizer/critics", {"type": "Adam", "lr": 1e-3})
+@option("optimizer/alpha", {"type": "Adam", "lr": 1e-3})
 @option(
     "polyak",
     0.995,
@@ -85,7 +85,7 @@ class SACTorchPolicy(OffPolicyMixin, TorchPolicy):
     @override(TorchPolicy)
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
-        config = self.config["torch_optimizer"]
+        config = self.config["optimizer"]
 
         components = "actor critics alpha".split()
         mapping = {

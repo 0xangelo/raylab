@@ -30,19 +30,8 @@ from raylab.utils.annotations import TensorDict
     help="Interpolation factor in polyak averaging for target networks.",
 )
 @option("module/type", "TD3")
-@option(
-    "optimizer/",
-    allow_unknown_subkeys=True,
-    override_all_if_type_changes=True,
-)
-@option(
-    "optimizer/actor",
-    {"type": "Adam", "lr": 1e-3},
-)
-@option(
-    "optimizer/critics",
-    {"type": "Adam", "lr": 1e-3},
-)
+@option("optimizer/actor", {"type": "Adam", "lr": 1e-3})
+@option("optimizer/critics", {"type": "Adam", "lr": 1e-3})
 @option("exploration_config/type", "raylab.utils.exploration.GaussianNoise")
 @option("exploration_config/noise_stddev", 0.3)
 class TD3TorchPolicy(OffPolicyMixin, TorchPolicy):

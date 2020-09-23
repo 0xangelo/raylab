@@ -77,7 +77,7 @@ DEFAULT_OPTIM_CONFIG = {
 )
 @option("line_search_options", LINESEARCH_DEFAULTS)
 @option("module/type", "TRPO")
-@option("torch_optimizer", DEFAULT_OPTIM_CONFIG, override=True)
+@option("optimizer", DEFAULT_OPTIM_CONFIG, override=True)
 @option("exploration_config/type", "raylab.utils.exploration.StochasticActor")
 class ACKTRTorchPolicy(TorchPolicy):
     """Policy class for Actor-Critic with Kronecker factored Trust Region."""
@@ -90,7 +90,7 @@ class ACKTRTorchPolicy(TorchPolicy):
         optimizers = super()._make_optimizers()
         config = dutil.deep_merge(
             DEFAULT_OPTIM_CONFIG,
-            self.config["torch_optimizer"],
+            self.config["optimizer"],
             new_keys_allowed=False,
             allow_new_subkey_list=[],
             override_all_if_type_changes=["actor", "critic"],

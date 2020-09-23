@@ -25,12 +25,10 @@ from raylab.utils.replay_buffer import ReplayField
 
 @configure
 @off_policy_options
-@option(
-    "torch_optimizer/type", "Adam", help="Optimizer type for model, actor, and critic"
-)
-@option("torch_optimizer/model", {"lr": 1e-3})
-@option("torch_optimizer/actor", {"lr": 1e-3})
-@option("torch_optimizer/critic", {"lr": 1e-3})
+@option("optimizer/type", "Adam", help="Optimizer type for model, actor, and critic")
+@option("optimizer/model", {"lr": 1e-3})
+@option("optimizer/actor", {"lr": 1e-3})
+@option("optimizer/critic", {"lr": 1e-3})
 @option(
     "vf_loss_coeff",
     1.0,
@@ -97,7 +95,7 @@ class SVGOneTorchPolicy(OffPolicyMixin, AdaptiveKLCoeffMixin, SVGTorchPolicy):
     def _make_optimizers(self):
         """PyTorch optimizer to use."""
         optimizers = super()._make_optimizers()
-        options = self.config["torch_optimizer"]
+        options = self.config["optimizer"]
         cls = get_optimizer_class(options["type"], wrap=True)
         modules = {
             "model": self.module.model,

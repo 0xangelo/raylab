@@ -10,7 +10,7 @@ def get_config():
         "buffer_size": int(1e5),
         # === Optimization ===
         # PyTorch optimizers to use
-        "torch_optimizer": {
+        "optimizer": {
             "on_policy": {"type": "Adam", "lr": 3e-4},
             "off_policy": {"type": "Adam", "lr": 3e-4},
         },

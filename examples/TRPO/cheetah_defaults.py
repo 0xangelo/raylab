@@ -15,7 +15,7 @@ def get_config():
         # Value function iterations per actor step
         "vf_iters": 40,
         # Options for critic optimizer
-        "torch_optimizer": {"type": "Adam", "lr": 1e-2},
+        "optimizer": {"type": "Adam", "lr": 1e-2},
         # Whether to use a line search to calculate policy update.
         # Effectively turns ACKTR into Natural PG when turned off.
         "line_search": True,

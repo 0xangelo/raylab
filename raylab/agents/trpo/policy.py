@@ -57,7 +57,7 @@ LINESEARCH_DEFAULTS = {
 )
 @option("line_search_options", LINESEARCH_DEFAULTS)
 @option("module/type", "TRPO")
-@option("torch_optimizer", {"type": "Adam", "lr": 1e-3}, override=True)
+@option("optimizer", {"type": "Adam", "lr": 1e-3}, override=True)
 @option("exploration_config/type", "raylab.utils.exploration.StochasticActor")
 class TRPOTorchPolicy(TorchPolicy):
     """Policy class for Trust Region Policy Optimization."""
@@ -69,7 +69,7 @@ class TRPOTorchPolicy(TorchPolicy):
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
         optimizers.update(
-            critic=build_optimizer(self.module.critic, self.config["torch_optimizer"])
+            critic=build_optimizer(self.module.critic, self.config["optimizer"])
         )
         return optimizers
 

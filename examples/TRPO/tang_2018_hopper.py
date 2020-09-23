@@ -16,7 +16,7 @@ def get_config():
         # Number of iterations to fit value function
         "val_iters": 5,
         # Options for critic optimizer
-        "torch_optimizer": {"type": "Adam", "lr": 1e-3},
+        "optimizer": {"type": "Adam", "lr": 1e-3},
         # Configuration for Conjugate Gradient
         "cg_iters": 10,
         "cg_damping": 1e-3,
