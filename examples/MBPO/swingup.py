@@ -30,7 +30,7 @@ def get_config():
             },
             "initializer": {"name": "xavier_uniform"},
         },
-        "torch_optimizer": {
+        "optimizer": {
             "models": {"type": "Adam", "lr": 3e-4, "weight_decay": 0.0001},
             "actor": {"type": "Adam", "lr": 3e-4},
             "critics": {"type": "Adam", "lr": 3e-4},

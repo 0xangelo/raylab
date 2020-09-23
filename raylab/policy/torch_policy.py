@@ -48,7 +48,7 @@ from .optimizer_collection import OptimizerCollection
     override_all_if_type_changes=True,
 )
 @option(
-    "torch_optimizer/",
+    "optimizer/",
     help="Config dict for PyTorch optimizers.",
     allow_unknown_subkeys=True,
 )

@@ -18,8 +18,8 @@ from raylab.utils.annotations import TensorDict
 
 @configure
 @off_policy_options
-@option("torch_optimizer/type", "Adam")
-@option("torch_optimizer/lr", 3e-4)
+@option("optimizer/type", "Adam")
+@option("optimizer/lr", 3e-4)
 @option(
     "polyak",
     0.995,
@@ -59,7 +59,7 @@ class NAFTorchPolicy(OffPolicyMixin, TorchPolicy):
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
         optimizers.update(
-            naf=build_optimizer(self.module.critics, self.config["torch_optimizer"])
+            naf=build_optimizer(self.module.critics, self.config["optimizer"])
         )
         return optimizers
 

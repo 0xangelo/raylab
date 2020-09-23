@@ -17,7 +17,7 @@ def get_config():
         # Value function iterations per actor step
         "vf_iters": 20,
         # PyTorch optimizers to use
-        "torch_optimizer": {
+        "optimizer": {
             "actor": {
                 "type": "KFAC",
                 "eps": 1e-3,

@@ -10,7 +10,7 @@ def get_config():  # pylint: disable=missing-docstring
         "buffer_size": int(1e6),
         # === Optimization ===
         # PyTorch optimizers to use
-        "torch_optimizer": {
+        "optimizer": {
             "on_policy": {"type": "Adam", "lr": 3e-4},
             "off_policy": {"type": "Adam", "lr": 3e-4},
         },

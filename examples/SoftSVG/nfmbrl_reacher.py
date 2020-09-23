@@ -55,7 +55,7 @@ def get_config():
         "env_config": {"max_episode_steps": 150, "time_aware": True},
         # === Optimization ===
         # PyTorch optimizers to use
-        "torch_optimizer": {
+        "optimizer": {
             "model": {"type": "Adam", "lr": 3e-4},
             "actor": {"type": "Adam", "lr": 3e-4},
             "critic": {"type": "Adam", "lr": 3e-4},

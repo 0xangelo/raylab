@@ -37,8 +37,8 @@ from raylab.utils.replay_buffer import ReplayField
     0.995,
     help="Interpolation factor in polyak averaging for target networks.",
 )
-@option("torch_optimizer/on_policy", {"type": "Adam", "lr": 1e-3})
-@option("torch_optimizer/off_policy", {"type": "Adam", "lr": 1e-3})
+@option("optimizer/on_policy", {"type": "Adam", "lr": 1e-3})
+@option("optimizer/off_policy", {"type": "Adam", "lr": 1e-3})
 @option(
     "kl_schedule/",
     help="Options for adaptive KL coefficient. See raylab.utils.adaptive_kl",
@@ -73,7 +73,7 @@ class SVGInfTorchPolicy(OffPolicyMixin, AdaptiveKLCoeffMixin, SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
-        config = self.config["torch_optimizer"]
+        config = self.config["optimizer"]
         component_map = {
             "on_policy": self.module.actor,
             "off_policy": nn.ModuleList([self.module.model, self.module.critic]),

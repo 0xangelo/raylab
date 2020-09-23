@@ -37,7 +37,7 @@ If "auto", will use the heuristic provided in the SAC paper,
 H = -dim(A), where A is the action space
 """,
 )
-@option("torch_optimizer", TORCH_OPTIMIZERS, override=True)
+@option("optimizer", TORCH_OPTIMIZERS, override=True)
 @option(
     "vf_loss_coeff",
     1.0,
@@ -99,7 +99,7 @@ class SoftSVGTorchPolicy(OffPolicyMixin, SVGTorchPolicy):
     @override(SVGTorchPolicy)
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
-        config = self.config["torch_optimizer"]
+        config = self.config["optimizer"]
         components = {
             "model": self.module.model,
             "actor": self.module.actor,

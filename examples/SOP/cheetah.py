@@ -29,7 +29,7 @@ def module_config() -> dict:
 def policy_config() -> dict:
     return {
         "module": module_config(),
-        "torch_optimizer": {
+        "optimizer": {
             "actor": {"type": "Adam", "lr": 3e-4},
             "critics": {"type": "Adam", "lr": 3e-4},
         },

@@ -51,7 +51,7 @@ def get_config():
             "initializer": {"name": "xavier_uniform"},
         },
         # PyTorch optimizers to use
-        "torch_optimizer": {
+        "optimizer": {
             "models": {"type": "Adam", "lr": 1e-4},
             "actor": {"type": "Adam", "lr": 1e-4},
             "critics": {"type": "Adam", "lr": 1e-4},

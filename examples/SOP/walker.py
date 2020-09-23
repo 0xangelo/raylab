@@ -41,7 +41,7 @@ def get_config():
         "env_config": {"max_episode_steps": 1000, "time_aware": False},
         "dpg_loss": "acme",
         "buffer_size": int(1e5),
-        "torch_optimizer": {
+        "optimizer": {
             "actor": {"type": "Adam", "lr": 3e-4},
             "critics": {"type": "Adam", "lr": 3e-4},
         },

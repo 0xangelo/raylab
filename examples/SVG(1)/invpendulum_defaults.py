@@ -16,9 +16,9 @@ def get_config():
         "buffer_size": int(1e5),
         # === Optimization ===
         # Name of Pytorch optimizer class for paremetrized policy
-        "torch_optimizer": "Adam",
+        "optimizer": "Adam",
         # Keyword arguments to be passed to the on-policy optimizer
-        "torch_optimizer_options": {
+        "optimizer_options": {
             "model": {"lr": 1e-3},
             "value": {"lr": 1e-3},
             "policy": {"lr": 1e-3},

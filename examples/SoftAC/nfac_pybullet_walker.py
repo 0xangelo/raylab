@@ -12,7 +12,7 @@ def get_config():
         "buffer_size": int(1e6),
         # === Optimization ===
         # PyTorch optimizers to use
-        "torch_optimizer": {
+        "optimizer": {
             "actor": {"type": "Adam", "lr": 3e-4},
             "critics": {"type": "Adam", "lr": 3e-4},
             "alpha": {"type": "Adam", "lr": 3e-4},

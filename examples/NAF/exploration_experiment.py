@@ -51,7 +51,7 @@ def get_config():
         },
         # === Optimization ===
         # PyTorch optimizer and options to use
-        "torch_optimizer": {"type": "Adam", "lr": 3e-4},
+        "optimizer": {"type": "Adam", "lr": 3e-4},
         # Interpolation factor in polyak averaging for target networks.
         "polyak": 0.995,
         # === Rollout Worker ===
