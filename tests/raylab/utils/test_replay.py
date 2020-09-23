@@ -89,6 +89,10 @@ def numpy_replay(obs_space, action_space, size, sample_batch):
     return replay
 
 
+def test_len(numpy_replay, sample_batch):
+    assert len(numpy_replay) == sample_batch.count
+
+
 def test_sample(numpy_replay):
     replay = numpy_replay
     batch_size = len(replay) // 10
