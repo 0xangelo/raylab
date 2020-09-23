@@ -14,7 +14,7 @@ from raylab.policy.model_based.lightning import TrainingSpec
 from raylab.policy.model_based.policy import MBPolicyMixin
 from raylab.policy.modules.critic import HardValue
 from raylab.torch.optim import build_optimizer
-from raylab.utils.annotations import StatDict
+from raylab.utils.types import StatDict
 
 
 def default_model_training() -> dict:

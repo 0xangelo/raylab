@@ -8,7 +8,7 @@ from torch import Tensor
 from torch.jit import fork
 from torch.jit import wait
 
-from raylab.utils.annotations import TensorDict
+from raylab.utils.types import TensorDict
 
 from .single import StochasticModel
 

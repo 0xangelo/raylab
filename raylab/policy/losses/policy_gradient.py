@@ -13,8 +13,8 @@ from raylab.policy.modules.actor import StochasticPolicy
 from raylab.policy.modules.critic import ClippedQValue
 from raylab.policy.modules.critic import QValue
 from raylab.policy.modules.critic import QValueEnsemble
-from raylab.utils.annotations import StatDict
-from raylab.utils.annotations import TensorDict
+from raylab.utils.types import StatDict
+from raylab.utils.types import TensorDict
 
 from .abstract import Loss
 from .utils import action_dpg

@@ -22,11 +22,11 @@ from raylab.options import option
 from raylab.policy.losses import Loss
 from raylab.policy.modules.model import SME
 from raylab.torch.utils import convert_to_tensor
-from raylab.utils.annotations import StatDict
-from raylab.utils.annotations import TensorDict
 from raylab.utils.lightning import supress_stderr
 from raylab.utils.lightning import supress_stdout
 from raylab.utils.replay_buffer import NumpyReplayBuffer
+from raylab.utils.types import StatDict
+from raylab.utils.types import TensorDict
 
 
 # ======================================================================================

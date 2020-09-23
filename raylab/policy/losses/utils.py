@@ -6,8 +6,8 @@ import torch
 from torch import Tensor
 from torch.autograd import grad
 
-from raylab.utils.annotations import StatDict
-from raylab.utils.annotations import TensorDict
+from raylab.utils.types import StatDict
+from raylab.utils.types import TensorDict
 
 
 def action_dpg(

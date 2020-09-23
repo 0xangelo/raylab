@@ -12,8 +12,8 @@ from torch import Tensor
 import raylab.utils.dictionaries as dutil
 from raylab.policy.modules.critic import QValueEnsemble
 from raylab.policy.modules.critic import VValue
-from raylab.utils.annotations import StatDict
-from raylab.utils.annotations import TensorDict
+from raylab.utils.types import StatDict
+from raylab.utils.types import TensorDict
 
 from .abstract import Loss
 

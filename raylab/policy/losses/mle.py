@@ -13,9 +13,9 @@ from torch.jit import wait
 from raylab.policy.modules.model import ForkedSME
 from raylab.policy.modules.model import SME
 from raylab.policy.modules.model import StochasticModel
-from raylab.utils.annotations import StatDict
-from raylab.utils.annotations import TensorDict
 from raylab.utils.dictionaries import get_keys
+from raylab.utils.types import StatDict
+from raylab.utils.types import TensorDict
 
 from .abstract import Loss
 

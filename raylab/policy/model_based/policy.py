@@ -8,8 +8,8 @@ from typing import Tuple
 from ray.rllib import SampleBatch
 
 from raylab.options import option
-from raylab.utils.annotations import StatDict
 from raylab.utils.timer import TimerStat
+from raylab.utils.types import StatDict
 
 from ..stats import learner_stats
 

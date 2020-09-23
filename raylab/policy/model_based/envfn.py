@@ -5,9 +5,9 @@ from typing import Optional
 from typing import Union
 
 import raylab.envs as envs
-from raylab.utils.annotations import DynamicsFn
-from raylab.utils.annotations import RewardFn
-from raylab.utils.annotations import TerminationFn
+from raylab.utils.types import DynamicsFn
+from raylab.utils.types import RewardFn
+from raylab.utils.types import TerminationFn
 
 
 class EnvFnMixin:

@@ -5,8 +5,8 @@ from abc import abstractmethod
 from ray.rllib import SampleBatch
 
 from raylab.options import option
-from raylab.utils.annotations import TensorDict
 from raylab.utils.replay_buffer import NumpyReplayBuffer
+from raylab.utils.types import TensorDict
 
 from .stats import learner_stats
 
