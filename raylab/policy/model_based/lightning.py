@@ -392,7 +392,9 @@ class LightningModelTrainer:
         saved_state = trainer.early_stop_callback.state_dict()
         model.load_state_dict(saved_state["module"])
         losses, info = saved_state["best_outputs"]
-        info.update({"model_epochs": trainer.current_epoch + 1})
+        info.update(
+            model_epochs=trainer.current_epoch + 1, model_steps=trainer.global_step
+        )
         return losses, info
 
     @staticmethod

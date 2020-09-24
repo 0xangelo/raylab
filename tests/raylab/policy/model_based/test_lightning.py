@@ -62,7 +62,7 @@ def optimizer(models):
     return build_optimizer(models, {"type": "Adam"})
 
 
-MAXS = ((1, None), (10, 10))
+MAXS = ((1, None), (None, 10))
 
 
 @pytest.fixture(params=(MAXS), ids=lambda x: f"MaxEpochs:{x[0]}-MaxSteps:{x[1]}")
@@ -167,10 +167,10 @@ def test_init(
 
     spec = trainer.spec
     for subspec in (spec.training, spec.warmup):
-        assert subspec.max_epochs == max_epochs
+        assert subspec.max_epochs == (max_epochs or max_steps)
         assert subspec.max_steps == max_steps
         assert subspec.improvement_delta == improvement_delta
-        assert subspec.patience == (patience or max_epochs)
+        assert subspec.patience == (patience or subspec.max_epochs)
     assert spec.datamodule.holdout_ratio == holdout_ratio
 
 
@@ -212,7 +212,12 @@ def _test_optimize(mocker, trainer: LightningModelTrainer, warmup: bool):
 
     assert isinstance(info, dict)
     assert "model_epochs" in info
-    assert info["model_epochs"] > 0
+    spec = trainer.spec.warmup if warmup else trainer.spec.training
+    assert info["model_epochs"] <= min(spec.max_epochs, spec.patience)
+    if spec.max_steps:
+        assert info["model_steps"] <= spec.max_steps
+    else:
+        assert info["model_steps"] > 0
 
 
 def test_model(trainer, models):
