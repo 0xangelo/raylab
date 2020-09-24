@@ -113,3 +113,8 @@ class MBPolicyMixin(ABC):
             # Get mean number of policy updates per second spent updating the policy
             policy_update_throughput=round(policy_timer.mean_throughput, 3),
         )
+
+    @staticmethod
+    def add_options(policy_cls: type) -> type:
+        """Decorator to add default model-based options used by MBPolicyMixin."""
+        return model_based_options(policy_cls)
