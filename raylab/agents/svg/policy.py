@@ -2,6 +2,8 @@
 import torch
 from ray.rllib import SampleBatch
 
+from raylab.options import configure
+from raylab.options import option
 from raylab.policy import EnvFnMixin
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
@@ -10,6 +12,18 @@ from raylab.policy.losses import MaximumLikelihood
 from raylab.torch.nn.utils import update_polyak
 
 
+@configure
+@option(
+    "polyak",
+    0.995,
+    help="Interpolation factor in polyak averaging for target networks.",
+)
+@option("max_is_ratio", 5.0, help="Clip importance sampling weights by this value")
+@option(
+    "vf_loss_coeff",
+    1.0,
+    help="Weight of the fitted V loss in the joint model-value loss",
+)
 class SVGTorchPolicy(EnvFnMixin, TorchPolicy):
     """Stochastic Value Gradients policy using PyTorch."""
 

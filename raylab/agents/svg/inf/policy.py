@@ -25,18 +25,7 @@ from raylab.utils.types import TensorDict
     1.0,
     help="Model and Value function updates per step in the environment",
 )
-@option(
-    "vf_loss_coeff",
-    1.0,
-    help="Weight of the fitted V loss in the joint model-value loss",
-)
 @option("max_grad_norm", 10.0, help="Clip gradient norms by this value")
-@option("max_is_ratio", 5.0, help="Clip importance sampling weights by this value")
-@option(
-    "polyak",
-    0.995,
-    help="Interpolation factor in polyak averaging for target networks.",
-)
 @option("optimizer/on_policy", {"type": "Adam", "lr": 1e-3})
 @option("optimizer/off_policy", {"type": "Adam", "lr": 1e-3})
 @option(
