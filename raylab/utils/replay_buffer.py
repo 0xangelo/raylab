@@ -224,6 +224,7 @@ class NumpyReplayBuffer:
         """
         if samples.count >= self._maxsize:
             samples = samples.slice(samples.count - self._maxsize, None)
+            end_idx = 0
             assign = [(slice(0, self._maxsize), samples)]
         else:
             start_idx = self._next_idx
