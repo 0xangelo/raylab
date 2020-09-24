@@ -170,7 +170,7 @@ def test_init(
         assert subspec.max_epochs == (max_epochs or max_steps)
         assert subspec.max_steps == max_steps
         assert subspec.improvement_delta == improvement_delta
-        assert subspec.patience == (patience or subspec.max_epochs)
+        assert subspec.patience == patience
     assert spec.datamodule.holdout_ratio == holdout_ratio
 
 
@@ -213,7 +213,7 @@ def _test_optimize(mocker, trainer: LightningModelTrainer, warmup: bool):
     assert isinstance(info, dict)
     assert "model_epochs" in info
     spec = trainer.spec.warmup if warmup else trainer.spec.training
-    assert info["model_epochs"] <= min(spec.max_epochs, spec.patience)
+    assert info["model_epochs"] <= spec.max_epochs
     if spec.max_steps:
         assert info["model_steps"] <= spec.max_steps
     else:
@@ -298,4 +298,4 @@ def test_checkpointing(build_trainer):
     assert info["model_epochs"] == patience + 1
 
     after_params = list(pl_model.parameters())
-    assert all([torch.allclose(b, a) for b, a in zip(before_params, after_params)])
+    assert not any([torch.allclose(b, a) for b, a in zip(before_params, after_params)])

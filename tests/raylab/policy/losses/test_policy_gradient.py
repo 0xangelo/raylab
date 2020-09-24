@@ -37,9 +37,11 @@ def test_soft_pg_loss(soft_pg_loss, stochastic_actor, critics, batch, obs):
     assert "loss(actor)" in info
     assert "entropy" in info
     dist_params = actor(obs)
-    assert all(["policy_mean_" + k in info for k in dist_params])
-    assert all(["policy_max_" + k in info for k in dist_params])
-    assert all(["policy_min_" + k in info for k in dist_params])
+    keys = tuple(k for k, v in dist_params.items() if v.requires_grad)
+    prefix = "policy/"
+    assert all([prefix + "mean_" + k in info for k in keys])
+    assert all([prefix + "max_" + k in info for k in keys])
+    assert all([prefix + "min_" + k in info for k in keys])
 
 
 @pytest.fixture

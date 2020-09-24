@@ -65,8 +65,9 @@ def dist_params_stats(dist_params: TensorDict, name: str) -> StatDict:
         Dictionary with average, minimum, and maximum of each parameter as
         floats
     """
+    items = tuple((k, v) for k, v in dist_params.items() if v.requires_grad)
     info = {}
-    info.update({name + "_mean_" + k: v.mean().item() for k, v in dist_params.items()})
-    info.update({name + "_max_" + k: v.max().item() for k, v in dist_params.items()})
-    info.update({name + "_min_" + k: v.min().item() for k, v in dist_params.items()})
+    info.update({name + "/mean_" + k: v.mean().item() for k, v in items})
+    info.update({name + "/max_" + k: v.max().item() for k, v in items})
+    info.update({name + "/min_" + k: v.min().item() for k, v in items})
     return info

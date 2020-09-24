@@ -182,13 +182,8 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
     # pylint:disable=missing-docstring
     _train_outputs: List[Tuple[Tensor, StatDict]]
     _val_outputs: List[Tuple[Tensor, StatDict]]
-    _best_outputs: Tuple[List[float], StatDict]
-    _module_state: dict
-
-    def on_fit_start(self, trainer, pl_module):
-        super().on_fit_start(trainer, pl_module)
-        self._best_outputs = None
-        self.save_module_state(pl_module)
+    _loss: Tuple[List[float], StatDict] = None
+    _module_state: Optional[dict] = None
 
     def __warn_deprecated_monitor_key(self):
         pass  # Disable annoying UserWarning
@@ -216,13 +211,17 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
         )
 
     def _run_early_stopping_check(self, trainer, pl_module):
-        is_start = not torch.isfinite(self.best_score).item()
-        super()._run_early_stopping_check(trainer, pl_module)
-        if self.wait_count == 0 and not is_start:  # Improved
+        if self.patience is None:
+            # Always save latest outputs
             self.save_outputs()
-            self.save_module_state(pl_module)
-        elif self._best_outputs is None:
-            self.save_outputs()
+        else:
+            super()._run_early_stopping_check(trainer, pl_module)
+            # Save outputs only if improved or none have been logged yet
+            if self.wait_count == 0:  # Improved
+                self.save_outputs()
+                self.save_module_state(pl_module)
+            elif self._loss is None:
+                self.save_outputs()
 
     def save_outputs(self):
         if self.monitor == "val_early_stop_on":
@@ -233,20 +232,20 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
         epoch_losses, epoch_infos = zip(*epoch_outputs)
         model_losses = torch.stack(epoch_losses, dim=0).mean(dim=0).tolist()
         model_infos = {k: stats.mean(i[k] for i in epoch_infos) for k in epoch_infos[0]}
-        self._best_outputs = (model_losses, model_infos)
+        self._loss = (model_losses, model_infos)
 
     def save_module_state(self, pl_module):
         self._module_state = copy.deepcopy(pl_module.state_dict())
 
     def state_dict(self):
         state = super().state_dict()
-        state.update(best_outputs=self._best_outputs, module=self._module_state)
+        state.update(loss=self._loss, module=self._module_state)
         return state
 
     def load_state_dict(self, state_dict):
-        self._best_outputs = state_dict["best_outputs"]
+        self._loss = state_dict["loss"]
         self._module_state = copy.deepcopy(state_dict["module"])
-        used = set("best_outputs module".split())
+        used = set("loss module".split())
         super().load_state_dict({k: v for k, v in state_dict.items() if k not in used})
 
 
@@ -262,7 +261,8 @@ class LightningTrainerSpec(DataClassJsonMixin):
     Attributes:
         max_epochs: Maximum number of full model passes through the data
         max_steps: Maximum number of model gradient steps
-        patience: Number of epochs to wait for validation loss to improve
+        patience: Tolerate this many epochs of successive performance
+            degradation. If None, disables early stopping.
         improvement_delta: Minimum expected absolute improvement in model
             validation loss
     """
@@ -276,12 +276,11 @@ class LightningTrainerSpec(DataClassJsonMixin):
         if self.max_epochs is None:
             self.max_epochs = self.max_steps
 
-        if self.patience is None:
-            self.patience = self.max_epochs
-
         assert self.max_epochs > 0, "Maximum number of epochs must be positive"
         assert not self.max_steps or self.max_steps > 0
-        assert self.patience >= 0, "Patience must be nonnegative"
+        assert (
+            self.patience is None or self.patience >= 0
+        ), "Patience must be nonnegative or None"
         assert isinstance(
             self.improvement_delta, float
         ), "Improvement threshold must be a scalar"
@@ -390,8 +389,9 @@ class LightningModelTrainer:
             trainer.fit(model, datamodule=datamodule)
 
         saved_state = trainer.early_stop_callback.state_dict()
-        model.load_state_dict(saved_state["module"])
-        losses, info = saved_state["best_outputs"]
+        losses, info = saved_state["loss"]
+        if saved_state["module"]:
+            model.load_state_dict(saved_state["module"])
         info.update(
             model_epochs=trainer.current_epoch + 1, model_steps=trainer.global_step
         )
