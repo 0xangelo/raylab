@@ -38,10 +38,12 @@ class MBPolicyMixin(ABC):
 
     timers: Dict[str, TimerStat]
     _learn_calls: int = 0
+    _info: dict
 
     def build_timers(self):
         """Create timers for model and policy training."""
         self.timers = {"model": TimerStat(), "policy": TimerStat()}
+        self._info = {}
 
     @learner_stats
     def learn_on_batch(self, samples: SampleBatch) -> dict:
@@ -49,22 +51,21 @@ class MBPolicyMixin(ABC):
         self.add_to_buffer(samples)
         self._learn_calls += 1
 
-        info = {}
         warmup = self._learn_calls == 1
         if (self._learn_calls % self.config["model_update_interval"] == 0) or warmup:
             with self.timers["model"] as timer:
                 _, model_info = self.train_dynamics_model(warmup=warmup)
                 timer.push_units_processed(model_info["model_epochs"])
-                info.update(model_info)
+                self._info.update(model_info)
 
         with self.timers["policy"] as timer:
             times = self.config["improvement_steps"]
             policy_info = self.update_policy(times=times)
             timer.push_units_processed(times)
-            info.update(policy_info)
+            self._info.update(policy_info)
 
-        info.update(self.timer_stats())
-        return info
+        self._info.update(self.timer_stats())
+        return self._info.copy()
 
     @abstractmethod
     def train_dynamics_model(
