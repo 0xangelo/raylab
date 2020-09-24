@@ -61,6 +61,12 @@ logger = logging.getLogger(__name__)
     `https://docs.wandb.com/quickstart`
     """,
 )
+@option(
+    "exploration_config/",
+    None,
+    help="Unused by Raylab policies. Use policy/exploration_config instead.",
+    override=True,
+)
 class Trainer(RLlibTrainer, metaclass=ABCMeta):
     """Base class for raylab trainers."""
 
