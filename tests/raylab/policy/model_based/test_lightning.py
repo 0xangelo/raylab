@@ -212,7 +212,12 @@ def _test_optimize(mocker, trainer: LightningModelTrainer, warmup: bool):
 
     assert isinstance(info, dict)
     assert "model_epochs" in info
-    assert info["model_epochs"] > 0
+    spec = trainer.spec.warmup if warmup else trainer.spec.training
+    assert info["model_epochs"] <= min(spec.max_epochs, spec.patience)
+    if spec.max_steps:
+        assert info["model_steps"] <= spec.max_steps
+    else:
+        assert info["model_steps"] > 0
 
 
 def test_model(trainer, models):
