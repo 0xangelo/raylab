@@ -50,6 +50,8 @@ def test_update_interval(policy, model_update_interval, samples):
     for i in range(1, model_update_interval * 10 + 1):
         info = policy.learn_on_batch(samples)
         info = get_learner_stats(info)
+        assert policy._learn_calls == i
+
         if i == 1 or i % model_update_interval == 0:
             assert "model_epochs" in info
         else:
