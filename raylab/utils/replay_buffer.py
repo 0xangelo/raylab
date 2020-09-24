@@ -224,13 +224,23 @@ class NumpyReplayBuffer:
         """
         if samples.count >= self._maxsize:
             samples = samples.slice(samples.count - self._maxsize, None)
-            start_idx, end_idx = 0, self._maxsize
+            end_idx = 0
+            assign = [(slice(0, self._maxsize), samples)]
         else:
             start_idx = self._next_idx
             end_idx = (self._next_idx + samples.count) % self._maxsize
+            if end_idx < start_idx:
+                tailcount = self._maxsize - start_idx
+                assign = [
+                    (slice(start_idx, None), samples.slice(0, tailcount)),
+                    (slice(end_idx), samples.slice(tailcount, None)),
+                ]
+            else:
+                assign = [(slice(start_idx, end_idx), samples)]
 
         for field in self.fields:
-            self._storage[field.name][start_idx:end_idx] = samples[field.name]
+            for slc, smp in assign:
+                self._storage[field.name][slc] = smp[field.name]
 
         self._next_idx = end_idx
         self._curr_size = min(self._curr_size + samples.count, self._maxsize)

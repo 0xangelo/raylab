@@ -51,7 +51,7 @@ class MBPolicyMixin(ABC):
 
         info = {}
         warmup = self._learn_calls == 1
-        if self._learn_calls % self.config["model_update_interval"] == 0 or warmup:
+        if (self._learn_calls % self.config["model_update_interval"] == 0) or warmup:
             with self.timers["model"] as timer:
                 _, model_info = self.train_dynamics_model(warmup=warmup)
                 timer.push_units_processed(model_info["model_epochs"])
@@ -113,3 +113,8 @@ class MBPolicyMixin(ABC):
             # Get mean number of policy updates per second spent updating the policy
             policy_update_throughput=round(policy_timer.mean_throughput, 3),
         )
+
+    @staticmethod
+    def add_options(policy_cls: type) -> type:
+        """Decorator to add default model-based options used by MBPolicyMixin."""
+        return model_based_options(policy_cls)

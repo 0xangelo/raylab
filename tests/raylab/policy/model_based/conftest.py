@@ -2,6 +2,7 @@ import pytest
 
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import BaseActionDist
+from raylab.utils.debug import fake_batch
 
 
 @pytest.fixture(scope="module")
@@ -25,3 +26,8 @@ def base_policy_cls(action_dist, obs_space, action_space):
             super().__init__(obs_space, action_space, config)
 
     return Policy
+
+
+@pytest.fixture
+def samples(obs_space, action_space):
+    return fake_batch(obs_space, action_space, batch_size=256)

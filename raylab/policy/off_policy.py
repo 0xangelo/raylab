@@ -90,3 +90,8 @@ class OffPolicyMixin(ABC):
     @abstractmethod
     def improve_policy(self, batch: TensorDict) -> dict:
         """Run one step of Policy Improvement."""
+
+    @staticmethod
+    def add_options(policy_cls: type) -> type:
+        """Decorator to add default off-policy options used by OffPolicyMixin."""
+        return off_policy_options(policy_cls)
