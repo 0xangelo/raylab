@@ -6,6 +6,7 @@ from typing import Tuple
 
 from torch import Tensor
 
+from raylab.utils.dictionaries import get_keys
 from raylab.utils.types import StatDict
 from raylab.utils.types import TensorDict
 
@@ -48,3 +49,16 @@ class Loss(metaclass=ABCMeta):
         Subclasses should use TorchScript to build a static computation graph,
         although this may not be possible in some cases.
         """
+
+    def unpack_batch(self, batch: TensorDict) -> Tuple[Tensor, ...]:
+        """Returns the batch tensors corresponding to the batch keys.
+
+        Tensors are returned in the same order `batch_keys` is defined.
+
+        Args:
+            batch: Dictionary of input tensors
+
+        Returns:
+            A tuple of tensors corresponding to each key in `batch_keys`
+        """
+        return tuple(get_keys(batch, self.batch_keys))
