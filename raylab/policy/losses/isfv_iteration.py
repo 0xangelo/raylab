@@ -7,8 +7,9 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 from torch import Tensor
 
-import raylab.utils.dictionaries as dutil
+from raylab.policy.modules.actor import Alpha
 from raylab.policy.modules.actor import StochasticPolicy
+from raylab.policy.modules.critic import VValue
 from raylab.utils.types import StatDict
 from raylab.utils.types import TensorDict
 
@@ -27,37 +28,39 @@ class ISFittedVIteration(Loss):
     """
 
     IS_RATIOS = "is_ratios"
-    batch_keys: Tuple[str, str] = (SampleBatch.CUR_OBS, "is_ratios")
     gamma: float = 0.99
 
-    def __init__(self, critic: nn.Module, target_critic: nn.Module):
+    def __init__(self, critic: VValue, target_critic: VValue):
         self.critic = critic
         self.target_critic = target_critic
-
-    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
-        """Compute loss for importance sampled fitted V iteration."""
-        obs, is_ratios = dutil.get_keys(batch, *self.batch_keys)
-
-        values = self.critic(obs).squeeze(-1)
-        with torch.no_grad():
-            targets = self.sampled_one_step_state_values(batch)
-        value_loss = torch.mean(
-            is_ratios * torch.nn.MSELoss(reduction="none")(values, targets) / 2
-        )
-        return value_loss, {"loss(critic)": value_loss.item()}
-
-    def sampled_one_step_state_values(self, batch: TensorDict) -> Tensor:
-        """Bootstrapped approximation of true state-value using sampled transition."""
-        next_obs, rewards, dones = dutil.get_keys(
-            batch,
+        self.batch_keys: Tuple[str, str] = (
+            SampleBatch.CUR_OBS,
+            self.IS_RATIOS,
             SampleBatch.NEXT_OBS,
             SampleBatch.REWARDS,
             SampleBatch.DONES,
         )
+
+        self._loss_fn = nn.MSELoss(reduction="none")
+
+    def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
+        """Compute loss for importance sampled fitted V iteration."""
+        obs, is_ratios, next_obs, reward, done = self.unpack_batch(batch)
+
+        with torch.no_grad():
+            target = self.sampled_one_step_state_values(obs, next_obs, reward, done)
+
+        pred = self.critic(obs)
+        loss = torch.mean(is_ratios * self._loss_fn(pred, target) / 2)
+        return loss, {"loss(critic)": loss.item()}
+
+    def sampled_one_step_state_values(
+        self, obs: Tensor, next_obs: Tensor, reward: Tensor, done: Tensor
+    ) -> Tensor:
+        """Bootstrapped approximation of true state-value using sampled transition."""
+        del obs
         return torch.where(
-            dones,
-            rewards,
-            rewards + self.gamma * self.target_critic(next_obs).squeeze(-1),
+            done, reward, reward + self.gamma * self.target_critic(next_obs)
         )
 
 
@@ -75,35 +78,28 @@ class ISSoftVIteration(ISFittedVIteration):
     """
 
     # pylint:disable=too-few-public-methods
-    ENTROPY = "entropy"
     gamma: float = 0.99
-    alpha: float = 0.05
 
     def __init__(
-        self, critic: nn.Module, target_critic: nn.Module, actor: StochasticPolicy
+        self,
+        critic: VValue,
+        target_critic: VValue,
+        actor: StochasticPolicy,
+        alpha: Alpha,
     ):
-        super().__init__(critic, target_critic)
         self.actor = actor
+        self.alpha = alpha
+        super().__init__(critic, target_critic)
 
     @override(ISFittedVIteration)
-    def sampled_one_step_state_values(self, batch: TensorDict) -> Tensor:
+    def sampled_one_step_state_values(
+        self, obs: Tensor, next_obs: Tensor, reward: Tensor, done: Tensor
+    ) -> Tensor:
         """Bootstrapped approximation of true state-value using sampled transition."""
-        if self.ENTROPY in batch:
-            entropy = batch[self.ENTROPY]
-        else:
-            with torch.no_grad():
-                _, logp = self.actor(batch[SampleBatch.CUR_OBS])
-                entropy = -logp
+        _, logp = self.actor.sample(obs)
+        entropy = -logp
 
-        next_obs, rewards, dones = dutil.get_keys(
-            batch,
-            SampleBatch.NEXT_OBS,
-            SampleBatch.REWARDS,
-            SampleBatch.DONES,
-        )
-        augmented_rewards = rewards + self.alpha * entropy
+        reward = reward + self.alpha() * entropy
         return torch.where(
-            dones,
-            augmented_rewards,
-            augmented_rewards + self.gamma * self.target_critic(next_obs).squeeze(-1),
+            done, reward, reward + self.gamma * self.target_critic(next_obs)
         )

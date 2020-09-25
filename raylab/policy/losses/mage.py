@@ -53,11 +53,6 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
             models = SME([models])
         self.models = models
 
-    @property
-    def initialized(self) -> bool:
-        """Whether or not the loss function has all the necessary components."""
-        return self._env.initialized
-
     def transition(self, obs: Tensor, action: Tensor) -> Tuple[Tensor, TensorDict]:
         # pylint:disable=missing-function-docstring
         model, _ = self.sample_model()
@@ -66,10 +61,7 @@ class MAGE(EnvFunctionsMixin, UniformModelPriorMixin, Loss):
         return next_obs, dist_params
 
     def __call__(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
-        assert self.initialized, (
-            "Environment functions missing. "
-            "Did you set reward, termination, and dynamics functions?"
-        )
+        self.check_env_fns()
 
         obs = batch[SampleBatch.CUR_OBS]
         action = self.policy(obs)

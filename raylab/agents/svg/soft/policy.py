@@ -19,6 +19,7 @@ from raylab.utils.types import TensorDict
 
 
 def default_optimizer() -> dict:
+    # pylint:disable=missing-function-docstring
     return {
         "model": {"type": "Adam", "lr": 1e-3},
         "actor": {"type": "Adam", "lr": 1e-3},
@@ -51,17 +52,14 @@ class SoftSVGTorchPolicy(OffPolicyMixin, SVGTorchPolicy):
 
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
+        module = self.module
         self.loss_actor = OneStepSoftSVG(
-            lambda s, a, s_: self.module.model.reproduce(s_, self.module.model(s, a)),
-            self.module.actor.reproduce,
-            self.module.critic,
+            module.model, module.actor, module.critic, module.alpha
         )
         self.loss_actor.gamma = self.config["gamma"]
 
         self.loss_critic = ISSoftVIteration(
-            self.module.critic,
-            self.module.target_critic,
-            self.module.actor.sample,
+            module.critic, module.target_critic, module.actor, module.alpha
         )
         self.loss_critic.gamma = self.config["gamma"]
 
@@ -71,7 +69,7 @@ class SoftSVGTorchPolicy(OffPolicyMixin, SVGTorchPolicy):
             else self.config["target_entropy"]
         )
         self.loss_alpha = MaximumEntropyDual(
-            self.module.alpha, self.module.actor.sample, target_entropy
+            module.alpha, module.actor.sample, target_entropy
         )
 
         self.build_replay_buffer()
@@ -88,11 +86,12 @@ class SoftSVGTorchPolicy(OffPolicyMixin, SVGTorchPolicy):
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
         config = self.config["optimizer"]
+        module = self.module
         components = {
-            "model": self.module.model,
-            "actor": self.module.actor,
-            "critic": self.module.critic,
-            "alpha": self.module.alpha,
+            "model": module.model,
+            "actor": module.actor,
+            "critic": module.critic,
+            "alpha": module.alpha,
         }
 
         mapping = {
