@@ -74,7 +74,6 @@ class ISSoftVIteration(ISFittedVIteration):
 
     Attributes:
         gamma: discount factor
-        alpha: entropy coefficient
     """
 
     # pylint:disable=too-few-public-methods

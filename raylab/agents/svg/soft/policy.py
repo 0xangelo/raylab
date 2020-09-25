@@ -129,10 +129,6 @@ class SoftSVGTorchPolicy(OffPolicyMixin, SVGTorchPolicy):
     def improve_policy(self, batch: TensorDict) -> dict:
         batch, info = self.add_truncated_importance_sampling_ratios(batch)
 
-        alpha = self.module.alpha().item()
-        self.loss_critic.alpha = alpha
-        self.loss_actor.alpha = alpha
-
         info.update(self._update_model(batch))
         info.update(self._update_critic(batch))
         info.update(self._update_actor(batch))
