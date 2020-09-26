@@ -6,7 +6,8 @@ from raylab.policy.modules.actor import Alpha
 from raylab.policy.modules.actor import DeterministicPolicy
 from raylab.policy.modules.actor import MLPContinuousPolicy
 from raylab.policy.modules.actor import MLPDeterministicPolicy
-from raylab.policy.modules.critic.action_value import ActionValueCritic
+from raylab.policy.modules.critic import ActionValueCritic
+from raylab.policy.modules.critic import MLPVValue
 from raylab.policy.modules.model import build_ensemble
 from raylab.policy.modules.model import build_single
 from raylab.policy.modules.model import EnsembleSpec
@@ -69,6 +70,11 @@ def model_spec():
     return spec
 
 
+@pytest.fixture
+def model(obs_space, action_space, model_spec):
+    return build_single(obs_space, action_space, model_spec)
+
+
 @pytest.fixture(params=(1, 2, 4), ids=(f"Models({n})" for n in (1, 2, 4)))
 def models(request, obs_space, action_space, model_spec):
     spec = model_spec
@@ -76,11 +82,6 @@ def models(request, obs_space, action_space, model_spec):
     spec.parallelize = True
 
     return build_ensemble(obs_space, action_space, spec)
-
-
-@pytest.fixture
-def model(obs_space, action_space, model_spec):
-    return build_single(obs_space, action_space, model_spec)
 
 
 @pytest.fixture(params=(1, 2), ids=(f"Critics({n})" for n in (1, 2)))
@@ -94,6 +95,17 @@ def action_critics(request, obs_space, action_space):
 
     act_critic = ActionValueCritic(obs_space, action_space, spec)
     return act_critic.q_values, act_critic.target_q_values
+
+
+@pytest.fixture
+def state_critics(obs_space):
+    spec = MLPVValue.spec_cls()
+    spec.units = (32,)
+    spec.activation = "ReLU"
+    spec.layer_norm = False
+
+    main, target = MLPVValue(obs_space, spec), MLPVValue(obs_space, spec)
+    return main, target
 
 
 @pytest.fixture

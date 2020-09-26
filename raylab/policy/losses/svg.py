@@ -161,7 +161,7 @@ class TrajectorySVG(EnvFunctionsMixin, Loss):
             actions = episode[SampleBatch.ACTIONS]
             next_obs = episode[SampleBatch.NEXT_OBS]
 
-            rewards = self._rollout(actions, next_obs, init_obs)
+            _, _, rewards = self._rollout(actions, next_obs, init_obs)
             total_ret += rewards.sum()
 
         sim_return_mean = total_ret / len(episodes)
@@ -189,7 +189,9 @@ class ReproduceRewards(nn.Module):
         self.reward_fn = reward_fn
 
     @override(nn.Module)
-    def forward(self, acts: Tensor, next_obs: Tensor, init_ob: Tensor) -> Tensor:
+    def forward(
+        self, acts: Tensor, next_obs: Tensor, init_ob: Tensor
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         """Reproduce a sequence of actions, obsevations, and rewards.
 
         Args:
@@ -199,17 +201,22 @@ class ReproduceRewards(nn.Module):
             init_ob: the initial observation
 
         Returns:
-            The rewards from the reproduced action sequence
+            The observations, actions and rewards from the reproduced trajectory
 
         Note:
             Assumes the first tensor dimension of `acts` and `next_obs`
             corresponds to the timestep and iterates over it.
         """
         # pylint:disable=arguments-differ
+        obs_seq = []
+        act_seq = []
         reward_seq = []
+        cur_ob = init_ob
         for act, next_ob in zip(acts, next_obs):
-            _act, _ = self.policy.reproduce(init_ob, act)
-            _next_ob, _ = self.model.reproduce(next_ob, self.model(init_ob, _act))
-            reward_seq.append(self.reward_fn(init_ob, _act, _next_ob))
-            init_ob = _next_ob
-        return torch.stack(reward_seq)
+            _act, _ = self.policy.reproduce(cur_ob, act)
+            act_seq += [_act]
+            _next_ob, _ = self.model.reproduce(next_ob, self.model(cur_ob, _act))
+            obs_seq += [_next_ob]
+            reward_seq += [self.reward_fn(cur_ob, _act, _next_ob)]
+            cur_ob = _next_ob
+        return torch.stack(obs_seq), torch.stack(act_seq), torch.stack(reward_seq)
