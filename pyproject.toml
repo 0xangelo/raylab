@@ -49,6 +49,7 @@ ipython = "^7.18.1"
 pytest-mock = "^3.3.1"
 pytest-sugar = "^0.9.4"
 auto-changelog = "^0.5.1"
+sklearn = "^0.0"
 
 [tool.poetry.scripts]
 raylab = "raylab.cli:raylab"
