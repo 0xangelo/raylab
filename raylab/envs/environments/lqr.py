@@ -22,17 +22,9 @@ class LQR(nn.Module):
         self.C = C.float().detach()
         self.c = c.float().detach()
 
-    @property
-    def n_dim(self):
-        return self.F.shape[1]
-
-    @property
-    def state_size(self):
-        return self.F.shape[0]
-
-    @property
-    def action_size(self):
-        return self.n_dim - self.state_size
+        self.n_dim = self.F.shape[1]
+        self.state_size = self.F.shape[0]
+        self.action_size = self.n_dim - self.state_size
 
     @torch.jit.export
     def transition(self, x, u):
@@ -56,18 +48,18 @@ class LQR(nn.Module):
         return c1 + c2
 
     @torch.jit.export
-    def backward(self, T):
-        policy, value_fn = [], []
-
+    def backward(self, T: int):
+        policy: List[Tuple[Tensor, Tensor]] = []
+        value_fn: List[Tuple[Tensor, Tensor, Tensor]] = []
         state_size = self.state_size
 
         V = self.C[:state_size, :state_size]
         v = self.c[:state_size]
-        const = 0.0
+        const = torch.zeros(())
 
         value_fn.append((V, v, const))
 
-        for _ in reversed(range(T)):
+        for _ in range(T - 1, -1, -1):
             K, k, V, v, const_ = self.single_step(V, v)
             const += const_
             policy.append((K, k))
@@ -140,7 +132,7 @@ class LQR(nn.Module):
         const2 = k.T @ w_u
         const3 = 1 / 2 * f.T @ V_f + f.T @ v
         const = const1 + const2 + const3
-        return const
+        return const.squeeze()
 
     @torch.jit.export
     def forward(self, policy: List[Tuple[Tensor, Tensor]], x0: Tensor):
@@ -166,5 +158,4 @@ class LQR(nn.Module):
         final_cost = self.final_cost(state)
         costs.append(final_cost)
 
-        states, actions, costs = map(torch.stack, (states, actions, costs))
-        return states, actions, costs
+        return torch.stack(states), torch.stack(actions), torch.stack(costs)
