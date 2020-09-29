@@ -18,12 +18,14 @@ from raylab.utils.replay_buffer import ReplayField
 from raylab.utils.types import TensorDict
 
 
-TORCH_OPTIMIZERS = {
-    "model": {"type": "Adam", "lr": 1e-3},
-    "actor": {"type": "Adam", "lr": 1e-3},
-    "critic": {"type": "Adam", "lr": 1e-3},
-    "alpha": {"type": "Adam", "lr": 1e-3},
-}
+def default_optimizer() -> dict:
+    # pylint:disable=missing-function-docstring
+    return {
+        "model": {"type": "Adam", "lr": 1e-3},
+        "actor": {"type": "Adam", "lr": 1e-3},
+        "critic": {"type": "Adam", "lr": 1e-3},
+        "alpha": {"type": "Adam", "lr": 1e-3},
+    }
 
 
 @configure
@@ -31,24 +33,13 @@ TORCH_OPTIMIZERS = {
 @option(
     "target_entropy",
     None,
-    help="""
-Target entropy to optimize the temperature parameter towards
-If "auto", will use the heuristic provided in the SAC paper,
-H = -dim(A), where A is the action space
-""",
+    help="""Target entropy to optimize the temperature parameter towards
+
+    If "auto", will use the heuristic provided in the SAC paper,
+    H = -dim(A), where A is the action space
+    """,
 )
-@option("optimizer", TORCH_OPTIMIZERS, override=True)
-@option(
-    "vf_loss_coeff",
-    1.0,
-    help="Weight of the fitted V loss in the joint model-value loss",
-)
-@option("max_is_ratio", 5.0, help="Clip importance sampling weights by this value")
-@option(
-    "polyak",
-    0.995,
-    help="Interpolation factor in polyak averaging for target networks.",
-)
+@option("optimizer", default_optimizer(), override=True)
 @option("module/type", "SoftSVG")
 @option(
     "exploration_config/type",
@@ -59,21 +50,16 @@ H = -dim(A), where A is the action space
 class SoftSVGTorchPolicy(OffPolicyMixin, SVGTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
 
-    # pylint:disable=abstract-method
-
     def __init__(self, observation_space, action_space, config):
         super().__init__(observation_space, action_space, config)
+        module = self.module
         self.loss_actor = OneStepSoftSVG(
-            lambda s, a, s_: self.module.model.reproduce(s_, self.module.model(s, a)),
-            self.module.actor.reproduce,
-            self.module.critic,
+            module.model, module.actor, module.critic, module.alpha
         )
         self.loss_actor.gamma = self.config["gamma"]
 
         self.loss_critic = ISSoftVIteration(
-            self.module.critic,
-            self.module.target_critic,
-            self.module.actor.sample,
+            module.critic, module.target_critic, module.actor, module.alpha
         )
         self.loss_critic.gamma = self.config["gamma"]
 
@@ -83,7 +69,7 @@ class SoftSVGTorchPolicy(OffPolicyMixin, SVGTorchPolicy):
             else self.config["target_entropy"]
         )
         self.loss_alpha = MaximumEntropyDual(
-            self.module.alpha, self.module.actor.sample, target_entropy
+            module.alpha, module.actor.sample, target_entropy
         )
 
         self.build_replay_buffer()
@@ -100,11 +86,12 @@ class SoftSVGTorchPolicy(OffPolicyMixin, SVGTorchPolicy):
     def _make_optimizers(self):
         optimizers = super()._make_optimizers()
         config = self.config["optimizer"]
+        module = self.module
         components = {
-            "model": self.module.model,
-            "actor": self.module.actor,
-            "critic": self.module.critic,
-            "alpha": self.module.alpha,
+            "model": module.model,
+            "actor": module.actor,
+            "critic": module.critic,
+            "alpha": module.alpha,
         }
 
         mapping = {
@@ -141,10 +128,6 @@ class SoftSVGTorchPolicy(OffPolicyMixin, SVGTorchPolicy):
     @override(OffPolicyMixin)
     def improve_policy(self, batch: TensorDict) -> dict:
         batch, info = self.add_truncated_importance_sampling_ratios(batch)
-
-        alpha = self.module.alpha().item()
-        self.loss_critic.alpha = alpha
-        self.loss_actor.alpha = alpha
 
         info.update(self._update_model(batch))
         info.update(self._update_critic(batch))

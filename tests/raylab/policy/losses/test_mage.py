@@ -41,7 +41,6 @@ def loss_fn(raw_loss, reward_fn, termination_fn):
 
 def test_mage_init(raw_loss, reward_fn, termination_fn):
     loss_fn = raw_loss
-    assert not loss_fn.initialized
     assert hasattr(loss_fn, "gamma")
     assert hasattr(loss_fn, "lambd")
     assert hasattr(loss_fn, "critics")
@@ -52,7 +51,6 @@ def test_mage_init(raw_loss, reward_fn, termination_fn):
 
     loss_fn.set_reward_fn(reward_fn)
     loss_fn.set_termination_fn(termination_fn)
-    assert loss_fn.initialized
 
     loss_fn.seed(42)
     assert hasattr(loss_fn, "_rng")

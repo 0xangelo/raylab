@@ -61,4 +61,4 @@ class Loss(metaclass=ABCMeta):
         Returns:
             A tuple of tensors corresponding to each key in `batch_keys`
         """
-        return tuple(get_keys(batch, self.batch_keys))
+        return tuple(get_keys(batch, *self.batch_keys))

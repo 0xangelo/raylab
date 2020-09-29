@@ -43,6 +43,14 @@ class EnvFunctionsMixin:
         """Set termination function to provided callable."""
         self._env.termination = function
 
+    def check_env_fns(self):
+        """Assert env functions have been set.
+
+        Raises:
+            AssertionError: If reward or termination functions were not set
+        """
+        assert self._env.initialized, "Reward or termination functions missing."
+
 
 class UniformModelPriorMixin:
     """Add methods for using model ensembles with uniform prior distribution.
