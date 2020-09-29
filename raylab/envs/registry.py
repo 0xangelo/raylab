@@ -43,7 +43,8 @@ def register_external_library_environments(library_name):
         def _env_maker(config, env_id=name):
             importlib.import_module(library_name)
 
-            return gym.make(env_id, **config)
+            kwargs = config.get("kwargs", {})
+            return gym.make(env_id, **kwargs)
 
         ENVS[name] = _env_maker
     IDS.update(new_ids)
