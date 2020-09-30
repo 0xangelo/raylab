@@ -1510,7 +1510,7 @@ test = ["ipaddress", "mock", "unittest2", "enum34", "pywin32", "wmi"]
 [[package]]
 category = "main"
 description = "Run a subprocess in a pseudo terminal"
-marker = "python_version >= \"3.4\" and sys_platform != \"win32\" or python_version >= \"3.3\" and sys_platform != \"win32\" or sys_platform != \"win32\" or os_name != \"nt\" or python_version >= \"3.3\" and sys_platform != \"win32\" and (python_version >= \"3.4\" and sys_platform != \"win32\" or python_version >= \"3.3\" and sys_platform != \"win32\" or sys_platform != \"win32\") or python_version >= \"3.4\" and sys_platform != \"win32\" and (python_version >= \"3.4\" and sys_platform != \"win32\" or python_version >= \"3.3\" and sys_platform != \"win32\" or sys_platform != \"win32\")"
+marker = "python_version >= \"3.3\" and sys_platform != \"win32\" or sys_platform != \"win32\" or python_version >= \"3.4\" and sys_platform != \"win32\" or os_name != \"nt\" or python_version >= \"3.3\" and sys_platform != \"win32\" and (python_version >= \"3.3\" and sys_platform != \"win32\" or sys_platform != \"win32\" or python_version >= \"3.4\" and sys_platform != \"win32\") or python_version >= \"3.4\" and sys_platform != \"win32\" and (python_version >= \"3.3\" and sys_platform != \"win32\" or sys_platform != \"win32\" or python_version >= \"3.4\" and sys_platform != \"win32\")"
 name = "ptyprocess"
 optional = false
 python-versions = "*"
@@ -2501,7 +2501,7 @@ description = "A CLI and library for interacting with the Weights and Biases API
 name = "wandb"
 optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-version = "0.10.2"
+version = "0.10.4"
 
 [package.dependencies]
 Click = ">=7.0"
@@ -2632,7 +2632,8 @@ testing = ["pytest (>=3.5,<3.7.3 || >3.7.3)", "pytest-checkdocs (>=1.2.3)", "pyt
 wandb = ["wandb"]
 
 [metadata]
-content-hash = "19175b7b201d02e3666f1b572fbb2e4383c83adcc86935e7b1093f5ba19a1181"
+content-hash = "1a1a8bd3bec6436ed184c9bda42d795d3e6a7faa8cfbdb710c1e0a1aa24fd362"
+lock-version = "1.0"
 python-versions = "^3.7"
 
 [metadata.files]
@@ -4038,8 +4039,8 @@ virtualenv = [
     {file = "virtualenv-20.0.31.tar.gz", hash = "sha256:43add625c53c596d38f971a465553f6318decc39d98512bc100fa1b1e839c8dc"},
 ]
 wandb = [
-    {file = "wandb-0.10.2-py2.py3-none-any.whl", hash = "sha256:ee10e4e34566964b7ba6e17d93b1ffb55ac67d3803d3953994d22b4145305c67"},
-    {file = "wandb-0.10.2.tar.gz", hash = "sha256:8ec1ebc53f57b9d760328703e2b97ae123d9dce6549f38ab84ef7f06bf7aaf5b"},
+    {file = "wandb-0.10.4-py2.py3-none-any.whl", hash = "sha256:847b5fc02c3ca746c946b3ff7a7029068a7f763382f6e63eb04cd795886f098c"},
+    {file = "wandb-0.10.4.tar.gz", hash = "sha256:daa571ca0d0acec5f05a2162d5b53ee20c97398af321fb0950e6cc9649721129"},
 ]
 watchdog = [
     {file = "watchdog-0.10.3.tar.gz", hash = "sha256:4214e1379d128b0588021880ccaf40317ee156d4603ac388b9adcf29165e0c04"},
