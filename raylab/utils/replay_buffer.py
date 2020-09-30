@@ -177,6 +177,7 @@ class NumpyReplayBuffer:
             cur_obs = self._storage.column(SampleBatch.CUR_OBS)
             mean = np.mean(cur_obs, axis=0)
             std = np.std(cur_obs, axis=0)
+            std = np.where(std < 1e-12, np.ones_like(std), std)
             self._obs_stats = (mean, std)
 
     def seed(self, seed: int = None):
