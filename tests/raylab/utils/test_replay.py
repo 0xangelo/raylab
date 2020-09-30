@@ -124,3 +124,14 @@ def test_getitem(filled_replay: NumpyReplayBuffer, sample_batch: SampleBatch, id
     for key in SampleBatch.CUR_OBS, SampleBatch.NEXT_OBS:
         expected = (sample_batch[key][idx] - mean) / (std + 1e-6)
         assert np.allclose(batch[key], expected)
+
+
+@pytest.fixture(params=(True, False), ids=lambda x: f"ComputeStats:{x}")
+def empty_replay(request, replay: NumpyReplayBuffer):
+    replay.compute_stats = request.param
+    return replay
+
+
+def test_empty(empty_replay: NumpyReplayBuffer, sample_batch: SampleBatch):
+    obs = empty_replay.normalize(sample_batch[SampleBatch.CUR_OBS])
+    assert np.allclose(obs, sample_batch[SampleBatch.CUR_OBS])

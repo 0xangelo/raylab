@@ -171,10 +171,13 @@ class NumpyReplayBuffer:
         Subsequent batches sampled from this buffer will use these statistics to
         normalize the current and next observation fields.
         """
-        cur_obs = self._storage.column(SampleBatch.CUR_OBS)
-        mean = np.mean(cur_obs, axis=0)
-        std = np.std(cur_obs, axis=0)
-        self._obs_stats = (mean, std)
+        if len(self) == 0:
+            self._obs_stats = (0, 1)
+        else:
+            cur_obs = self._storage.column(SampleBatch.CUR_OBS)
+            mean = np.mean(cur_obs, axis=0)
+            std = np.std(cur_obs, axis=0)
+            self._obs_stats = (mean, std)
 
     def seed(self, seed: int = None):
         """Seed the random number generator for sampling minibatches."""
