@@ -199,9 +199,21 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
 
     @overrides(RLlibTrainer)
     def step(self) -> dict:
-        res = next(self.train_exec_impl)
+        res = self.evaluate_pre_learning()
+        res.update(next(self.train_exec_impl))
         res.update(self.evaluate_if_needed())
         return res
+
+    def evaluate_pre_learning(self) -> dict:
+        """Runs evaluation before any optimizations if requested.
+
+        Returns:
+            A dictionary with evaluation info
+        """
+        interval = self.config["evaluation_interval"]
+        if self.iteration == 0 and interval and interval != 1:
+            return self._evaluate()
+        return {}
 
     def evaluate_if_needed(self) -> dict:
         """Runs evaluation episodes if configured to do so.
