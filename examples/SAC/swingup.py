@@ -6,6 +6,7 @@ def policy_config():
         # === Off Policy ===
         "buffer_size": int(1e5),
         "batch_size": 128,
+        "std_obs": False,
         "target_entropy": "auto",
         "optimizer": {
             "actor": {"type": "Adam", "lr": 3e-4},
@@ -13,23 +14,27 @@ def policy_config():
             "alpha": {"type": "Adam", "lr": 3e-4},
         },
         "module": {
-            "actor": {"encoder": {"units": (128, 128), "activation": "Swish"}},
-            "critic": {"encoder": {"units": (128, 128), "activation": "Swish"}},
-            "entropy": {"initial_alpha": 0.05},
+            "actor": {"encoder": {"units": (128, 128), "activation": "ReLU"}},
+            "critic": {"encoder": {"units": (128, 128), "activation": "ReLU"}},
         },
         "exploration_config": {"pure_exploration_steps": 5000},
     }
 
 
-def get_config():
+def env_config():
     return {
-        # === Environment ===
         "env": "CartPoleSwingUp-v1",
-        "env_config": {"max_episode_steps": 500, "time_aware": False},
-        # === Policy ===
-        "policy": policy_config(),
-        # === Trainer ===
-        "rollout_fragment_length": 200,
+        "env_config": {
+            "max_episode_steps": 500,
+            "time_aware": False,
+            "single_precision": False,
+        },
+    }
+
+
+def trainer_config():
+    return {
+        "rollout_fragment_length": 1,
         "batch_mode": "truncate_episodes",
         "timesteps_per_iteration": 1000,
         "learning_starts": 5000,
@@ -40,14 +45,24 @@ def get_config():
     }
 
 
+def wandb_config():
+    return {"project": "baselines", "entity": "angelovtt"}
+
+
+def get_config():
+    cnf = {}
+    cnf.update(env_config())
+    cnf.update({"policy": policy_config()})
+    cnf.update({"wandb": wandb_config()})
+    cnf.update(trainer_config())
+    return cnf
+
+
 @tune_experiment
 def main():
     config = get_config()
-    return (
-        "SoftAC",
-        config,
-        {"stop": {"timesteps_total": config["policy"]["buffer_size"]}},
-    )
+    tune_kwargs = dict(stop={"timesteps_total": config["policy"]["buffer_size"]})
+    return "SoftAC", config, tune_kwargs
 
 
 if __name__ == "__main__":

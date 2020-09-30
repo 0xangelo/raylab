@@ -24,6 +24,8 @@ def module_config() -> dict:
 
 
 def policy_config() -> dict:
+    from ray import tune
+
     return {
         "module": module_config(),
         "optimizer": {
@@ -36,6 +38,7 @@ def policy_config() -> dict:
         "improvement_steps": 1,
         "gamma": 0.99,
         "polyak": 0.995,
+        # "target_entropy": tune.grid_search(["auto", "tf-agents"]),
         "target_entropy": "auto",
         "exploration_config": {"pure_exploration_steps": LEARNING_STARTS},
     }
@@ -55,10 +58,15 @@ def trainer_config(evaluation_interval: int = 10) -> dict:
 def env_config(env: str = "HalfCheetah-v3") -> dict:
     conf = {
         "env": env,
-        "env_config": {"time_aware": False, "max_episode_steps": 1000},
+        "env_config": {
+            "time_aware": False,
+            "max_episode_steps": 1000,
+            "single_precision": True,
+        },
     }
     # if env.endswith("-v3"):
-    #     conf["env_config"]["exclude_current_positions_from_observation"] = False
+    #     kwargs = dict(exclude_current_positions_from_observation=False)
+    #     conf["env_config"]["kwargs"] = kwargs
     return conf
 
 
