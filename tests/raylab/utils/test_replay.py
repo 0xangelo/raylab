@@ -5,17 +5,13 @@ import pytest
 from ray.rllib import SampleBatch
 
 from raylab.utils.debug import fake_batch
-from raylab.utils.replay_buffer import ListReplayBuffer
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 from raylab.utils.replay_buffer import ReplayField
 
 
-@pytest.fixture(params=(ListReplayBuffer, NumpyReplayBuffer))
-def replay_cls(request, obs_space, action_space):
-    cls = request.param
-    if issubclass(cls, NumpyReplayBuffer):
-        return partial(cls, obs_space=obs_space, action_space=action_space)
-    return cls
+@pytest.fixture
+def replay_cls(obs_space, action_space):
+    return partial(NumpyReplayBuffer, obs_space=obs_space, action_space=action_space)
 
 
 @pytest.fixture
@@ -67,11 +63,7 @@ def test_replay_init(extra_replay, extra_fields):
 
 @pytest.fixture
 def filled_replay(replay, sample_batch):
-    if isinstance(replay, ListReplayBuffer):
-        for row in sample_batch.rows():
-            replay.add(row)
-    else:
-        replay.add(sample_batch)
+    replay.add(sample_batch)
     return replay
 
 
@@ -82,19 +74,12 @@ def test_all_samples(filled_replay, sample_batch):
     assert all(np.allclose(sample_batch[k], buffer[k]) for k in sample_batch.keys())
 
 
-@pytest.fixture
-def numpy_replay(obs_space, action_space, size, sample_batch):
-    replay = NumpyReplayBuffer(obs_space, action_space, size)
-    replay.add(sample_batch)
-    return replay
+def test_len(filled_replay, sample_batch):
+    assert len(filled_replay) == sample_batch.count
 
 
-def test_len(numpy_replay, sample_batch):
-    assert len(numpy_replay) == sample_batch.count
-
-
-def test_sample(numpy_replay):
-    replay = numpy_replay
+def test_sample(filled_replay):
+    replay = filled_replay
     batch_size = len(replay) // 10
 
     replay.seed(42)
@@ -106,8 +91,8 @@ def test_sample(numpy_replay):
     assert all([np.allclose(samples[k], samples_[k]) for k in samples.keys()])
 
 
-def test_update_obs_stats(numpy_replay: NumpyReplayBuffer, obs_space):
-    replay = numpy_replay
+def test_update_obs_stats(filled_replay: NumpyReplayBuffer, obs_space):
+    replay = filled_replay
     replay.update_obs_stats()
 
     assert replay._obs_stats
@@ -122,8 +107,8 @@ def idx(request):
     return request.param
 
 
-def test_getitem(numpy_replay: NumpyReplayBuffer, sample_batch: SampleBatch, idx):
-    replay = numpy_replay
+def test_getitem(filled_replay: NumpyReplayBuffer, sample_batch: SampleBatch, idx):
+    replay = filled_replay
 
     batch = replay[idx]
     assert isinstance(batch, dict)
@@ -133,8 +118,9 @@ def test_getitem(numpy_replay: NumpyReplayBuffer, sample_batch: SampleBatch, idx
 
     mean = np.mean(sample_batch[SampleBatch.CUR_OBS], axis=0)
     std = np.std(sample_batch[SampleBatch.CUR_OBS], axis=0)
-    replay.update_obs_stats()
+
+    replay.compute_stats = True
     batch = replay[idx]
     for key in SampleBatch.CUR_OBS, SampleBatch.NEXT_OBS:
-        expected = (sample_batch[key][idx] - mean) / (std + 1e-7)
+        expected = (sample_batch[key][idx] - mean) / (std + 1e-6)
         assert np.allclose(batch[key], expected)
