@@ -163,7 +163,7 @@ class NumpyReplayBuffer:
             self.update_obs_stats()
 
         mean, std = self._obs_stats
-        return (obs - mean) / (std + 1e-6)
+        return (obs - mean) / std
 
     def update_obs_stats(self):
         """Compute mean and standard deviation for observation normalization.

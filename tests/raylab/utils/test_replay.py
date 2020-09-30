@@ -118,11 +118,12 @@ def test_getitem(filled_replay: NumpyReplayBuffer, sample_batch: SampleBatch, id
 
     mean = np.mean(sample_batch[SampleBatch.CUR_OBS], axis=0)
     std = np.std(sample_batch[SampleBatch.CUR_OBS], axis=0)
+    std[std < 1e-12] = 1.0
 
     replay.compute_stats = True
     batch = replay[idx]
     for key in SampleBatch.CUR_OBS, SampleBatch.NEXT_OBS:
-        expected = (sample_batch[key][idx] - mean) / (std + 1e-6)
+        expected = (sample_batch[key][idx] - mean) / std
         assert np.allclose(batch[key], expected)
 
 
