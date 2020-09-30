@@ -4,6 +4,7 @@ from dataclasses import field
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Sequence
 
 import torch
 import torch.nn as nn
@@ -115,6 +116,49 @@ class StateActionMLP(nn.Module):
         """
         initializer = initialize_(activation=self.spec.activation, **initializer_spec)
         self.encoder.apply(initializer)
+
+
+class LayerNormMLP(nn.Sequential):
+    # pylint:disable=line-too-long
+    """Simple feedforward MLP torso with initial layer-norm.
+
+    This module is an MLP which uses LayerNorm (with a tanh normalizer) on the
+    first layer and non-linearities (elu) on all but the last remaining layers.
+
+    Taken from `Acme`_.
+
+    .. _`Acme`: https://github.com/deepmind/acme/blob/ace9f280cb9c6ba954e909bb0340c6b5ac45e4c6/acme/tf/networks/continuous.py#L37
+
+    Args:
+        layer_sizes: A sequence of ints specifying the size of each layer.
+        activate_final: Whether to use the activation function on the final
+            layer of the neural network.
+    """
+    # pylint:disable=line-too-long
+
+    def __init__(
+        self, in_size: int, layer_sizes: Sequence[int], activate_final: bool = False
+    ):
+        units = list(layer_sizes)
+        assert units, f"Must pass at least 1 layer size to {type(self).__name__}"
+
+        mlp = (
+            nnx.FullyConnected(
+                in_features=layer_sizes[0],
+                units=layer_sizes[1:],
+                activation="ELU",
+                layer_norm=False,
+            ),
+        )
+        if not activate_final:
+            mlp = mlp[:-1]
+
+        super().__init__(
+            nn.Linear(in_size, layer_sizes[0]),
+            nn.LayerNorm(layer_sizes[0]),
+            nn.Tanh(),
+            mlp,
+        )
 
 
 class MLP(nn.Module):
