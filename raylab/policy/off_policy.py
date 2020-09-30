@@ -111,7 +111,7 @@ class OffPolicyMixin(ABC):
     ) -> Tuple[TensorType, List[TensorType], Dict[str, TensorType]]:
         # pylint:disable=too-many-arguments
         obs_batch = self.replay.normalize(obs_batch)
-        super().compute_actions(
+        return super().compute_actions(
             obs_batch,
             state_batches=state_batches,
             prev_action_batch=prev_action_batch,
