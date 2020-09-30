@@ -92,6 +92,7 @@ class NumpyReplayBuffer:
 
     def normalize(self, obs: np.ndarray) -> np.ndarray:
         """Normalize observation using the stored mean and stddev."""
+        obs = np.asarray(obs)
         if not self.compute_stats:
             return obs
 
