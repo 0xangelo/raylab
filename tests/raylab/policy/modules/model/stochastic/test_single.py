@@ -34,10 +34,6 @@ def test_init(module):
     assert hasattr(module, "encoder")
 
 
-def test_fit_scaler(module, obs, act):
-    module.encoder.fit_scaler(obs, act)
-
-
 def test_forward(mocker, module, obs, act, next_obs):
     # pylint:disable=too-many-arguments
     params_spy = mocker.spy(NormalParams, "forward")
