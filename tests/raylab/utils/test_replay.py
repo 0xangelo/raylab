@@ -58,7 +58,7 @@ def test_replay_init(extra_replay, extra_fields):
         ]
     )
     assert all(f in replay.fields for f in extra_fields)
-    assert replay._maxsize == int(1e4)
+    assert replay._storage.maxsize == int(1e4)
 
 
 @pytest.fixture
