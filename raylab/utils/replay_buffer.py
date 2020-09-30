@@ -164,3 +164,9 @@ class NumpyReplayBuffer:
     def all_samples(self) -> SampleBatch:
         """All stored transitions."""
         return SampleBatch(self[: len(self)])
+
+    def state_dict(self) -> dict:
+        return {"obs_stats": self._obs_stats}
+
+    def load_state_dict(self, state: dict):
+        self._obs_stats = state["obs_stats"]

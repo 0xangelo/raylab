@@ -141,6 +141,15 @@ class OffPolicyMixin(ABC):
             prev_reward_batch=prev_reward_batch,
         )
 
+    def get_weights(self) -> dict:
+        state = super().get_weights()
+        state["replay"] = self.replay.state_dict()
+        return state
+
+    def set_weights(self, weights: dict):
+        self.replay.load_state_dict(weights["replay"])
+        super().set_weights({k: v for k, v in weights.items() if k != "replay"})
+
     @staticmethod
     def add_options(policy_cls: type) -> type:
         """Decorator to add default off-policy options used by OffPolicyMixin."""
