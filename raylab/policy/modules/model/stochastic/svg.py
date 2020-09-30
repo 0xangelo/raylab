@@ -26,10 +26,6 @@ class SVGModelSpec(StateActionMLP.spec_cls):
         activation: Nonlinearity following each linear layer
         delay_action: Whether to apply an initial preprocessing layer on the
             observation before concatenating the action to the input.
-        standard_scaler: Whether to transform the inputs of the NN using a
-            standard scaling procedure (subtract mean and divide by stddev). The
-            transformation mean and stddev should be fitted during training and
-            used for both training and evaluation.
         input_dependent_scale: Whether to parameterize the Gaussian standard
             deviation as a function of the state and action
         residual: Whether to build model as a residual one, i.e., that

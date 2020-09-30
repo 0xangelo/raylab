@@ -18,7 +18,6 @@ def default_models() -> EnsembleSpec:
     spec.network.units = (512,) * 4
     spec.network.activation = "Swish"
     spec.network.delay_action = False
-    spec.network.standard_scaler = False
     spec.network.fix_logvar_bounds = True
     spec.network.input_dependent_scale = True
     spec.residual = True
@@ -45,7 +44,6 @@ def default_critic() -> CriticSpec:
     spec.encoder.units = 2 * (384,)
     spec.encoder.activation = "ReLU"
     spec.encoder.delay_action = False
-    spec.encoder.standard_scaler = False
     spec.double_q = True
     spec.parallelize = True
     return spec

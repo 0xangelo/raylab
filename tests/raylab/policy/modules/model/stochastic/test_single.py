@@ -2,7 +2,6 @@ import pytest
 import torch
 from torch.autograd import grad
 
-from raylab.policy.modules.networks.utils import TensorStandardScaler
 from raylab.torch.nn import NormalParams
 
 
@@ -14,23 +13,14 @@ def module_cls(request):
     return ResidualMLPModel if request.param else MLPModel
 
 
-@pytest.fixture(
-    params=(True, False), ids="StandardScaledEncoder UnscaledEncoder".split()
-)
-def standard_scaler(request):
-    return request.param
-
-
 @pytest.fixture(params=(True, False), ids=lambda x: f"InputDependentScale({x})")
 def input_dependent_scale(request):
     return request.param
 
 
 @pytest.fixture
-def spec(module_cls, standard_scaler, input_dependent_scale):
-    return module_cls.spec_cls(
-        standard_scaler=standard_scaler, input_dependent_scale=input_dependent_scale
-    )
+def spec(module_cls, input_dependent_scale):
+    return module_cls.spec_cls(input_dependent_scale=input_dependent_scale)
 
 
 @pytest.fixture
@@ -48,15 +38,13 @@ def test_fit_scaler(module, obs, act):
     module.encoder.fit_scaler(obs, act)
 
 
-def test_forward(mocker, module, obs, act, next_obs, standard_scaler):
+def test_forward(mocker, module, obs, act, next_obs):
     # pylint:disable=too-many-arguments
-    scaler_spy = mocker.spy(TensorStandardScaler, "__call__")
     params_spy = mocker.spy(NormalParams, "forward")
 
     params = module(obs, act)
     assert "loc" in params
     assert "scale" in params
-    assert not standard_scaler or scaler_spy.called
     assert params_spy.called
 
     loc, scale = params["loc"], params["scale"]
