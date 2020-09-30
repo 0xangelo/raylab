@@ -199,12 +199,12 @@ class TorchPolicy(Policy):
     @override(Policy)
     def compute_log_likelihoods(
         self,
-        actions,
-        obs_batch,
-        state_batches=None,
-        prev_action_batch=None,
-        prev_reward_batch=None,
-    ):
+        actions: Union[List[TensorType], TensorType],
+        obs_batch: Union[List[TensorType], TensorType],
+        state_batches: Optional[List[TensorType]] = None,
+        prev_action_batch: Optional[Union[List[TensorType], TensorType]] = None,
+        prev_reward_batch: Optional[Union[List[TensorType], TensorType]] = None,
+    ) -> TensorType:
         # pylint:disable=too-many-arguments
         input_dict = self.lazy_tensor_dict(
             {SampleBatch.CUR_OBS: obs_batch, SampleBatch.ACTIONS: actions}
