@@ -15,8 +15,6 @@ import raylab.torch.nn as nnx
 from raylab.torch.nn.init import initialize_
 from raylab.torch.nn.utils import get_activation
 
-from .utils import TensorStandardScaler
-
 
 @dataclass
 class StateMLPSpec(DataClassJsonMixin):
@@ -73,16 +71,11 @@ class StateActionMLPSpec(DataClassJsonMixin):
         activation: Nonlinearity following each linear layer
         delay_action: Whether to apply an initial preprocessing layer on the
             observation before concatenating the action to the input.
-        standard_scaler: Whether to transform the inputs of the NN using a
-            standard scaling procedure (subtract mean and divide by stddev). The
-            transformation mean and stddev should be fitted during training and
-            used for both training and evaluation.
     """
 
     units: List[int] = field(default_factory=list)
     activation: Optional[str] = None
     delay_action: bool = False
-    standard_scaler: bool = False
 
 
 class StateActionMLP(nn.Module):
@@ -105,27 +98,8 @@ class StateActionMLP(nn.Module):
         )
         self.out_features = self.encoder.out_features
 
-        if self.spec.standard_scaler:
-            self.obs_scaler = TensorStandardScaler(obs_size)
-            self.act_scaler = TensorStandardScaler(action_size)
-        else:
-            self.obs_scaler = None
-            self.act_scaler = None
-
-    @torch.jit.export
-    def fit_scaler(self, obs: Tensor, act: Tensor):
-        """Fit each sub-scaler to the inputs."""
-        if self.obs_scaler is not None:
-            self.obs_scaler.fit(obs)
-        if self.act_scaler is not None:
-            self.act_scaler.fit(act)
-
     def forward(self, obs: Tensor, act: Tensor) -> Tensor:
         # pylint:disable=arguments-differ
-        if self.obs_scaler is not None:
-            obs = self.obs_scaler(obs)
-        if self.act_scaler is not None:
-            act = self.act_scaler(act)
         return self.encoder(obs, act)
 
     def initialize_parameters(self, initializer_spec: dict):
