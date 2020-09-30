@@ -1,14 +1,18 @@
 """Base for all PyTorch policies."""
 import textwrap
+from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Set
 from typing import Tuple
+from typing import Union
 
 import torch
 import torch.nn as nn
 from gym.spaces import Space
 from ray.rllib import Policy
 from ray.rllib import SampleBatch
+from ray.rllib.evaluation.episode import MultiAgentEpisode
 from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.model import flatten
 from ray.rllib.models.model import restore_original_dimensions
@@ -16,6 +20,7 @@ from ray.rllib.utils import override
 from ray.rllib.utils.torch_ops import convert_to_non_torch_type
 from ray.rllib.utils.torch_ops import convert_to_torch_tensor
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
+from ray.rllib.utils.types import TensorType
 from ray.tune.logger import pretty_print
 from torch import Tensor
 
@@ -139,16 +144,16 @@ class TorchPolicy(Policy):
     @override(Policy)
     def compute_actions(
         self,
-        obs_batch,
-        state_batches=None,
-        prev_action_batch=None,
-        prev_reward_batch=None,
-        info_batch=None,
-        episodes=None,
-        explore=None,
-        timestep=None,
+        obs_batch: Union[List[TensorType], TensorType],
+        state_batches: Optional[List[TensorType]] = None,
+        prev_action_batch: Union[List[TensorType], TensorType] = None,
+        prev_reward_batch: Union[List[TensorType], TensorType] = None,
+        info_batch: Optional[Dict[str, list]] = None,
+        episodes: Optional[List[MultiAgentEpisode]] = None,
+        explore: Optional[bool] = None,
+        timestep: Optional[int] = None,
         **kwargs,
-    ):
+    ) -> Tuple[TensorType, List[TensorType], Dict[str, TensorType]]:
         # pylint:disable=too-many-arguments,too-many-locals
         explore = explore if explore is not None else self.config["explore"]
         timestep = timestep if timestep is not None else self.global_timestep
