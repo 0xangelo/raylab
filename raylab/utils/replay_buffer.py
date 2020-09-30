@@ -152,20 +152,6 @@ class NumpyReplayBuffer:
         self._curr_size = min(self._curr_size + samples.count, self._maxsize)
         self._obs_stats = None
 
-    def add_row(self, row: dict):
-        """Add a row from a SampleBatch to storage.
-
-        Args:
-            row: sample batch row as returned by SampleBatch.rows().
-                Must have the same keys as the field names in the buffer.
-        """
-        for field in self.fields:
-            self._storage[field.name][self._next_idx] = row[field.name]
-
-        self._next_idx = (self._next_idx + 1) % self._maxsize
-        self._curr_size += 1 if self._curr_size < self._maxsize else 0
-        self._obs_stats = None
-
     def sample(self, batch_size: int) -> SampleBatch:
         """Transition batch uniformly sampled with replacement."""
         return SampleBatch(self[self.sample_idxes(batch_size)])
