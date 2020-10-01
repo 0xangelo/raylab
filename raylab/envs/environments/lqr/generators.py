@@ -22,8 +22,8 @@ def box_ddp_random_lqr(timestep: float, ctrl_coeff: float) -> Tuple[LQR, Box]:
     # pylint:enable=line-too-long
     assert 0 < timestep < 1
 
-    state_size = np.random.uniform(10, 100)
-    ctrl_size = np.random.uniform(1, state_size // 2)
+    state_size = np.random.randint(10, 101)
+    ctrl_size = np.random.randint(1, state_size // 2 + 1)
 
     Fs = _generate_Fs(state_size, ctrl_size, timestep)
     Cs = _generate_Cs(state_size, ctrl_size, timestep, ctrl_coeff)
