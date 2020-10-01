@@ -10,13 +10,17 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from .types import Affine
+from .types import LQR as System
+from .types import Quadratic
+
 
 class LQRSolver(nn.Module):
     """Linear Quadratic Regulator solver."""
 
     # pylint:disable=abstract-method,invalid-name,missing-function-docstring,no-self-use
 
-    def forward(self, LQR: Tuple[Tensor, Tensor, Tensor, Tensor], T: int):
+    def forward(self, LQR: System, T: int):
         # pylint:disable=too-many-arguments,arguments-differ
         policy: List[Tuple[Tensor, Tensor]] = []
         value_fn: List[Tuple[Tensor, Tensor, Tensor]] = []
@@ -33,25 +37,21 @@ class LQRSolver(nn.Module):
 
         return policy[::-1], value_fn[1:][::-1]
 
-    def final_V(self, LQR: Tuple[Tensor, Tensor, Tensor, Tensor]):
+    def final_V(self, LQR: System):
         _, _, C, c = LQR
         state_size = self.state_size(LQR)
 
         Vs = (C[:state_size, :state_size], c[:state_size])
         return Vs
 
-    def single_step(
-        self, LQR: Tuple[Tensor, Tensor, Tensor, Tensor], Vs: Tuple[Tensor, Tensor]
-    ):
+    def single_step(self, LQR: System, Vs: Quadratic):
         Qs = self.compute_Q(LQR, Vs)
         Ks = self.compute_K(LQR, Qs)
         const = self.compute_const(LQR, Vs, Ks)
         Vs = self.compute_V(LQR, Qs, Ks)
         return Ks, Vs, const
 
-    def compute_Q(
-        self, LQR: Tuple[Tensor, Tensor, Tensor, Tensor], Vs: Tuple[Tensor, Tensor]
-    ):
+    def compute_Q(self, LQR: System, Vs: Quadratic):
         F, f, C, c = LQR
         V, v = Vs
 
@@ -60,9 +60,7 @@ class LQRSolver(nn.Module):
         q = c + FV @ f + F.T @ v
         return Q, q
 
-    def compute_K(
-        self, LQR: Tuple[Tensor, Tensor, Tensor, Tensor], Qs: Tuple[Tensor, Tensor]
-    ):
+    def compute_K(self, LQR: System, Qs: Quadratic):
         state_size = self.state_size(LQR)
         Q, q = Qs
         Q_uu = Q[state_size:, state_size:]
@@ -75,12 +73,7 @@ class LQRSolver(nn.Module):
         k = -inv_Q_uu @ q_u
         return K, k
 
-    def compute_V(
-        self,
-        LQR: Tuple[Tensor, Tensor, Tensor, Tensor],
-        Qs: Tuple[Tensor, Tensor],
-        Ks: Tuple[Tensor, Tensor],
-    ):
+    def compute_V(self, LQR: System, Qs: Quadratic, Ks: Affine):
         # pylint:disable=too-many-locals
         state_size = self.state_size(LQR)
         Q, q = Qs
@@ -98,12 +91,7 @@ class LQRSolver(nn.Module):
         v = q_x + Q_xu @ k + K.T @ q_u + K_Q_uu @ k
         return V, v
 
-    def compute_const(
-        self,
-        LQR: Tuple[Tensor, Tensor, Tensor, Tensor],
-        Vs: Tuple[Tensor, Tensor],
-        Ks: Tuple[Tensor, Tensor],
-    ):
+    def compute_const(self, LQR: System, Vs: Quadratic, Ks: Affine):
         W_uu, w_u, V_f = self.compute_W(LQR, Vs)
         _, f, _, _ = LQR
         _, v = Vs
@@ -114,11 +102,7 @@ class LQRSolver(nn.Module):
         const = const1 + const2 + const3
         return const.squeeze()
 
-    def compute_W(
-        self,
-        LQR: Tuple[Tensor, Tensor, Tensor, Tensor],
-        Vs: Tuple[Tensor, Tensor],
-    ):
+    def compute_W(self, LQR: System, Vs: Quadratic):
         state_size = self.state_size(LQR)
         F, f, C, c = LQR
 
@@ -131,6 +115,6 @@ class LQRSolver(nn.Module):
 
         return W_uu, w_u, V_f
 
-    def state_size(self, LQR: Tuple[Tensor, Tensor, Tensor, Tensor]):
+    def state_size(self, LQR: System):
         F, _, _, _ = LQR
         return F.shape[0]

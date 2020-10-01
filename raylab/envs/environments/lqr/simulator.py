@@ -4,19 +4,22 @@ Please see http://rail.eecs.berkeley.edu/deeprlcourse/static/slides/lec-10.pdf
 for notation and more details on LQR.
 """
 from typing import List
-from typing import Tuple
 
 import torch
 import torch.nn as nn
 from torch import Tensor
+
+from .types import Affine
+from .types import LQR
 
 
 class LQRSim(nn.Module):
     """Linear Quadratic Regulator simulator."""
 
     # pylint:disable=invalid-name,abstract-method,missing-function-docstring
-    def __init__(self, F: Tensor, f: Tensor, C: Tensor, c: Tensor):
+    def __init__(self, system: LQR):
         super().__init__()
+        F, f, C, c = system
         self.F = F.float().detach()
         self.f = f.float().detach()
         self.C = C.float().detach()
@@ -44,7 +47,7 @@ class LQRSim(nn.Module):
         return c1 + c2
 
     @torch.jit.export
-    def forward(self, policy: List[Tuple[Tensor, Tensor]], x0: Tensor):
+    def forward(self, policy: List[Affine], x0: Tensor):
         # pylint:disable=arguments-differ
         states = [x0]
         actions = []
