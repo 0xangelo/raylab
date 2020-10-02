@@ -13,4 +13,4 @@ class MAGETrainer(ModelBasedMixin, OffPolicyMixin, Trainer):
     """Single agent trainer for MAGE."""
 
     _name = "MAGE"
-    _policy = MAGETorchPolicy
+    _policy_class = MAGETorchPolicy

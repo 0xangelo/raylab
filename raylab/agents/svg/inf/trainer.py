@@ -18,7 +18,7 @@ class SVGInfTrainer(Trainer):
     """Single agent trainer for SVG(inf)."""
 
     _name = "SVG(inf)"
-    _policy = SVGInfTorchPolicy
+    _policy_class = SVGInfTorchPolicy
 
     @override(Trainer)
     def validate_config(self, config: dict):

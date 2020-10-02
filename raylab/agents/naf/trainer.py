@@ -12,4 +12,4 @@ class NAFTrainer(OffPolicyMixin, Trainer):
     """Single agent trainer for NAF."""
 
     _name = "NAF"
-    _policy = NAFTorchPolicy
+    _policy_class = NAFTorchPolicy

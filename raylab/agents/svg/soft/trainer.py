@@ -13,7 +13,7 @@ class SoftSVGTrainer(OffPolicyMixin, Trainer):
     """Single agent trainer for SoftSVG."""
 
     _name = "SoftSVG"
-    _policy = SoftSVGTorchPolicy
+    _policy_class = SoftSVGTorchPolicy
 
     def after_init(self):
         super().after_init()
