@@ -8,7 +8,7 @@ from gym.spaces import Box
 from .ensemble import ForkedSME
 from .ensemble import SME
 from .single import MLPModel
-from .single import ResidualMLPModel
+from .single import ResidualStochasticModel
 
 ModelSpec = MLPModel.spec_cls
 
@@ -42,8 +42,9 @@ def build(obs_space: Box, action_space: Box, spec: Spec) -> MLPModel:
     Returns:
         A stochastic dynamics model
     """
-    cls = ResidualMLPModel if spec.residual else MLPModel
-    model = cls(obs_space, action_space, spec.network)
+    model = MLPModel(obs_space, action_space, spec.network)
+    if spec.residual:
+        model = ResidualStochasticModel(model)
     model.initialize_parameters(spec.initializer)
     return model
 
