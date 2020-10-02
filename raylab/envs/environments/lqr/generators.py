@@ -1,6 +1,7 @@
 """Random LQR problem generators."""
 # pylint:disable=invalid-name
 from typing import Tuple
+from typing import Union
 
 import numpy as np
 import torch
@@ -59,7 +60,12 @@ def _generate_Cs(
 
 
 def make_lqr(state_size: int, ctrl_size: int, np_random: Generator) -> LQR:
-    """
+    """Random LQR generator used in backpropagation-planning.
+
+    Args:
+        state_size: Integer size for state
+        ctrl_size: Integer size for controls
+        np_random: Numpy random number generator
 
     Source::
         https://github.com/renato-scaroni/backpropagation-planning/blob/master/src/Modules/Envs/lqr.py
@@ -67,28 +73,35 @@ def make_lqr(state_size: int, ctrl_size: int, np_random: Generator) -> LQR:
     n_dim = state_size + ctrl_size
 
     F = np_random.normal(size=(state_size, n_dim))
-    f = np_random.normal(size=(state_size, 1))
+    f = np_random.normal(size=(state_size,))
 
     C = make_spd_matrix(n_dim)
-    c = np_random.normal(size=(n_dim, 1))
+    c = np_random.normal(size=(n_dim,))
 
-    return (F, f, C, c)
+    return tuple(map(torch.Tensor, (F, f, C, c)))
 
 
 def make_lqr_linear_navigation(
-    goal: Tuple[float, float], beta: float
+    goal: Union[np.ndarray, Tuple[float, float]], beta: float
 ) -> Tuple[LQR, Box]:
-    """
+    """Goal-oriented 2D Navigation task encoded as an LQR.
+
+    Args:
+        goal: 2D coordinates of goal position
+        beta: Penalty coefficient for control magnitude
 
     Source::
         https://github.com/renato-scaroni/backpropagation-planning/blob/master/src/Modules/Envs/lqr.py
     """
+    goal = np.asarray(goal)
     state_size = ctrl_size = goal.shape[0]
 
     F = np.concatenate([np.identity(state_size)] * ctrl_size, axis=1).astype("f")
-    f = np.zeros((state_size, 1)).astype("f")
+    f = np.zeros((state_size,)).astype("f")
 
     C = np.diag([2.0] * state_size + [2.0 * beta] * ctrl_size).astype("f")
-    c = np.concatenate([-2.0 * goal, np.zeros((ctrl_size, 1))], axis=0).astype("f")
+    c = np.concatenate([-2.0 * goal, np.zeros((ctrl_size,))], axis=0).astype("f")
+
     bounds = map(torch.from_numpy, (s * np.ones_like(ctrl_size) for s in (-1, 1)))
-    return (F, f, C, c), bounds
+    lqr = tuple(map(torch.Tensor, (F, f, C, c)))
+    return lqr, bounds
