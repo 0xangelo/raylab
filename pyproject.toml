@@ -16,7 +16,7 @@ classifiers = [
 [tool.poetry.dependencies]
 python = "^3.7"
 click = "^7.1.2"
-ray = {version = "^0.8.5", extras = ["rllib"]}
+ray = {version = ">=0.8.5,<1.1.0", extras = ["rllib"]}
 torch = "^1.5.1"
 streamlit = ">=0.62,<0.68"
 cachetools = {version = "^4.1.0", python = "^3.7"}
