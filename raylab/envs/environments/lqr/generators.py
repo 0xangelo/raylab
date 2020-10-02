@@ -4,6 +4,8 @@ from typing import Tuple
 
 import numpy as np
 import torch
+from numpy.random import Generator
+from sklearn.datasets import make_spd_matrix
 
 from .types import Affine
 from .types import Box
@@ -11,7 +13,9 @@ from .types import LQR
 from .types import Quadratic
 
 
-def box_ddp_random_lqr(timestep: float, ctrl_coeff: float) -> Tuple[LQR, Box]:
+def box_ddp_random_lqr(
+    timestep: float, ctrl_coeff: float, np_random: Generator
+) -> Tuple[LQR, Box]:
     # pylint:disable=line-too-long
     """Generate a random, control-limited LQR as described in the Box-DDP paper.
 
@@ -22,8 +26,8 @@ def box_ddp_random_lqr(timestep: float, ctrl_coeff: float) -> Tuple[LQR, Box]:
     # pylint:enable=line-too-long
     assert 0 < timestep < 1
 
-    state_size = np.random.randint(10, 101)
-    ctrl_size = np.random.randint(1, state_size // 2 + 1)
+    state_size = np_random.integers(10, 100, endpoint=True)
+    ctrl_size = np_random.integers(1, state_size // 2, endpoint=True)
 
     Fs = _generate_Fs(state_size, ctrl_size, timestep)
     Cs = _generate_Cs(state_size, ctrl_size, timestep, ctrl_coeff)
@@ -52,3 +56,39 @@ def _generate_Cs(
 
     c = torch.zeros(dim)
     return C, c
+
+
+def make_lqr(state_size: int, ctrl_size: int, np_random: Generator) -> LQR:
+    """
+
+    Source::
+        https://github.com/renato-scaroni/backpropagation-planning/blob/master/src/Modules/Envs/lqr.py
+    """
+    n_dim = state_size + ctrl_size
+
+    F = np_random.normal(size=(state_size, n_dim))
+    f = np_random.normal(size=(state_size, 1))
+
+    C = make_spd_matrix(n_dim)
+    c = np_random.normal(size=(n_dim, 1))
+
+    return (F, f, C, c)
+
+
+def make_lqr_linear_navigation(
+    goal: Tuple[float, float], beta: float
+) -> Tuple[LQR, Box]:
+    """
+
+    Source::
+        https://github.com/renato-scaroni/backpropagation-planning/blob/master/src/Modules/Envs/lqr.py
+    """
+    state_size = ctrl_size = goal.shape[0]
+
+    F = np.concatenate([np.identity(state_size)] * ctrl_size, axis=1).astype("f")
+    f = np.zeros((state_size, 1)).astype("f")
+
+    C = np.diag([2.0] * state_size + [2.0 * beta] * ctrl_size).astype("f")
+    c = np.concatenate([-2.0 * goal, np.zeros((ctrl_size, 1))], axis=0).astype("f")
+    bounds = map(torch.from_numpy, (s * np.ones_like(ctrl_size) for s in (-1, 1)))
+    return (F, f, C, c), bounds
