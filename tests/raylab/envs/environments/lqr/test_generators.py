@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 import torch
 
@@ -14,9 +15,14 @@ def ctrl_coeff():
     return 0.1
 
 
-def test_box_ddp_random_lqr(timestep, ctrl_coeff):
+@pytest.fixture
+def np_random():
+    return np.random.default_rng()
+
+
+def test_box_ddp_random_lqr(timestep, ctrl_coeff, np_random):
     # pylint:disable=invalid-name
-    lqr, _ = box_ddp_random_lqr(timestep, ctrl_coeff)
+    lqr, _ = box_ddp_random_lqr(timestep, ctrl_coeff, np_random)
 
     assert all([torch.is_tensor(t) for t in lqr])
     F, f, C, c = lqr
@@ -28,3 +34,6 @@ def test_box_ddp_random_lqr(timestep, ctrl_coeff):
     assert f.shape == (x_size,)
     assert C.shape == (dim, dim)
     assert c.shape == (dim,)
+
+    eigv, _ = torch.eig(C)
+    assert eigv.ge(0).all()
