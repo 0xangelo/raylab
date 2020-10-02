@@ -6,7 +6,7 @@ from ray.rllib import SampleBatch
 from ray.rllib.execution.common import _check_sample_batch_type
 from ray.rllib.execution.common import _get_shared_metrics
 from ray.rllib.execution.common import STEPS_SAMPLED_COUNTER
-from ray.rllib.utils.types import SampleBatchType
+from ray.rllib.utils.typing import SampleBatchType
 
 logger = logging.getLogger(__name__)
 

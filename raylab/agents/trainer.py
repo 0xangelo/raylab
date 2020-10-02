@@ -15,10 +15,10 @@ from ray.rllib.agents.trainer_template import default_execution_plan
 from ray.rllib.env.env_context import EnvContext
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.utils import override as overrides
-from ray.rllib.utils.types import EnvType
-from ray.rllib.utils.types import PartialTrainerConfigDict
-from ray.rllib.utils.types import ResultDict
-from ray.rllib.utils.types import TrainerConfigDict
+from ray.rllib.utils.typing import EnvType
+from ray.rllib.utils.typing import PartialTrainerConfigDict
+from ray.rllib.utils.typing import ResultDict
+from ray.rllib.utils.typing import TrainerConfigDict
 from ray.tune.resources import Resources
 from ray.tune.trainable import Trainable
 

@@ -6,8 +6,8 @@ from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.execution.metric_ops import StandardMetricsReporting
 from ray.rllib.execution.rollout_ops import ParallelRollouts
 from ray.rllib.execution.train_ops import TrainOneStep
-from ray.rllib.utils.types import ResultDict
-from ray.rllib.utils.types import TrainerConfigDict
+from ray.rllib.utils.typing import ResultDict
+from ray.rllib.utils.typing import TrainerConfigDict
 
 from raylab.execution import LearningStarts
 from raylab.options import option
