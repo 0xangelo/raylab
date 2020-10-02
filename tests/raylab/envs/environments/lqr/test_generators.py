@@ -3,6 +3,8 @@ import pytest
 import torch
 
 from raylab.envs.environments.lqr.generators import box_ddp_random_lqr
+from raylab.envs.environments.lqr.generators import make_lqr
+from raylab.envs.environments.lqr.types import LQR
 
 
 @pytest.fixture
@@ -20,13 +22,11 @@ def np_random():
     return np.random.default_rng()
 
 
-def test_box_ddp_random_lqr(timestep, ctrl_coeff, np_random):
+def check_lqr_mats(lqr: LQR):
     # pylint:disable=invalid-name
-    lqr, _ = box_ddp_random_lqr(timestep, ctrl_coeff, np_random)
-
     assert all([torch.is_tensor(t) for t in lqr])
-    F, f, C, c = lqr
 
+    F, f, C, c = lqr
     dim = F.shape[1]
     x_size = F.shape[0]
 
@@ -37,3 +37,23 @@ def test_box_ddp_random_lqr(timestep, ctrl_coeff, np_random):
 
     eigv, _ = torch.eig(C)
     assert eigv.ge(0).all()
+
+
+def test_box_ddp_random_lqr(timestep, ctrl_coeff, np_random):
+    lqr, _ = box_ddp_random_lqr(timestep, ctrl_coeff, np_random)
+    check_lqr_mats(lqr)
+
+
+@pytest.fixture
+def state_size():
+    return 10
+
+
+@pytest.fixture
+def ctrl_size():
+    return 3
+
+
+def test_make_lqr(state_size, ctrl_size, np_random):
+    lqr = make_lqr(state_size, ctrl_size, np_random)
+    check_lqr_mats(lqr)
