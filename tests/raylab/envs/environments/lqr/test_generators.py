@@ -4,6 +4,7 @@ import torch
 
 from raylab.envs.environments.lqr.generators import box_ddp_random_lqr
 from raylab.envs.environments.lqr.generators import make_lqr
+from raylab.envs.environments.lqr.generators import make_lqr_linear_navigation
 from raylab.envs.environments.lqr.types import LQR
 
 
@@ -56,4 +57,19 @@ def ctrl_size():
 
 def test_make_lqr(state_size, ctrl_size, np_random):
     lqr = make_lqr(state_size, ctrl_size, np_random)
+    check_lqr_mats(lqr)
+
+
+@pytest.fixture
+def goal():
+    return (0.5, 1.0)
+
+
+@pytest.fixture
+def beta(ctrl_coeff):
+    return ctrl_coeff
+
+
+def test_make_lqr_linear_navigation(goal, beta):
+    lqr, _ = make_lqr_linear_navigation(goal, beta)
     check_lqr_mats(lqr)
