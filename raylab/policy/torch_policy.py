@@ -14,13 +14,13 @@ from ray.rllib import Policy
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.episode import MultiAgentEpisode
 from ray.rllib.models.action_dist import ActionDistribution
-from ray.rllib.models.model import flatten
-from ray.rllib.models.model import restore_original_dimensions
+from ray.rllib.models.modelv2 import flatten
+from ray.rllib.models.modelv2 import restore_original_dimensions
 from ray.rllib.utils import override
 from ray.rllib.utils.torch_ops import convert_to_non_torch_type
 from ray.rllib.utils.torch_ops import convert_to_torch_tensor
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
-from ray.rllib.utils.types import TensorType
+from ray.rllib.utils.typing import TensorType
 from ray.tune.logger import pretty_print
 from torch import Tensor
 

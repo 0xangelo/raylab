@@ -12,4 +12,4 @@ class TD3Trainer(OffPolicyMixin, Trainer):
     """Trainer for the Twin Delayed Deep Deterministic Policy Gradient algorithm."""
 
     _name = "TD3"
-    _policy = TD3TorchPolicy
+    _policy_class = TD3TorchPolicy

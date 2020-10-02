@@ -8,4 +8,4 @@ class TRPOTrainer(Trainer):
     """Single agent trainer for TRPO."""
 
     _name = "TRPO"
-    _policy = TRPOTorchPolicy
+    _policy_class = TRPOTorchPolicy

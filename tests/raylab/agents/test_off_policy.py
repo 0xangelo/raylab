@@ -16,7 +16,7 @@ def trainer_cls(policy_cls):
     @OffPolicyMixin.add_options
     class Sub(OffPolicyMixin, Trainer):
         _name = "Dummy"
-        _policy = policy_cls
+        _policy_class = policy_cls
 
     return Sub
 
