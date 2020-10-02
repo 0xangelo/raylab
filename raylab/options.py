@@ -17,8 +17,8 @@ from dataclasses_json.core import Json
 from ray.rllib.agents import with_common_config as with_rllib_config
 from ray.rllib.agents.trainer import COMMON_CONFIG
 from ray.rllib.agents.trainer import Trainer
-from ray.rllib.agents.trainer import with_base_config
 from ray.rllib.utils import deep_update
+from ray.rllib.utils import merge_dicts
 
 __all__ = [
     "COMMON_INFO",
@@ -759,7 +759,7 @@ COMMON_INFO = {
 
 def with_rllib_info(info: Info) -> Info:
     """Merge info with RLlib's common parameters' info."""
-    info = with_base_config(COMMON_INFO, info)
+    info = merge_dicts(COMMON_INFO, info)
     info = tree.map_structure(
         (lambda x: inspect.cleandoc(x) if isinstance(x, str) else x), info
     )
