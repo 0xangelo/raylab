@@ -1,15 +1,13 @@
 """Custom Replay Buffers based on RLlibs's implementation."""
-import random
-import sys
 from dataclasses import dataclass
 from typing import Dict
+from typing import Optional
+from typing import Tuple
 from typing import Union
 
 import numpy as np
 from gym.spaces import Space
 from ray.rllib import SampleBatch
-from ray.rllib.utils.compression import unpack_if_needed
-from ray.rllib.utils.window_stat import WindowStat
 
 
 @dataclass
@@ -19,126 +17,6 @@ class ReplayField:
     name: str
     shape: tuple = ()
     dtype: np.dtype = np.float32
-
-
-class ListReplayBuffer:
-    """Replay buffer as a list of tuples.
-
-    Returns a SampleBatch object when queried for samples.
-
-    Args:
-        size: max number of transitions to store in the buffer. When the buffer
-            overflows, the old memories are dropped.
-
-    Attributes:
-        fields (:obj:`tuple` of :obj:`ReplayField`): storage fields
-            specification
-    """
-
-    # pylint:disable=too-many-instance-attributes
-
-    def __init__(self, size: int):
-        self._storage = []
-        self._maxsize = size
-        self._next_idx = 0
-        self._hit_count = np.zeros(size)
-        self._eviction_started = False
-        self._num_added = 0
-        self._num_sampled = 0
-        self._evicted_hit_stats = WindowStat("evicted_hit", 1000)
-        self._est_size_bytes = 0
-
-        self.fields = (
-            ReplayField(SampleBatch.CUR_OBS),
-            ReplayField(SampleBatch.ACTIONS),
-            ReplayField(SampleBatch.REWARDS),
-            ReplayField(SampleBatch.NEXT_OBS),
-            ReplayField(SampleBatch.DONES),
-        )
-
-    def __len__(self):
-        return len(self._storage)
-
-    def add_fields(self, *fields: ReplayField):
-        """Add fields to the replay buffer and build the corresponding storage."""
-        new_names = {f.name for f in fields}
-        assert len(new_names) == len(fields), "Field names must be unique"
-
-        conflicts = new_names.intersection({f.name for f in self.fields})
-        assert not conflicts, f"{conflicts} are already in buffer"
-
-        self.fields = self.fields + fields
-
-    def add(self, row: dict):  # pylint:disable=arguments-differ
-        """Add a row from a SampleBatch to storage.
-
-        Args:
-            row: sample batch row as returned by SampleBatch.rows
-        """
-        data = tuple(row[f.name] for f in self.fields)
-        self._num_added += 1
-
-        if self._next_idx >= len(self._storage):
-            self._storage.append(data)
-            self._est_size_bytes += sum(sys.getsizeof(d) for d in data)
-        else:
-            self._storage[self._next_idx] = data
-        if self._next_idx + 1 >= self._maxsize:
-            self._eviction_started = True
-        self._next_idx = (self._next_idx + 1) % self._maxsize
-        if self._eviction_started:
-            self._evicted_hit_stats.push(self._hit_count[self._next_idx])
-            self._hit_count[self._next_idx] = 0
-
-    def _encode_sample(self, idxes):
-        sample = []
-        for i in idxes:
-            sample.append(self._storage[i])
-            self._hit_count[i] += 1
-
-        obses_t, actions, rewards, obses_tp1, dones, *extras = zip(*sample)
-
-        obses_t = [np.array(unpack_if_needed(o), copy=False) for o in obses_t]
-        actions = [np.array(a, copy=False) for a in actions]
-        obses_tp1 = [np.array(unpack_if_needed(o), copy=False) for o in obses_tp1]
-
-        return tuple(
-            map(np.array, [obses_t, actions, rewards, obses_tp1, dones] + extras)
-        )
-
-    def sample(self, batch_size: int) -> SampleBatch:
-        """Sample a batch of experiences.
-
-        Args:
-            batch_size: How many transitions to sample
-
-        Returns:
-            A sample batch of roughly decorrelated transitions
-        """
-        idxes = random.choices(range(len(self._storage)), k=batch_size)
-        return self.sample_with_idxes(idxes)
-
-    def sample_with_idxes(self, idxes: np.ndarray) -> SampleBatch:
-        """Sample a batch of experiences corresponding to the given indexes."""
-        self._num_sampled += len(idxes)
-        data = self._encode_sample(idxes)
-        return SampleBatch(dict(zip([f.name for f in self.fields], data)))
-
-    def all_samples(self) -> SampleBatch:
-        """All transitions stored in buffer."""
-        return self.sample_with_idxes(range(len(self)))
-
-    def stats(self, debug=False):
-        """Returns a dictionary of usage statistics."""
-        data = {
-            "added_count": self._num_added,
-            "sampled_count": self._num_sampled,
-            "est_size_bytes": self._est_size_bytes,
-            "num_entries": len(self._storage),
-        }
-        if debug:
-            data.update(self._evicted_hit_stats.stats())
-        return data
 
 
 class NumpyReplayBuffer:
@@ -155,7 +33,12 @@ class NumpyReplayBuffer:
     Attributes:
         fields (:obj:`tuple` of :obj:`ReplayField`): storage fields
             specification
+        compute_stats: Whether to track mean and stddev for normalizing
+            observations
     """
+
+    # pylint:disable=too-many-instance-attributes
+    compute_stats: bool = False
 
     def __init__(self, obs_space: Space, action_space: Space, size: int):
         self._maxsize = size
@@ -177,31 +60,10 @@ class NumpyReplayBuffer:
         self._next_idx = 0
         self._curr_size = 0
         self._rng = np.random.default_rng()
-        self._obs_stats = None
+        self._obs_stats: Optional[Tuple[np.ndarray, np.ndarray]] = None
 
     def __len__(self) -> int:
         return self._curr_size
-
-    def _build_buffers(self, *fields: ReplayField):
-        storage = self._storage
-        size = self._maxsize
-        for field in fields:
-            storage[field.name] = np.empty((size,) + field.shape, dtype=field.dtype)
-
-    def seed(self, seed: int = None):
-        """Seed the random number generator for sampling minibatches."""
-        self._rng = np.random.default_rng(seed)
-
-    def update_obs_stats(self):
-        """Compute mean and standard deviation for observation normalization.
-
-        Subsequent batches sampled from this buffer will use these statistics to
-        normalize the current and next observation fields.
-        """
-        cur_obs = self._storage[SampleBatch.CUR_OBS][: len(self)]
-        mean = np.mean(cur_obs, axis=0)
-        std = np.std(cur_obs, axis=0)
-        self._obs_stats = (mean, std)
 
     def add_fields(self, *fields: ReplayField):
         """Add fields to the replay buffer and build the corresponding storage."""
@@ -213,6 +75,51 @@ class NumpyReplayBuffer:
 
         self.fields = self.fields + fields
         self._build_buffers(*fields)
+
+    def _build_buffers(self, *fields: ReplayField):
+        storage = self._storage
+        size = self._maxsize
+        for field in fields:
+            storage[field.name] = np.empty((size,) + field.shape, dtype=field.dtype)
+
+    def __getitem__(
+        self, index: Union[int, np.ndarray, slice]
+    ) -> Dict[str, np.ndarray]:
+        batch = {f.name: self._storage[f.name][index] for f in self.fields}
+        for key in SampleBatch.CUR_OBS, SampleBatch.NEXT_OBS:
+            batch[key] = self.normalize(batch[key])
+        return batch
+
+    def normalize(self, obs: np.ndarray) -> np.ndarray:
+        """Normalize observation using the stored mean and stddev."""
+        obs = np.asarray(obs)
+        if not self.compute_stats:
+            return obs
+
+        if not self._obs_stats:
+            self.update_obs_stats()
+
+        mean, std = self._obs_stats
+        return (obs - mean) / std
+
+    def update_obs_stats(self):
+        """Compute mean and standard deviation for observation normalization.
+
+        Subsequent batches sampled from this buffer will use these statistics to
+        normalize the current and next observation fields.
+        """
+        if len(self) == 0:
+            self._obs_stats = (0, 1)
+        else:
+            cur_obs = self._storage[SampleBatch.CUR_OBS][: len(self)]
+            mean = np.mean(cur_obs, axis=0)
+            std = np.std(cur_obs, axis=0)
+            std[std < 1e-12] = 1.0
+            self._obs_stats = (mean, std)
+
+    def seed(self, seed: int = None):
+        """Seed the random number generator for sampling minibatches."""
+        self._rng = np.random.default_rng(seed)
 
     def add(self, samples: SampleBatch):
         """Add a SampleBatch to storage.
@@ -244,19 +151,7 @@ class NumpyReplayBuffer:
 
         self._next_idx = end_idx
         self._curr_size = min(self._curr_size + samples.count, self._maxsize)
-
-    def add_row(self, row: dict):
-        """Add a row from a SampleBatch to storage.
-
-        Args:
-            row: sample batch row as returned by SampleBatch.rows().
-                Must have the same keys as the field names in the buffer.
-        """
-        for field in self.fields:
-            self._storage[field.name][self._next_idx] = row[field.name]
-
-        self._next_idx = (self._next_idx + 1) % self._maxsize
-        self._curr_size += 1 if self._curr_size < self._maxsize else 0
+        self._obs_stats = None
 
     def sample(self, batch_size: int) -> SampleBatch:
         """Transition batch uniformly sampled with replacement."""
@@ -270,12 +165,8 @@ class NumpyReplayBuffer:
         """All stored transitions."""
         return SampleBatch(self[: len(self)])
 
-    def __getitem__(
-        self, index: Union[int, np.ndarray, slice]
-    ) -> Dict[str, np.ndarray]:
-        batch = {f.name: self._storage[f.name][index] for f in self.fields}
-        if self._obs_stats:
-            mean, std = self._obs_stats
-            for key in SampleBatch.CUR_OBS, SampleBatch.NEXT_OBS:
-                batch[key] = (batch[key] - mean) / (std + 1e-7)
-        return batch
+    def state_dict(self) -> dict:
+        return {"obs_stats": self._obs_stats}
+
+    def load_state_dict(self, state: dict):
+        self._obs_stats = state["obs_stats"]

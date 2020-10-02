@@ -38,7 +38,6 @@ def default_critic() -> CriticSpec:
     spec.encoder.units = (256, 256)
     spec.encoder.activation = "ReLU"
     spec.encoder.delay_action = False
-    spec.encoder.standard_scaler = False
     spec.double_q = True
     spec.parallelize = True
     spec.initializer = {}

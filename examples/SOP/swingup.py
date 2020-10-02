@@ -1,33 +1,29 @@
 from raylab.cli.utils import tune_experiment
 
 
-def get_config():
-    from ray import tune
-
+def policy_config():
     return {
-        "env": "CartPoleSwingUp-v1",
-        "env_config": {"max_episode_steps": 500, "time_aware": False},
-        "dpg_loss": tune.grid_search("default acme".split()),
+        "dpg_loss": "default",
         "buffer_size": int(1e5),
+        "batch_size": 128,
         "optimizer": {
             "actor": {"type": "Adam", "lr": 3e-4},
             "critics": {"type": "Adam", "lr": 3e-4},
         },
         "polyak": 0.995,
         "module": {
-            "type": "DDPG",
+            "type": "SOP",
             "actor": {
-                "smooth_target_policy": True,
                 "target_gaussian_sigma": 0.3,
                 "beta": 1.2,
-                "encoder": {"units": (128, 128), "activation": "Swish"},
+                "encoder": {"units": (128, 128), "activation": "ReLU"},
             },
             "critic": {
                 "double_q": True,
                 "encoder": {
                     "units": (128, 128),
-                    "activation": "Swish",
-                    "delay_action": True,
+                    "activation": "ReLU",
+                    "delay_action": False,
                 },
             },
         },
@@ -36,10 +32,17 @@ def get_config():
             "noise_stddev": 0.3,
             "pure_exploration_steps": 5000,
         },
+    }
+
+
+def get_config():
+    return {
+        "env": "CartPoleSwingUp-v1",
+        "env_config": {"max_episode_steps": 500, "time_aware": False},
+        "policy": policy_config(),
         "learning_starts": 5000,
-        "rollout_fragment_length": 200,
+        "rollout_fragment_length": 1,
         "batch_mode": "truncate_episodes",
-        "train_batch_size": 128,
         "timesteps_per_iteration": 1000,
         "evaluation_interval": 5,
         "evaluation_config": {
@@ -51,7 +54,8 @@ def get_config():
 @tune_experiment
 def main():
     config = get_config()
-    return "SOP", config, {"stop": {"timesteps_total": config["buffer_size"]}}
+    tune_kwargs = dict(stop={"timesteps_total": config["buffer_size"]})
+    return "SOP", config, tune_kwargs
 
 
 if __name__ == "__main__":

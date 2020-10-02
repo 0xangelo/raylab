@@ -4,6 +4,7 @@ from dataclasses import field
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Sequence
 
 import torch
 import torch.nn as nn
@@ -14,8 +15,6 @@ from torch import Tensor
 import raylab.torch.nn as nnx
 from raylab.torch.nn.init import initialize_
 from raylab.torch.nn.utils import get_activation
-
-from .utils import TensorStandardScaler
 
 
 @dataclass
@@ -73,16 +72,11 @@ class StateActionMLPSpec(DataClassJsonMixin):
         activation: Nonlinearity following each linear layer
         delay_action: Whether to apply an initial preprocessing layer on the
             observation before concatenating the action to the input.
-        standard_scaler: Whether to transform the inputs of the NN using a
-            standard scaling procedure (subtract mean and divide by stddev). The
-            transformation mean and stddev should be fitted during training and
-            used for both training and evaluation.
     """
 
     units: List[int] = field(default_factory=list)
     activation: Optional[str] = None
     delay_action: bool = False
-    standard_scaler: bool = False
 
 
 class StateActionMLP(nn.Module):
@@ -105,27 +99,8 @@ class StateActionMLP(nn.Module):
         )
         self.out_features = self.encoder.out_features
 
-        if self.spec.standard_scaler:
-            self.obs_scaler = TensorStandardScaler(obs_size)
-            self.act_scaler = TensorStandardScaler(action_size)
-        else:
-            self.obs_scaler = None
-            self.act_scaler = None
-
-    @torch.jit.export
-    def fit_scaler(self, obs: Tensor, act: Tensor):
-        """Fit each sub-scaler to the inputs."""
-        if self.obs_scaler is not None:
-            self.obs_scaler.fit(obs)
-        if self.act_scaler is not None:
-            self.act_scaler.fit(act)
-
     def forward(self, obs: Tensor, act: Tensor) -> Tensor:
         # pylint:disable=arguments-differ
-        if self.obs_scaler is not None:
-            obs = self.obs_scaler(obs)
-        if self.act_scaler is not None:
-            act = self.act_scaler(act)
         return self.encoder(obs, act)
 
     def initialize_parameters(self, initializer_spec: dict):
@@ -141,6 +116,49 @@ class StateActionMLP(nn.Module):
         """
         initializer = initialize_(activation=self.spec.activation, **initializer_spec)
         self.encoder.apply(initializer)
+
+
+class LayerNormMLP(nn.Sequential):
+    # pylint:disable=line-too-long
+    """Simple feedforward MLP torso with initial layer-norm.
+
+    This module is an MLP which uses LayerNorm (with a tanh normalizer) on the
+    first layer and non-linearities (elu) on all but the last remaining layers.
+
+    Taken from `Acme`_.
+
+    .. _`Acme`: https://github.com/deepmind/acme/blob/ace9f280cb9c6ba954e909bb0340c6b5ac45e4c6/acme/tf/networks/continuous.py#L37
+
+    Args:
+        layer_sizes: A sequence of ints specifying the size of each layer.
+        activate_final: Whether to use the activation function on the final
+            layer of the neural network.
+    """
+    # pylint:disable=line-too-long
+
+    def __init__(
+        self, in_size: int, layer_sizes: Sequence[int], activate_final: bool = False
+    ):
+        units = list(layer_sizes)
+        assert units, f"Must pass at least 1 layer size to {type(self).__name__}"
+
+        mlp = (
+            nnx.FullyConnected(
+                in_features=layer_sizes[0],
+                units=layer_sizes[1:],
+                activation="ELU",
+                layer_norm=False,
+            ),
+        )
+        if not activate_final:
+            mlp = mlp[:-1]
+
+        super().__init__(
+            nn.Linear(in_size, layer_sizes[0]),
+            nn.LayerNorm(layer_sizes[0]),
+            nn.Tanh(),
+            mlp,
+        )
 
 
 class MLP(nn.Module):

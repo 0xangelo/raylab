@@ -1,8 +1,15 @@
 # pylint:disable=missing-module-docstring
 from abc import ABC
 from abc import abstractmethod
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 from ray.rllib import SampleBatch
+from ray.rllib.evaluation.episode import MultiAgentEpisode
+from ray.rllib.utils.types import TensorType
 
 from raylab.options import option
 from raylab.utils.replay_buffer import NumpyReplayBuffer
@@ -61,6 +68,7 @@ class OffPolicyMixin(ABC):
             self.observation_space, self.action_space, self.config["buffer_size"]
         )
         self.replay.seed(self.config["seed"])
+        self.replay.compute_stats = self.config["std_obs"]
 
     @learner_stats
     def learn_on_batch(self, samples: SampleBatch):
@@ -84,12 +92,63 @@ class OffPolicyMixin(ABC):
     def add_to_buffer(self, samples: SampleBatch):
         """Add sample batch to replay buffer"""
         self.replay.add(samples)
-        if self.config["std_obs"]:
-            self.replay.update_obs_stats()
 
     @abstractmethod
     def improve_policy(self, batch: TensorDict) -> dict:
         """Run one step of Policy Improvement."""
+
+    def compute_actions(
+        self,
+        obs_batch: Union[List[TensorType], TensorType],
+        state_batches: Optional[List[TensorType]] = None,
+        prev_action_batch: Union[List[TensorType], TensorType] = None,
+        prev_reward_batch: Union[List[TensorType], TensorType] = None,
+        info_batch: Optional[Dict[str, list]] = None,
+        episodes: Optional[List[MultiAgentEpisode]] = None,
+        explore: Optional[bool] = None,
+        timestep: Optional[int] = None,
+        **kwargs
+    ) -> Tuple[TensorType, List[TensorType], Dict[str, TensorType]]:
+        # pylint:disable=too-many-arguments
+        obs_batch = self.replay.normalize(obs_batch)
+        return super().compute_actions(
+            obs_batch,
+            state_batches=state_batches,
+            prev_action_batch=prev_action_batch,
+            prev_reward_batch=prev_reward_batch,
+            info_batch=info_batch,
+            episodes=episodes,
+            explore=explore,
+            timestep=timestep,
+            **kwargs,
+        )
+
+    def compute_log_likelihoods(
+        self,
+        actions: Union[List[TensorType], TensorType],
+        obs_batch: Union[List[TensorType], TensorType],
+        state_batches: Optional[List[TensorType]] = None,
+        prev_action_batch: Optional[Union[List[TensorType], TensorType]] = None,
+        prev_reward_batch: Optional[Union[List[TensorType], TensorType]] = None,
+    ) -> TensorType:
+        # pylint:disable=too-many-arguments
+        obs_batch = self.replay.normalize(obs_batch)
+        return super().compute_log_likelihoods(
+            actions=actions,
+            obs_batch=obs_batch,
+            state_batches=state_batches,
+            prev_action_batch=prev_action_batch,
+            prev_reward_batch=prev_reward_batch,
+        )
+
+    def get_weights(self) -> dict:
+        state = super().get_weights()
+        state["replay"] = self.replay.state_dict()
+        return state
+
+    def set_weights(self, weights: dict):
+        self.replay.load_state_dict(weights["replay"])
+        super().set_weights({k: v for k, v in weights.items() if k != "replay"})
 
     @staticmethod
     def add_options(policy_cls: type) -> type:
