@@ -43,9 +43,9 @@ def build(obs_space: Box, action_space: Box, spec: Spec) -> MLPModel:
         A stochastic dynamics model
     """
     model = MLPModel(obs_space, action_space, spec.network)
+    model.initialize_parameters(spec.initializer)
     if spec.residual:
         model = ResidualStochasticModel(model)
-    model.initialize_parameters(spec.initializer)
     return model
 
 
