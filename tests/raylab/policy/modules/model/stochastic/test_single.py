@@ -2,15 +2,19 @@ import pytest
 import torch
 from torch.autograd import grad
 
+from raylab.policy.modules.model.stochastic.single import MLPModel
+from raylab.policy.modules.model.stochastic.single import ResidualStochasticModel
 from raylab.torch.nn import NormalParams
 
 
 @pytest.fixture(scope="module", params=(True, False), ids=lambda x: f"Residual({x})")
-def module_cls(request):
-    from raylab.policy.modules.model.stochastic.single import MLPModel
-    from raylab.policy.modules.model.stochastic.single import ResidualMLPModel
+def residual(request):
+    return request.param
 
-    return ResidualMLPModel if request.param else MLPModel
+
+@pytest.fixture
+def module_cls():
+    return MLPModel
 
 
 @pytest.fixture(params=(True, False), ids=lambda x: f"InputDependentScale({x})")
@@ -24,14 +28,14 @@ def spec(module_cls, input_dependent_scale):
 
 
 @pytest.fixture
-def module(module_cls, obs_space, action_space, spec):
-    return module_cls(obs_space, action_space, spec)
+def module(module_cls, obs_space, action_space, spec, residual):
+    mod = module_cls(obs_space, action_space, spec)
+    return ResidualStochasticModel(mod) if residual else mod
 
 
 def test_init(module):
     assert hasattr(module, "params")
     assert hasattr(module, "dist")
-    assert hasattr(module, "encoder")
 
 
 def test_forward(mocker, module, obs, act, next_obs):

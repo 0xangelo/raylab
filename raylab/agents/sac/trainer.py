@@ -15,4 +15,4 @@ class SACTrainer(OffPolicyMixin, Trainer):
     """Single agent trainer for SAC."""
 
     _name = "SoftAC"
-    _policy = SACTorchPolicy
+    _policy_class = SACTorchPolicy

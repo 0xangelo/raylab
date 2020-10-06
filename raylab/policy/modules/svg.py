@@ -8,7 +8,7 @@ from gym.spaces import Box
 
 from .actor import StochasticActor
 from .critic import MLPVValue
-from .model import ResidualSVGModel
+from .model import ResidualStochasticModel
 from .model import SVGModel
 
 
@@ -43,10 +43,8 @@ class SVG(nn.Module):
         self._make_critic(obs_space, spec.critic)
 
     def _make_model(self, obs_space: Box, action_space: Box, spec: ModelSpec):
-        if spec.residual:
-            self.model = ResidualSVGModel(obs_space, action_space, spec)
-        else:
-            self.model = SVGModel(obs_space, action_space, spec)
+        model = SVGModel(obs_space, action_space, spec)
+        self.model = ResidualStochasticModel(model) if spec.residual else model
 
     def _make_actor(self, obs_space: Box, action_space: Box, spec: ActorSpec):
         actor = StochasticActor(obs_space, action_space, spec)

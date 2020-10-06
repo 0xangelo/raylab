@@ -6,7 +6,6 @@ from .builders import Spec as SingleSpec
 from .ensemble import ForkedSME
 from .ensemble import SME
 from .single import MLPModel
-from .single import ResidualMixin
+from .single import ResidualStochasticModel
 from .single import StochasticModel
-from .svg import ResidualSVGModel
 from .svg import SVGModel

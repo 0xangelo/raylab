@@ -13,4 +13,4 @@ class MBPOTrainer(ModelBasedMixin, OffPolicyMixin, Trainer):
     """Model-based trainer using SAC for policy improvement."""
 
     _name = "MBPO"
-    _policy = MBPOTorchPolicy
+    _policy_class = MBPOTorchPolicy

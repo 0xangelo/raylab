@@ -13,7 +13,7 @@ class SVGOneTrainer(OffPolicyMixin, Trainer):
     """Single agent trainer for SVG(1)."""
 
     _name = "SVG(1)"
-    _policy = SVGOneTorchPolicy
+    _policy_class = SVGOneTorchPolicy
 
     def after_init(self):
         super().after_init()

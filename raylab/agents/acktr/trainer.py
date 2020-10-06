@@ -8,4 +8,4 @@ class ACKTRTrainer(TRPOTrainer):
     """Single agent trainer for ACKTR."""
 
     _name = "ACKTR"
-    _policy = ACKTRTorchPolicy
+    _policy_class = ACKTRTorchPolicy

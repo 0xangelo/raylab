@@ -12,4 +12,4 @@ class SOPTrainer(OffPolicyMixin, Trainer):
     """Single agent trainer for the Streamlined Off-Policy algorithm."""
 
     _name = "SOP"
-    _policy = SOPTorchPolicy
+    _policy_class = SOPTorchPolicy

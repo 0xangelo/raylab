@@ -17,8 +17,8 @@ from dataclasses_json.core import Json
 from ray.rllib.agents import with_common_config as with_rllib_config
 from ray.rllib.agents.trainer import COMMON_CONFIG
 from ray.rllib.agents.trainer import Trainer
-from ray.rllib.agents.trainer import with_base_config
 from ray.rllib.utils import deep_update
+from ray.rllib.utils import merge_dicts
 
 __all__ = [
     "COMMON_INFO",
@@ -446,8 +446,6 @@ COMMON_INFO = {
 
     The dataflow here can vary per algorithm. For example, PPO further
     divides the train batch into minibatches for multi-epoch SGD.""",
-    "sample_batch_size": """\
-    Deprecated; renamed to `rollout_fragment_length` in 0.8.4.""",
     "batch_mode": """\
     Whether to rollout "complete_episodes" or "truncate_episodes" to
     `rollout_fragment_length` length unrolls. Episode truncation guarantees
@@ -746,20 +744,22 @@ COMMON_INFO = {
         transitions are replayed independently per policy.
         """,
     },
+    # === Logger ===
+    "logger_config": """\
+    Define logger-specific configuration to be used inside Logger
+    Default value None allows overwriting with nested dicts
+    """,
     # === Replay Settings ===
     "replay_sequence_length": """\
     The number of contiguous environment steps to replay at once. This may
     be set to greater than 1 to support recurrent models.
     """,
-    # Deprecated keys:
-    "use_pytorch": "Deprecated; replaced by `framework=torch`.",
-    "eager": "Deprecated; replaced by `framework=tfe`.",
 }
 
 
 def with_rllib_info(info: Info) -> Info:
     """Merge info with RLlib's common parameters' info."""
-    info = with_base_config(COMMON_INFO, info)
+    info = merge_dicts(COMMON_INFO, info)
     info = tree.map_structure(
         (lambda x: inspect.cleandoc(x) if isinstance(x, str) else x), info
     )

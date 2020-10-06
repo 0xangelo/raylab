@@ -15,10 +15,10 @@ from ray.rllib.agents.trainer_template import default_execution_plan
 from ray.rllib.env.env_context import EnvContext
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.utils import override as overrides
-from ray.rllib.utils.types import EnvType
-from ray.rllib.utils.types import PartialTrainerConfigDict
-from ray.rllib.utils.types import ResultDict
-from ray.rllib.utils.types import TrainerConfigDict
+from ray.rllib.utils.typing import EnvType
+from ray.rllib.utils.typing import PartialTrainerConfigDict
+from ray.rllib.utils.typing import ResultDict
+from ray.rllib.utils.typing import TrainerConfigDict
 from ray.tune.resources import Resources
 from ray.tune.trainable import Trainable
 
@@ -80,7 +80,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     wandb: WandBLogger
     options: TrainerOptions = TrainerOptions()
     _name: str
-    _policy: Type[Policy]
+    _policy_class: Type[Policy]
     _env_id: str
     _true_config: TrainerConfigDict
 
@@ -101,7 +101,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     ):
         self.config = config = self.restore_reserved()
         self.validate_config(config)
-        self._policy = cls = self.get_policy_class()
+        self._policy_class = cls = self.get_policy_class()
 
         self.before_init()
 
@@ -132,7 +132,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
 
         Called after :meth:`validate_config` and before :meth:`before_init`.
         """
-        return self._policy
+        return self._policy_class
 
     def before_init(self):
         """Arbitrary setup before default initialization.

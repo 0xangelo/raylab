@@ -9,7 +9,7 @@ from typing import Union
 
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.episode import MultiAgentEpisode
-from ray.rllib.utils.types import TensorType
+from ray.rllib.utils.typing import TensorType
 
 from raylab.options import option
 from raylab.utils.replay_buffer import NumpyReplayBuffer

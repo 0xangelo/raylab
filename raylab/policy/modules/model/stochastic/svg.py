@@ -11,7 +11,6 @@ import raylab.torch.nn.distributions as ptd
 from raylab.policy.modules.networks.mlp import StateActionMLP
 from raylab.torch.nn.init import initialize_
 
-from .single import ResidualMixin
 from .single import StochasticModel
 
 
@@ -56,11 +55,6 @@ class SVGModel(StochasticModel):
                 keyword arguments.
         """
         self.params.initialize_parameters(initializer_spec)
-
-
-class ResidualSVGModel(ResidualMixin, SVGModel):
-    # pylint:disable=missing-docstring,abstract-method
-    pass
 
 
 class SVGDynamicsParams(nn.Module):

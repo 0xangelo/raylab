@@ -21,7 +21,7 @@ def policy_cls(dummy_policy_cls):
 def trainer_cls(policy_cls):
     class Sub(Trainer):
         _name = "Dummy"
-        _policy = policy_cls
+        _policy_class = policy_cls
 
     return Sub
 

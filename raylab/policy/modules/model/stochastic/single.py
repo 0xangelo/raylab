@@ -20,6 +20,7 @@ SampleLogp = Tuple[Tensor, Tensor]
 class StochasticModel(nn.Module):
     """Represents a stochastic model as a conditional distribution module."""
 
+    # pylint:disable=abstract-method
     def __init__(
         self, params_module: nn.Module, dist_module: ptd.ConditionalDistribution
     ):
@@ -28,6 +29,7 @@ class StochasticModel(nn.Module):
         self.dist = dist_module
 
     def forward(self, obs, action) -> TensorDict:  # pylint:disable=arguments-differ
+        """Compute state-action conditional distribution parameters."""
         return self.params(obs, action)
 
     @torch.jit.export
@@ -89,10 +91,13 @@ class StochasticModel(nn.Module):
         return self.dist.deterministic(params)
 
 
-class ResidualMixin:
+class ResidualStochasticModel(StochasticModel):
     """Overrides StochasticModel interface to model state transition residuals."""
 
-    # pylint:disable=missing-function-docstring,not-callable
+    # pylint:disable=abstract-method
+
+    def __init__(self, model: StochasticModel):
+        super().__init__(params_module=model.params, dist_module=model.dist)
 
     def forward(self, obs: Tensor, action: Tensor) -> TensorDict:
         params = self.params(obs, action)
@@ -141,12 +146,14 @@ class DynamicsParams(nn.Module):
         params: Module mapping 1D features to distribution parameters
     """
 
+    # pylint:disable=abstract-method
     def __init__(self, encoder: nn.Module, params: nn.Module):
         super().__init__()
         self.encoder = encoder
         self.params = params
 
     def forward(self, obs, actions):  # pylint:disable=arguments-differ
+        """Compute state-action conditional distribution parameters."""
         return self.params(self.encoder(obs, actions))
 
 
@@ -181,6 +188,7 @@ class MLPModel(StochasticModel):
             embeddings
     """
 
+    # pylint:disable=abstract-method
     spec_cls = MLPModelSpec
 
     def __init__(self, obs_space: Box, action_space: Box, spec: MLPModelSpec):
@@ -212,7 +220,3 @@ class MLPModel(StochasticModel):
                 keyword arguments.
         """
         self.encoder.initialize_parameters(initializer_spec)
-
-
-class ResidualMLPModel(ResidualMixin, MLPModel):
-    """Residual stochastic multilayer perceptron model."""
