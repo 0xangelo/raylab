@@ -552,7 +552,7 @@ python-versions = "*"
 
 [[package]]
 name = "flake8"
-version = "3.8.3"
+version = "3.8.4"
 description = "the modular source code checker: pep8 pyflakes and co"
 category = "dev"
 optional = false
@@ -1260,6 +1260,9 @@ description = "Wrapper package for OpenCV python bindings."
 category = "main"
 optional = false
 python-versions = ">=3.6"
+
+[package.dependencies]
+numpy = ">=1.17.3"
 
 [[package]]
 name = "packaging"
@@ -2491,7 +2494,7 @@ wandb = ["wandb"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "1d9f8f73f5fcf83676a1ffc6a9bbcf79162cdb79cbbe408f3517b409b8763c79"
+content-hash = "e960bbd8685e032e8f9df479f933d6edb1952dbed8bae26856d61ab917d3ed00"
 
 [metadata.files]
 absl-py = [
@@ -2604,7 +2607,6 @@ beautifulsoup4 = [
     {file = "beautifulsoup4-4.9.1.tar.gz", hash = "sha256:73cc4d115b96f79c7d77c1c7f7a0a8d4c57860d1041df407dd1aae7f07a77fd7"},
 ]
 black = [
-    {file = "black-20.8b1-py3-none-any.whl", hash = "sha256:70b62ef1527c950db59062cda342ea224d772abdf6adc58b86a45421bab20a6b"},
     {file = "black-20.8b1.tar.gz", hash = "sha256:1c02557aa099101b9d21496f8a914e9ed2222ef70336404eeeac8edba836fbea"},
 ]
 bleach = [
@@ -2623,6 +2625,7 @@ bokeh = [
     {file = "bokeh-2.2.1.tar.gz", hash = "sha256:a82e9eebd7a1e2ebb7f8fc1ead802fefd10a84daef8ec4bfc986121323948555"},
 ]
 boto3 = [
+    {file = "boto3-1.15.4-py2.py3-none-any.whl", hash = "sha256:cff8528c5bc4a13cbb85d09288dad66758c3f2367e77dc250cb2e9dc4b9ec59f"},
     {file = "boto3-1.15.4.tar.gz", hash = "sha256:97f81f40f32d683d52f2e31ef14afae77fc1aa3bc41d05ff3cd838c91d406dfc"},
 ]
 botocore = [
@@ -2801,8 +2804,8 @@ filelock = [
     {file = "filelock-3.0.12.tar.gz", hash = "sha256:18d82244ee114f543149c66a6e0c14e9c4f8a1044b5cdaadd0f82159d6a6ff59"},
 ]
 flake8 = [
-    {file = "flake8-3.8.3-py2.py3-none-any.whl", hash = "sha256:15e351d19611c887e482fb960eae4d44845013cc142d42896e9862f775d8cf5c"},
-    {file = "flake8-3.8.3.tar.gz", hash = "sha256:f04b9fcbac03b0a3e58c0ab3a0ecc462e023a9faf046d57794184028123aa208"},
+    {file = "flake8-3.8.4-py2.py3-none-any.whl", hash = "sha256:749dbbd6bfd0cf1318af27bf97a14e28e5ff548ef8e5b1566ccfb25a11e7c839"},
+    {file = "flake8-3.8.4.tar.gz", hash = "sha256:aadae8761ec651813c24be05c6f7b4680857ef6afaae4651a4eccaef97ce6c3b"},
 ]
 future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
