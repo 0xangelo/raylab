@@ -106,13 +106,14 @@ class HalfCheetahReward(RewardFn):
 
     def __init__(self, config):
         super().__init__(config)
+        kwargs = config.get("kwargs", {})
         parameters = get_env_parameters("HalfCheetah-v3")
         for attr in """
         ctrl_cost_weight
         forward_reward_weight
         exclude_current_positions_from_observation
         """.split():
-            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+            setattr(self, "_" + attr, kwargs.get(attr, parameters[attr].default))
 
         assert (
             self._exclude_current_positions_from_observation is False
@@ -340,6 +341,7 @@ class Walker2DReward(RewardFn):
 
     def __init__(self, config):
         super().__init__(config)
+        kwargs = config.get("kwargs", {})
         parameters = get_env_parameters("Walker2d-v3")
         for attr in """
         ctrl_cost_weight
@@ -350,7 +352,7 @@ class Walker2DReward(RewardFn):
         healthy_angle_range
         exclude_current_positions_from_observation
         """.split():
-            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+            setattr(self, "_" + attr, kwargs.get(attr, parameters[attr].default))
 
         assert (
             not self._exclude_current_positions_from_observation
@@ -397,13 +399,14 @@ class SwimmerReward(RewardFn):
 
     def __init__(self, config):
         super().__init__(config)
+        kwargs = config.get("kwargs", {})
         parameters = get_env_parameters("Swimmer-v3")
         for attr in """
         ctrl_cost_weight
         forward_reward_weight
         exclude_current_positions_from_observation
         """.split():
-            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+            setattr(self, "_" + attr, kwargs.get(attr, parameters[attr].default))
 
         assert (
             not self._exclude_current_positions_from_observation
@@ -429,6 +432,7 @@ class HopperReward(RewardFn):
 
     def __init__(self, config: dict):
         super().__init__(config)
+        kwargs = config.get("kwargs", {})
         parameters = get_env_parameters("Hopper-v3")
         for attr in """
         ctrl_cost_weight
@@ -440,7 +444,7 @@ class HopperReward(RewardFn):
         healthy_z_range
         terminate_when_unhealthy
         """.split():
-            setattr(self, "_" + attr, config.get(attr, parameters[attr].default))
+            setattr(self, "_" + attr, kwargs.get(attr, parameters[attr].default))
 
         assert (
             not self._exclude_current_positions_from_observation
