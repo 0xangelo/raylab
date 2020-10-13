@@ -27,7 +27,10 @@ def filtered_gym_env_ids():
 IDS = filtered_gym_env_ids()
 # kwarg trick from:
 # https://github.com/satwikkansal/wtfpython#-the-sticky-output-function
-ENVS = {i: wrap_if_needed(lambda config, i=i: gym.make(i, **config)) for i in IDS}
+ENVS = {
+    i: wrap_if_needed(lambda config, i=i: gym.make(i, **config.get("kwargs", {})))
+    for i in IDS
+}
 
 
 def register_external_library_environments(library_name):
