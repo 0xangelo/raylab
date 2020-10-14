@@ -565,6 +565,30 @@ pycodestyle = ">=2.6.0a1,<2.7.0"
 pyflakes = ">=2.2.0,<2.3.0"
 
 [[package]]
+name = "fsspec"
+version = "0.8.3"
+description = "File-system specification"
+category = "main"
+optional = false
+python-versions = ">3.6"
+
+[package.extras]
+abfs = ["adlfs"]
+adl = ["adlfs"]
+dask = ["dask", "distributed"]
+dropbox = ["dropboxdrivefs", "requests", "dropbox"]
+gcs = ["gcsfs"]
+git = ["pygit2"]
+github = ["requests"]
+gs = ["gcsfs"]
+hdfs = ["pyarrow"]
+http = ["requests", "aiohttp"]
+s3 = ["s3fs"]
+sftp = ["paramiko"]
+smb = ["smbprotocol"]
+ssh = ["paramiko"]
+
+[[package]]
 name = "future"
 version = "0.18.2"
 description = "Clean single-source support for Python 3 and 2"
@@ -1663,28 +1687,28 @@ six = ">=1.5"
 
 [[package]]
 name = "pytorch-lightning"
-version = "0.9.0"
+version = "1.0.1"
 description = "PyTorch Lightning is the lightweight PyTorch wrapper for ML researchers. Scale your models. Write less boilerplate."
 category = "main"
 optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
+fsspec = ">=0.8.0"
 future = ">=0.17.1"
 numpy = ">=1.16.4"
-packaging = "*"
 PyYAML = ">=5.1"
-tensorboard = "2.2.0"
+tensorboard = ">=2.2.0"
 torch = ">=1.3"
 tqdm = ">=4.41.0"
 
 [package.extras]
-all = ["neptune-client (>=0.4.109)", "comet-ml (>=3.1.12)", "mlflow (>=1.0.0)", "test-tube (>=0.7.5)", "wandb (>=0.8.21)", "matplotlib (>=3.1.1)", "horovod (>=0.19.2)", "omegaconf (>=2.0.0)", "scikit-learn (>=0.22.2)", "torchtext (>=0.3.1,<0.7)", "onnx (>=1.7.0)", "onnxruntime (>=1.3.0)", "coverage", "codecov (>=2.1)", "pytest (>=3.0.5)", "pytest-cov", "pytest-flake8", "flake8", "flake8-black", "check-manifest", "twine (1.13.0)", "scikit-image", "black (19.10b0)", "pre-commit (>=1.0)", "cloudpickle (>=1.2)", "nltk (>=3.3)", "torchvision (>=0.4.0,<0.7)", "gym (>=0.17.0)", "sphinx (>=2.0,<3.0)", "recommonmark", "m2r", "nbsphinx", "pandoc", "docutils", "sphinxcontrib-fulltoc", "sphinxcontrib-mockautodoc", "sphinx-autodoc-typehints", "sphinx-paramlinks (<0.4.0)", "sphinx-togglebutton", "sphinx-copybutton"]
-dev = ["neptune-client (>=0.4.109)", "comet-ml (>=3.1.12)", "mlflow (>=1.0.0)", "test-tube (>=0.7.5)", "wandb (>=0.8.21)", "matplotlib (>=3.1.1)", "horovod (>=0.19.2)", "omegaconf (>=2.0.0)", "scikit-learn (>=0.22.2)", "torchtext (>=0.3.1,<0.7)", "onnx (>=1.7.0)", "onnxruntime (>=1.3.0)", "coverage", "codecov (>=2.1)", "pytest (>=3.0.5)", "pytest-cov", "pytest-flake8", "flake8", "flake8-black", "check-manifest", "twine (1.13.0)", "scikit-image", "black (19.10b0)", "pre-commit (>=1.0)", "cloudpickle (>=1.2)", "nltk (>=3.3)"]
-docs = ["sphinx (>=2.0,<3.0)", "recommonmark", "m2r", "nbsphinx", "pandoc", "docutils", "sphinxcontrib-fulltoc", "sphinxcontrib-mockautodoc", "sphinx-autodoc-typehints", "sphinx-paramlinks (<0.4.0)", "sphinx-togglebutton", "sphinx-copybutton"]
-examples = ["torchvision (>=0.4.0,<0.7)", "gym (>=0.17.0)"]
-extra = ["neptune-client (>=0.4.109)", "comet-ml (>=3.1.12)", "mlflow (>=1.0.0)", "test-tube (>=0.7.5)", "wandb (>=0.8.21)", "matplotlib (>=3.1.1)", "horovod (>=0.19.2)", "omegaconf (>=2.0.0)", "scikit-learn (>=0.22.2)", "torchtext (>=0.3.1,<0.7)", "onnx (>=1.7.0)", "onnxruntime (>=1.3.0)"]
-test = ["coverage", "codecov (>=2.1)", "pytest (>=3.0.5)", "pytest-cov", "pytest-flake8", "flake8", "flake8-black", "check-manifest", "twine (1.13.0)", "scikit-image", "black (19.10b0)", "pre-commit (>=1.0)", "cloudpickle (>=1.2)", "nltk (>=3.3)"]
+all = ["matplotlib (>=3.1.1)", "horovod (>=0.20.1)", "omegaconf (>=2.0.0)", "scikit-learn (>=0.22.2)", "torchtext (>=0.3.1,<0.7)", "onnx (>=1.7.0)", "onnxruntime (>=1.3.0)", "neptune-client (>=0.4.109)", "comet-ml (>=3.1.12)", "mlflow (>=1.0.0)", "test-tube (>=0.7.5)", "wandb (>=0.8.21)", "coverage (>=5.0)", "codecov (>=2.1)", "pytest (>=5.0)", "pytest-cov", "pytest-flake8", "flake8 (>=3.6)", "flake8-black", "check-manifest", "twine (1.13.0)", "scikit-image", "black (>=20.8b1)", "pre-commit (>=1.0)", "cloudpickle (>=1.2)", "nltk (>=3.3)", "torchvision (>=0.4.1)", "gym (>=0.17.0)"]
+dev = ["matplotlib (>=3.1.1)", "horovod (>=0.20.1)", "omegaconf (>=2.0.0)", "scikit-learn (>=0.22.2)", "torchtext (>=0.3.1,<0.7)", "onnx (>=1.7.0)", "onnxruntime (>=1.3.0)", "neptune-client (>=0.4.109)", "comet-ml (>=3.1.12)", "mlflow (>=1.0.0)", "test-tube (>=0.7.5)", "wandb (>=0.8.21)", "coverage (>=5.0)", "codecov (>=2.1)", "pytest (>=5.0)", "pytest-cov", "pytest-flake8", "flake8 (>=3.6)", "flake8-black", "check-manifest", "twine (1.13.0)", "scikit-image", "black (>=20.8b1)", "pre-commit (>=1.0)", "cloudpickle (>=1.2)", "nltk (>=3.3)"]
+examples = ["torchvision (>=0.4.1)", "gym (>=0.17.0)"]
+extra = ["matplotlib (>=3.1.1)", "horovod (>=0.20.1)", "omegaconf (>=2.0.0)", "scikit-learn (>=0.22.2)", "torchtext (>=0.3.1,<0.7)", "onnx (>=1.7.0)", "onnxruntime (>=1.3.0)"]
+loggers = ["neptune-client (>=0.4.109)", "comet-ml (>=3.1.12)", "mlflow (>=1.0.0)", "test-tube (>=0.7.5)", "wandb (>=0.8.21)"]
+test = ["coverage (>=5.0)", "codecov (>=2.1)", "pytest (>=5.0)", "pytest-cov", "pytest-flake8", "flake8 (>=3.6)", "flake8-black", "check-manifest", "twine (1.13.0)", "scikit-image", "black (>=20.8b1)", "pre-commit (>=1.0)", "cloudpickle (>=1.2)", "nltk (>=3.3)"]
 
 [[package]]
 name = "pytz"
@@ -2494,7 +2518,7 @@ wandb = ["wandb"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "35e2d4ee7def7a465b8408cad218565add1bde90ea857253f18224a2f63850bd"
+content-hash = "7d8ad2bf1361301cba4a6c5871217c39226e5159fd379319928924aad7f4697a"
 
 [metadata.files]
 absl-py = [
@@ -2806,6 +2830,10 @@ filelock = [
 flake8 = [
     {file = "flake8-3.8.4-py2.py3-none-any.whl", hash = "sha256:749dbbd6bfd0cf1318af27bf97a14e28e5ff548ef8e5b1566ccfb25a11e7c839"},
     {file = "flake8-3.8.4.tar.gz", hash = "sha256:aadae8761ec651813c24be05c6f7b4680857ef6afaae4651a4eccaef97ce6c3b"},
+]
+fsspec = [
+    {file = "fsspec-0.8.3-py3-none-any.whl", hash = "sha256:560b8cda169c495956a0db4700e9e0d131dc6114f7d0c8766d603faa53618b8f"},
+    {file = "fsspec-0.8.3.tar.gz", hash = "sha256:aad96c98b7f73bc437bb024e7cb3b0943c61049f95d6c5edec5b8b8850fd0875"},
 ]
 future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
@@ -3477,8 +3505,8 @@ python-dateutil = [
     {file = "python_dateutil-2.8.1-py2.py3-none-any.whl", hash = "sha256:75bb3f31ea686f1197762692a9ee6a7550b59fc6ca3a1f4b5d7e32fb98e2da2a"},
 ]
 pytorch-lightning = [
-    {file = "pytorch-lightning-0.9.0.tar.gz", hash = "sha256:9f1010a49b1d1ee4a09653cfa00c438d1117b509e16661e271df587403f8d9e7"},
-    {file = "pytorch_lightning-0.9.0-py3-none-any.whl", hash = "sha256:d3d36bba6c7c9968af9e16123a01848e297f727eb6cef2d963843c6149afad79"},
+    {file = "pytorch-lightning-1.0.1.tar.gz", hash = "sha256:cf399daeab89086b524060713d72e6bdea61b04dfe235025d2d044b95ed754f2"},
+    {file = "pytorch_lightning-1.0.1-py3-none-any.whl", hash = "sha256:6563cc52b4fa78e4f23bc08edec091efeec7f3d1bac70c8e497536e8f4c9cb16"},
 ]
 pytz = [
     {file = "pytz-2020.1-py2.py3-none-any.whl", hash = "sha256:a494d53b6d39c3c6e44c3bec237336e14305e4f29bbf800b599253057fbb79ed"},
