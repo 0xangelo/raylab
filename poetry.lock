@@ -2066,7 +2066,7 @@ test = ["pytest"]
 
 [[package]]
 name = "streamlit"
-version = "0.68.1"
+version = "0.69.1"
 description = "The fastest way to build data apps in Python"
 category = "main"
 optional = false
@@ -2082,6 +2082,7 @@ botocore = ">=1.13.44"
 cachetools = ">=4.0"
 click = ">=7.0"
 enum-compat = "*"
+gitpython = "*"
 numpy = "*"
 packaging = "*"
 pandas = ">=0.21.0"
@@ -2494,7 +2495,7 @@ wandb = ["wandb"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "35e2d4ee7def7a465b8408cad218565add1bde90ea857253f18224a2f63850bd"
+content-hash = "37ce5213b3fd3aaf11192d00e71dc07fe54b8425c03d18ca46552408f0d7140e"
 
 [metadata.files]
 absl-py = [
@@ -3552,6 +3553,7 @@ pyzmq = [
     {file = "pyzmq-19.0.2-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:18189fc59ff5bf46b7ccf5a65c1963326dbfc85a2bc73e9f4a90a40322b992c8"},
     {file = "pyzmq-19.0.2-cp39-cp39-manylinux1_i686.whl", hash = "sha256:b1dd4cf4c5e09cbeef0aee83f3b8af1e9986c086a8927b261c042655607571e8"},
     {file = "pyzmq-19.0.2-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:c6d653bab76b3925c65d4ac2ddbdffe09710f3f41cc7f177299e8c4498adb04a"},
+    {file = "pyzmq-19.0.2-cp39-cp39-win_amd64.whl", hash = "sha256:949a219493a861c263b75a16588eadeeeab08f372e25ff4a15a00f73dfe341f4"},
     {file = "pyzmq-19.0.2-pp27-pypy_73-macosx_10_9_x86_64.whl", hash = "sha256:c1a31cd42905b405530e92bdb70a8a56f048c8a371728b8acf9d746ecd4482c0"},
     {file = "pyzmq-19.0.2-pp36-pypy36_pp73-macosx_10_9_x86_64.whl", hash = "sha256:a7e7f930039ee0c4c26e4dfee015f20bd6919cd8b97c9cd7afbde2923a5167b6"},
     {file = "pyzmq-19.0.2.tar.gz", hash = "sha256:296540a065c8c21b26d63e3cea2d1d57902373b16e4256afe46422691903a438"},
@@ -3711,7 +3713,7 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 streamlit = [
-    {file = "streamlit-0.68.1-py2.py3-none-any.whl", hash = "sha256:d7a163d66915bd31dcc005261246617f50e3e0b41ace2757332f3ef8658d2404"},
+    {file = "streamlit-0.69.1-py2.py3-none-any.whl", hash = "sha256:0630bbe2d29e4d2aed49d8dd7b1a1be26baa0def6ddd275f9cc33ae9a9f80af9"},
 ]
 stringcase = [
     {file = "stringcase-1.2.0.tar.gz", hash = "sha256:48a06980661908efe8d9d34eab2b6c13aefa2163b3ced26972902e3bdfd87008"},
