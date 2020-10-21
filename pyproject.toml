@@ -24,7 +24,7 @@ bokeh = "^2.1.0"
 dataclasses-json = "^0.5.1"
 opencv-python = "^4.2.0"
 poetry-version = "^0.1.5"
-pytorch-lightning = "^0.9.0"
+pytorch-lightning = ">=0.9,<1.1"
 # A list of all of the optional dependencies, some of which are included in the
 # below `extras`. They can be opted into by apps.
 wandb = { version = "^0.10", optional = true }
