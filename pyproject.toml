@@ -30,6 +30,7 @@ pytorch-lightning = ">=0.9,<1.1"
 wandb = { version = "^0.10", optional = true }
 dm-tree = "^0.1.5"
 tabulate = "^0.8.7"
+opencv-contrib-python = "^4.4.0"
 
 [tool.poetry.extras]
 wandb = ["wandb"]
