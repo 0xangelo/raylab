@@ -943,7 +943,7 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 name = "joblib"
 version = "0.16.0"
 description = "Lightweight pipelining: using Python functions as pipeline jobs."
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -1883,7 +1883,7 @@ botocore = ">=1.12.36,<2.0a.0"
 name = "scikit-learn"
 version = "0.23.2"
 description = "A set of python modules for machine learning and data mining"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -1900,7 +1900,7 @@ alldeps = ["numpy (>=1.13.3)", "scipy (>=0.19.1)"]
 name = "scipy"
 version = "1.5.2"
 description = "SciPy: Scientific Library for Python"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -1963,7 +1963,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 name = "sklearn"
 version = "0.0"
 description = "A set of python modules for machine learning and data mining"
-category = "dev"
+category = "main"
 optional = false
 python-versions = "*"
 
@@ -2222,7 +2222,7 @@ test = ["pathlib2"]
 name = "threadpoolctl"
 version = "2.1.0"
 description = "threadpoolctl"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.5"
 
@@ -2527,7 +2527,7 @@ wandb = ["wandb"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "a7e8b3cd2b96a7eef7b9b63b897dae6b0b69d674058b54075909e59dc412b453"
+content-hash = "d9b38cd7b4d40f8b1dd57e78fbbeb7a648ecd6071c22894465166467fbadb774"
 
 [metadata.files]
 absl-py = [
