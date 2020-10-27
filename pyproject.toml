@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "raylab"
-version = "0.14.13"
+version = "0.14.14"
 description = "Reinforcement learning algorithms in RLlib and PyTorch."
 authors = ["Ângelo Gregório Lovatto <angelolovatto@gmail.com>"]
 license = "MIT"
@@ -31,6 +31,7 @@ wandb = { version = "^0.10", optional = true }
 dm-tree = "^0.1.5"
 tabulate = "^0.8.7"
 opencv-contrib-python = "^4.4.0"
+sklearn = "^0.0"
 
 [tool.poetry.extras]
 wandb = ["wandb"]
@@ -52,7 +53,6 @@ ipython = "^7.18.1"
 pytest-mock = "^3.3.1"
 pytest-sugar = "^0.9.4"
 auto-changelog = "^0.5.1"
-sklearn = "^0.0"
 
 [tool.poetry.scripts]
 raylab = "raylab.cli:raylab"
