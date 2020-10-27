@@ -238,7 +238,7 @@ def test_test(trainer: LightningModelTrainer, holdout_ratio):
     pl_model: LightningModel = trainer.pl_model
     datamodule: DataModule = trainer.datamodule
 
-    pl_trainer = spec.training.build_trainer(check_val=False)
+    pl_trainer, _ = spec.training.build_trainer(check_val=False)
     assert isinstance(pl_trainer, pl.Trainer)
     datamodule.setup(None)
 
@@ -291,11 +291,14 @@ def test_checkpointing(build_trainer):
     pl_model = trainer.pl_model
     datamodule = trainer.datamodule
 
-    pl_trainer = spec.build_trainer(check_val=False)
+    pl_trainer, early_stopping = spec.build_trainer(check_val=False)
 
     before_params = copy.deepcopy(list(pl_model.parameters()))
-    losses, info = trainer.run_training(pl_model, pl_trainer, datamodule)
+    trainer.run_training(pl_model, pl_trainer, datamodule)
+    losses, info = early_stopping.loss
+    info.update(trainer.trainer_info(pl_trainer))
     assert info["model_epochs"] == patience + 1
 
+    trainer.check_early_stopping(early_stopping, pl_model)
     after_params = list(pl_model.parameters())
     assert not any([torch.allclose(b, a) for b, a in zip(before_params, after_params)])

@@ -36,6 +36,8 @@ from raylab.utils.types import TensorDict
 
 class LightningModel(pl.LightningModule):
     # pylint:disable=too-many-ancestors,arguments-differ,missing-docstring
+    early_stop_on = "early_stop_on"
+
     def __init__(self, model: nn.Module, loss: Loss, optimizer: Optimizer):
         super().__init__()
         self.model = model
@@ -51,29 +53,28 @@ class LightningModel(pl.LightningModule):
     def forward(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
         return self.train_loss(batch)
 
-    def training_step(self, batch: TensorDict, _) -> pl.TrainResult:
+    def training_step(self, batch: TensorDict, _) -> Tensor:
         loss, info = self.train_loss(batch)
         info = self.stat_to_tensor_dict(info)
-        result = pl.TrainResult(loss, early_stop_on=loss)
-        result.log("train/loss", loss)
-        result.log_dict({"train/" + k: v for k, v in info.items()})
-        return result
+        self.log("train/loss", loss)
+        self.log(self.early_stop_on, loss)
+        self.log_dict({"train/" + k: v for k, v in info.items()})
+        return loss
 
-    def validation_step(self, batch: TensorDict, _) -> pl.EvalResult:
+    def validation_step(self, batch: TensorDict, _) -> Tensor:
         loss, info = self.val_loss(batch)
         info = self.stat_to_tensor_dict(info)
-        result = pl.EvalResult(early_stop_on=loss)
-        result.log("val/loss", loss)
-        result.log_dict({"val/" + k: v for k, v in info.items()})
-        return result
+        self.log("val/loss", loss)
+        self.log(self.early_stop_on, loss)
+        self.log_dict({"val/" + k: v for k, v in info.items()})
+        return Tensor
 
-    def test_step(self, batch: TensorDict, _) -> pl.EvalResult:
+    def test_step(self, batch: TensorDict, _) -> Tensor:
         loss, info = self.test_loss(batch)
         info = self.stat_to_tensor_dict(info)
-        result = pl.EvalResult()
-        result.log("test/loss", loss)
-        result.log_dict({"test/" + k: v for k, v in info.items()})
-        return result
+        self.log("test/loss", loss)
+        self.log_dict({"test/" + k: v for k, v in info.items()})
+        return loss
 
     def stat_to_tensor_dict(self, info: StatDict) -> TensorDict:
         return {k: convert_to_tensor(v, self.device) for k, v in info.items()}
@@ -185,29 +186,35 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
     _loss: Tuple[List[float], StatDict] = None
     _module_state: Optional[dict] = None
 
-    def __warn_deprecated_monitor_key(self):
-        pass  # Disable annoying UserWarning
+    def setup(self, trainer, pl_module, stage: str):
+        super().setup(trainer, pl_module, stage)
+        self._train_outputs = []
+        self._val_outputs = []
 
     def on_train_epoch_start(self, trainer, pl_module):
         self._train_outputs = []
         super().on_train_epoch_start(trainer, pl_module)
 
-    def on_train_batch_end(self, trainer, pl_module, batch, batch_idx, dataloader_idx):
+    def on_train_batch_end(
+        self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
+    ):
         # pylint:disable=too-many-arguments
         self._train_outputs += [pl_module.val_loss.last_output]
-        super().on_train_batch_end(trainer, pl_module, batch, batch_idx, dataloader_idx)
+        super().on_train_batch_end(
+            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
+        )
 
     def on_validation_epoch_start(self, trainer, pl_module):
         self._val_outputs = []
         super().on_validation_epoch_start(trainer, pl_module)
 
     def on_validation_batch_end(
-        self, trainer, pl_module, batch, batch_idx, dataloader_idx
+        self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
     ):
         # pylint:disable=too-many-arguments
         self._val_outputs += [pl_module.val_loss.last_output]
         super().on_validation_batch_end(
-            trainer, pl_module, batch, batch_idx, dataloader_idx
+            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
 
     def _run_early_stopping_check(self, trainer, pl_module):
@@ -224,10 +231,8 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
                 self.save_outputs()
 
     def save_outputs(self):
-        if self.monitor == "val_early_stop_on":
-            epoch_outputs = self._val_outputs
-        else:
-            epoch_outputs = self._train_outputs
+        # Give preference to validation outputs
+        epoch_outputs = self._val_outputs or self._train_outputs
 
         epoch_losses, epoch_infos = zip(*epoch_outputs)
         model_losses = torch.stack(epoch_losses, dim=0).mean(dim=0).tolist()
@@ -237,16 +242,27 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
     def save_module_state(self, pl_module):
         self._module_state = copy.deepcopy(pl_module.state_dict())
 
-    def state_dict(self):
-        state = super().state_dict()
+    @property
+    def loss(self) -> Tuple[Tensor, TensorDict]:
+        return self._loss
+
+    @property
+    def module_state(self) -> dict:
+        return self._module_state
+
+    def on_save_checkpoint(self, trainer, pl_module):
+        state = super().on_save_checkpoint(trainer, pl_module)
         state.update(loss=self._loss, module=self._module_state)
         return state
 
-    def load_state_dict(self, state_dict):
+    def on_load_checkpoint(self, checkpointed_state):
+        state_dict = checkpointed_state
         self._loss = state_dict["loss"]
         self._module_state = copy.deepcopy(state_dict["module"])
         used = set("loss module".split())
-        super().load_state_dict({k: v for k, v in state_dict.items() if k not in used})
+        super().on_load_checkpoint(
+            {k: v for k, v in state_dict.items() if k not in used}
+        )
 
 
 # ======================================================================================
@@ -288,21 +304,24 @@ class LightningTrainerSpec(DataClassJsonMixin):
     def build_trainer(self, check_val: bool) -> pl.Trainer:
         """Returns the Pytorch Lightning configured with this spec."""
         early_stopping = EarlyStopping(
+            monitor=LightningModel.early_stop_on,
             min_delta=self.improvement_delta,
             patience=self.patience,
             mode="min",
             strict=False,
         )
-        return pl.Trainer(
+        trainer = pl.Trainer(
             logger=False,
             num_sanity_val_steps=2 if check_val else 0,
-            early_stop_callback=early_stopping,
+            checkpoint_callback=False,
+            callbacks=[early_stopping],
             max_epochs=self.max_epochs,
             max_steps=self.max_steps,
             progress_bar_refresh_rate=0,
             track_grad_norm=2,
             # gradient_clip_val=1e4,  # Broken
         )
+        return trainer, early_stopping
 
 
 @dataclass
@@ -370,11 +389,14 @@ class LightningModelTrainer:
         self.pl_model.configure_losses(loss_fn)
 
         trainer_spec = self.spec.warmup if warmup else self.spec.training
-        trainer = trainer_spec.build_trainer(check_val=warmup)
+        trainer, early_stopping = trainer_spec.build_trainer(check_val=warmup)
 
-        losses, info = self.run_training(
+        self.run_training(
             model=self.pl_model, trainer=trainer, datamodule=self.datamodule
         )
+        losses, info = early_stopping.loss
+        info.update(self.trainer_info(trainer))
+        self.check_early_stopping(early_stopping, self.pl_model)
         return losses, info
 
     @staticmethod
@@ -382,20 +404,25 @@ class LightningModelTrainer:
     @supress_stdout
     def run_training(
         model: LightningModel, trainer: pl.Trainer, datamodule: DataModule
-    ) -> Tuple[List[float], StatDict]:
+    ):
         """Trains model and handles checkpointing."""
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", module="pytorch_lightning*")
             trainer.fit(model, datamodule=datamodule)
 
-        saved_state = trainer.early_stop_callback.state_dict()
-        losses, info = saved_state["loss"]
-        if saved_state["module"]:
-            model.load_state_dict(saved_state["module"])
-        info.update(
+    @staticmethod
+    def trainer_info(trainer: pl.Trainer) -> dict:
+        """Returns a dictionary of training run info."""
+        return dict(
             model_epochs=trainer.current_epoch + 1, model_steps=trainer.global_step
         )
-        return losses, info
+
+    @staticmethod
+    def check_early_stopping(early_stopping: EarlyStopping, model: LightningModel):
+        """Restore best model parameters if training was early stopped."""
+        saved_state = early_stopping.module_state
+        if saved_state:
+            model.load_state_dict(saved_state)
 
     @staticmethod
     def add_options(cls_: type) -> type:
