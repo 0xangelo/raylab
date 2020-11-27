@@ -1,7 +1,6 @@
 """NN modules for stochastic dynamics estimation."""
 from dataclasses import dataclass
 from typing import List
-from typing import Tuple
 
 import torch
 import torch.nn as nn
@@ -11,10 +10,8 @@ from torch import Tensor
 import raylab.torch.nn as nnx
 import raylab.torch.nn.distributions as ptd
 from raylab.policy.modules.networks.mlp import StateActionMLP
+from raylab.torch.nn.distributions.types import SampleLogp
 from raylab.utils.types import TensorDict
-
-
-SampleLogp = Tuple[Tensor, Tensor]
 
 
 class StochasticModel(nn.Module):
