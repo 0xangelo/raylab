@@ -107,7 +107,13 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
 
         # Creating all workers (excluding evaluation workers).
         num_workers = config["num_workers"]
-        self.workers = self._make_workers(env_creator, cls, config, num_workers)
+        self.workers = self._make_workers(
+            env_creator=env_creator,
+            validate_env=None,
+            policy_class=cls,
+            config=config,
+            num_workers=num_workers,
+        )
         self.train_exec_impl = self.execution_plan(self.workers, config)
         self.wandb = WandBLogger(config, self._name)
 
