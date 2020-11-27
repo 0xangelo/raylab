@@ -1812,7 +1812,7 @@ python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*"
 
 [[package]]
 name = "ray"
-version = "1.0.0"
+version = "1.0.1.post1"
 description = "A system for parallel and distributed Python that unifies the ML ecosystem."
 category = "main"
 optional = false
@@ -1850,9 +1850,9 @@ tabulate = {version = "*", optional = true, markers = "extra == \"rllib\""}
 tensorboardX = {version = "*", optional = true, markers = "extra == \"rllib\""}
 
 [package.extras]
-all = ["flask", "pandas", "tensorboardx", "tabulate", "lz4", "pydantic", "opencv-python-headless (<=4.3.0.36)", "dm-tree", "gym", "scipy", "atari-py", "requests", "uvicorn", "pyyaml", "dataclasses"]
+all = ["pydantic (<1.7)", "dm-tree", "scipy", "uvicorn", "tabulate", "lz4", "pandas", "tensorboardx", "opencv-python-headless (<=4.3.0.36)", "pyyaml", "requests", "flask", "gym", "atari-py", "dataclasses"]
 rllib = ["tabulate", "tensorboardx", "pandas", "atari-py", "dm-tree", "gym", "lz4", "opencv-python-headless (<=4.3.0.36)", "pyyaml", "scipy", "dataclasses"]
-serve = ["uvicorn", "flask", "requests", "pydantic", "dataclasses"]
+serve = ["uvicorn", "flask", "requests", "pydantic (<1.7)", "dataclasses"]
 tune = ["tabulate", "tensorboardx", "pandas", "dataclasses"]
 
 [[package]]
@@ -3777,15 +3777,15 @@ pyzmq = [
     {file = "pyzmq-19.0.2.tar.gz", hash = "sha256:296540a065c8c21b26d63e3cea2d1d57902373b16e4256afe46422691903a438"},
 ]
 ray = [
-    {file = "ray-1.0.0-cp36-cp36m-macosx_10_13_intel.whl", hash = "sha256:0980987239e86bbadd657250423b3c7e1ea74166a78fed5976d44de7f4331683"},
-    {file = "ray-1.0.0-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:250ab7926d0b7899cbc6b0d184385243109316588858d8a6f2c5a9293cecebf2"},
-    {file = "ray-1.0.0-cp36-cp36m-win_amd64.whl", hash = "sha256:9dd1362a3b1d6585420f2d9ad42914603c82ba98dc545170584d1d81f0524f67"},
-    {file = "ray-1.0.0-cp37-cp37m-macosx_10_13_intel.whl", hash = "sha256:920cc9f548bb027f9b63653ea7383f415cbc0f421e4c0da5d98d88e74740ecb5"},
-    {file = "ray-1.0.0-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:2b2e0ee5e655c554fe64e46e1d74b542a1146941dddebb1f6c92a69124c3acb9"},
-    {file = "ray-1.0.0-cp37-cp37m-win_amd64.whl", hash = "sha256:9dfae047d6943020117b1f7334ea1ac3deeefcbf2e1223e3052565caddd3022a"},
-    {file = "ray-1.0.0-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:15bc3e3c0261d2722c72e63293591ea37fded51f7bf882274ff7cfcca9e135fd"},
-    {file = "ray-1.0.0-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:7561b3109aaecf11d4c32c1ebbc8f5a496e596851eb37ebea81cabadc3d84758"},
-    {file = "ray-1.0.0-cp38-cp38-win_amd64.whl", hash = "sha256:5ab4b2b09cc008664ca019e08ab4855ca4e4fcab9db1db43f83d0820d757ba76"},
+    {file = "ray-1.0.1.post1-cp36-cp36m-macosx_10_13_intel.whl", hash = "sha256:b8fbab803e7b35b1924b80cbf93f6bd680dfa08954dcf24fd23079d5f43561e2"},
+    {file = "ray-1.0.1.post1-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:1f2505ada0070054378f91fd6092d4cf9f93f893865dcc7a81fa8a34fed0eb5c"},
+    {file = "ray-1.0.1.post1-cp36-cp36m-win_amd64.whl", hash = "sha256:61fddc7bd37b17104f0bb88a772c157bb14e2dfc82a9a79a9173b784fa689f6f"},
+    {file = "ray-1.0.1.post1-cp37-cp37m-macosx_10_13_intel.whl", hash = "sha256:f482528b4c79fe4eb255ccd802a00902ce711016ee3bd32a7d9d89ca9cf8b42d"},
+    {file = "ray-1.0.1.post1-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:a4f7a7385848d8e747e6b5bb9d7eaf469854ec341dfe81c88858703af7d16516"},
+    {file = "ray-1.0.1.post1-cp37-cp37m-win_amd64.whl", hash = "sha256:581adb37ee0f88b662f672b06a2ac91b5736087b38b84d64f2191a90a6e177c7"},
+    {file = "ray-1.0.1.post1-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:e1ef2a45143e820766c2600420a7125929939127f830da353afd04f2348f9147"},
+    {file = "ray-1.0.1.post1-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:8323a41ff2b6abdebc7220226c6267e0a4b68c3e29f6cd4797d2046143a9cfc7"},
+    {file = "ray-1.0.1.post1-cp38-cp38-win_amd64.whl", hash = "sha256:105374a6551a18058cfe77dc09042b8f3df1d56d801db4b6a93ee7b473fc0e94"},
 ]
 redis = [
     {file = "redis-3.4.1-py2.py3-none-any.whl", hash = "sha256:b205cffd05ebfd0a468db74f0eedbff8df1a7bfc47521516ade4692991bb0833"},
