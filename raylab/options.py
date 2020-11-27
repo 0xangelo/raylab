@@ -430,6 +430,11 @@ COMMON_INFO = {
     Number of environments to evaluate vectorwise per worker. This enables
     model inference batching, which can improve performance for inference
     bottlenecked workloads.""",
+    "create_env_on_driver": """\
+    When `num_workers` > 0, the driver (local_worker; worker-idx=0) does not
+    need an environment. This is because it doesn't have to sample (done by
+    remote_workers; worker_indices > 0) nor evaluate (done by evaluation
+    workers; see below).""",
     "rollout_fragment_length": """\
     Divide episodes into fragments of this many steps each during rollouts.
     Sample batches of this size are collected from rollout workers and
@@ -527,9 +532,6 @@ COMMON_INFO = {
     Enable tracing in eager mode. This greatly improves performance, but
     makes it slightly harder to debug since Python code won't be evaluated
     after the initial eager pass. Only possible if framework=tfe.""",
-    "no_eager_on_workers": """\
-    Disable eager execution on workers (but allow it on the driver). This
-    only has an effect if eager is enabled.""",
     # === Exploration Settings ===
     "explore": """\
     Default exploration behavior, iff `explore`=None is passed into
