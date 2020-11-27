@@ -20,7 +20,7 @@ def get_config():
         # Learning rate
         "lr": 0.001,
         # Use PyTorch as backend
-        "use_pytorch": True,
+        "framework": "torch",
         # === RolloutWorker ===
         "num_workers": 0,
         "rollout_fragment_length": 1000,
