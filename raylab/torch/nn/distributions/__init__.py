@@ -1,5 +1,6 @@
 """Distributions as PyTorch modules compatible with TorchScript."""
 from . import flows
+from . import types
 from .abstract import ConditionalDistribution
 from .abstract import Distribution
 from .abstract import Independent
@@ -10,6 +11,7 @@ from .uniform import Uniform
 
 __all__ = [
     "flows",
+    "types",
     "ConditionalDistribution",
     "Distribution",
     "Independent",
