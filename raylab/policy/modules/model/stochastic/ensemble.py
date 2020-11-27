@@ -1,6 +1,5 @@
 """Network and configurations for modules with stochastic model ensembles."""
 from typing import List
-from typing import Tuple
 
 import torch
 import torch.nn as nn
@@ -8,11 +7,10 @@ from torch import Tensor
 from torch.jit import fork
 from torch.jit import wait
 
+from raylab.torch.nn.distributions.types import SampleLogp
 from raylab.utils.types import TensorDict
 
 from .single import StochasticModel
-
-SampleLogp = Tuple[Tensor, Tensor]
 
 
 class SME(nn.ModuleList):
