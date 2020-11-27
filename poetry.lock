@@ -2513,7 +2513,7 @@ kubeflow = ["kubernetes", "minio", "google-cloud-storage", "sh"]
 
 [[package]]
 name = "watchdog"
-version = "0.10.3"
+version = "0.10.4"
 description = "Filesystem events monitoring"
 category = "main"
 optional = false
@@ -2603,7 +2603,7 @@ wandb = ["wandb"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "784696f545c7860b3c5e76f98080abe8046207c2a7743f9219465874f08a0947"
+content-hash = "4a88e51768b8f3b4f9e6d2ccf8704e74c721fc4dfd8136e1db7fb082aecdecf7"
 
 [metadata.files]
 absl-py = [
@@ -4077,7 +4077,7 @@ wandb = [
     {file = "wandb-0.10.11.tar.gz", hash = "sha256:2c9fde03b86467d9e2e78774ac26de326749d1cb01c1cb7271ab42f637bf3b53"},
 ]
 watchdog = [
-    {file = "watchdog-0.10.3.tar.gz", hash = "sha256:4214e1379d128b0588021880ccaf40317ee156d4603ac388b9adcf29165e0c04"},
+    {file = "watchdog-0.10.4.tar.gz", hash = "sha256:e38bffc89b15bafe2a131f0e1c74924cf07dcec020c2e0a26cccd208831fcd43"},
 ]
 wcwidth = [
     {file = "wcwidth-0.2.5-py2.py3-none-any.whl", hash = "sha256:beb4802a9cebb9144e99086eff703a642a13d6a0052920003a230f3294bbe784"},
