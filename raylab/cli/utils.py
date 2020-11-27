@@ -66,7 +66,7 @@ def tune_options(func):
     No need to process these in the wrapped function.
     """
 
-    @click.option("--name", default=None, help="Name of experiment")
+    @click.option("--name", default=None, help="Name of experiment", required=True)
     @click.option(
         "--local-dir",
         "-l",
