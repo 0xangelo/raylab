@@ -20,6 +20,7 @@ from ray.rllib.utils import override
 from ray.rllib.utils.torch_ops import convert_to_non_torch_type
 from ray.rllib.utils.torch_ops import convert_to_torch_tensor
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
+from ray.rllib.utils.typing import ModelGradients
 from ray.rllib.utils.typing import TensorType
 from ray.tune.logger import pretty_print
 from torch import Tensor
@@ -31,6 +32,7 @@ from raylab.torch.utils import convert_to_tensor
 from raylab.utils.types import StatDict
 from raylab.utils.types import TensorDict
 
+from .compat import WrapRawModule
 from .modules import get_module
 from .optimizer_collection import OptimizerCollection
 
@@ -75,12 +77,12 @@ class TorchPolicy(Policy):
         options: Configuration object for this class
     """
 
-    # pylint:disable=abstract-method
     observation_space: Space
     action_space: Space
     config: dict
     global_config: dict
     device: torch.device
+    model: WrapRawModule
     module: nn.Module
     optimizers: OptimizerCollection
     options: RaylabOptions = RaylabOptions()
@@ -93,6 +95,13 @@ class TorchPolicy(Policy):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.module = self._make_module(observation_space, action_space, self.config)
         self.module.to(self.device)
+        self.model = WrapRawModule(
+            self.observation_space,
+            self.action_space,
+            self.module,
+            num_outputs=1,
+            model_config=self.config["module"],
+        )
 
         self.optimizers = self._make_optimizers()
 
@@ -123,14 +132,6 @@ class TorchPolicy(Policy):
             "seed",
             "worker_index",
         }
-
-    @property
-    def model(self):
-        """The policy's NN module.
-
-        Mostly for compatibility with RLlib's API.
-        """
-        return self.module
 
     def compile(self):
         """Optimize modules with TorchScript.
@@ -177,7 +178,7 @@ class TorchPolicy(Policy):
         )
 
         # pylint:disable=not-callable
-        action_dist = self.dist_class(dist_inputs, self.module)
+        action_dist = self.dist_class(dist_inputs, self.model)
         # pylint:enable=not-callable
         actions, logp = self.exploration.get_exploration_action(
             action_distribution=action_dist, timestep=timestep, explore=explore
@@ -294,6 +295,14 @@ class TorchPolicy(Policy):
             args_repr = " ".join(args[1:-1])
             constructor = f"{name}({args_repr})"
         return constructor
+
+    def apply_gradients(self, gradients: ModelGradients) -> None:
+        pass
+
+    def compute_gradients(
+        self, postprocessed_batch: SampleBatch
+    ) -> Tuple[ModelGradients, Dict[str, TensorType]]:
+        pass
 
     # ==========================================================================
     # InternalAPI

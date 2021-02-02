@@ -236,21 +236,6 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
-name = "beautifulsoup4"
-version = "4.9.3"
-description = "Screen-scraping library"
-category = "main"
-optional = false
-python-versions = "*"
-
-[package.dependencies]
-soupsieve = {version = ">1.2", markers = "python_version >= \"3.0\""}
-
-[package.extras]
-html5lib = ["html5lib"]
-lxml = ["lxml"]
-
-[[package]]
 name = "black"
 version = "20.8b1"
 description = "The uncompromising code formatter."
@@ -597,17 +582,6 @@ python-versions = ">=3.4"
 
 [package.dependencies]
 gitdb = ">=4.0.1,<5"
-
-[[package]]
-name = "google"
-version = "3.0.0"
-description = "Python bindings to the Google search engine."
-category = "main"
-optional = false
-python-versions = "*"
-
-[package.dependencies]
-beautifulsoup4 = "*"
 
 [[package]]
 name = "google-api-core"
@@ -1763,7 +1737,7 @@ py = {version = "*", markers = "implementation_name === \"pypy\""}
 
 [[package]]
 name = "ray"
-version = "1.0.1.post1"
+version = "1.1.0"
 description = "A system for parallel and distributed Python that unifies the ML ecosystem."
 category = "main"
 optional = false
@@ -1779,7 +1753,6 @@ colorama = "*"
 colorful = "*"
 dm-tree = {version = "*", optional = true, markers = "extra == \"rllib\""}
 filelock = "*"
-google = "*"
 gpustat = "*"
 grpcio = ">=1.28.1"
 gym = {version = "*", extras = ["atari"], optional = true, markers = "extra == \"rllib\""}
@@ -1794,21 +1767,22 @@ prometheus-client = ">=0.7.1"
 protobuf = ">=3.8.0"
 py-spy = ">=0.2.0"
 pyyaml = "*"
-redis = ">=3.3.2,<3.5.0"
+redis = ">=3.5.0"
 requests = "*"
 scipy = {version = "*", optional = true, markers = "extra == \"rllib\""}
 tabulate = {version = "*", optional = true, markers = "extra == \"rllib\""}
 tensorboardX = {version = "*", optional = true, markers = "extra == \"rllib\""}
 
 [package.extras]
-all = ["pydantic (<1.7)", "dm-tree", "scipy", "uvicorn", "tabulate", "lz4", "pandas", "tensorboardx", "opencv-python-headless (<=4.3.0.36)", "pyyaml", "requests", "flask", "gym", "atari-py", "dataclasses"]
-rllib = ["tabulate", "tensorboardx", "pandas", "atari-py", "dm-tree", "gym", "lz4", "opencv-python-headless (<=4.3.0.36)", "pyyaml", "scipy", "dataclasses"]
+all = ["pydantic (<1.7)", "gym", "tensorboardx", "requests", "uvicorn", "dm-tree", "lz4", "scipy", "pandas", "pyyaml", "flask", "atari-py", "kubernetes", "tabulate", "opencv-python-headless (<=4.3.0.36)", "dataclasses"]
+k8s = ["kubernetes"]
+rllib = ["pandas", "tabulate", "tensorboardx", "atari-py", "dm-tree", "gym", "lz4", "opencv-python-headless (<=4.3.0.36)", "pyyaml", "scipy", "dataclasses"]
 serve = ["uvicorn", "flask", "requests", "pydantic (<1.7)", "dataclasses"]
-tune = ["tabulate", "tensorboardx", "pandas", "dataclasses"]
+tune = ["pandas", "tabulate", "tensorboardx", "dataclasses"]
 
 [[package]]
 name = "redis"
-version = "3.4.1"
+version = "3.5.3"
 description = "Python client for Redis key-value store"
 category = "main"
 optional = false
@@ -1986,14 +1960,6 @@ description = "This package provides 26 stemmers for 25 languages generated from
 category = "dev"
 optional = false
 python-versions = "*"
-
-[[package]]
-name = "soupsieve"
-version = "2.0.1"
-description = "A modern CSS selector implementation for Beautiful Soup."
-category = "main"
-optional = false
-python-versions = ">=3.5"
 
 [[package]]
 name = "sphinx"
@@ -2680,11 +2646,6 @@ base58 = [
     {file = "base58-2.0.1-py3-none-any.whl", hash = "sha256:447adc750d6b642987ffc6d397ecd15a799852d5f6a1d308d384500243825058"},
     {file = "base58-2.0.1.tar.gz", hash = "sha256:365c9561d9babac1b5f18ee797508cd54937a724b6e419a130abad69cec5ca79"},
 ]
-beautifulsoup4 = [
-    {file = "beautifulsoup4-4.9.3-py2-none-any.whl", hash = "sha256:4c98143716ef1cb40bf7f39a8e3eec8f8b009509e74904ba3a7b315431577e35"},
-    {file = "beautifulsoup4-4.9.3-py3-none-any.whl", hash = "sha256:fff47e031e34ec82bf17e00da8f592fe7de69aeea38be00523c04623c04fb666"},
-    {file = "beautifulsoup4-4.9.3.tar.gz", hash = "sha256:84729e322ad1d5b4d25f805bfa05b902dd96450f43842c4e99067d5e1369eb25"},
-]
 black = [
     {file = "black-20.8b1.tar.gz", hash = "sha256:1c02557aa099101b9d21496f8a914e9ed2222ef70336404eeeac8edba836fbea"},
 ]
@@ -2903,10 +2864,6 @@ gitdb = [
 gitpython = [
     {file = "GitPython-3.1.11-py3-none-any.whl", hash = "sha256:6eea89b655917b500437e9668e4a12eabdcf00229a0df1762aabd692ef9b746b"},
     {file = "GitPython-3.1.11.tar.gz", hash = "sha256:befa4d101f91bad1b632df4308ec64555db684c360bd7d2130b4807d49ce86b8"},
-]
-google = [
-    {file = "google-3.0.0-py2.py3-none-any.whl", hash = "sha256:889cf695f84e4ae2c55fbc0cfdaf4c1e729417fa52ab1db0485202ba173e4935"},
-    {file = "google-3.0.0.tar.gz", hash = "sha256:143530122ee5130509ad5e989f0512f7cb218b2d4eddbafbad40fd10e8d8ccbe"},
 ]
 google-api-core = [
     {file = "google-api-core-1.23.0.tar.gz", hash = "sha256:1bb3c485c38eacded8d685b1759968f6cf47dd9432922d34edb90359eaa391e2"},
@@ -3772,19 +3729,19 @@ pyzmq = [
     {file = "pyzmq-20.0.0.tar.gz", hash = "sha256:824ad5888331aadeac772bce27e1c2fbcab82fade92edbd234542c4e12f0dca9"},
 ]
 ray = [
-    {file = "ray-1.0.1.post1-cp36-cp36m-macosx_10_13_intel.whl", hash = "sha256:b8fbab803e7b35b1924b80cbf93f6bd680dfa08954dcf24fd23079d5f43561e2"},
-    {file = "ray-1.0.1.post1-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:1f2505ada0070054378f91fd6092d4cf9f93f893865dcc7a81fa8a34fed0eb5c"},
-    {file = "ray-1.0.1.post1-cp36-cp36m-win_amd64.whl", hash = "sha256:61fddc7bd37b17104f0bb88a772c157bb14e2dfc82a9a79a9173b784fa689f6f"},
-    {file = "ray-1.0.1.post1-cp37-cp37m-macosx_10_13_intel.whl", hash = "sha256:f482528b4c79fe4eb255ccd802a00902ce711016ee3bd32a7d9d89ca9cf8b42d"},
-    {file = "ray-1.0.1.post1-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:a4f7a7385848d8e747e6b5bb9d7eaf469854ec341dfe81c88858703af7d16516"},
-    {file = "ray-1.0.1.post1-cp37-cp37m-win_amd64.whl", hash = "sha256:581adb37ee0f88b662f672b06a2ac91b5736087b38b84d64f2191a90a6e177c7"},
-    {file = "ray-1.0.1.post1-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:e1ef2a45143e820766c2600420a7125929939127f830da353afd04f2348f9147"},
-    {file = "ray-1.0.1.post1-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:8323a41ff2b6abdebc7220226c6267e0a4b68c3e29f6cd4797d2046143a9cfc7"},
-    {file = "ray-1.0.1.post1-cp38-cp38-win_amd64.whl", hash = "sha256:105374a6551a18058cfe77dc09042b8f3df1d56d801db4b6a93ee7b473fc0e94"},
+    {file = "ray-1.1.0-cp36-cp36m-macosx_10_13_intel.whl", hash = "sha256:a232253eb2893050067fc37055e5f2b82c856c7c9a32aa21f5bd55c30dc3b14c"},
+    {file = "ray-1.1.0-cp36-cp36m-manylinux2014_x86_64.whl", hash = "sha256:59ede233f6bb3e1e892af9e762a2a606dc8793da8c49c3ab1516426a21e230fc"},
+    {file = "ray-1.1.0-cp36-cp36m-win_amd64.whl", hash = "sha256:963d1ea62a101520aa0968d285d93363e324238c8fbb07035b6bac6dc626e636"},
+    {file = "ray-1.1.0-cp37-cp37m-macosx_10_13_intel.whl", hash = "sha256:c79e62df71503752fabe93466c6d327cfccf090d9e506a0d192ceae6e988e5e6"},
+    {file = "ray-1.1.0-cp37-cp37m-manylinux2014_x86_64.whl", hash = "sha256:3fa8498a5381037eac682b27105b16aa1908e296f9dd3c1595c478d70827ec79"},
+    {file = "ray-1.1.0-cp37-cp37m-win_amd64.whl", hash = "sha256:6281d06b16920052988f2e01d66a379e705b0c139a16c4e3c0159cf29c6aa789"},
+    {file = "ray-1.1.0-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:1e439230e7d5e10413c189b7d88ed920c8d6ad5629f7e2db6eb4e21df2083273"},
+    {file = "ray-1.1.0-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:0776c6b7a81794c96238417afc33e8bc5d62d05c56a9ee66708ea414bf62fe0d"},
+    {file = "ray-1.1.0-cp38-cp38-win_amd64.whl", hash = "sha256:18983d1f77f27e9de256d53be596e92b04fa2e614f3800faf5c92e11484f39ab"},
 ]
 redis = [
-    {file = "redis-3.4.1-py2.py3-none-any.whl", hash = "sha256:b205cffd05ebfd0a468db74f0eedbff8df1a7bfc47521516ade4692991bb0833"},
-    {file = "redis-3.4.1.tar.gz", hash = "sha256:0dcfb335921b88a850d461dc255ff4708294943322bd55de6cfd68972490ca1f"},
+    {file = "redis-3.5.3-py2.py3-none-any.whl", hash = "sha256:432b788c4530cfe16d8d943a09d40ca6c16149727e4afe8c2c9d5580c59d9f24"},
+    {file = "redis-3.5.3.tar.gz", hash = "sha256:0e7e0cfca8660dea8b7d5cd8c4f6c5e29e11f31158c0b0ae91a397f00e5a05a2"},
 ]
 regex = [
     {file = "regex-2020.11.13-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:8b882a78c320478b12ff024e81dc7d43c1462aa4a3341c754ee65d857a521f85"},
@@ -3917,10 +3874,6 @@ smmap = [
 snowballstemmer = [
     {file = "snowballstemmer-2.0.0-py2.py3-none-any.whl", hash = "sha256:209f257d7533fdb3cb73bdbd24f436239ca3b2fa67d56f6ff88e86be08cc5ef0"},
     {file = "snowballstemmer-2.0.0.tar.gz", hash = "sha256:df3bac3df4c2c01363f3dd2cfa78cce2840a79b9f1c2d2de9ce8d31683992f52"},
-]
-soupsieve = [
-    {file = "soupsieve-2.0.1-py3-none-any.whl", hash = "sha256:1634eea42ab371d3d346309b93df7870a88610f0725d47528be902a0d95ecc55"},
-    {file = "soupsieve-2.0.1.tar.gz", hash = "sha256:a59dc181727e95d25f781f0eb4fd1825ff45590ec8ff49eadfd7f1a537cc0232"},
 ]
 sphinx = [
     {file = "Sphinx-3.4.3-py3-none-any.whl", hash = "sha256:c314c857e7cd47c856d2c5adff514ac2e6495f8b8e0f886a8a37e9305dfea0d8"},
