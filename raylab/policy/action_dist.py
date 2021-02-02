@@ -36,6 +36,10 @@ class IncompatibleDistClsError(Exception):
 class BaseActionDist(ActionDistribution, metaclass=ABCMeta):
     """Base class for TorchPolicy action distributions."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.module = self.model.module
+
     @classmethod
     def check_model_compat(cls, model: nn.Module):
         """Assert the given NN module is compatible with the distribution.
@@ -69,21 +73,21 @@ class WrapStochasticPolicy(BaseActionDist):
         self._sampled_logp = None
 
     def sample(self):
-        action, logp = self.model.actor.sample(**self.inputs)
+        action, logp = self.module.actor.sample(**self.inputs)
         self._sampled_logp = logp
         return action, logp
 
     def deterministic_sample(self):
-        return self.model.actor.deterministic(**self.inputs)
+        return self.module.actor.deterministic(**self.inputs)
 
     def sampled_action_logp(self):
         return self._sampled_logp
 
     def logp(self, x):
-        return self.model.actor.log_prob(value=x, **self.inputs)
+        return self.module.actor.log_prob(value=x, **self.inputs)
 
     def entropy(self):
-        return self.model.actor.entropy(**self.inputs)
+        return self.module.actor.entropy(**self.inputs)
 
     @classmethod
     def _check_model_compat(cls, model):
@@ -104,11 +108,11 @@ class WrapDeterministicPolicy(BaseActionDist):
     valid_actor_cls = valid_behavior_cls = DeterministicPolicy
 
     def sample(self):
-        action = self.model.behavior(**self.inputs)
+        action = self.module.behavior(**self.inputs)
         return action, None
 
     def deterministic_sample(self):
-        return self.model.actor(**self.inputs), None
+        return self.module.actor(**self.inputs), None
 
     def sampled_action_logp(self):
         return None

@@ -40,9 +40,11 @@ class BaseExploration(Exploration, metaclass=ABCMeta):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         try:
-            self.check_model_compat(self.model)
+            self.check_model_compat(self.model.module)
         except AssertionError as err:
-            raise IncompatibleExplorationError(type(self), self.model, err)
+            raise IncompatibleExplorationError(
+                type(self), self.model.module, err
+            ) from err
 
     @classmethod
     @abstractmethod

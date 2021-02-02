@@ -75,14 +75,18 @@ def test_trainer_restore(trainer):
 
 @pytest.fixture
 def worker_kwargs():
-    return {"rollout_fragment_length": 200, "batch_mode": "truncate_episodes"}
+    return {
+        "rollout_fragment_length": 200,
+        "batch_mode": "truncate_episodes",
+        "_use_trajectory_view_api": False,
+    }
 
 
 @pytest.fixture
 def worker(env_name, policy_cls, worker_kwargs):
     return RolloutWorker(
         env_creator=get_env_creator(env_name),
-        policy=policy_cls,
+        policy_spec=policy_cls,
         policy_config={"env": env_name},
         **worker_kwargs,
     )
@@ -100,5 +104,10 @@ def test_compute_single_action(env_, env_name, policy_cls):
 
 
 def test_policy_in_rollout_worker(worker):
+    policy = worker.get_policy()
+    _, _, extra_fetches = policy.compute_single_action(
+        policy.observation_space.sample()
+    )
     traj = worker.sample()
     assert isinstance(traj, SampleBatch)
+    assert all([k in traj for k in extra_fetches])

@@ -44,12 +44,12 @@ class GaussianNoise(RandomUniform):
     def _inject_gaussian_noise(
         self, action_distribution: BaseActionDist
     ) -> Tuple[Tensor, None]:
-        model, inputs = action_distribution.model, action_distribution.inputs
-        unconstrained_action = model.behavior.unconstrained_action(**inputs)
+        module, inputs = action_distribution.module, action_distribution.inputs
+        unconstrained_action = module.behavior.unconstrained_action(**inputs)
         unconstrained_action += (
             torch.randn_like(unconstrained_action) * self._noise_stddev
         )
-        action = model.behavior.squash_action(unconstrained_action)
+        action = module.behavior.squash_action(unconstrained_action)
         return action, None
 
     @classmethod
