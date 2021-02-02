@@ -1334,6 +1334,14 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
+name = "pathtools"
+version = "0.1.2"
+description = "File system general utilities"
+category = "main"
+optional = true
+python-versions = "*"
+
+[[package]]
 name = "pexpect"
 version = "4.8.0"
 description = "Pexpect allows easy control of interactive console applications."
@@ -2385,7 +2393,7 @@ testing = ["coverage (>=4)", "coverage-enable-subprocess (>=1)", "flaky (>=3)", 
 
 [[package]]
 name = "wandb"
-version = "0.10.12"
+version = "0.10.17"
 description = "A CLI and library for interacting with the Weights and Biases API."
 category = "main"
 optional = true
@@ -2396,6 +2404,7 @@ Click = ">=7.0"
 configparser = ">=3.8.1"
 docker-pycreds = ">=0.4.0"
 GitPython = ">=1.0.0"
+pathtools = "*"
 promise = ">=2.0,<3"
 protobuf = ">=3.12.0"
 psutil = ">=5.0.0"
@@ -2406,7 +2415,6 @@ sentry-sdk = ">=0.4.0"
 shortuuid = ">=0.5.0"
 six = ">=1.13.0"
 subprocess32 = ">=3.5.3"
-watchdog = ">=0.8.3"
 
 [package.extras]
 aws = ["boto3"]
@@ -2712,6 +2720,7 @@ cffi = [
     {file = "cffi-1.14.4-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:840793c68105fe031f34d6a086eaea153a0cd5c491cde82a74b420edd0a2b909"},
     {file = "cffi-1.14.4-cp39-cp39-manylinux1_i686.whl", hash = "sha256:b18e0a9ef57d2b41f5c68beefa32317d286c3d6ac0484efd10d6e07491bb95dd"},
     {file = "cffi-1.14.4-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:045d792900a75e8b1e1b0ab6787dd733a8190ffcf80e8c8ceb2fb10a29ff238a"},
+    {file = "cffi-1.14.4-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:7ef7d4ced6b325e92eb4d3502946c78c5367bc416398d387b39591532536734e"},
     {file = "cffi-1.14.4-cp39-cp39-win32.whl", hash = "sha256:ba4e9e0ae13fc41c6b23299545e5ef73055213e466bd107953e4a013a5ddd7e3"},
     {file = "cffi-1.14.4-cp39-cp39-win_amd64.whl", hash = "sha256:f032b34669220030f905152045dfa27741ce1a6db3324a5bc0b96b6c7420c87b"},
     {file = "cffi-1.14.4.tar.gz", hash = "sha256:1a465cbe98a7fd391d47dce4b8f7e5b921e6cd805ef421d04f5f66ba8f06086c"},
@@ -3455,6 +3464,9 @@ pathspec = [
     {file = "pathspec-0.8.1-py2.py3-none-any.whl", hash = "sha256:aa0cb481c4041bf52ffa7b0d8fa6cd3e88a2ca4879c533c9153882ee2556790d"},
     {file = "pathspec-0.8.1.tar.gz", hash = "sha256:86379d6b86d75816baba717e64b1a3a3469deb93bb76d613c9ce79edc5cb68fd"},
 ]
+pathtools = [
+    {file = "pathtools-0.1.2.tar.gz", hash = "sha256:7c35c5421a39bb82e58018febd90e3b6e5db34c5443aaaf742b3f33d4655f1c0"},
+]
 pexpect = [
     {file = "pexpect-4.8.0-py2.py3-none-any.whl", hash = "sha256:0b48a55dcb3c05f3329815901ea4fc1537514d6ba867a152b581d69ae3710937"},
     {file = "pexpect-4.8.0.tar.gz", hash = "sha256:fc65a43959d153d0114afe13997d439c22823a27cefceb5ff35c2178c6784c0c"},
@@ -4106,8 +4118,8 @@ virtualenv = [
     {file = "virtualenv-20.2.1.tar.gz", hash = "sha256:e0aac7525e880a429764cefd3aaaff54afb5d9f25c82627563603f5d7de5a6e5"},
 ]
 wandb = [
-    {file = "wandb-0.10.12-py2.py3-none-any.whl", hash = "sha256:b3bf35840fd4048d85730e698f10b0fafb7bae05025ee2243793f30300e3f3d8"},
-    {file = "wandb-0.10.12.tar.gz", hash = "sha256:052dd5f59ab1a655a82253bc4603678fe06e0136be097dc1964f1a0c5bd64116"},
+    {file = "wandb-0.10.17-py2.py3-none-any.whl", hash = "sha256:d535e889617720993ed4f6eaf613db21d84da40bd54239add55119dbe3b860d6"},
+    {file = "wandb-0.10.17.tar.gz", hash = "sha256:6f246b313e65561eb69cd616e7dfc921cbdd1840d769c535640d2dee593be0c5"},
 ]
 watchdog = [
     {file = "watchdog-1.0.2-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:e2a531e71be7b5cc3499ae2d1494d51b6a26684bcc7c3146f63c810c00e8a3cc"},
