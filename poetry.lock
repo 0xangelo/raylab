@@ -1395,7 +1395,7 @@ tomlkit = ">=0.4.6,<0.6.0"
 
 [[package]]
 name = "pre-commit"
-version = "2.9.3"
+version = "2.10.0"
 description = "A framework for managing and maintaining multi-language pre-commit hooks."
 category = "dev"
 optional = false
@@ -2511,7 +2511,7 @@ wandb = ["wandb"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "d2eda65904d396df7096c1243bcb9b8bff126f57e4abdc451d5471f35b24667a"
+content-hash = "4d1a7dabd99d2675fb4af94e482652b302670952e9e1d38aa8ffdc3e9e33767d"
 
 [metadata.files]
 absl-py = [
@@ -3514,8 +3514,8 @@ poetry-version = [
     {file = "poetry_version-0.1.5-py2.py3-none-any.whl", hash = "sha256:ba259257640cd36c76375563a001b9e85c6f54d764cc56b3eed0f3b5cefb0317"},
 ]
 pre-commit = [
-    {file = "pre_commit-2.9.3-py2.py3-none-any.whl", hash = "sha256:6c86d977d00ddc8a60d68eec19f51ef212d9462937acf3ea37c7adec32284ac0"},
-    {file = "pre_commit-2.9.3.tar.gz", hash = "sha256:ee784c11953e6d8badb97d19bc46b997a3a9eded849881ec587accd8608d74a4"},
+    {file = "pre_commit-2.10.0-py2.py3-none-any.whl", hash = "sha256:391ed331fdd0a21d0be48c1b9919921e9d372dfd60f6dc77b8f01dd6b13161c1"},
+    {file = "pre_commit-2.10.0.tar.gz", hash = "sha256:f413348d3a8464b77987e36ef6e02c3372dadb823edf0dfe6fb0c3dc2f378ef9"},
 ]
 prometheus-client = [
     {file = "prometheus_client-0.9.0-py2.py3-none-any.whl", hash = "sha256:b08c34c328e1bf5961f0b4352668e6c8f145b4a087e09b7296ef62cbe4693d35"},
