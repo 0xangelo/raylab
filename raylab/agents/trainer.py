@@ -67,6 +67,7 @@ logger = logging.getLogger(__name__)
     help="Unused by Raylab policies. Use policy/exploration_config instead.",
     override=True,
 )
+@option("_use_trajectory_view_api", False, override=True)
 class Trainer(RLlibTrainer, metaclass=ABCMeta):
     """Base class for raylab trainers."""
 

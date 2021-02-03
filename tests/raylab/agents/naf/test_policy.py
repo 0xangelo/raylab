@@ -12,7 +12,8 @@ def policy_cls():
 
 
 @pytest.fixture(
-    params=EXPLORATION_TYPES, ids=tuple(s.split(".")[-1] for s in EXPLORATION_TYPES),
+    params=EXPLORATION_TYPES,
+    ids=tuple(s.split(".")[-1] for s in EXPLORATION_TYPES),
 )
 def exploration(request):
     return "raylab.utils.exploration." + request.param
