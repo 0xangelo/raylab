@@ -60,3 +60,12 @@ raylab = "raylab.cli:raylab"
 [build-system]
 requires = ["poetry>=0.12"]
 build-backend = "poetry.masonry.api"
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning:ray:",
+    "ignore::DeprecationWarning:tree:",
+    "ignore::DeprecationWarning:tensorflow:",
+    "ignore::DeprecationWarning:google:",
+    "ignore::DeprecationWarning:flatbuffers:",
+]
