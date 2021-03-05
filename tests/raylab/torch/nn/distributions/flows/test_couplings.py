@@ -37,9 +37,10 @@ def cls(request):
     return request.param
 
 
+@pytest.mark.filterwarnings("ignore:Inputs to the softmax are not scaled:UserWarning")
 def test_creation(cls, mask, transform_net_create_fn):
     coupling = cls(mask, transform_net_create_fn)
-    coupling = torch.jit.script(coupling)
+    torch.jit.script(coupling)
 
 
 def test_call(cls, mask, transform_net_create_fn):
