@@ -1,6 +1,22 @@
+import warnings
+from contextlib import contextmanager
+from contextlib import nullcontext
+
 import pytest
 import torch
 from ray.rllib import SampleBatch
+
+
+@contextmanager
+def suppress_layer_norm_warning():
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            "Separate behavior policy requested and layer normalization deactivated",
+            category=UserWarning,
+            module="raylab.policy.modules.actor.deterministic",
+        )
+        yield
 
 
 @pytest.fixture
@@ -39,11 +55,25 @@ def spec(module_cls, separate_behavior, separate_target_policy):
 
 
 @pytest.fixture
-def module(module_cls, obs_space, action_space, spec):
-    return module_cls(obs_space, action_space, spec)
+def module_creator(module_cls, obs_space, action_space):
+    return lambda spec: module_cls(obs_space, action_space, spec)
 
 
-def test_module_creation(module):
+@pytest.fixture
+@suppress_layer_norm_warning()
+def module(module_creator, spec):
+    return module_creator(spec)
+
+
+def test_module_creation(module_creator, spec):
+    if spec.separate_behavior and not spec.network.layer_norm:
+        ctx = pytest.warns(UserWarning, match="layer normalization deactivated")
+    else:
+        ctx = nullcontext()
+
+    with ctx:
+        module = module_creator(spec)
+
     for attr in "policy behavior target_policy".split():
         assert hasattr(module, attr)
 
@@ -54,6 +84,7 @@ def test_module_creation(module):
     )
 
 
+@suppress_layer_norm_warning()
 def test_separate_behavior(module_cls, obs_space, action_space):
     spec = module_cls.spec_cls(separate_behavior=True)
     module = module_cls(obs_space, action_space, spec)

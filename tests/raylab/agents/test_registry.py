@@ -92,6 +92,7 @@ def worker(env_name, policy_cls, worker_kwargs):
     )
 
 
+@pytest.mark.filterwarnings("ignore:.+ is incompatible with TorchScript::raylab")
 def test_compute_single_action(env_, env_name, policy_cls):
     env = env_
     policy = policy_cls(env.observation_space, env.action_space, {"env": env_name})
@@ -110,4 +111,4 @@ def test_policy_in_rollout_worker(worker):
     )
     traj = worker.sample()
     assert isinstance(traj, SampleBatch)
-    assert all([k in traj for k in extra_fetches])
+    assert all(k in traj for k in extra_fetches)

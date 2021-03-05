@@ -161,9 +161,9 @@ class ACKTRTorchPolicy(TorchPolicy):
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
         # Compute whitening matrices
-        n_samples = self.config["fvp_samples"]
+        sshape = (self.config["fvp_samples"],)
         with self.optimizers["actor"].record_stats():
-            _, log_prob = self.module.actor.sample(cur_obs, (n_samples,))
+            _, log_prob = self.module.actor.sample(cur_obs.requires_grad_(), sshape)
             log_prob.mean().backward()
 
         # Compute surrogate loss

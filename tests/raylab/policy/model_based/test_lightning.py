@@ -1,29 +1,21 @@
 import contextlib
 import copy
-import functools
 import io
 import itertools
-import math
 import warnings
 
 import pytest
 import pytorch_lightning as pl
 import torch
 from ray.rllib import SampleBatch
-from torch.utils.data import DataLoader
 
-from raylab.options import configure
-from raylab.policy import OptimizerCollection
 from raylab.policy.losses import Loss
 from raylab.policy.model_based.lightning import DataModule
 from raylab.policy.model_based.lightning import LightningModel
 from raylab.policy.model_based.lightning import LightningModelTrainer
 from raylab.policy.model_based.lightning import TrainingSpec
 from raylab.policy.modules import get_module
-from raylab.policy.off_policy import off_policy_options
-from raylab.policy.off_policy import OffPolicyMixin
 from raylab.torch.optim import build_optimizer
-from raylab.torch.utils import convert_to_tensor
 from raylab.utils.debug import fake_batch
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 
@@ -233,6 +225,12 @@ def test_model(trainer, models):
     assert not set.symmetric_difference(model_params, optim_params)
 
 
+@pytest.mark.filterwarnings(
+    "ignore:The dataloader,.+, does not have many workers::pytorch_lightning"
+)
+@pytest.mark.filterwarnings(
+    "ignore:Your test_dataloader has `shuffle=True`::pytorch_lightning"
+)
 def test_test(trainer: LightningModelTrainer, holdout_ratio):
     spec: TrainingSpec = trainer.spec
     pl_model: LightningModel = trainer.pl_model
@@ -245,8 +243,6 @@ def test_test(trainer: LightningModelTrainer, holdout_ratio):
     dataloader = (
         datamodule.val_dataloader() if holdout_ratio else datamodule.train_dataloader()
     )
-    # with warnings.catch_warnings():
-    #     # warnings.filterwarnings("ignore", module="pytorch_lightning*")
     outputs = pl_trainer.test(pl_model, test_dataloaders=dataloader)
 
     assert isinstance(outputs, (list, tuple))

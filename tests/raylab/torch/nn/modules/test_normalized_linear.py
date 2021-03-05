@@ -32,7 +32,7 @@ def test_normalizes_vector(input_dim, output_dim, beta, torch_script):
     inputs = torch.randn(10, input_dim)
     output = module(inputs)
     norms = output.norm(p=1, dim=-1, keepdim=True) / output_dim
-    atol = torch.finfo(torch.float32).eps
+    atol = 1e-6
     assert (norms <= (beta + atol)).all()
 
 

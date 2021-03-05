@@ -62,17 +62,9 @@ class OptimizerCollection(MutableMapping):
 
     @contextlib.contextmanager
     def optimize(self, name: str):
-        """Nullify grads before context and step optimizer afterwards.
-
-        Sets grads to `None` instead of calling :meth:`Optimizer.zero_grad` for
-        better performance. See the following video for more info:
-
-        `https://youtu.be/9mS1fIYj1So?t=530`
-        """
+        """Nullify grads before context and step optimizer afterwards."""
         optimizer = self[name]
-        for group in optimizer.param_groups:
-            for par in group["params"]:
-                par.grad = None
+        optimizer.zero_grad()
         yield
         optimizer.step()
 
