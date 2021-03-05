@@ -1,5 +1,11 @@
+from __future__ import annotations
+
+from typing import Optional
+
 import pytest
 import torch
+import torch.nn as nn
+from torch import Tensor
 from torch.autograd import grad
 
 from raylab.torch.nn import FullyConnected
@@ -7,59 +13,62 @@ from raylab.torch.nn import StateActionEncoder
 
 
 @pytest.fixture(params=(1, 2, 4), ids=lambda x: f"InFeatures:{x}")
-def in_features(request):
+def in_features(request) -> int:
     return request.param
 
 
 @pytest.fixture
-def inputs(in_features):
+def inputs(in_features: int) -> Tensor:
     return torch.ones(1, in_features)
 
 
 @pytest.fixture(params=((10,), (4, 4)), ids=lambda x: f"Units:{x}")
-def units(request):
+def units(request) -> tuple[int, ...]:
     return request.param
 
 
-@pytest.fixture(params=(None, "Tanh", "ReLU", "ELU"))
-def activation(request):
+@pytest.fixture(params=(None, "Tanh", "ReLU", "ELU"), ids=lambda x: f"Activ:{x}")
+def activation(request) -> Optional[str]:
     return request.param
 
 
 @pytest.fixture(params=(True, False), ids=lambda x: f"LayerNorm:{x}")
-def layer_norm(request):
+def layer_norm(request) -> bool:
     return request.param
 
 
 @pytest.fixture
-def kwargs(units, activation, layer_norm):
+def kwargs(units: tuple[int, ...], activation: Optional[str], layer_norm: bool) -> dict:
     return dict(units=units, activation=activation, layer_norm=layer_norm)
 
 
 @pytest.fixture
-def fully_connected(in_features, kwargs, torch_script):
+def fully_connected(in_features: int, kwargs: dict, torch_script: bool) -> nn.Module:
     module = FullyConnected(in_features=in_features, **kwargs)
     if torch_script:
         module = torch.jit.script(module)
     return module
 
 
-def test_fully_connected(fully_connected, inputs):
+def test_fully_connected(fully_connected: nn.Module, inputs: Tensor):
     out = fully_connected(inputs)
     assert torch.is_tensor(out)
     assert out.grad_fn is not None
     out.mean().backward()
-    assert all([p.grad is not None for p in fully_connected.parameters()])
+    named_parameters = list(fully_connected.named_parameters())
+    assert all(p.grad is not None for _, p in named_parameters), named_parameters
 
 
 @pytest.fixture
-def fc_no_units(in_features, activation, layer_norm):
+def fc_no_units(
+    in_features: int, activation: Optional[str], layer_norm: bool
+) -> nn.Module:
     return FullyConnected(
         in_features=in_features, units=(), activation=activation, layer_norm=layer_norm
     )
 
 
-def test_fc_no_units(fc_no_units, inputs):
+def test_fc_no_units(fc_no_units: nn.Module, inputs: Tensor):
     assert not list(fc_no_units.parameters())
 
     out = fc_no_units(inputs)
@@ -67,18 +76,19 @@ def test_fc_no_units(fc_no_units, inputs):
 
 
 @pytest.fixture
-def script_fc(in_features, kwargs):
+def script_fc(in_features: int, kwargs: dict) -> nn.Module:
     return torch.jit.script(FullyConnected(in_features=in_features, **kwargs))
 
 
-def test_script_fc_grad(script_fc, inputs, activation, units):
+def test_script_fc_grad(script_fc: nn.Module, inputs: Tensor, activation: str):
     inputs = inputs.clone().requires_grad_(True)
     out = script_fc(inputs)
     (igrad,) = grad(out.sum(), [inputs], create_graph=True)
     assert torch.is_tensor(igrad)
     assert igrad.shape == inputs.shape
 
-    if len(units) > 1 or activation != "ReLU":
+    # Composing linear layers is equivalent to a single linear layer
+    if activation not in {None, "ReLU"}:
         igrad.mean().backward()
         assert inputs.grad is not None
 
@@ -133,7 +143,7 @@ def test_state_action_encoder(sae, obs, act):
     assert torch.is_tensor(out)
 
     out.mean().backward()
-    assert all([p.grad is not None for p in sae.parameters()])
+    assert all(p.grad is not None for p in sae.parameters())
 
 
 @pytest.fixture
