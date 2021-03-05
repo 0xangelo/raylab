@@ -15,27 +15,50 @@ copies or substantial portions of the Software.
 
 Adapted from: https://github.com/Thrandis/EKFAC-pytorch
 """
+from __future__ import annotations
+
+import abc
 import contextlib
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
 from torch.optim import Optimizer
 
 
-# noinspection PyAttributeOutsideInit
-class KFACMixin:
+class KFACMixin(metaclass=abc.ABCMeta):
     """Adds methods for forward hooks, covariance computation and updating."""
 
-    # pylint:disable=assignment-from-no-return,invalid-name
+    # pylint:disable=invalid-name,no-member
+    _hookable_modules: list[nn.Module]
+    _fwd_handles: list
+    _bwd_handles: list
 
     @contextlib.contextmanager
     def record_stats(self):
         """Activate registered forward and backward hooks."""
         self.zero_grad()
-        self._recording = True
+        self.register_hooks()
         yield
-        self._recording = False
+        self.remove_hooks()
+
+    def register_hooks(self):
+        """Adds hooks to the monitored module for storing inputs and grads."""
+        for mod in self._hookable_modules:
+            self._fwd_handles += [mod.register_forward_pre_hook(self.save_input)]
+            self._bwd_handles += [mod.register_full_backward_hook(self.save_grad_out)]
+
+    def remove_hooks(self):
+        """Removes hooks from the monitored module."""
+        self._remove_clear_hooks(self._fwd_handles)
+        self._remove_clear_hooks(self._bwd_handles)
+
+    @staticmethod
+    def _remove_clear_hooks(handles: list):
+        for handle in handles:
+            handle.remove()
+        handles.clear()
 
     def save_input(self, mod, inputs):
         """Saves input of layer to compute covariance.
@@ -43,13 +66,12 @@ class KFACMixin:
         Note: inputs must be divided by the batch size to weight them appropriately
         when computing the average whitening matrix.
         """
-        if self._recording:
-            inputs = inputs[0].detach()
-            if isinstance(mod, nn.Linear):
-                inputs = inputs.reshape(-1, inputs.shape[-1])
-            elif isinstance(mod, nn.Conv2d):
-                inputs = inputs.reshape(-1, *inputs.shape[-3:])
-            self.state[mod.weight]["x"] = inputs / inputs.shape[0]
+        inputs = inputs[0].detach()
+        if isinstance(mod, nn.Linear):
+            inputs = inputs.reshape(-1, inputs.shape[-1])
+        elif isinstance(mod, nn.Conv2d):
+            inputs = inputs.reshape(-1, *inputs.shape[-3:])
+        self.state[mod.weight]["x"] = inputs / inputs.shape[0]
 
     def save_grad_out(self, mod, _, grad_outputs):
         """Saves grad on output of layer to compute covariance.
@@ -59,13 +81,12 @@ class KFACMixin:
         computing the entropy (average negative log-likelihood), we don't weight them
         here.
         """
-        if self._recording:
-            grad_outputs = grad_outputs[0].detach()
-            if isinstance(mod, nn.Linear):
-                grad_outputs = grad_outputs.reshape(-1, grad_outputs.shape[-1])
-            elif isinstance(mod, nn.Conv2d):
-                grad_outputs = grad_outputs.reshape(-1, *grad_outputs.shape[-3:])
-            self.state[mod.weight]["gy"] = grad_outputs
+        grad_outputs = grad_outputs[0].detach()
+        if isinstance(mod, nn.Linear):
+            grad_outputs = grad_outputs.reshape(-1, grad_outputs.shape[-1])
+        elif isinstance(mod, nn.Conv2d):
+            grad_outputs = grad_outputs.reshape(-1, *grad_outputs.shape[-3:])
+        self.state[mod.weight]["gy"] = grad_outputs
 
     def step(self):  # pylint:disable=arguments-differ
         """Preconditions and applies gradients."""
@@ -108,13 +129,16 @@ class KFACMixin:
                 param.grad.data.mul_(scale)
                 param.data.sub_(param.grad.data, alpha=group["lr"])
 
+    @abc.abstractmethod
     def _compute_covs(self, group, state):
         """Computes the covariances."""
 
+    @abc.abstractmethod
     def _process_covs(self, state):
         """Process the covariances for preconditioning gradients later."""
 
-    def _precond(self, weight, bias, group, state):
+    @abc.abstractmethod
+    def _precond(self, weight, bias, group, state) -> tuple[Tensor, Tensor, dict]:
         """Applies preconditioning."""
 
     def __del__(self):
@@ -163,17 +187,14 @@ class KFAC(KFACMixin, Optimizer):
         self.eta = eta
         self._fwd_handles = []
         self._bwd_handles = []
-        self._recording = False
+        self._hookable_modules = []
 
         param_groups = []
         param_set = set()
         for mod in net.modules():
             mod_class = type(mod).__name__
             if mod_class in ["Linear", "Conv2d"]:
-                self._fwd_handles += [mod.register_forward_pre_hook(self.save_input)]
-                self._bwd_handles += [
-                    mod.register_full_backward_hook(self.save_grad_out)
-                ]
+                self._hookable_modules += [mod]
                 info = (
                     (mod.kernel_size, mod.padding, mod.stride)
                     if mod_class == "Conv2d"
@@ -330,17 +351,14 @@ class EKFAC(KFACMixin, Optimizer):
         self.eta = eta
         self._fwd_handles = []
         self._bwd_handles = []
-        self._recording = False
+        self._hookable_modules = []
 
         param_groups = []
         param_set = set()
         for mod in net.modules():
             mod_class = type(mod).__name__
             if mod_class in ["Linear"]:
-                self._fwd_handles += [mod.register_forward_pre_hook(self.save_input)]
-                self._bwd_handles += [
-                    mod.register_full_backward_hook(self.save_grad_out)
-                ]
+                self._hookable_modules += [mod]
                 info = None
                 params = [mod.weight]
                 if mod.bias is not None:
