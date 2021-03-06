@@ -32,33 +32,30 @@ class KFACMixin(metaclass=abc.ABCMeta):
 
     # pylint:disable=invalid-name,no-member
     _hookable_modules: list[nn.Module]
-    _fwd_handles: list
-    _bwd_handles: list
 
     @contextlib.contextmanager
     def record_stats(self):
         """Activate registered forward and backward hooks."""
         self.zero_grad()
-        self.register_hooks()
-        yield
-        self.remove_hooks()
+        fwd_handles, bwd_handles = self.register_hooks()
+        try:
+            yield
+        finally:
+            self.remove_hooks(fwd_handles, bwd_handles)
 
-    def register_hooks(self):
+    def register_hooks(self) -> tuple[list, list]:
         """Adds hooks to the monitored module for storing inputs and grads."""
+        fwd_handles, bwd_handles = [], []
         for mod in self._hookable_modules:
-            self._fwd_handles += [mod.register_forward_pre_hook(self.save_input)]
-            self._bwd_handles += [mod.register_full_backward_hook(self.save_grad_out)]
-
-    def remove_hooks(self):
-        """Removes hooks from the monitored module."""
-        self._remove_clear_hooks(self._fwd_handles)
-        self._remove_clear_hooks(self._bwd_handles)
+            fwd_handles += [mod.register_forward_pre_hook(self.save_input)]
+            bwd_handles += [mod.register_full_backward_hook(self.save_grad_out)]
+        return fwd_handles, bwd_handles
 
     @staticmethod
-    def _remove_clear_hooks(handles: list):
-        for handle in handles:
+    def remove_hooks(fwd_handles: list, bwd_handles: list):
+        """Removes hooks from the monitored module."""
+        for handle in fwd_handles + bwd_handles:
             handle.remove()
-        handles.clear()
 
     def save_input(self, mod, inputs):
         """Saves input of layer to compute covariance.
@@ -141,10 +138,6 @@ class KFACMixin(metaclass=abc.ABCMeta):
     def _precond(self, weight, bias, group, state) -> tuple[Tensor, Tensor, dict]:
         """Applies preconditioning."""
 
-    def __del__(self):
-        for handle in self._fwd_handles + self._bwd_handles:
-            handle.remove()
-
 
 class KFAC(KFACMixin, Optimizer):
     """K-FAC Optimizer for Linear and Conv2d layers.
@@ -185,8 +178,6 @@ class KFAC(KFACMixin, Optimizer):
         self.update_freq = update_freq
         self.alpha = alpha
         self.eta = eta
-        self._fwd_handles = []
-        self._bwd_handles = []
         self._hookable_modules = []
 
         param_groups = []
@@ -349,8 +340,6 @@ class EKFAC(KFACMixin, Optimizer):
         self.update_freq = update_freq
         self.alpha = alpha
         self.eta = eta
-        self._fwd_handles = []
-        self._bwd_handles = []
         self._hookable_modules = []
 
         param_groups = []
