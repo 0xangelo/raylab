@@ -1750,8 +1750,8 @@ py = {version = "*", markers = "implementation_name === \"pypy\""}
 
 [[package]]
 name = "ray"
-version = "1.1.0"
-description = "A system for parallel and distributed Python that unifies the ML ecosystem."
+version = "1.2.0"
+description = "Ray provides a simple, universal API for building distributed applications."
 category = "main"
 optional = false
 python-versions = "*"
@@ -1787,10 +1787,10 @@ tabulate = {version = "*", optional = true, markers = "extra == \"rllib\""}
 tensorboardX = {version = "*", optional = true, markers = "extra == \"rllib\""}
 
 [package.extras]
-all = ["pydantic (<1.7)", "gym", "tensorboardx", "requests", "uvicorn", "dm-tree", "lz4", "scipy", "pandas", "pyyaml", "flask", "atari-py", "kubernetes", "tabulate", "opencv-python-headless (<=4.3.0.36)", "dataclasses"]
+all = ["uvicorn", "gym", "atari-py", "flask", "tabulate", "tensorboardx", "pydantic (<1.7)", "dm-tree", "pandas", "requests", "kubernetes", "starlette", "opencv-python-headless (<=4.3.0.36)", "pyyaml", "lz4", "scipy", "dataclasses"]
 k8s = ["kubernetes"]
 rllib = ["pandas", "tabulate", "tensorboardx", "atari-py", "dm-tree", "gym", "lz4", "opencv-python-headless (<=4.3.0.36)", "pyyaml", "scipy", "dataclasses"]
-serve = ["uvicorn", "flask", "requests", "pydantic (<1.7)", "dataclasses"]
+serve = ["uvicorn", "flask", "requests", "pydantic (<1.7)", "starlette", "dataclasses"]
 tune = ["pandas", "tabulate", "tensorboardx", "dataclasses"]
 
 [[package]]
@@ -3778,15 +3778,15 @@ pyzmq = [
     {file = "pyzmq-20.0.0.tar.gz", hash = "sha256:824ad5888331aadeac772bce27e1c2fbcab82fade92edbd234542c4e12f0dca9"},
 ]
 ray = [
-    {file = "ray-1.1.0-cp36-cp36m-macosx_10_13_intel.whl", hash = "sha256:a232253eb2893050067fc37055e5f2b82c856c7c9a32aa21f5bd55c30dc3b14c"},
-    {file = "ray-1.1.0-cp36-cp36m-manylinux2014_x86_64.whl", hash = "sha256:59ede233f6bb3e1e892af9e762a2a606dc8793da8c49c3ab1516426a21e230fc"},
-    {file = "ray-1.1.0-cp36-cp36m-win_amd64.whl", hash = "sha256:963d1ea62a101520aa0968d285d93363e324238c8fbb07035b6bac6dc626e636"},
-    {file = "ray-1.1.0-cp37-cp37m-macosx_10_13_intel.whl", hash = "sha256:c79e62df71503752fabe93466c6d327cfccf090d9e506a0d192ceae6e988e5e6"},
-    {file = "ray-1.1.0-cp37-cp37m-manylinux2014_x86_64.whl", hash = "sha256:3fa8498a5381037eac682b27105b16aa1908e296f9dd3c1595c478d70827ec79"},
-    {file = "ray-1.1.0-cp37-cp37m-win_amd64.whl", hash = "sha256:6281d06b16920052988f2e01d66a379e705b0c139a16c4e3c0159cf29c6aa789"},
-    {file = "ray-1.1.0-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:1e439230e7d5e10413c189b7d88ed920c8d6ad5629f7e2db6eb4e21df2083273"},
-    {file = "ray-1.1.0-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:0776c6b7a81794c96238417afc33e8bc5d62d05c56a9ee66708ea414bf62fe0d"},
-    {file = "ray-1.1.0-cp38-cp38-win_amd64.whl", hash = "sha256:18983d1f77f27e9de256d53be596e92b04fa2e614f3800faf5c92e11484f39ab"},
+    {file = "ray-1.2.0-cp36-cp36m-macosx_10_13_intel.whl", hash = "sha256:6e43b3bc2be85869276405de54e2b89e0a6fdd0d8c86f11aa9b29bf4023a4f53"},
+    {file = "ray-1.2.0-cp36-cp36m-manylinux2014_x86_64.whl", hash = "sha256:e5586d1901801852d255fe2eb7f28a85933affd731dfaf65b7f326fa40e803e1"},
+    {file = "ray-1.2.0-cp36-cp36m-win_amd64.whl", hash = "sha256:ffe5c00ca4e82ded2fe02fb8b97b2e50401b8c487e15b778abf0de2c124e3809"},
+    {file = "ray-1.2.0-cp37-cp37m-macosx_10_13_intel.whl", hash = "sha256:13d3a5d7c9068c21c20ca4a029ab6ca8acaa82f9597a4814e2c33fe727fe9694"},
+    {file = "ray-1.2.0-cp37-cp37m-manylinux2014_x86_64.whl", hash = "sha256:5d26afc4df8dd3ae4c95dd9b057cd010dd85b58d174b0c1871349f7b128f00e3"},
+    {file = "ray-1.2.0-cp37-cp37m-win_amd64.whl", hash = "sha256:35b18cd7b410d6e891195aa41ab780367c01497f69f623cf18c936524b3c90f9"},
+    {file = "ray-1.2.0-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:4fc80fd9fdc95a021614f6ce017fff5788edb7b35869d3e7d47100d87485badd"},
+    {file = "ray-1.2.0-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:38544f494ea9cfa31bc280db331fe818e1fbc69d2a3fca7ae614d29eb34e9656"},
+    {file = "ray-1.2.0-cp38-cp38-win_amd64.whl", hash = "sha256:e095c5c7d59bd7c172c1a517d0db83df65c65ed6cb771d58ac17ec94276f8f39"},
 ]
 redis = [
     {file = "redis-3.5.3-py2.py3-none-any.whl", hash = "sha256:432b788c4530cfe16d8d943a09d40ca6c16149727e4afe8c2c9d5580c59d9f24"},
