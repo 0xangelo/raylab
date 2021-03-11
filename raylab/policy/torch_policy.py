@@ -44,6 +44,7 @@ from .optimizer_collection import OptimizerCollection
 @option(
     "exploration_config/", allow_unknown_subkeys=True, override_all_if_type_changes=True
 )
+@option("framework", default="torch")
 @option("gamma", default=0.99)
 @option("num_workers", default=0)
 @option("seed", default=None)
