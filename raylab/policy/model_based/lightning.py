@@ -1,12 +1,13 @@
 # pylint:disable=missing-module-docstring
+from __future__ import annotations
+
 import copy
 import statistics as stats
 import warnings
 from dataclasses import dataclass
 from dataclasses import field
-from typing import List
+from typing import Any
 from typing import Optional
-from typing import Tuple
 
 import pytorch_lightning as pl
 import torch
@@ -50,7 +51,7 @@ class LightningModel(pl.LightningModule):
     def configure_losses(self, loss: Loss):
         self.train_loss = self.val_loss = self.test_loss = loss
 
-    def forward(self, batch: TensorDict) -> Tuple[Tensor, StatDict]:
+    def forward(self, batch: TensorDict) -> tuple[Tensor, StatDict]:
         return self.train_loss(batch)
 
     def training_step(self, batch: TensorDict, _) -> Tensor:
@@ -131,6 +132,9 @@ class DataModule(pl.LightningDataModule):
         self.replay_dataset = ReplayDataset(replay)
         self.spec = spec
 
+    def prepare_data(self, *args, **kwargs):
+        pass
+
     def setup(self, stage=None):
         dataset = self.replay_dataset
         spec = self.spec
@@ -141,7 +145,7 @@ class DataModule(pl.LightningDataModule):
             dataset, (replay_count - val_size, val_size)
         )
 
-    def train_dataloader(self, *args, **kwargs):
+    def train_dataloader(self):
         spec = self.spec
         kwargs = dict(
             shuffle=spec.shuffle,
@@ -150,7 +154,7 @@ class DataModule(pl.LightningDataModule):
         )
         return DataLoader(self.train_dataset, **kwargs)
 
-    def val_dataloader(self, *args, **kwargs):
+    def val_dataloader(self):
         if len(self.val_dataset) == 0:
             return None
 
@@ -181,9 +185,9 @@ class ReplayDataset(Dataset):
 
 class EarlyStopping(pl.callbacks.EarlyStopping):
     # pylint:disable=missing-docstring
-    _train_outputs: List[Tuple[Tensor, StatDict]]
-    _val_outputs: List[Tuple[Tensor, StatDict]]
-    _loss: Tuple[List[float], StatDict] = None
+    _train_outputs: list[tuple[Tensor, StatDict]]
+    _val_outputs: list[tuple[Tensor, StatDict]]
+    _loss: tuple[list[float], StatDict] = None
     _module_state: Optional[dict] = None
 
     def setup(self, trainer, pl_module, stage: str):
@@ -243,20 +247,22 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
         self._module_state = copy.deepcopy(pl_module.state_dict())
 
     @property
-    def loss(self) -> Tuple[Tensor, TensorDict]:
+    def loss(self) -> tuple[Tensor, TensorDict]:
         return self._loss
 
     @property
     def module_state(self) -> dict:
         return self._module_state
 
-    def on_save_checkpoint(self, trainer, pl_module):
-        state = super().on_save_checkpoint(trainer, pl_module)
+    def on_save_checkpoint(
+        self, trainer, pl_module, checkpoint: dict[str, Any]
+    ) -> dict[str, Any]:
+        state = super().on_save_checkpoint(trainer, pl_module, checkpoint)
         state.update(loss=self._loss, module=self._module_state)
         return state
 
-    def on_load_checkpoint(self, checkpointed_state):
-        state_dict = checkpointed_state
+    def on_load_checkpoint(self, callback_state: dict[str, Any]):
+        state_dict = callback_state
         self._loss = state_dict["loss"]
         self._module_state = copy.deepcopy(state_dict["module"])
         used = set("loss module".split())
@@ -347,7 +353,7 @@ class LightningModelTrainer:
         loss_fn: Loss associated with the model ensemble
         optimizer: Optimizer associated with the model ensemble
         replay: Experience replay buffer
-        config: Dictionary containg `model_training` and `model_warmup` dicts
+        config: Dictionary containing `model_training` and `model_warmup` dicts
 
     Attributes:
         pl_model: Pytorch Lightning model
@@ -375,7 +381,7 @@ class LightningModelTrainer:
         self.datamodule = DataModule(replay, self.spec.datamodule)
         self.training_loss = self.warmup_loss = loss_fn
 
-    def optimize(self, warmup: bool = False) -> Tuple[List[float], StatDict]:
+    def optimize(self, warmup: bool = False) -> tuple[list[float], StatDict]:
         """Update models using replay buffer data.
 
         Args:
