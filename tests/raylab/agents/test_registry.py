@@ -87,7 +87,7 @@ def worker(env_name, policy_cls, worker_kwargs):
     return RolloutWorker(
         env_creator=get_env_creator(env_name),
         policy_spec=policy_cls,
-        policy_config={"env": env_name},
+        policy_config={"env": env_name, "framework": "torch"},
         **worker_kwargs,
     )
 
