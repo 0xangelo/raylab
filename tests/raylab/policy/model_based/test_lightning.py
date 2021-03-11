@@ -57,7 +57,7 @@ def optimizer(models):
 MAXS = ((1, None), (None, 10))
 
 
-@pytest.fixture(params=(MAXS), ids=lambda x: f"MaxEpochs:{x[0]}-MaxSteps:{x[1]}")
+@pytest.fixture(params=MAXS, ids=lambda x: f"MaxEpochs:{x[0]}-MaxSteps:{x[1]}")
 def maxs(request):
     max_epochs, max_steps = request.param
     return dict(max_epochs=max_epochs, max_steps=max_steps)
