@@ -1,12 +1,16 @@
+# pylint:disable=unsubscriptable-object
+from __future__ import annotations
+
 import contextlib
 import copy
 import io
 import itertools
-import warnings
+from typing import Type
 
 import pytest
 import pytorch_lightning as pl
 import torch
+import torch.nn as nn
 from ray.rllib import SampleBatch
 
 from raylab.policy.losses import Loss
@@ -131,8 +135,13 @@ def replay(obs_space, action_space, samples):
 
 
 @pytest.fixture
-def build_trainer(models, optimizer, replay, config):
-    def builder(model_loss):
+def build_trainer(
+    models: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    replay: NumpyReplayBuffer,
+    config: dict,
+) -> callable[[Type[Loss]], LightningModelTrainer]:
+    def builder(model_loss: Type[Loss]) -> LightningModelTrainer:
         loss_fn = model_loss(models)
         return LightningModelTrainer(models, loss_fn, optimizer, replay, config)
 
@@ -260,9 +269,9 @@ class WorseningLoss(DummyLoss):
         self._increasing_seq = itertools.count()
         self.models = models
 
-    def set_grads(self):
+    def step_params(self):
         for par in self.models.parameters():
-            par.grad = torch.ones_like(par)
+            par.data.add_(torch.ones_like(par))
 
     def _losses(self):
         return torch.full(
@@ -272,17 +281,18 @@ class WorseningLoss(DummyLoss):
         )
 
     def __call__(self, *args, **kwargs):
-        self.set_grads()
+        self.step_params()
         return super().__call__(*args, **kwargs)
 
 
-def test_checkpointing(build_trainer):
+def test_cutoff_before_degradation(
+    build_trainer: callable[[Type[Loss]], LightningModelTrainer]
+):
     trainer = build_trainer(WorseningLoss)
-    patience = 2
     spec = trainer.spec.training
     spec.max_epochs = 1000
     spec.max_steps = None
-    spec.patience = patience
+    spec.patience = 2
 
     pl_model = trainer.pl_model
     datamodule = trainer.datamodule
@@ -293,8 +303,42 @@ def test_checkpointing(build_trainer):
     trainer.run_training(pl_model, pl_trainer, datamodule)
     losses, info = early_stopping.loss
     info.update(trainer.trainer_info(pl_trainer))
-    assert info["model_epochs"] == patience + 1
+    assert info["model_epochs"] == spec.patience + 1
 
     trainer.check_early_stopping(early_stopping, pl_model)
     after_params = list(pl_model.parameters())
-    assert not any([torch.allclose(b, a) for b, a in zip(before_params, after_params)])
+    equals = [torch.allclose(b, a) for b, a in zip(before_params, after_params)]
+    # Parameters still change since the first early stop check happens at the
+    # end of the first training epoch
+    assert not any(equals)
+
+
+class BetteringLoss(WorseningLoss):
+    def _losses(self):
+        return -super()._losses()
+
+
+def test_checkpoint_after_improvement(
+    build_trainer: callable[[Type[Loss]], LightningModelTrainer]
+):
+    trainer = build_trainer(BetteringLoss)
+    spec = trainer.spec.training
+    spec.max_epochs = 3
+    spec.max_steps = None
+    spec.patience = 2
+
+    pl_model = trainer.pl_model
+    datamodule = trainer.datamodule
+
+    pl_trainer, early_stopping = spec.build_trainer(check_val=False)
+
+    before_params = copy.deepcopy(list(pl_model.parameters()))
+    trainer.run_training(pl_model, pl_trainer, datamodule)
+    losses, info = early_stopping.loss
+    info.update(trainer.trainer_info(pl_trainer))
+    assert info["model_epochs"] == spec.max_epochs
+
+    trainer.check_early_stopping(early_stopping, pl_model)
+    after_params = list(pl_model.parameters())
+    equals = [torch.allclose(b, a) for b, a in zip(before_params, after_params)]
+    assert not any(equals)
