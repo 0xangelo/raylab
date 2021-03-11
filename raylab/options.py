@@ -592,6 +592,11 @@ COMMON_INFO = {
     contain different information on the ongoing episode.
     NOTE: Only supported for PyTorch so far.
     """,
+    "sample_collector": """\
+    The SampleCollector class to be used to collect and retrieve
+    environment-, model-, and sampler data. Override the SampleCollector base
+    class to implement your own collection/buffering/retrieval logic.
+    """,
     "observation_filter": """\
     Element-wise observation filter, either "NoFilter" or "MeanStdFilter".""",
     "synchronize_filters": """\
