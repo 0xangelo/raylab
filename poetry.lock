@@ -1395,7 +1395,7 @@ tomlkit = ">=0.4.6,<0.6.0"
 
 [[package]]
 name = "pre-commit"
-version = "2.10.1"
+version = "2.11.1"
 description = "A framework for managing and maintaining multi-language pre-commit hooks."
 category = "dev"
 optional = false
@@ -1679,7 +1679,7 @@ six = ">=1.5"
 
 [[package]]
 name = "pytorch-lightning"
-version = "1.2.1"
+version = "1.2.3"
 description = "PyTorch Lightning is the lightweight PyTorch wrapper for ML researchers. Scale your models. Write less boilerplate."
 category = "main"
 optional = false
@@ -1750,8 +1750,8 @@ py = {version = "*", markers = "implementation_name === \"pypy\""}
 
 [[package]]
 name = "ray"
-version = "1.1.0"
-description = "A system for parallel and distributed Python that unifies the ML ecosystem."
+version = "1.2.0"
+description = "Ray provides a simple, universal API for building distributed applications."
 category = "main"
 optional = false
 python-versions = "*"
@@ -1787,10 +1787,10 @@ tabulate = {version = "*", optional = true, markers = "extra == \"rllib\""}
 tensorboardX = {version = "*", optional = true, markers = "extra == \"rllib\""}
 
 [package.extras]
-all = ["pydantic (<1.7)", "gym", "tensorboardx", "requests", "uvicorn", "dm-tree", "lz4", "scipy", "pandas", "pyyaml", "flask", "atari-py", "kubernetes", "tabulate", "opencv-python-headless (<=4.3.0.36)", "dataclasses"]
+all = ["uvicorn", "gym", "atari-py", "flask", "tabulate", "tensorboardx", "pydantic (<1.7)", "dm-tree", "pandas", "requests", "kubernetes", "starlette", "opencv-python-headless (<=4.3.0.36)", "pyyaml", "lz4", "scipy", "dataclasses"]
 k8s = ["kubernetes"]
 rllib = ["pandas", "tabulate", "tensorboardx", "atari-py", "dm-tree", "gym", "lz4", "opencv-python-headless (<=4.3.0.36)", "pyyaml", "scipy", "dataclasses"]
-serve = ["uvicorn", "flask", "requests", "pydantic (<1.7)", "dataclasses"]
+serve = ["uvicorn", "flask", "requests", "pydantic (<1.7)", "starlette", "dataclasses"]
 tune = ["pandas", "tabulate", "tensorboardx", "dataclasses"]
 
 [[package]]
@@ -1976,7 +1976,7 @@ python-versions = "*"
 
 [[package]]
 name = "sphinx"
-version = "3.5.1"
+version = "3.5.2"
 description = "Python documentation generator"
 category = "dev"
 optional = false
@@ -2396,7 +2396,7 @@ testing = ["coverage (>=4)", "coverage-enable-subprocess (>=1)", "flaky (>=3)", 
 
 [[package]]
 name = "wandb"
-version = "0.10.21"
+version = "0.10.22"
 description = "A CLI and library for interacting with the Weights and Biases API."
 category = "main"
 optional = true
@@ -2515,7 +2515,7 @@ wandb = ["wandb"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "25d477216d9c0f9d81fb22c5298b82e05bde1603f68563a19b8f466f15969ea2"
+content-hash = "a45e70a6cc54552ce78a97893cecc7a92a9637aaac26020a39b2dd7d3982ff79"
 
 [metadata.files]
 absl-py = [
@@ -3529,8 +3529,8 @@ poetry-version = [
     {file = "poetry_version-0.1.5-py2.py3-none-any.whl", hash = "sha256:ba259257640cd36c76375563a001b9e85c6f54d764cc56b3eed0f3b5cefb0317"},
 ]
 pre-commit = [
-    {file = "pre_commit-2.10.1-py2.py3-none-any.whl", hash = "sha256:16212d1fde2bed88159287da88ff03796863854b04dc9f838a55979325a3d20e"},
-    {file = "pre_commit-2.10.1.tar.gz", hash = "sha256:399baf78f13f4de82a29b649afd74bef2c4e28eb4f021661fc7f29246e8c7a3a"},
+    {file = "pre_commit-2.11.1-py2.py3-none-any.whl", hash = "sha256:94c82f1bf5899d56edb1d926732f4e75a7df29a0c8c092559c77420c9d62428b"},
+    {file = "pre_commit-2.11.1.tar.gz", hash = "sha256:de55c5c72ce80d79106e48beb1b54104d16495ce7f95b0c7b13d4784193a00af"},
 ]
 prometheus-client = [
     {file = "prometheus_client-0.9.0-py2.py3-none-any.whl", hash = "sha256:b08c34c328e1bf5961f0b4352668e6c8f145b4a087e09b7296ef62cbe4693d35"},
@@ -3700,8 +3700,8 @@ python-dateutil = [
     {file = "python_dateutil-2.8.1-py2.py3-none-any.whl", hash = "sha256:75bb3f31ea686f1197762692a9ee6a7550b59fc6ca3a1f4b5d7e32fb98e2da2a"},
 ]
 pytorch-lightning = [
-    {file = "pytorch-lightning-1.2.1.tar.gz", hash = "sha256:d4fb7d33a1f9bcb50ccce8789e3cc3c8f9272f3194f30b16e8018bc65e573c8f"},
-    {file = "pytorch_lightning-1.2.1-py3-none-any.whl", hash = "sha256:c380936eabe3cc3ee4a72f8e7be60fdb9e31c9566cccebaf130f7e6654dfd4e2"},
+    {file = "pytorch-lightning-1.2.3.tar.gz", hash = "sha256:856698e1652020b1030155e643a9e03e621e1e6b123f4406ae77fd36f7bea439"},
+    {file = "pytorch_lightning-1.2.3-py3-none-any.whl", hash = "sha256:f8d0dedc3dc1a030de639e2e7a47e2595dd51088f4d947f634ab0c982376d517"},
 ]
 pytz = [
     {file = "pytz-2020.4-py2.py3-none-any.whl", hash = "sha256:5c55e189b682d420be27c6995ba6edce0c0a77dd67bfbe2ae6607134d5851ffd"},
@@ -3778,15 +3778,15 @@ pyzmq = [
     {file = "pyzmq-20.0.0.tar.gz", hash = "sha256:824ad5888331aadeac772bce27e1c2fbcab82fade92edbd234542c4e12f0dca9"},
 ]
 ray = [
-    {file = "ray-1.1.0-cp36-cp36m-macosx_10_13_intel.whl", hash = "sha256:a232253eb2893050067fc37055e5f2b82c856c7c9a32aa21f5bd55c30dc3b14c"},
-    {file = "ray-1.1.0-cp36-cp36m-manylinux2014_x86_64.whl", hash = "sha256:59ede233f6bb3e1e892af9e762a2a606dc8793da8c49c3ab1516426a21e230fc"},
-    {file = "ray-1.1.0-cp36-cp36m-win_amd64.whl", hash = "sha256:963d1ea62a101520aa0968d285d93363e324238c8fbb07035b6bac6dc626e636"},
-    {file = "ray-1.1.0-cp37-cp37m-macosx_10_13_intel.whl", hash = "sha256:c79e62df71503752fabe93466c6d327cfccf090d9e506a0d192ceae6e988e5e6"},
-    {file = "ray-1.1.0-cp37-cp37m-manylinux2014_x86_64.whl", hash = "sha256:3fa8498a5381037eac682b27105b16aa1908e296f9dd3c1595c478d70827ec79"},
-    {file = "ray-1.1.0-cp37-cp37m-win_amd64.whl", hash = "sha256:6281d06b16920052988f2e01d66a379e705b0c139a16c4e3c0159cf29c6aa789"},
-    {file = "ray-1.1.0-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:1e439230e7d5e10413c189b7d88ed920c8d6ad5629f7e2db6eb4e21df2083273"},
-    {file = "ray-1.1.0-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:0776c6b7a81794c96238417afc33e8bc5d62d05c56a9ee66708ea414bf62fe0d"},
-    {file = "ray-1.1.0-cp38-cp38-win_amd64.whl", hash = "sha256:18983d1f77f27e9de256d53be596e92b04fa2e614f3800faf5c92e11484f39ab"},
+    {file = "ray-1.2.0-cp36-cp36m-macosx_10_13_intel.whl", hash = "sha256:6e43b3bc2be85869276405de54e2b89e0a6fdd0d8c86f11aa9b29bf4023a4f53"},
+    {file = "ray-1.2.0-cp36-cp36m-manylinux2014_x86_64.whl", hash = "sha256:e5586d1901801852d255fe2eb7f28a85933affd731dfaf65b7f326fa40e803e1"},
+    {file = "ray-1.2.0-cp36-cp36m-win_amd64.whl", hash = "sha256:ffe5c00ca4e82ded2fe02fb8b97b2e50401b8c487e15b778abf0de2c124e3809"},
+    {file = "ray-1.2.0-cp37-cp37m-macosx_10_13_intel.whl", hash = "sha256:13d3a5d7c9068c21c20ca4a029ab6ca8acaa82f9597a4814e2c33fe727fe9694"},
+    {file = "ray-1.2.0-cp37-cp37m-manylinux2014_x86_64.whl", hash = "sha256:5d26afc4df8dd3ae4c95dd9b057cd010dd85b58d174b0c1871349f7b128f00e3"},
+    {file = "ray-1.2.0-cp37-cp37m-win_amd64.whl", hash = "sha256:35b18cd7b410d6e891195aa41ab780367c01497f69f623cf18c936524b3c90f9"},
+    {file = "ray-1.2.0-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:4fc80fd9fdc95a021614f6ce017fff5788edb7b35869d3e7d47100d87485badd"},
+    {file = "ray-1.2.0-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:38544f494ea9cfa31bc280db331fe818e1fbc69d2a3fca7ae614d29eb34e9656"},
+    {file = "ray-1.2.0-cp38-cp38-win_amd64.whl", hash = "sha256:e095c5c7d59bd7c172c1a517d0db83df65c65ed6cb771d58ac17ec94276f8f39"},
 ]
 redis = [
     {file = "redis-3.5.3-py2.py3-none-any.whl", hash = "sha256:432b788c4530cfe16d8d943a09d40ca6c16149727e4afe8c2c9d5580c59d9f24"},
@@ -3925,8 +3925,8 @@ snowballstemmer = [
     {file = "snowballstemmer-2.0.0.tar.gz", hash = "sha256:df3bac3df4c2c01363f3dd2cfa78cce2840a79b9f1c2d2de9ce8d31683992f52"},
 ]
 sphinx = [
-    {file = "Sphinx-3.5.1-py3-none-any.whl", hash = "sha256:e90161222e4d80ce5fc811ace7c6787a226b4f5951545f7f42acf97277bfc35c"},
-    {file = "Sphinx-3.5.1.tar.gz", hash = "sha256:11d521e787d9372c289472513d807277caafb1684b33eb4f08f7574c405893a9"},
+    {file = "Sphinx-3.5.2-py3-none-any.whl", hash = "sha256:ef64a814576f46ec7de06adf11b433a0d6049be007fefe7fd0d183d28b581fac"},
+    {file = "Sphinx-3.5.2.tar.gz", hash = "sha256:672cfcc24b6b69235c97c750cb190a44ecd72696b4452acaf75c2d9cc78ca5ff"},
 ]
 sphinxcontrib-applehelp = [
     {file = "sphinxcontrib-applehelp-1.0.2.tar.gz", hash = "sha256:a072735ec80e7675e3f432fcae8610ecf509c5f1869d17e2eecff44389cdbc58"},
@@ -4138,8 +4138,8 @@ virtualenv = [
     {file = "virtualenv-20.2.1.tar.gz", hash = "sha256:e0aac7525e880a429764cefd3aaaff54afb5d9f25c82627563603f5d7de5a6e5"},
 ]
 wandb = [
-    {file = "wandb-0.10.21-py2.py3-none-any.whl", hash = "sha256:6dbb2c17d67b6845433dbe819a55f7eccb879026729f90a12563efee633923f2"},
-    {file = "wandb-0.10.21.tar.gz", hash = "sha256:c003c553dd2459bec98097343dd5d5c27baed554f6d4e89ed86d8315b6e547ee"},
+    {file = "wandb-0.10.22-py2.py3-none-any.whl", hash = "sha256:587ecde40e4a23d7aa5ac4e3b05a94788ead7334a0d7352dc8cad256552f1554"},
+    {file = "wandb-0.10.22.tar.gz", hash = "sha256:676a0b78864527ba7e2ed0a5fc34e04c34010f2ee5be87900d704092c86380da"},
 ]
 watchdog = [
     {file = "watchdog-2.0.2-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:1f518a6940cde8720b8826a705c164e6b9bd6cf8c00f14269ffac51e017e06ec"},
