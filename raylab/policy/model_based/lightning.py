@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import copy
 import statistics as stats
-import warnings
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
@@ -23,8 +22,8 @@ from raylab.options import option
 from raylab.policy.losses import Loss
 from raylab.policy.modules.model import SME
 from raylab.torch.utils import convert_to_tensor
-from raylab.utils.lightning import suppress_stderr
-from raylab.utils.lightning import suppress_stdout
+from raylab.utils.lightning import lightning_warnings_only
+from raylab.utils.lightning import suppress_dataloader_warnings
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 from raylab.utils.types import StatDict
 from raylab.utils.types import TensorDict
@@ -307,7 +306,7 @@ class LightningTrainerSpec(DataClassJsonMixin):
             self.improvement_delta, float
         ), "Improvement threshold must be a scalar"
 
-    def build_trainer(self, check_val: bool) -> pl.Trainer:
+    def build_trainer(self, check_val: bool) -> tuple[pl.Trainer, EarlyStopping]:
         """Returns the Pytorch Lightning configured with this spec."""
         early_stopping = EarlyStopping(
             monitor=LightningModel.early_stop_on,
@@ -319,13 +318,13 @@ class LightningTrainerSpec(DataClassJsonMixin):
         trainer = pl.Trainer(
             logger=False,
             num_sanity_val_steps=2 if check_val else 0,
-            checkpoint_callback=False,
             callbacks=[early_stopping],
             max_epochs=self.max_epochs,
             max_steps=self.max_steps,
-            progress_bar_refresh_rate=0,
             track_grad_norm=2,
-            # gradient_clip_val=1e4,  # Broken
+            progress_bar_refresh_rate=0,  # don't show progress bar for model training
+            weights_summary=None,  # don't print summary before training
+            checkpoint_callback=False,  # don't save last model
         )
         return trainer, early_stopping
 
@@ -406,15 +405,13 @@ class LightningModelTrainer:
         return losses, info
 
     @staticmethod
-    @suppress_stderr
-    @suppress_stdout
+    @lightning_warnings_only()
+    @suppress_dataloader_warnings()
     def run_training(
         model: LightningModel, trainer: pl.Trainer, datamodule: DataModule
     ):
         """Trains model and handles checkpointing."""
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", module="pytorch_lightning*")
-            trainer.fit(model, datamodule=datamodule)
+        trainer.fit(model, datamodule=datamodule)
 
     @staticmethod
     def trainer_info(trainer: pl.Trainer) -> dict:
