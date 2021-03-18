@@ -52,7 +52,6 @@ DEFAULT_OPTIM_CONFIG = {
 
 
 @configure
-@option("delta", 0.01, help="Trust region constraint")
 @option(
     "fvp_samples",
     10,
@@ -61,12 +60,6 @@ DEFAULT_OPTIM_CONFIG = {
 @option("lambda", 0.97, help=r"For GAE(\gamma, \lambda)")
 @option("val_iters", 80, help="Number of iterations to fit value function")
 @option("use_gae", True, help="Whether to use Generalized Advantage Estimation")
-@option("cg_iters", 10, help="Number of iterations for Conjugate Gradient")
-@option(
-    "cg_damping",
-    1e-3,
-    help="Damping factor to avoid singular matrix multiplication in Conjugate Gradient",
-)
 @option(
     "line_search",
     True,
