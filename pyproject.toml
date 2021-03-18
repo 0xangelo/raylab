@@ -68,4 +68,5 @@ filterwarnings = [
     "ignore::DeprecationWarning:tensorflow:",
     "ignore::DeprecationWarning:google:",
     "ignore::DeprecationWarning:flatbuffers:",
+    "ignore::DeprecationWarning:wandb:",
 ]
