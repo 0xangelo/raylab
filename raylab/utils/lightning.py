@@ -16,9 +16,9 @@ def context_to_devnull(func, *, context_fn):
     return wrapper
 
 
-supress_stdout = functools.partial(
+suppress_stdout = functools.partial(
     context_to_devnull, context_fn=contextlib.redirect_stdout
 )
-supress_stderr = functools.partial(
+suppress_stderr = functools.partial(
     context_to_devnull, context_fn=contextlib.redirect_stderr
 )
