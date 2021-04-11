@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "raylab"
-version = "0.15.4"
+version = "0.15.5"
 description = "Reinforcement learning algorithms in RLlib and PyTorch."
 authors = ["Ângelo Gregório Lovatto <angelolovatto@gmail.com>"]
 license = "MIT"
@@ -18,7 +18,7 @@ python = "^3.7"
 click = "^7.1.2"
 ray = {extras = ["rllib", "tune"], version = "^1.0.0"}
 torch = "^1.5.1"
-streamlit = ">=0.62,<0.79"
+streamlit = ">=0.62,<0.81"
 cachetools = {version = "^4.1.0", python = "^3.7"}
 bokeh = "^2.1.0"
 dataclasses-json = "^0.5.1"
@@ -37,19 +37,19 @@ sklearn = "^0.0"
 wandb = ["wandb"]
 
 [tool.poetry.dev-dependencies]
-flake8 = "^3.8.4"
-pylint = "^2.7.2"
+flake8 = "^3.9.0"
+pylint = "^2.7.4"
 watchdog = "^2.0.2"
 black = "^20.8b1"
 tox = "^3.23.0"
-sphinx = "^3.5.2"
-pytest = "^6.2.2"
+sphinx = "^3.5.3"
+pytest = "^6.2.3"
 gym-cartpole-swingup = "^0.1.1"
-pre-commit = "^2.11.1"
+pre-commit = "^2.12.0"
 reorder-python-imports = "^2.4.0"
 mypy = "^0.812"
 coverage = "^5.5"
-ipython = "^7.21.0"
+ipython = "^7.22.0"
 pytest-mock = "^3.5.1"
 pytest-sugar = "^0.9.4"
 auto-changelog = "^0.5.1"
@@ -68,4 +68,5 @@ filterwarnings = [
     "ignore::DeprecationWarning:tensorflow:",
     "ignore::DeprecationWarning:google:",
     "ignore::DeprecationWarning:flatbuffers:",
+    "ignore::DeprecationWarning:wandb:",
 ]
