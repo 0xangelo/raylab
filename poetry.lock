@@ -195,11 +195,11 @@ tests_no_zope = ["coverage[toml] (>=5.0.2)", "hypothesis", "pympler", "pytest (>
 
 [[package]]
 name = "auto-changelog"
-version = "0.5.1"
+version = "0.5.3"
 description = "Simple tool to generate nice, formatted changelogs from vcs"
 category = "dev"
 optional = false
-python-versions = ">=3.5"
+python-versions = ">=3.6"
 
 [package.dependencies]
 Click = ">=7.0,<8.0"
@@ -2527,7 +2527,7 @@ wandb = ["wandb"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "5816a4f4c1618845ee5bcc6e04bb27afa0ccbfbff04d67118a16c6192e8f7f5d"
+content-hash = "feb9a5dafaaab0d8c7eeafe3f6645066b684f52071c7d720fa782b779c715e39"
 
 [metadata.files]
 absl-py = [
@@ -2657,8 +2657,8 @@ attrs = [
     {file = "attrs-20.3.0.tar.gz", hash = "sha256:832aa3cde19744e49938b91fea06d69ecb9e649c93ba974535d08ad92164f700"},
 ]
 auto-changelog = [
-    {file = "auto-changelog-0.5.1.tar.gz", hash = "sha256:8608dd3cb3314120159e065a218ace05b42097db78bf1ac6cfaf0e00d32e8eae"},
-    {file = "auto_changelog-0.5.1-py3-none-any.whl", hash = "sha256:39f9f79f757a570b13c161084edf301e348b953264842339fe735f3ff8685b15"},
+    {file = "auto-changelog-0.5.3.tar.gz", hash = "sha256:407ac320bdbdeb4d2914fb1826bfab77a5598a0952048a5cbdaedbe80a949591"},
+    {file = "auto_changelog-0.5.3-py3-none-any.whl", hash = "sha256:52037137bcb86340640f5d8ba6c0d07fbb9622f056f703cae7247c4d7ac7ecfc"},
 ]
 babel = [
     {file = "Babel-2.9.0-py2.py3-none-any.whl", hash = "sha256:9d35c22fcc79893c3ecc85ac4a56cde1ecf3f19c540bba0922308a6c06ca6fa5"},
