@@ -708,7 +708,7 @@ robotics = ["mujoco_py (>=1.50,<2.0)", "imageio"]
 
 [[package]]
 name = "gym-cartpole-swingup"
-version = "0.1.1"
+version = "0.1.3"
 description = "A simple, continuous-control environment for OpenAI Gym"
 category = "dev"
 optional = false
@@ -2527,7 +2527,7 @@ wandb = ["wandb"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "feb9a5dafaaab0d8c7eeafe3f6645066b684f52071c7d720fa782b779c715e39"
+content-hash = "ee82a7d2d3a37f8b0c6a9f97c89be8f4dd5790372fe4c07426c5ebffe7e1d417"
 
 [metadata.files]
 absl-py = [
@@ -2967,8 +2967,8 @@ gym = [
     {file = "gym-0.18.0.tar.gz", hash = "sha256:a0dcd25c1373f3938f4cb4565f74f434fba6faefb73a42d09c9dddd0c08af53e"},
 ]
 gym-cartpole-swingup = [
-    {file = "gym-cartpole-swingup-0.1.1.tar.gz", hash = "sha256:3cd96a9ddc0419395eb57cc0e5bbd9b454344052ad1978f63da7b80aa85981cb"},
-    {file = "gym_cartpole_swingup-0.1.1-py3-none-any.whl", hash = "sha256:3ae6a4fcfcff02b88307e9784e420643f494713530bac0bdb09a03091f7ba076"},
+    {file = "gym-cartpole-swingup-0.1.3.tar.gz", hash = "sha256:e22a6a82dd1b450d184a9a5f0c8a765e1ba85532eab5f8a3c3d55ba5a3161d59"},
+    {file = "gym_cartpole_swingup-0.1.3-py3-none-any.whl", hash = "sha256:8231893db544d14ce58d76b0a865b41a4e115b78465718845e4f0e011e27bfe2"},
 ]
 hiredis = [
     {file = "hiredis-1.1.0-cp27-cp27m-macosx_10_6_intel.whl", hash = "sha256:289b31885b4996ce04cadfd5fc03d034dce8e2a8234479f7c9e23b9e245db06b"},
