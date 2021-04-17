@@ -1,19 +1,26 @@
 """Utilities for loading and processing experiment results."""
-# pylint:disable=missing-docstring
+# pylint:disable=missing-docstring,unsubscriptable-object
+from __future__ import annotations
+
 import itertools
 import json
 import os
 from ast import literal_eval
 from collections import namedtuple
 from functools import reduce
+from typing import Any
+from typing import Optional
+from typing import Union
 
 import numpy as np
 import pandas as pd
 
 _NUMERIC_KINDS = set("uifc")
+ExperimentData = namedtuple("ExperimentData", ["progress", "params", "flat_params"])
+Folder = namedtuple("Folder", ["path", "files"])
 
 
-def is_numeric(array):
+def is_numeric(array) -> bool:
     """Determine whether the argument has a numeric datatype, when
     converted to a NumPy array.
 
@@ -34,14 +41,14 @@ def is_numeric(array):
     return np.asarray(array).dtype.kind in _NUMERIC_KINDS
 
 
-def is_increasing_key(key, exps_data):
+def is_increasing_key(key: str, exps_data: list[ExperimentData]):
     for exp in exps_data:
         if key in exp.progress and not is_increasing(exp.progress[key]):
             return False
     return True
 
 
-def is_increasing(arr):
+def is_increasing(arr: np.ndarray) -> bool:
     arr = np.asarray(arr)
     if not is_numeric(arr):
         return False
@@ -53,7 +60,7 @@ def is_increasing(arr):
     return np.all(np.less_equal(arr[:-1], arr[1:])) and np.max(arr) >= np.min(arr)
 
 
-def get_plottable_keys(exps_data):
+def get_plottable_keys(exps_data: list[ExperimentData]) -> list[str]:
     return sorted(
         list(
             set(
@@ -66,15 +73,13 @@ def get_plottable_keys(exps_data):
     )
 
 
-def get_x_plottable_keys(plottable_keys, exps_data):
+def get_x_plottable_keys(
+    plottable_keys: list[str], exps_data: list[ExperimentData]
+) -> list[str]:
     return [key for key in plottable_keys if is_increasing_key(key, exps_data)]
 
 
-ExperimentData = namedtuple("ExperimentData", ["progress", "params", "flat_params"])
-Folder = namedtuple("Folder", ["path", "files"])
-
-
-def load_progress(progress_path, verbose=True):
+def load_progress(progress_path: str, verbose: bool = True) -> pd.DataFrame:
     if verbose:
         print("Reading {}".format(progress_path))
 
@@ -88,7 +93,7 @@ def load_progress(progress_path, verbose=True):
     return pd.DataFrame(dicts)
 
 
-def flatten_dict(dic):
+def flatten_dict(dic: dict) -> dict:
     flat_params = dict()
     for key, val in dic.items():
         if isinstance(val, dict):
@@ -100,7 +105,7 @@ def flatten_dict(dic):
     return flat_params
 
 
-def load_params(params_json_path):
+def load_params(params_json_path: str) -> dict:
     with open(params_json_path, "r") as file:
         data = json.load(file)
         if "args_data" in data:
@@ -110,15 +115,19 @@ def load_params(params_json_path):
     return data
 
 
-def first_that(criterion, lis):
+# noinspection PyUnresolvedReferences
+def first_that(criterion: callable[[Any], bool], lis: list[Any]) -> Any:
     return next((x for x in lis if criterion(x)), None)
 
 
-def unique(lis):
+def unique(lis: list[Any]) -> list[Any]:
     return list(set(lis))
 
 
-def get_folders_with_target_files(directories, istarget):
+# noinspection PyTypeChecker,PyUnresolvedReferences
+def get_folders_with_target_files(
+    directories: list[str], istarget: callable[[str], bool]
+):
     """Return folders that havy any file of interest."""
     return list(
         map(  # Folders with at least one target file
@@ -143,7 +152,13 @@ def get_folders_with_target_files(directories, istarget):
     )
 
 
-def read_exp_folder_data(exp_folders, isprogress, isconfig, verbose=False):
+# noinspection PyUnresolvedReferences
+def read_exp_folder_data(
+    exp_folders: list[Folder],
+    isprogress: callable[[str], bool],
+    isconfig: callable[[str], bool],
+    verbose: bool = False,
+) -> list[ExperimentData]:
     exps_data = []
     for path, files in exp_folders:
         try:
@@ -170,13 +185,13 @@ def read_exp_folder_data(exp_folders, isprogress, isconfig, verbose=False):
 
 
 def load_exps_data(
-    directories,
-    progress_prefix="progress",
-    config_prefix="params",
-    error_prefix="error",
-    include_errors=False,
-    verbose=False,
-):
+    directories: Union[list[str], str],
+    progress_prefix: str = "progress",
+    config_prefix: str = "params",
+    error_prefix: str = "error",
+    include_errors: bool = False,
+    verbose: bool = False,
+) -> list[ExperimentData]:
     # pylint:disable=too-many-arguments
     if isinstance(directories, str):
         directories = [directories]
@@ -201,7 +216,10 @@ def load_exps_data(
     return exps_data
 
 
-def extract_distinct_params(exps_data, excluded_params=("seed", "log_dir")):
+def extract_distinct_params(
+    exps_data: list[ExperimentData],
+    excluded_params: tuple[str, ...] = ("seed", "log_dir"),
+) -> list[tuple[str, Any]]:
     repr_config_pairs = [repr(kv) for d in exps_data for kv in d.flat_params.items()]
     uniq_pairs = list(set(repr_config_pairs))
     evald_pairs = map(literal_eval, uniq_pairs)
@@ -250,7 +268,12 @@ class Selector:
         return list(filter(self._check_exp, self._exps_data))
 
 
-def filter_and_split_experiments(exps_data, split=None, include=(), exclude=()):
+def filter_and_split_experiments(
+    exps_data: list[ExperimentData],
+    split: Optional[str] = None,
+    include: tuple[str, ...] = (),
+    exclude: tuple[str, ...] = (),
+) -> tuple[list[Selector], list[str]]:
     selector = Selector(exps_data)
     for key, val in include:
         selector = selector.where(key, val)
