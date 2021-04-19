@@ -48,13 +48,6 @@ repos:
       - id: flake8
         stages: [commit, push]
 
-    - repo: https://github.com/asottile/reorder_python_imports
-      rev: v2.3.5
-      hooks:
-      - id: reorder-python-imports
-        stages: [commit, push]
-        args: [--separate-relative]
-
     - repo: https://github.com/python/black
       rev: 20.8b1
       hooks:
