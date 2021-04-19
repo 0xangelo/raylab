@@ -48,6 +48,21 @@ repos:
       - id: flake8
         stages: [commit, push]
 
+    - repo: https://github.com/pycqa/isort
+      rev: 5.8.0
+      hooks:
+      - id: isort
+        name: isort (python)
+        stages: [commit, push]
+      - id: isort
+        name: isort (cython)
+        types: [cython]
+        stages: [commit, push]
+      - id: isort
+        name: isort (pyi)
+        types: [pyi]
+        stages: [commit, push]
+
     - repo: https://github.com/python/black
       rev: 20.8b1
       hooks:
