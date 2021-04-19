@@ -38,6 +38,7 @@ def init_ray():
 @pytest.fixture(autouse=True, scope="session")
 def disable_gym_logger_warnings():
     import logging
+
     import gym
 
     gym.logger.set_level(logging.ERROR)

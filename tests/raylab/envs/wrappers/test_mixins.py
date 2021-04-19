@@ -2,7 +2,6 @@ import pytest
 
 import raylab.envs.wrappers as wrappers
 
-
 RNG_SUBCLASSES = {
     wrappers.CorrelatedIrrelevant,
     wrappers.LinearRedundant,

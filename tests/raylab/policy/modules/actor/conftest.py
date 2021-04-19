@@ -1,10 +1,8 @@
 import pytest
 import torch
-from gym.spaces import Box
-from gym.spaces import Discrete
+from gym.spaces import Box, Discrete
 
 from raylab.utils.debug import fake_batch
-
 
 DISC_SPACES = (Discrete(2), Discrete(8))
 CONT_SPACES = (Box(-1, 1, shape=(1,)), Box(-1, 1, shape=(3,)))

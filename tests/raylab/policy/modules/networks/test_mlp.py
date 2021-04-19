@@ -3,7 +3,6 @@ import torch
 
 from raylab.policy.modules.networks import MLP
 
-
 PARAMS = (None, {}, {"state": torch.randn(10, 4)})
 
 

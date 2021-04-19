@@ -1,11 +1,12 @@
 import pytest
 import torch
 
-from raylab.policy.modules.networks import MLP
-from raylab.policy.modules.networks import ResidualNet
-from raylab.torch.nn.distributions.flows.coupling import AdditiveCouplingTransform
-from raylab.torch.nn.distributions.flows.coupling import AffineCouplingTransform
-from raylab.torch.nn.distributions.flows.coupling import PiecewiseRQSCouplingTransform
+from raylab.policy.modules.networks import MLP, ResidualNet
+from raylab.torch.nn.distributions.flows.coupling import (
+    AdditiveCouplingTransform,
+    AffineCouplingTransform,
+    PiecewiseRQSCouplingTransform,
+)
 from raylab.torch.nn.distributions.flows.masks import create_alternating_binary_mask
 
 PARITIES = (True, False)

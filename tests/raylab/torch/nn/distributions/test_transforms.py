@@ -1,16 +1,20 @@
 import pytest
 import torch
 
-from raylab.torch.nn.distributions import Independent
-from raylab.torch.nn.distributions import Normal
-from raylab.torch.nn.distributions import TransformedDistribution
-from raylab.torch.nn.distributions import Uniform
-from raylab.torch.nn.distributions.flows import AffineTransform
-from raylab.torch.nn.distributions.flows import CompositeTransform
-from raylab.torch.nn.distributions.flows import InverseTransform
-from raylab.torch.nn.distributions.flows import SigmoidTransform
-from raylab.torch.nn.distributions.flows import TanhSquashTransform
-from raylab.torch.nn.distributions.flows import TanhTransform
+from raylab.torch.nn.distributions import (
+    Independent,
+    Normal,
+    TransformedDistribution,
+    Uniform,
+)
+from raylab.torch.nn.distributions.flows import (
+    AffineTransform,
+    CompositeTransform,
+    InverseTransform,
+    SigmoidTransform,
+    TanhSquashTransform,
+    TanhTransform,
+)
 
 from .utils import _test_dist_ops
 

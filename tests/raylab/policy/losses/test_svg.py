@@ -2,8 +2,7 @@ import pytest
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.policy.losses.svg import OneStepSVG
-from raylab.policy.losses.svg import ReproduceRewards
+from raylab.policy.losses.svg import OneStepSVG, ReproduceRewards
 
 
 @pytest.fixture

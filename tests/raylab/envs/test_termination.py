@@ -6,7 +6,6 @@ from raylab.envs import get_termination_fn
 from raylab.envs.registry import ENVS
 from raylab.envs.termination import TERMINATIONS
 
-
 VALID_ENVS = sorted(list(set(ENVS.keys()).intersection(set(TERMINATIONS.keys()))))
 ENV_CONFIGS = (
     {},

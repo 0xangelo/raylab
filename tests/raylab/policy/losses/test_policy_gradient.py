@@ -1,9 +1,11 @@
 import pytest
 import torch
 
-from raylab.policy.losses import ActionDPG
-from raylab.policy.losses import DeterministicPolicyGradient
-from raylab.policy.losses import ReparameterizedSoftPG
+from raylab.policy.losses import (
+    ActionDPG,
+    DeterministicPolicyGradient,
+    ReparameterizedSoftPG,
+)
 
 
 @pytest.fixture

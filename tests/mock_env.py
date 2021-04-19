@@ -5,10 +5,10 @@ import torch
 from gym.spaces import Box
 from ray.rllib.utils import override
 
-from raylab.envs.rewards import register as register_reward
 from raylab.envs.rewards import RewardFn
-from raylab.envs.termination import register as register_termination
+from raylab.envs.rewards import register as register_reward
 from raylab.envs.termination import TerminationFn
+from raylab.envs.termination import register as register_termination
 
 
 class MockEnv(gym.Env):  # pylint:disable=abstract-method

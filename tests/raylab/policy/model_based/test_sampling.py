@@ -6,10 +6,8 @@ import pytest
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.options import configure
-from raylab.options import option
-from raylab.policy import ModelSamplingMixin
-from raylab.policy import TorchPolicy
+from raylab.options import configure, option
+from raylab.policy import ModelSamplingMixin, TorchPolicy
 from raylab.utils.debug import fake_batch
 
 ENSEMBLE_SIZE = (1, 4)

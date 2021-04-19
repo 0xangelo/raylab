@@ -2,8 +2,10 @@ import pytest
 import torch
 from torch.autograd import grad
 
-from raylab.policy.modules.model.stochastic.single import MLPModel
-from raylab.policy.modules.model.stochastic.single import ResidualStochasticModel
+from raylab.policy.modules.model.stochastic.single import (
+    MLPModel,
+    ResidualStochasticModel,
+)
 from raylab.torch.nn import NormalParams
 
 
