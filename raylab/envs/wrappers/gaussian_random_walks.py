@@ -3,8 +3,7 @@ import gym
 import numpy as np
 from gym.spaces import Box
 
-from .mixins import IrrelevantRedundantMixin
-from .mixins import RNGMixin
+from .mixins import IrrelevantRedundantMixin, RNGMixin
 from .utils import assert_flat_box_space
 
 

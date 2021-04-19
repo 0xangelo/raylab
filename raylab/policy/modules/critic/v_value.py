@@ -1,25 +1,17 @@
 # pylint:disable=missing-module-docstring
-from abc import ABC
-from abc import abstractmethod
-from typing import List
-from typing import Union
+from abc import ABC, abstractmethod
+from typing import List, Union
 
 import torch
 import torch.nn as nn
 from gym.spaces import Box
 from torch import Tensor
-from torch.jit import fork
-from torch.jit import wait
+from torch.jit import fork, wait
 
-from raylab.policy.modules.actor import Alpha
-from raylab.policy.modules.actor import DeterministicPolicy
-from raylab.policy.modules.actor import StochasticPolicy
+from raylab.policy.modules.actor import Alpha, DeterministicPolicy, StochasticPolicy
 from raylab.policy.modules.networks.mlp import StateMLP
 
-from .q_value import ClippedQValue
-from .q_value import QValue
-from .q_value import QValueEnsemble
-
+from .q_value import ClippedQValue, QValue, QValueEnsemble
 
 MLPSpec = StateMLP.spec_cls
 

@@ -1,9 +1,7 @@
 """Utilities for module initialization."""
 import functools
 import inspect
-from typing import Callable
-from typing import Optional
-from typing import Union
+from typing import Callable, Optional, Union
 
 import torch.nn as nn
 from torch import Tensor

@@ -3,10 +3,8 @@ from __future__ import annotations
 
 import copy
 import statistics as stats
-from dataclasses import dataclass
-from dataclasses import field
-from typing import Any
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
 import pytorch_lightning as pl
 import torch
@@ -14,20 +12,15 @@ import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from torch import Tensor
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader
-from torch.utils.data import Dataset
-from torch.utils.data import random_split
+from torch.utils.data import DataLoader, Dataset, random_split
 
 from raylab.options import option
 from raylab.policy.losses import Loss
 from raylab.policy.modules.model import SME
 from raylab.torch.utils import convert_to_tensor
-from raylab.utils.lightning import lightning_warnings_only
-from raylab.utils.lightning import suppress_dataloader_warnings
+from raylab.utils.lightning import lightning_warnings_only, suppress_dataloader_warnings
 from raylab.utils.replay_buffer import NumpyReplayBuffer
-from raylab.utils.types import StatDict
-from raylab.utils.types import TensorDict
-
+from raylab.utils.types import StatDict, TensorDict
 
 # ======================================================================================
 # LightningModel

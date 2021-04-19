@@ -93,7 +93,9 @@ def rollout(checkpoint, agent, env, eval_config, **rollout_kwargs):
     """Wrap `rllib rollout` with customized options."""
     # pylint:disable=too-many-locals
     import ray
-    from ray.rllib.rollout import rollout as rllib_rollout, RolloutSaver
+    from ray.rllib.rollout import RolloutSaver
+    from ray.rllib.rollout import rollout as rllib_rollout
+
     from raylab.utils.checkpoints import get_agent_from_checkpoint
 
     ray.init()

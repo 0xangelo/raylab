@@ -7,26 +7,28 @@ References:
     Papamakarios, George, et al. "Normalizing Flows for Probabilistic Modeling
     and Inference." arXiv preprint arXiv:1912.02762 (2019).
 """
-from . import masks
-from . import utils
-from .abstract import CompositeTransform
-from .abstract import ConditionalTransform
-from .abstract import InverseTransform
-from .abstract import Transform
-from .affine_constant import ActNorm
-from .affine_constant import AffineConstantFlow
-from .coupling import AdditiveCouplingTransform
-from .coupling import AffineCouplingTransform
-from .coupling import CouplingTransform
-from .coupling import PiecewiseRQSCouplingTransform
-from .maf import IAF
-from .maf import MAF
-from .nonlinearities import AffineTransform
-from .nonlinearities import SigmoidSquashTransform
-from .nonlinearities import SigmoidTransform
-from .nonlinearities import TanhSquashTransform
-from .nonlinearities import TanhTransform
-
+from . import masks, utils
+from .abstract import (
+    CompositeTransform,
+    ConditionalTransform,
+    InverseTransform,
+    Transform,
+)
+from .affine_constant import ActNorm, AffineConstantFlow
+from .coupling import (
+    AdditiveCouplingTransform,
+    AffineCouplingTransform,
+    CouplingTransform,
+    PiecewiseRQSCouplingTransform,
+)
+from .maf import IAF, MAF
+from .nonlinearities import (
+    AffineTransform,
+    SigmoidSquashTransform,
+    SigmoidTransform,
+    TanhSquashTransform,
+    TanhTransform,
+)
 
 __all__ = [
     "ActNorm",

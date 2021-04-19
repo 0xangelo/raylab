@@ -1,9 +1,6 @@
 """Custom Replay Buffers based on RLlibs's implementation."""
 from dataclasses import dataclass
-from typing import Dict
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 from gym.spaces import Space

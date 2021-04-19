@@ -21,6 +21,7 @@ def raylab():
 def dashboard(paths):
     """Launch the experiment dashboard to monitor training progress."""
     from streamlit.cli import _main_run
+
     from . import experiment_dashboard
 
     _main_run(experiment_dashboard.__file__, paths)
@@ -34,6 +35,7 @@ def dashboard(paths):
 def episodes(path):
     """Launch the episode dashboard to monitor state and action distributions."""
     from streamlit.cli import _main_run
+
     from . import episode_dashboard
 
     _main_run(episode_dashboard.__file__, [path])
@@ -48,6 +50,7 @@ def episodes(path):
 def test_module(agent_id, checkpoint):
     """Launch dashboard to test generative models from a checkpoint."""
     from streamlit.cli import _main_run
+
     from . import module_dashboard
 
     _main_run(module_dashboard.__file__, [agent_id, checkpoint])

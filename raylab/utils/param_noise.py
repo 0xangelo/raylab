@@ -2,8 +2,7 @@
 From OpenAI Baselines:
 https://github.com/openai/baselines/blob/master/baselines/ddpg/noise.py
 """
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 
 import numpy as np
 

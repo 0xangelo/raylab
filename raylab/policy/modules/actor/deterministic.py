@@ -1,14 +1,12 @@
 """Network and configurations for modules with deterministic policies."""
 import warnings
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 
 import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
 
-from .policy.deterministic import DeterministicPolicy
-from .policy.deterministic import MLPDeterministicPolicy
+from .policy.deterministic import DeterministicPolicy, MLPDeterministicPolicy
 
 NetworkSpec = MLPDeterministicPolicy.spec_cls
 

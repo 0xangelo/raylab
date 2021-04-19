@@ -1,15 +1,11 @@
 """Network and configurations for modules with Q-value critics."""
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 
 import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
 
-from .q_value import ForkedQValueEnsemble
-from .q_value import MLPQValue
-from .q_value import QValueEnsemble
-
+from .q_value import ForkedQValueEnsemble, MLPQValue, QValueEnsemble
 
 QValueSpec = MLPQValue.spec_cls
 

@@ -2,13 +2,10 @@
 import torch
 from ray.rllib import SampleBatch
 
-from raylab.options import configure
-from raylab.options import option
-from raylab.policy import EnvFnMixin
-from raylab.policy import TorchPolicy
+from raylab.options import configure, option
+from raylab.policy import EnvFnMixin, TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
-from raylab.policy.losses import ISFittedVIteration
-from raylab.policy.losses import MaximumLikelihood
+from raylab.policy.losses import ISFittedVIteration, MaximumLikelihood
 from raylab.torch.nn.utils import update_polyak
 
 

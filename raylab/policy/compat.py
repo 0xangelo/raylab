@@ -1,6 +1,5 @@
 """Wrappers and adapters for compatibility with RLlib's API."""
-from typing import Dict
-from typing import List
+from typing import Dict, List
 
 import torch.nn as nn
 from gym import Space

@@ -1,24 +1,18 @@
 # pylint:disable=missing-module-docstring
-from typing import Tuple
-from typing import Union
+from typing import Tuple, Union
 
 import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.policy.modules.actor import DeterministicPolicy
-from raylab.policy.modules.actor import StochasticPolicy
-from raylab.policy.modules.critic import QValueEnsemble
-from raylab.policy.modules.critic import VValue
-from raylab.policy.modules.model import SME
-from raylab.policy.modules.model import StochasticModel
-from raylab.utils.types import StatDict
-from raylab.utils.types import TensorDict
+from raylab.policy.modules.actor import DeterministicPolicy, StochasticPolicy
+from raylab.policy.modules.critic import QValueEnsemble, VValue
+from raylab.policy.modules.model import SME, StochasticModel
+from raylab.utils.types import StatDict, TensorDict
 
 from .abstract import Loss
-from .mixins import EnvFunctionsMixin
-from .mixins import UniformModelPriorMixin
+from .mixins import EnvFunctionsMixin, UniformModelPriorMixin
 from .q_learning import QLearningMixin
 from .utils import dist_params_stats
 

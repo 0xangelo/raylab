@@ -10,7 +10,6 @@ from functools import reduce
 import numpy as np
 import pandas as pd
 
-
 _NUMERIC_KINDS = set("uifc")
 
 

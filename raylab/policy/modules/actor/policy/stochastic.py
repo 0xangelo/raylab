@@ -1,11 +1,9 @@
 """Parameterized stochastic policies."""
-from typing import Callable
-from typing import List
+from typing import Callable, List
 
 import torch
 import torch.nn as nn
-from gym.spaces import Box
-from gym.spaces import Discrete
+from gym.spaces import Box, Discrete
 
 import raylab.torch.nn as nnx
 import raylab.torch.nn.distributions as ptd

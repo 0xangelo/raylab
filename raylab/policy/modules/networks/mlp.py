@@ -1,10 +1,6 @@
 # pylint:disable=missing-module-docstring
-from dataclasses import dataclass
-from dataclasses import field
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Sequence
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Sequence
 
 import torch
 import torch.nn as nn

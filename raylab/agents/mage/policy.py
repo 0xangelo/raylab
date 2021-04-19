@@ -1,16 +1,12 @@
 """Policy for MAGE using PyTorch."""
-from typing import List
-from typing import Tuple
+from typing import List, Tuple
 
 from raylab.agents.sop import SOPTorchPolicy
-from raylab.options import configure
-from raylab.options import option
+from raylab.options import configure, option
 from raylab.policy import EnvFnMixin
 from raylab.policy.action_dist import WrapDeterministicPolicy
-from raylab.policy.losses import MAGE
-from raylab.policy.losses import MaximumLikelihood
-from raylab.policy.model_based.lightning import LightningModelTrainer
-from raylab.policy.model_based.lightning import TrainingSpec
+from raylab.policy.losses import MAGE, MaximumLikelihood
+from raylab.policy.model_based.lightning import LightningModelTrainer, TrainingSpec
 from raylab.policy.model_based.policy import MBPolicyMixin
 from raylab.policy.modules.critic import HardValue
 from raylab.torch.optim import build_optimizer

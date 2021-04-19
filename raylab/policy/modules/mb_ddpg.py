@@ -1,13 +1,10 @@
 """Network and configurations for model-based DDPG algorithms."""
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 
 from gym.spaces import Box
 
-from .ddpg import DDPG
-from .ddpg import DDPGSpec
-from .model.stochastic import build_ensemble
-from .model.stochastic import EnsembleSpec
+from .ddpg import DDPG, DDPGSpec
+from .model.stochastic import EnsembleSpec, build_ensemble
 
 
 @dataclass

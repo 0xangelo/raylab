@@ -6,8 +6,7 @@ import numpy as np
 from gym.spaces import Box
 
 from .mixins import IrrelevantRedundantMixin
-from .utils import assert_flat_box_space
-from .utils import check_redundant_size_compat
+from .utils import assert_flat_box_space, check_redundant_size_compat
 
 
 class NonlinearRedundant(IrrelevantRedundantMixin, gym.ObservationWrapper):

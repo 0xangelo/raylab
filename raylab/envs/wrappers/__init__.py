@@ -7,7 +7,6 @@ from .random_irrelevant import RandomIrrelevant
 from .single_precision import SinglePrecision
 from .time_aware_env import AddRelativeTimestep
 
-
 __all__ = [
     "AddRelativeTimestep",
     "CorrelatedIrrelevant",

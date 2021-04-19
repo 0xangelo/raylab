@@ -9,8 +9,7 @@ from .mb_sac import ModelBasedSAC
 from .naf import NAF
 from .sac import SAC
 from .sop import SOP
-from .svg import SoftSVG
-from .svg import SVG
+from .svg import SVG, SoftSVG
 from .td3 import TD3
 from .trpo import TRPO
 

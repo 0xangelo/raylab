@@ -1,7 +1,5 @@
 """PyTorch related utilities."""
-from typing import Dict
-from typing import Iterator
-from typing import Union
+from typing import Dict, Iterator, Union
 
 import numpy as np
 import torch

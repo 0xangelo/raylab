@@ -9,8 +9,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-from .types import Affine
-from .types import LQR
+from .types import LQR, Affine
 
 
 class LQRSim(nn.Module):

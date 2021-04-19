@@ -2,8 +2,7 @@
 import textwrap
 from typing import Any
 
-from gym.spaces import Box
-from gym.spaces import Space
+from gym.spaces import Box, Space
 
 
 def assert_flat_box_space(space: Space, obj: Any):

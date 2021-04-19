@@ -1,14 +1,11 @@
 """Constructors for stochastic dynamics models."""
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
 
-from .ensemble import ForkedSME
-from .ensemble import SME
-from .single import MLPModel
-from .single import ResidualStochasticModel
+from .ensemble import SME, ForkedSME
+from .single import MLPModel, ResidualStochasticModel
 
 ModelSpec = MLPModel.spec_cls
 

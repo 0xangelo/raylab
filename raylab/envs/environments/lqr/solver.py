@@ -3,17 +3,14 @@ Linear Quadratic Regulator (LQR):
 Please see http://rail.eecs.berkeley.edu/deeprlcourse/static/slides/lec-10.pdf
 for notation and more details on LQR.
 """
-from typing import List
-from typing import Tuple
+from typing import List, Tuple
 
 import torch
 import torch.nn as nn
 from torch import Tensor
 
-from .types import Affine
 from .types import LQR as System
-from .types import Quadratic
-
+from .types import Affine, Quadratic
 
 Policy = Affine
 Value = Tuple[Tensor, Tensor, Tensor]

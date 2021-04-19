@@ -5,7 +5,6 @@ from typing import Any
 from ray.rllib import Policy
 from ray.rllib.evaluation.worker_set import WorkerSet
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -1,11 +1,6 @@
 # pylint:disable=missing-module-docstring
-from abc import ABC
-from abc import abstractmethod
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from abc import ABC, abstractmethod
+from typing import Dict, List, Optional, Tuple, Union
 
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.episode import MultiAgentEpisode

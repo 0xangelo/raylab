@@ -35,13 +35,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 from ray.rllib.utils import override
 
-from .abstract import CompositeTransform
-from .abstract import InverseTransform
-from .abstract import Transform
-from .splines import DEFAULT_MIN_BIN_HEIGHT
-from .splines import DEFAULT_MIN_BIN_WIDTH
-from .splines import DEFAULT_MIN_DERIVATIVE
-from .splines import unconstrained_rational_quadratic_spline
+from .abstract import CompositeTransform, InverseTransform, Transform
+from .splines import (
+    DEFAULT_MIN_BIN_HEIGHT,
+    DEFAULT_MIN_BIN_WIDTH,
+    DEFAULT_MIN_DERIVATIVE,
+    unconstrained_rational_quadratic_spline,
+)
 from .utils import sum_rightmost
 
 

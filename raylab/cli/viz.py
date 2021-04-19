@@ -2,14 +2,16 @@
 import bokeh
 import numpy as np
 import pandas as pd
-from bokeh.models import BoxZoomTool
-from bokeh.models import ColumnDataSource
-from bokeh.models import HelpTool
-from bokeh.models import HoverTool
-from bokeh.models import PanTool
-from bokeh.models import ResetTool
-from bokeh.models import SaveTool
-from bokeh.models import WheelZoomTool
+from bokeh.models import (
+    BoxZoomTool,
+    ColumnDataSource,
+    HelpTool,
+    HoverTool,
+    PanTool,
+    ResetTool,
+    SaveTool,
+    WheelZoomTool,
+)
 from bokeh.plotting import figure
 
 

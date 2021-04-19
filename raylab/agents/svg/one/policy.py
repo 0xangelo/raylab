@@ -9,15 +9,10 @@ from ray.rllib.utils import override
 from torch import Tensor
 
 from raylab.agents.svg import SVGTorchPolicy
-from raylab.options import configure
-from raylab.options import option
-from raylab.policy import AdaptiveKLCoeffMixin
-from raylab.policy import EnvFnMixin
-from raylab.policy import learner_stats
-from raylab.policy import TorchPolicy
+from raylab.options import configure, option
+from raylab.policy import AdaptiveKLCoeffMixin, EnvFnMixin, TorchPolicy, learner_stats
 from raylab.policy.losses import OneStepSVG
-from raylab.policy.off_policy import off_policy_options
-from raylab.policy.off_policy import OffPolicyMixin
+from raylab.policy.off_policy import OffPolicyMixin, off_policy_options
 from raylab.torch.optim import get_optimizer_class
 from raylab.utils.replay_buffer import ReplayField
 from raylab.utils.types import TensorDict

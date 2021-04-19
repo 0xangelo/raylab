@@ -4,7 +4,6 @@ import numpy as np
 import torch
 from torch import Tensor
 
-
 DEFAULT_CONFIG = {
     "start": [0.0, 1.0],
     "end": [8.0, 9.0],

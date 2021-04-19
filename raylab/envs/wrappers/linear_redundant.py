@@ -5,10 +5,8 @@ import gym
 import numpy as np
 from gym.spaces import Box
 
-from .mixins import IrrelevantRedundantMixin
-from .mixins import RNGMixin
-from .utils import assert_flat_box_space
-from .utils import check_redundant_size_compat
+from .mixins import IrrelevantRedundantMixin, RNGMixin
+from .utils import assert_flat_box_space, check_redundant_size_compat
 
 
 class LinearRedundant(IrrelevantRedundantMixin, RNGMixin, gym.ObservationWrapper):

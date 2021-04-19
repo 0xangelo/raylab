@@ -7,11 +7,9 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 from torch import Tensor
 
-from raylab.policy.modules.actor import Alpha
-from raylab.policy.modules.actor import StochasticPolicy
+from raylab.policy.modules.actor import Alpha, StochasticPolicy
 from raylab.policy.modules.critic import VValue
-from raylab.utils.types import StatDict
-from raylab.utils.types import TensorDict
+from raylab.utils.types import StatDict, TensorDict
 
 from .abstract import Loss
 

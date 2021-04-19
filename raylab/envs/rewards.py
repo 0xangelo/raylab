@@ -1,16 +1,13 @@
 """Registry of environment reward functions in PyTorch."""
 import math
-from typing import Callable
-from typing import Optional
+from typing import Callable, Optional
 
 import torch
 import torch.nn as nn
 
-from raylab.tune.registry import _raylab_registry
-from raylab.tune.registry import RAYLAB_REWARD
+from raylab.tune.registry import RAYLAB_REWARD, _raylab_registry
 
-from .utils import get_env_parameters
-from .utils import has_env_creator
+from .utils import get_env_parameters, has_env_creator
 
 # For testing purposes
 REWARDS = {}

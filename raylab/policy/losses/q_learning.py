@@ -1,8 +1,6 @@
 """Modularized Q-Learning procedures."""
-from abc import ABC
-from abc import abstractmethod
-from typing import List
-from typing import Tuple
+from abc import ABC, abstractmethod
+from typing import List, Tuple
 
 import torch
 import torch.nn as nn
@@ -10,10 +8,8 @@ from ray.rllib import SampleBatch
 from torch import Tensor
 
 import raylab.utils.dictionaries as dutil
-from raylab.policy.modules.critic import QValueEnsemble
-from raylab.policy.modules.critic import VValue
-from raylab.utils.types import StatDict
-from raylab.utils.types import TensorDict
+from raylab.policy.modules.critic import QValueEnsemble, VValue
+from raylab.utils.types import StatDict, TensorDict
 
 from .abstract import Loss
 

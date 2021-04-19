@@ -13,10 +13,7 @@ Notes:
         http://www.apache.org/licenses/LICENSE-2.0
 """
 import math
-from typing import Callable
-from typing import Iterator
-from typing import Optional
-from typing import Tuple
+from typing import Callable, Iterator, Optional, Tuple
 
 import torch
 import torch.nn as nn

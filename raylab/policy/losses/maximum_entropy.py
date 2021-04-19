@@ -1,14 +1,12 @@
 """Loss functions for dual variables in maximum entropy RL."""
-from typing import Callable
-from typing import Tuple
+from typing import Callable, Tuple
 
 import torch
 from ray.rllib import SampleBatch
 from torch import Tensor
 
 from raylab.policy.modules.actor import StochasticPolicy
-from raylab.utils.types import StatDict
-from raylab.utils.types import TensorDict
+from raylab.utils.types import StatDict, TensorDict
 
 from .abstract import Loss
 

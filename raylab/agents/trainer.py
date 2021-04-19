@@ -2,10 +2,7 @@
 import logging
 import time
 from abc import ABCMeta
-from typing import Callable
-from typing import Iterable
-from typing import Optional
-from typing import Type
+from typing import Callable, Iterable, Optional, Type
 
 from ray.exceptions import RayError
 from ray.rllib import Policy
@@ -15,16 +12,16 @@ from ray.rllib.agents.trainer_template import default_execution_plan
 from ray.rllib.env.env_context import EnvContext
 from ray.rllib.evaluation.worker_set import WorkerSet
 from ray.rllib.utils import override as overrides
-from ray.rllib.utils.typing import EnvType
-from ray.rllib.utils.typing import PartialTrainerConfigDict
-from ray.rllib.utils.typing import ResultDict
-from ray.rllib.utils.typing import TrainerConfigDict
+from ray.rllib.utils.typing import (
+    EnvType,
+    PartialTrainerConfigDict,
+    ResultDict,
+    TrainerConfigDict,
+)
 from ray.tune.resources import Resources
 from ray.tune.trainable import Trainable
 
-from raylab.options import configure
-from raylab.options import option
-from raylab.options import TrainerOptions
+from raylab.options import TrainerOptions, configure, option
 from raylab.utils.wandb import WandBLogger
 
 logger = logging.getLogger(__name__)

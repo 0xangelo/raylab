@@ -8,12 +8,8 @@ from torch.optim import Optimizer
 
 from raylab.utils.dictionaries import all_except
 
-from .kfac import EKFAC
-from .kfac import KFAC
-from .radam import AdamW
-from .radam import PlainRAdam
-from .radam import RAdam
-
+from .kfac import EKFAC, KFAC
+from .radam import AdamW, PlainRAdam, RAdam
 
 OPTIMIZERS = {
     name: cls
@@ -58,6 +54,7 @@ def get_optimizer_class(name: str, wrap: bool = True) -> Type[Optimizer]:
         cls = OPTIMIZERS[name]
         return wrap_optim_cls(cls) if wrap else cls
     except KeyError:
+        # pylint:disable=raise-missing-from
         raise ValueError(f"Couldn't find optimizer with name '{name}'")
 
 
