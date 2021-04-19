@@ -9,9 +9,7 @@ import os
 from ast import literal_eval
 from collections import namedtuple
 from functools import reduce
-from typing import Any
-from typing import Optional
-from typing import Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -139,7 +137,8 @@ def first_that(criterion: callable[[Any], bool], lis: list[Any]) -> Any:
 
 def load_progress(progress_path: str, verbose: bool = False) -> pd.DataFrame:
     if verbose:
-        logger.info("Reading %s" % progress_path)
+        # pylint:disable=logging-format-interpolation
+        logger.info("Reading {}".format(progress_path))
 
     if progress_path.endswith(".csv"):
         return pd.read_csv(progress_path, index_col=False, comment="#")
@@ -156,6 +155,7 @@ def flatten_dict(dic: dict) -> dict:
     flat_params = dict()
     for key, val in dic.items():
         if isinstance(val, dict):
+            # pylint:disable=fixme
             # FIXME: calling flatten_dict twice seems to be a mistake
             val = flatten_dict(val)
             for subk, subv in flatten_dict(val).items():

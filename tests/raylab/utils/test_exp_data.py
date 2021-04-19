@@ -8,8 +8,7 @@ import pandas as pd
 import pandas.util.testing as pdtest
 import pytest
 
-from raylab.utils.exp_data import ExperimentData
-from raylab.utils.exp_data import load_exps_data
+from raylab.utils.exp_data import ExperimentData, load_exps_data
 
 
 @pytest.fixture

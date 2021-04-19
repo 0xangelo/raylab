@@ -16,8 +16,7 @@ from bokeh.models import (
 )
 from bokeh.plotting import figure
 
-from raylab.utils.exp_data import ExperimentData
-from raylab.utils.exp_data import Selector
+from raylab.utils.exp_data import ExperimentData, Selector
 
 
 def time_series(

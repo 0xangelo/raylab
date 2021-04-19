@@ -23,6 +23,7 @@ def raylab():
 def dashboard(paths: tuple[str, ...]):
     """Launch the experiment dashboard to monitor training progress."""
     import subprocess
+
     from . import experiment_dashboard
 
     subprocess.run(
@@ -38,6 +39,7 @@ def dashboard(paths: tuple[str, ...]):
 def episodes(path: str):
     """Launch the episode dashboard to monitor state and action distributions."""
     import subprocess
+
     from . import episode_dashboard
 
     subprocess.run(["streamlit", "run", episode_dashboard.__file__, path], check=True)
@@ -52,6 +54,7 @@ def episodes(path: str):
 def test_module(agent_id, checkpoint):
     """Launch dashboard to test generative models from a checkpoint."""
     import subprocess
+
     from . import module_dashboard
 
     subprocess.run(
