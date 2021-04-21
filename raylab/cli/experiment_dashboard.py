@@ -1,4 +1,6 @@
 """Experiment monitoring with Streamlit."""
+from __future__ import annotations
+
 import streamlit as st
 
 from raylab.cli.viz import time_series
