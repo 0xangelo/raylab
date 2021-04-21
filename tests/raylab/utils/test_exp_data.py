@@ -18,6 +18,7 @@ def directories(tmpdir) -> list[str]:
 
 @pytest.fixture
 def progress() -> pd.DataFrame:
+    # https://kanoki.org/2019/11/18/how-to-create-dataframe-for-testing/
     return pdtest.makeDataFrame().reset_index()
 
 
