@@ -1,4 +1,6 @@
 """CLI utilities for RayLab."""
+from __future__ import annotations
+
 import click
 
 from .best_checkpoint import find_best
@@ -18,13 +20,15 @@ def raylab():
     nargs=-1,
     type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=False),
 )
-def dashboard(paths):
+def dashboard(paths: tuple[str, ...]):
     """Launch the experiment dashboard to monitor training progress."""
-    from streamlit.cli import _main_run
+    import subprocess
 
     from . import experiment_dashboard
 
-    _main_run(experiment_dashboard.__file__, paths)
+    subprocess.run(
+        ["streamlit", "run", experiment_dashboard.__file__] + list(paths), check=True
+    )
 
 
 @raylab.command()
@@ -32,13 +36,13 @@ def dashboard(paths):
     "path",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True),
 )
-def episodes(path):
+def episodes(path: str):
     """Launch the episode dashboard to monitor state and action distributions."""
-    from streamlit.cli import _main_run
+    import subprocess
 
     from . import episode_dashboard
 
-    _main_run(episode_dashboard.__file__, [path])
+    subprocess.run(["streamlit", "run", episode_dashboard.__file__, path], check=True)
 
 
 @raylab.command()
@@ -49,11 +53,14 @@ def episodes(path):
 )
 def test_module(agent_id, checkpoint):
     """Launch dashboard to test generative models from a checkpoint."""
-    from streamlit.cli import _main_run
+    import subprocess
 
     from . import module_dashboard
 
-    _main_run(module_dashboard.__file__, [agent_id, checkpoint])
+    subprocess.run(
+        ["streamlit", "run", module_dashboard.__file__, agent_id, checkpoint],
+        check=True,
+    )
 
 
 raylab.add_command(experiment)

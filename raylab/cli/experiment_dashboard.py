@@ -1,11 +1,13 @@
 """Experiment monitoring with Streamlit."""
+from __future__ import annotations
+
 import streamlit as st
 
 from raylab.cli.viz import time_series
 from raylab.utils import exp_data as exp_util
 
 # pylint:disable=invalid-name,missing-docstring,pointless-string-statement
-# pylint:disable=no-value-for-parameter
+# pylint:disable=no-value-for-parameter,unsubscriptable-object
 """
 # Raylab
 """
@@ -13,16 +15,18 @@ from raylab.utils import exp_data as exp_util
 
 # https://discuss.streamlit.io/t/how-can-i-clear-a-specific-cache-only/1963/6
 @st.cache(allow_output_mutation=True)
-def load_data(directories, include_errors=False):
+def load_data(
+    directories: list[str], include_errors: bool = False
+) -> list[list[exp_util.ExperimentData]]:
     return [exp_util.load_exps_data(directories, include_errors=include_errors)]
 
 
 @st.cache
-def get_exp_root_folders(directories):
+def get_exp_root_folders(directories: list[str]) -> list[exp_util.Folder]:
     return exp_util.get_folders_with_target_files(directories, is_experiment_root)
 
 
-def is_experiment_root(path):
+def is_experiment_root(path: str) -> bool:
     return path.startswith("experiment_state") and path.endswith(".json")
 
 
@@ -40,7 +44,7 @@ def dict_value_multiselect(mapping, name=None):
     return items
 
 
-def add_sidebar_options():
+def add_sidebar_options() -> dict:
     return {
         "include_errors": st.sidebar.checkbox("Include experiments with errors"),
         "legend_location": st.sidebar.selectbox(
@@ -66,9 +70,9 @@ def add_sidebar_options():
     }
 
 
-def get_selector(folders, sidebar_options):
+def get_selector(folders: list[str], sidebar_options: dict) -> exp_util.Selector:
     data_wrapper = load_data(
-        tuple(folders), include_errors=sidebar_options["include_errors"]
+        list(folders), include_errors=sidebar_options["include_errors"]
     )
     if st.button("Reload Data"):
         data_wrapper.clear()
