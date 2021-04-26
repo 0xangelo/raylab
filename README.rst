@@ -5,28 +5,65 @@ raylab
 |PyPI| |Tests| |Dependabot| |License| |CodeStyle|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/raylab?logo=PyPi&logoColor=white&color=blue
-	  :alt: PyPI
+      :alt: PyPI
 
 .. |Tests| image:: https://img.shields.io/github/workflow/status/angelolovatto/raylab/Poetry%20package?label=tests&logo=GitHub
-	   :alt: GitHub Workflow Status
+       :alt: GitHub Workflow Status
 
 .. |Dependabot| image:: https://api.dependabot.com/badges/status?host=github&repo=angelolovatto/raylab
-		:target: https://dependabot.com
+        :target: https://dependabot.com
 
 .. |License| image:: https://img.shields.io/github/license/angelolovatto/raylab?color=blueviolet&logo=github
-	     :alt: GitHub
+         :alt: GitHub
 
 .. |CodeStyle| image:: https://img.shields.io/badge/code%20style-black-000000.svg
-	       :target: https://github.com/psf/black
+           :target: https://github.com/psf/black
 
 
 Reinforcement learning algorithms in `RLlib <https://github.com/ray-project/ray/tree/master/rllib>`_ and `PyTorch <https://pytorch.org>`_.
 
 
-Introduction
-------------
+Quickstart
+----------
 
 Raylab provides agents and environments to be used with a normal RLlib/Tune setup.
+
+.. code-block:: zsh
+
+    raylab info list SoftAC
+
+.. code-block::
+
+    learning_starts: 0
+        Hold this number of timesteps before first training operation.
+    policy: {}
+        Sub-configurations for the policy class.
+    wandb: {}
+        Configs for integration with Weights & Biases.
+
+        Accepts arbitrary keyword arguments to pass to `wandb.init`.
+        The defaults for `wandb.init` are:
+        * name: `_name` property of the trainer.
+        * config: full `config` attribute of the trainer
+        * config_exclude_keys: `wandb` and `callbacks` configs
+        * reinit: True
+
+        Don't forget to:
+          * install `wandb` via pip
+          * login to W&B with the appropriate API key for your
+            team/project.
+          * set the `wandb/project` name in the config dict
+
+        Check out the Quickstart for more information:
+        `https://docs.wandb.com/quickstart`
+
+You can add the :code:`--rllib` flag to get description for all the options common to RLlib agents (or :code:`Trainer`\s)
+
+To get further information, specially for nested configs, for a specific config key, use the :code:`--key` option
+
+.. code-block:: zsh
+
+    raylab info list SoftAC --key policy
 
 .. code-block:: python
 
@@ -116,21 +153,21 @@ For a high-level description of the available utilities, run :bash:`raylab --hel
 
 .. code:: bash
 
-	Usage: raylab [OPTIONS] COMMAND [ARGS]...
+    Usage: raylab [OPTIONS] COMMAND [ARGS]...
 
-	  RayLab: Reinforcement learning algorithms in RLlib.
+      RayLab: Reinforcement learning algorithms in RLlib.
 
-	Options:
-	  --help  Show this message and exit.
+    Options:
+      --help  Show this message and exit.
 
-	Commands:
-	  dashboard    Launch the experiment dashboard to monitor training progress.
-	  episodes     Launch the episode dashboard to monitor state and action...
-	  experiment   Launch a Tune experiment from a config file.
-	  find-best    Find the best experiment checkpoint as measured by a metric.
-	  info         View information about an agent's config parameters.
-	  rollout      Wrap `rllib rollout` with customized options.
-	  test-module  Launch dashboard to test generative models from a checkpoint.
+    Commands:
+      dashboard    Launch the experiment dashboard to monitor training progress.
+      episodes     Launch the episode dashboard to monitor state and action...
+      experiment   Launch a Tune experiment from a config file.
+      find-best    Find the best experiment checkpoint as measured by a metric.
+      info         View information about an agent's config parameters.
+      rollout      Wrap `rllib rollout` with customized options.
+      test-module  Launch dashboard to test generative models from a checkpoint.
 
 
 Packages
