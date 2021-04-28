@@ -75,4 +75,6 @@ filterwarnings = [
     "ignore::DeprecationWarning:google:",
     "ignore::DeprecationWarning:flatbuffers:",
     "ignore::DeprecationWarning:wandb:",
+    "ignore:pandas.util.testing is deprecated:FutureWarning",
+    "ignore::DeprecationWarning:tensorboard:"
 ]
