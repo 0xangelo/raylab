@@ -2,11 +2,13 @@ import pytest
 import torch
 
 from raylab.policy.modules.actor import Alpha
-from raylab.policy.modules.critic import HardValue
-from raylab.policy.modules.critic import MLPVValue
-from raylab.policy.modules.critic import SoftValue
-from raylab.policy.modules.critic import VValue
-from raylab.policy.modules.critic import VValueEnsemble
+from raylab.policy.modules.critic import (
+    HardValue,
+    MLPVValue,
+    SoftValue,
+    VValue,
+    VValueEnsemble,
+)
 
 
 @pytest.fixture(params=(1, 2), ids=lambda x: f"VValues({x})")

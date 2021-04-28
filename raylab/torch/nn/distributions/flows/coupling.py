@@ -27,8 +27,7 @@ Slightly modified from:
 https://github.com/bayesiains/nsf/blob/master/nde/transforms/coupling.py
 """
 import warnings
-from abc import ABCMeta
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import Dict
 
 import numpy as np
@@ -37,10 +36,12 @@ from ray.rllib.utils import override
 
 from .abstract import ConditionalTransform
 from .nonlinearities import PiecewiseRationalQuadraticCDF
-from .splines import DEFAULT_MIN_BIN_HEIGHT
-from .splines import DEFAULT_MIN_BIN_WIDTH
-from .splines import DEFAULT_MIN_DERIVATIVE
-from .splines import unconstrained_rational_quadratic_spline
+from .splines import (
+    DEFAULT_MIN_BIN_HEIGHT,
+    DEFAULT_MIN_BIN_WIDTH,
+    DEFAULT_MIN_DERIVATIVE,
+    unconstrained_rational_quadratic_spline,
+)
 from .utils import sum_rightmost
 
 

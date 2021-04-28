@@ -1,12 +1,10 @@
 """Action distribution for compatibility with RLlib's interface."""
-from abc import ABCMeta
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 
 import torch.nn as nn
 from ray.rllib.models.action_dist import ActionDistribution
 
-from .modules.actor import DeterministicPolicy
-from .modules.actor import StochasticPolicy
+from .modules.actor import DeterministicPolicy, StochasticPolicy
 
 
 class IncompatibleDistClsError(Exception):

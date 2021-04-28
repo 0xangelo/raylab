@@ -1,6 +1,5 @@
 import pytest
 
-
 SAMPLE_SHAPE = ((), (1,), (2,))
 
 

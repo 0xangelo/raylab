@@ -1,10 +1,7 @@
 # pylint:disable=missing-docstring
 from ray.rllib.utils import override
-from ray.tune.logger import Logger
-from ray.tune.logger import VALID_SUMMARY_TYPES
-from ray.tune.result import TIME_TOTAL_S
-from ray.tune.result import TIMESTEPS_TOTAL
-from ray.tune.result import TRAINING_ITERATION
+from ray.tune.logger import VALID_SUMMARY_TYPES, Logger
+from ray.tune.result import TIME_TOTAL_S, TIMESTEPS_TOTAL, TRAINING_ITERATION
 from ray.tune.utils.util import flatten_dict
 from torch.utils.tensorboard import SummaryWriter
 

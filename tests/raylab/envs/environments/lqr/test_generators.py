@@ -2,9 +2,11 @@ import numpy as np
 import pytest
 import torch
 
-from raylab.envs.environments.lqr.generators import box_ddp_random_lqr
-from raylab.envs.environments.lqr.generators import make_lqr
-from raylab.envs.environments.lqr.generators import make_lqr_linear_navigation
+from raylab.envs.environments.lqr.generators import (
+    box_ddp_random_lqr,
+    make_lqr,
+    make_lqr_linear_navigation,
+)
 from raylab.envs.environments.lqr.types import LQR
 
 

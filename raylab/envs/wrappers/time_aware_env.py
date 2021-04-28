@@ -2,8 +2,7 @@
 import gym
 import numpy as np
 
-from .utils import assert_flat_box_space
-from .utils import ignore_rightmost_variables
+from .utils import assert_flat_box_space, ignore_rightmost_variables
 
 
 class AddRelativeTimestep(gym.ObservationWrapper):

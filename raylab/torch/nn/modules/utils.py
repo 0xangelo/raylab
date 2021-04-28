@@ -1,7 +1,6 @@
 # pylint:disable=missing-module-docstring
 import functools
-from typing import Callable
-from typing import Union
+from typing import Callable, Union
 
 import torch.nn as nn
 

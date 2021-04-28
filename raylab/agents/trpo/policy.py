@@ -3,25 +3,22 @@ import numpy as np
 import torch
 import torch.nn as nn
 from ray.rllib import SampleBatch
-from ray.rllib.evaluation.postprocessing import compute_advantages
-from ray.rllib.evaluation.postprocessing import Postprocessing
+from ray.rllib.evaluation.postprocessing import Postprocessing, compute_advantages
 from ray.rllib.utils import override
-from torch.nn.utils import parameters_to_vector
-from torch.nn.utils import vector_to_parameters
+from torch.nn.utils import parameters_to_vector, vector_to_parameters
 
-from raylab.options import configure
-from raylab.options import option
-from raylab.policy import learner_stats
-from raylab.policy import TorchPolicy
+from raylab.options import configure, option
+from raylab.policy import TorchPolicy, learner_stats
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.torch.optim import build_optimizer
-from raylab.torch.optim.hessian_free import conjugate_gradient
-from raylab.torch.optim.hessian_free import hessian_vector_product
-from raylab.torch.optim.hessian_free import line_search
+from raylab.torch.optim.hessian_free import (
+    conjugate_gradient,
+    hessian_vector_product,
+    line_search,
+)
 from raylab.torch.utils import flat_grad
 from raylab.utils.dictionaries import get_keys
 from raylab.utils.explained_variance import explained_variance
-
 
 LINESEARCH_DEFAULTS = {
     "accept_ratio": 0.1,

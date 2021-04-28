@@ -1,7 +1,5 @@
 """Losses for Stochastic Value Gradients."""
-from typing import Callable
-from typing import List
-from typing import Tuple
+from typing import Callable, List, Tuple
 
 import torch
 import torch.nn as nn
@@ -9,17 +7,13 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 from torch import Tensor
 
-from raylab.policy.modules.actor import Alpha
-from raylab.policy.modules.actor import StochasticPolicy
+from raylab.policy.modules.actor import Alpha, StochasticPolicy
 from raylab.policy.modules.critic import VValue
 from raylab.policy.modules.model import StochasticModel
-from raylab.utils.types import RewardFn
-from raylab.utils.types import StatDict
-from raylab.utils.types import TensorDict
+from raylab.utils.types import RewardFn, StatDict, TensorDict
 
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
-
 
 StateRepr = Callable[[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor]]
 ActionRepr = Callable[[Tensor, Tensor], Tuple[Tensor, Tensor]]

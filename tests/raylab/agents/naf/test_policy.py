@@ -1,6 +1,5 @@
 import pytest
 
-
 EXPLORATION_TYPES = "ParameterNoise GaussianNoise".split(" ")
 
 

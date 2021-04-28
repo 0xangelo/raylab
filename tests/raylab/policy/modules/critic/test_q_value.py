@@ -1,8 +1,7 @@
 import pytest
 import torch
 
-from raylab.policy.modules.critic import MLPQValue
-from raylab.policy.modules.critic import QValueEnsemble
+from raylab.policy.modules.critic import MLPQValue, QValueEnsemble
 
 
 @pytest.fixture(params=(1, 2), ids=lambda x: f"QValues({x})")

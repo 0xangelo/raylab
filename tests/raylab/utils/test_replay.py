@@ -5,8 +5,7 @@ import pytest
 from ray.rllib import SampleBatch
 
 from raylab.utils.debug import fake_batch
-from raylab.utils.replay_buffer import NumpyReplayBuffer
-from raylab.utils.replay_buffer import ReplayField
+from raylab.utils.replay_buffer import NumpyReplayBuffer, ReplayField
 
 
 @pytest.fixture

@@ -1,15 +1,10 @@
 """Network and configurations for model-based TD3 algorithms."""
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 
 from gym.spaces import Box
 
-from .model.stochastic import build_ensemble
-from .model.stochastic import EnsembleSpec
-from .sop import ActorSpec
-from .sop import CriticSpec
-from .sop import SOP
-from .sop import SOPSpec
+from .model.stochastic import EnsembleSpec, build_ensemble
+from .sop import SOP, ActorSpec, CriticSpec, SOPSpec
 
 
 def default_models() -> EnsembleSpec:

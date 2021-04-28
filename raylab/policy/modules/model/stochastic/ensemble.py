@@ -4,8 +4,7 @@ from typing import List
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.jit import fork
-from torch.jit import wait
+from torch.jit import fork, wait
 
 from raylab.torch.nn.distributions.types import SampleLogp
 from raylab.utils.types import TensorDict

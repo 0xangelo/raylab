@@ -3,9 +3,7 @@ import pytest
 import torch
 
 from raylab.agents.mage import MAGETorchPolicy
-from raylab.policy.losses import DeterministicPolicyGradient
-from raylab.policy.losses import MAGE
-from raylab.policy.losses import MaximumLikelihood
+from raylab.policy.losses import MAGE, DeterministicPolicyGradient, MaximumLikelihood
 from raylab.policy.stats import LEARNER_STATS_KEY
 from raylab.utils.debug import fake_batch
 

@@ -2,11 +2,9 @@
 import torch
 import torch.nn as nn
 
-from raylab.tune.registry import _raylab_registry
-from raylab.tune.registry import RAYLAB_TERMINATION
+from raylab.tune.registry import RAYLAB_TERMINATION, _raylab_registry
 
-from .utils import get_env_parameters
-from .utils import has_env_creator
+from .utils import get_env_parameters, has_env_creator
 
 # For testing purposes
 TERMINATIONS = {}

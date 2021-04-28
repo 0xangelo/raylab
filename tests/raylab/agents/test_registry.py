@@ -1,8 +1,7 @@
 from collections import defaultdict
 
 import pytest
-from ray.rllib import RolloutWorker
-from ray.rllib import SampleBatch
+from ray.rllib import RolloutWorker, SampleBatch
 
 from raylab.agents.registry import AGENTS
 from raylab.envs import get_env_creator

@@ -3,16 +3,16 @@ import torch
 import torch.nn as nn
 from ray.rllib.utils import override
 
-from raylab.options import configure
-from raylab.options import option
+from raylab.options import configure, option
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
-from raylab.policy.losses import FittedQLearning
-from raylab.policy.losses import MaximumEntropyDual
-from raylab.policy.losses import ReparameterizedSoftPG
+from raylab.policy.losses import (
+    FittedQLearning,
+    MaximumEntropyDual,
+    ReparameterizedSoftPG,
+)
 from raylab.policy.modules.critic import SoftValue
-from raylab.policy.off_policy import off_policy_options
-from raylab.policy.off_policy import OffPolicyMixin
+from raylab.policy.off_policy import OffPolicyMixin, off_policy_options
 from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
 from raylab.utils.types import TensorDict

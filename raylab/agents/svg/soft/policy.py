@@ -5,14 +5,10 @@ from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 
 from raylab.agents.svg import SVGTorchPolicy
-from raylab.options import configure
-from raylab.options import option
+from raylab.options import configure, option
 from raylab.policy import EnvFnMixin
-from raylab.policy.losses import ISSoftVIteration
-from raylab.policy.losses import MaximumEntropyDual
-from raylab.policy.losses import OneStepSoftSVG
-from raylab.policy.off_policy import off_policy_options
-from raylab.policy.off_policy import OffPolicyMixin
+from raylab.policy.losses import ISSoftVIteration, MaximumEntropyDual, OneStepSoftSVG
+from raylab.policy.off_policy import OffPolicyMixin, off_policy_options
 from raylab.torch.optim import build_optimizer
 from raylab.utils.replay_buffer import ReplayField
 from raylab.utils.types import TensorDict

@@ -14,10 +14,12 @@ import torch.nn as nn
 from ray.rllib import SampleBatch
 
 from raylab.policy.losses import Loss
-from raylab.policy.model_based.lightning import DataModule
-from raylab.policy.model_based.lightning import LightningModel
-from raylab.policy.model_based.lightning import LightningModelTrainer
-from raylab.policy.model_based.lightning import TrainingSpec
+from raylab.policy.model_based.lightning import (
+    DataModule,
+    LightningModel,
+    LightningModelTrainer,
+    TrainingSpec,
+)
 from raylab.policy.modules import get_module
 from raylab.torch.optim import build_optimizer
 from raylab.utils.debug import fake_batch

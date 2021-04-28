@@ -1,17 +1,13 @@
 """Random LQR problem generators."""
 # pylint:disable=invalid-name
-from typing import Tuple
-from typing import Union
+from typing import Tuple, Union
 
 import numpy as np
 import torch
 from numpy.random import Generator
 from sklearn.datasets import make_spd_matrix
 
-from .types import Affine
-from .types import Box
-from .types import LQR
-from .types import Quadratic
+from .types import LQR, Affine, Box, Quadratic
 
 
 def box_ddp_random_lqr(

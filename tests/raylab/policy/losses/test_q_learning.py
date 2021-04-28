@@ -5,8 +5,7 @@ from ray.rllib import SampleBatch
 
 import raylab.utils.dictionaries as dutil
 from raylab.policy.losses import FittedQLearning
-from raylab.policy.modules.critic import HardValue
-from raylab.policy.modules.critic import SoftValue
+from raylab.policy.modules.critic import HardValue, SoftValue
 
 
 @pytest.fixture

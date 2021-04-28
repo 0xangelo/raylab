@@ -1,9 +1,4 @@
-"""Tune experiment configuration for PG on CartPoleSwingUp.
-
-This can be run from the command line by executing
-`python scripts/tune_experiment.py 'PG' --local-dir <experiment dir>
-    --config examples/pg_defaults.py --stop timesteps_total 1000000`
-"""
+"""Tune experiment configuration for PG on CartPoleSwingUp."""
 from ray import tune
 
 

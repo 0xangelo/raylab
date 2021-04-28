@@ -1,7 +1,5 @@
 # pylint:disable=missing-module-docstring
-from typing import Any
-from typing import Optional
-from typing import Tuple
+from typing import Any, Optional, Tuple
 
 import torch
 from ray.rllib import SampleBatch
@@ -9,8 +7,7 @@ from ray.rllib.models.action_dist import ActionDistribution
 
 from raylab.policy import TorchPolicy
 from raylab.torch.nn.utils import perturb_params
-from raylab.utils.param_noise import AdaptiveParamNoiseSpec
-from raylab.utils.param_noise import ddpg_distance_metric
+from raylab.utils.param_noise import AdaptiveParamNoiseSpec, ddpg_distance_metric
 
 from .base import Model
 from .random_uniform import RandomUniform

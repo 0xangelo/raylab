@@ -2,16 +2,13 @@
 import functools
 import importlib
 import inspect
-from typing import Callable
-from typing import Mapping
+from typing import Callable, Mapping
 
 import gym
 from gym.wrappers import TimeLimit
-from ray.tune.registry import _global_registry
-from ray.tune.registry import ENV_CREATOR
+from ray.tune.registry import ENV_CREATOR, _global_registry
 
-from .wrappers import AddRelativeTimestep
-from .wrappers import SinglePrecision
+from .wrappers import AddRelativeTimestep, SinglePrecision
 
 
 def has_env_creator(env_id: str) -> bool:

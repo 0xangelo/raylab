@@ -1,36 +1,24 @@
 """Base for all PyTorch policies."""
 import textwrap
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Set
-from typing import Tuple
-from typing import Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 import torch
 import torch.nn as nn
 from gym.spaces import Space
-from ray.rllib import Policy
-from ray.rllib import SampleBatch
+from ray.rllib import Policy, SampleBatch
 from ray.rllib.evaluation.episode import MultiAgentEpisode
 from ray.rllib.models.action_dist import ActionDistribution
-from ray.rllib.models.modelv2 import flatten
-from ray.rllib.models.modelv2 import restore_original_dimensions
+from ray.rllib.models.modelv2 import flatten, restore_original_dimensions
 from ray.rllib.utils import override
-from ray.rllib.utils.torch_ops import convert_to_non_torch_type
-from ray.rllib.utils.torch_ops import convert_to_torch_tensor
+from ray.rllib.utils.torch_ops import convert_to_non_torch_type, convert_to_torch_tensor
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
-from ray.rllib.utils.typing import ModelGradients
-from ray.rllib.utils.typing import TensorType
+from ray.rllib.utils.typing import ModelGradients, TensorType
 from ray.tune.logger import pretty_print
 from torch import Tensor
 
-from raylab.options import configure
-from raylab.options import option
-from raylab.options import RaylabOptions
+from raylab.options import RaylabOptions, configure, option
 from raylab.torch.utils import convert_to_tensor
-from raylab.utils.types import StatDict
-from raylab.utils.types import TensorDict
+from raylab.utils.types import StatDict, TensorDict
 
 from .compat import WrapRawModule
 from .modules import get_module

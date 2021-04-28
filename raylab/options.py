@@ -3,22 +3,14 @@ import copy
 import inspect
 import textwrap
 from collections import namedtuple
-from dataclasses import dataclass
-from dataclasses import field
-from typing import Callable
-from typing import Dict
-from typing import List
-from typing import Optional
-from typing import Set
-from typing import Union
+from dataclasses import dataclass, field
+from typing import Callable, Dict, List, Optional, Set, Union
 
 import tree
 from dataclasses_json.core import Json
 from ray.rllib.agents import with_common_config as with_rllib_config
-from ray.rllib.agents.trainer import COMMON_CONFIG
-from ray.rllib.agents.trainer import Trainer
-from ray.rllib.utils import deep_update
-from ray.rllib.utils import merge_dicts
+from ray.rllib.agents.trainer import COMMON_CONFIG, Trainer
+from ray.rllib.utils import deep_update, merge_dicts
 
 __all__ = [
     "COMMON_INFO",

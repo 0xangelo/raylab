@@ -3,8 +3,7 @@ from ray.rllib.utils import override
 
 from raylab.agents.model_based import set_policy_with_env_fn
 from raylab.agents.trainer import Trainer
-from raylab.options import configure
-from raylab.options import option
+from raylab.options import configure, option
 
 from .policy import SVGInfTorchPolicy
 

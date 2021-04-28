@@ -1,13 +1,10 @@
 """Mixins to add environment mimicking functions."""
 import inspect
 import warnings
-from typing import Optional
-from typing import Union
+from typing import Optional, Union
 
 import raylab.envs as envs
-from raylab.utils.types import DynamicsFn
-from raylab.utils.types import RewardFn
-from raylab.utils.types import TerminationFn
+from raylab.utils.types import DynamicsFn, RewardFn, TerminationFn
 
 
 class EnvFnMixin:

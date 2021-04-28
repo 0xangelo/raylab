@@ -3,7 +3,6 @@ import gym
 import numpy as np
 import torch
 
-
 DEFAULT_CONFIG = {
     "ADJ": [[False, True, True], [False, False, True], [False, False, False]],
     "ADJ_OUTSIDE": [True, True, False],

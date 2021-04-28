@@ -1,6 +1,5 @@
 """Parameterized action-value estimators."""
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from typing import List
 
 import torch
@@ -9,7 +8,6 @@ from gym.spaces import Box
 from torch import Tensor
 
 from raylab.policy.modules.networks.mlp import StateActionMLP
-
 
 MLPSpec = StateActionMLP.spec_cls
 

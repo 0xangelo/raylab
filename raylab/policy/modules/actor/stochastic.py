@@ -1,18 +1,18 @@
 """Network and configurations for modules with stochastic policies."""
 import warnings
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import Union
 
 import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
-from gym.spaces import Box
-from gym.spaces import Discrete
+from gym.spaces import Box, Discrete
 
-from .policy.stochastic import Alpha
-from .policy.stochastic import MLPContinuousPolicy
-from .policy.stochastic import MLPDiscretePolicy
-from .policy.stochastic import MLPStochasticPolicy
+from .policy.stochastic import (
+    Alpha,
+    MLPContinuousPolicy,
+    MLPDiscretePolicy,
+    MLPStochasticPolicy,
+)
 
 MLPSpec = MLPStochasticPolicy.spec_cls
 

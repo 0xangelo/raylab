@@ -1,13 +1,10 @@
 # pylint:disable=missing-docstring,invalid-name
-from typing import List
-from typing import Tuple
-from typing import Union
+from typing import List, Tuple, Union
 
 import gym
 import numpy as np
 import torch
 from torch import Tensor
-
 
 DEFAULT_CONFIG = {
     "MAX_RES_CAP": [100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0],

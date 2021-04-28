@@ -4,8 +4,7 @@ import torch
 
 @pytest.fixture(scope="module", params=(True, False), ids=lambda x: f"Forked({x})")
 def module_cls(request):
-    from raylab.policy.modules.model.stochastic.ensemble import SME
-    from raylab.policy.modules.model.stochastic.ensemble import ForkedSME
+    from raylab.policy.modules.model.stochastic.ensemble import SME, ForkedSME
 
     return ForkedSME if request.param else SME
 

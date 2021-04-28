@@ -1,19 +1,27 @@
 """Utilities for visualization."""
+from __future__ import annotations
+
 import bokeh
 import numpy as np
 import pandas as pd
-from bokeh.models import BoxZoomTool
-from bokeh.models import ColumnDataSource
-from bokeh.models import HelpTool
-from bokeh.models import HoverTool
-from bokeh.models import PanTool
-from bokeh.models import ResetTool
-from bokeh.models import SaveTool
-from bokeh.models import WheelZoomTool
+from bokeh.models import (
+    BoxZoomTool,
+    ColumnDataSource,
+    HelpTool,
+    HoverTool,
+    PanTool,
+    ResetTool,
+    SaveTool,
+    WheelZoomTool,
+)
 from bokeh.plotting import figure
 
+from raylab.utils.exp_data import ExperimentData, Selector
 
-def time_series(x_key, y_key, groups, labels, config):
+
+def time_series(
+    x_key: str, y_key: str, groups: list[Selector], labels: list[str], config: dict
+):
     """Plot time series with error bands per group."""
     # pylint:disable=too-many-function-args
     kwargs = dict(y_axis_type="log") if config["log_scale"] else {}
@@ -61,7 +69,9 @@ def time_series(x_key, y_key, groups, labels, config):
     return pic
 
 
-def filter_and_interpolate(x_key, y_key, progresses):
+def filter_and_interpolate(
+    x_key: str, y_key: str, progresses: list[pd.DataFrame]
+) -> tuple[np.ndarray, list[np.ndarray]]:
     # pylint:disable=missing-function-docstring
     # Filter NaN values from plots
     masks = [~np.isnan(p[y_key]) for p in progresses]
@@ -74,7 +84,14 @@ def filter_and_interpolate(x_key, y_key, progresses):
     return x_all, all_ys
 
 
-def plot_individual(pic, x_all, all_ys, data, label, color):
+def plot_individual(
+    pic,
+    x_all: np.ndarray,
+    all_ys: list[np.ndarray],
+    data: ExperimentData,
+    label: str,
+    color: str,
+):
     # pylint:disable=missing-function-docstring,too-many-arguments
     for datum, y_i in zip(data, all_ys):
         identifier = str(datum.params["id"])
@@ -89,7 +106,14 @@ def plot_individual(pic, x_all, all_ys, data, label, color):
         )
 
 
-def plot_mean_dispersion(pic, x_all, all_ys, label, color, standard_error=False):
+def plot_mean_dispersion(
+    pic,
+    x_all: np.ndarray,
+    all_ys: list[np.ndarray],
+    label: str,
+    color: str,
+    standard_error: bool = False,
+):
     # pylint:disable=missing-function-docstring,too-many-arguments
     y_mean = np.nanmean(all_ys, axis=0)
     dispersion = np.nanstd(all_ys, axis=0)

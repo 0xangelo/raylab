@@ -1,7 +1,6 @@
 """Base implementations for all exploration strategies."""
 import textwrap
-from abc import ABCMeta
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 from typing import Optional
 
 import torch.nn as nn

@@ -1,22 +1,17 @@
 """Losses for model aware action gradient estimation."""
-from typing import Tuple
-from typing import Union
+from typing import Tuple, Union
 
 import torch
 from ray.rllib import SampleBatch
 from torch import Tensor
 
 from raylab.policy.modules.actor import DeterministicPolicy
-from raylab.policy.modules.critic import QValueEnsemble
-from raylab.policy.modules.critic import VValue
-from raylab.policy.modules.model import SME
-from raylab.policy.modules.model import StochasticModel
-from raylab.utils.types import StatDict
-from raylab.utils.types import TensorDict
+from raylab.policy.modules.critic import QValueEnsemble, VValue
+from raylab.policy.modules.model import SME, StochasticModel
+from raylab.utils.types import StatDict, TensorDict
 
 from .abstract import Loss
-from .mixins import EnvFunctionsMixin
-from .mixins import UniformModelPriorMixin
+from .mixins import EnvFunctionsMixin, UniformModelPriorMixin
 from .utils import dist_params_stats
 
 

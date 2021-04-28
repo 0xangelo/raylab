@@ -1,6 +1,5 @@
 """Architecture used in Trust Region Policy Optimization."""
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 
 import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
@@ -8,7 +7,6 @@ from gym.spaces import Box
 
 from .actor import StochasticActor
 from .critic import MLPVValue
-
 
 ActorSpec = StochasticActor.spec_cls
 CriticSpec = MLPVValue.spec_cls

@@ -1,8 +1,6 @@
 """Environment model handling mixins for TorchPolicy."""
-from dataclasses import dataclass
-from dataclasses import field
-from typing import List
-from typing import Tuple
+from dataclasses import dataclass, field
+from typing import List, Tuple
 
 import numpy as np
 import torch

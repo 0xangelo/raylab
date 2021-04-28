@@ -4,8 +4,7 @@ import pytest
 import torch
 
 from raylab.envs import get_reward_fn
-from raylab.options import configure
-from raylab.options import option
+from raylab.options import configure, option
 from raylab.policy import EnvFnMixin
 from raylab.utils.debug import fake_space_samples
 

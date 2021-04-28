@@ -1,7 +1,6 @@
 # pylint:disable=missing-module-docstring
 import functools
-from typing import Any
-from typing import Callable
+from typing import Any, Callable
 
 from ray.rllib.policy.policy import LEARNER_STATS_KEY
 

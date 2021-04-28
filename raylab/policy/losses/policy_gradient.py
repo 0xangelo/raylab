@@ -1,24 +1,16 @@
 """Losses for computing policy gradients."""
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import Optional, Tuple, Union
 
 import torch
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.policy.modules.actor import Alpha
-from raylab.policy.modules.actor import DeterministicPolicy
-from raylab.policy.modules.actor import StochasticPolicy
-from raylab.policy.modules.critic import ClippedQValue
-from raylab.policy.modules.critic import QValue
-from raylab.policy.modules.critic import QValueEnsemble
-from raylab.utils.types import StatDict
-from raylab.utils.types import TensorDict
+from raylab.policy.modules.actor import Alpha, DeterministicPolicy, StochasticPolicy
+from raylab.policy.modules.critic import ClippedQValue, QValue, QValueEnsemble
+from raylab.utils.types import StatDict, TensorDict
 
 from .abstract import Loss
-from .utils import action_dpg
-from .utils import dist_params_stats
+from .utils import action_dpg, dist_params_stats
 
 
 def clip_if_needed(critic: Union[QValue, QValueEnsemble]) -> QValue:

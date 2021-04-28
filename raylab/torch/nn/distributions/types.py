@@ -1,6 +1,5 @@
 # pylint:disable=missing-module-docstring
-from typing import Dict
-from typing import Tuple
+from typing import Dict, Tuple
 
 from torch import Tensor
 

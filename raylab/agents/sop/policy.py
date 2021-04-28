@@ -3,13 +3,10 @@ import torch
 from ray.rllib.utils import override
 from torch.nn.utils import clip_grad_norm_
 
-from raylab.options import configure
-from raylab.options import option
+from raylab.options import configure, option
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
-from raylab.policy.losses import ActionDPG
-from raylab.policy.losses import DeterministicPolicyGradient
-from raylab.policy.losses import FittedQLearning
+from raylab.policy.losses import ActionDPG, DeterministicPolicyGradient, FittedQLearning
 from raylab.policy.modules.critic import HardValue
 from raylab.policy.off_policy import OffPolicyMixin
 from raylab.torch.nn.utils import update_polyak

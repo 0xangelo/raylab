@@ -1,13 +1,11 @@
 """Mixins for loss functions."""
 from dataclasses import dataclass
-from typing import Optional
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 import torch.nn as nn
 
-from raylab.utils.types import RewardFn
-from raylab.utils.types import TerminationFn
+from raylab.utils.types import RewardFn, TerminationFn
 
 
 @dataclass

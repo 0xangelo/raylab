@@ -1,13 +1,10 @@
 """Network and configurations for model-based SAC algorithms."""
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 
 from gym.spaces import Box
 
-from .model import build_ensemble
-from .model import EnsembleSpec
-from .sac import SAC
-from .sac import SACSpec
+from .model import EnsembleSpec, build_ensemble
+from .sac import SAC, SACSpec
 
 
 @dataclass

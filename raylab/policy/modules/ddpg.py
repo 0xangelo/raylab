@@ -1,6 +1,5 @@
 """NN architecture used in Deep Deterministic Policy Gradients."""
-from dataclasses import dataclass
-from dataclasses import field
+from dataclasses import dataclass, field
 
 import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin

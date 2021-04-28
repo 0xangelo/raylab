@@ -24,8 +24,7 @@ SOFTWARE.
 Slightly modified from:
 https://github.com/bayesiains/nsf/blob/master/nn/resnet.py
 """
-from typing import Dict
-from typing import Optional
+from typing import Dict, Optional
 
 import torch
 import torch.nn as nn

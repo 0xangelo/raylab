@@ -1,13 +1,11 @@
 """Common utilities for Loss functions."""
-from typing import Optional
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 from torch import Tensor
 from torch.autograd import grad
 
-from raylab.utils.types import StatDict
-from raylab.utils.types import TensorDict
+from raylab.utils.types import StatDict, TensorDict
 
 
 def action_dpg(

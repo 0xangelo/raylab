@@ -1,10 +1,11 @@
 """Distributions as PyTorch modules compatible with TorchScript."""
-from . import flows
-from . import types
-from .abstract import ConditionalDistribution
-from .abstract import Distribution
-from .abstract import Independent
-from .abstract import TransformedDistribution
+from . import flows, types
+from .abstract import (
+    ConditionalDistribution,
+    Distribution,
+    Independent,
+    TransformedDistribution,
+)
 from .categorical import Categorical
 from .normal import Normal
 from .uniform import Uniform

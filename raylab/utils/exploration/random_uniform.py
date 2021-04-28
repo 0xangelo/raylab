@@ -3,8 +3,7 @@ import numpy as np
 
 import raylab.torch.utils as ptu
 
-from .base import BaseExploration
-from .base import Model
+from .base import BaseExploration, Model
 
 
 class RandomUniform(BaseExploration):

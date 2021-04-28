@@ -8,8 +8,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch.autograd import grad
 
-from raylab.torch.nn import FullyConnected
-from raylab.torch.nn import StateActionEncoder
+from raylab.torch.nn import FullyConnected, StateActionEncoder
 
 
 @pytest.fixture(params=(1, 2, 4), ids=lambda x: f"InFeatures:{x}")

@@ -8,8 +8,7 @@ import ray
 import streamlit as st
 import torch
 from bokeh.layouts import gridplot
-from bokeh.models import ColumnDataSource
-from bokeh.models import DataRange1d
+from bokeh.models import ColumnDataSource, DataRange1d
 from bokeh.plotting import figure
 from ray.rllib import SampleBatch
 

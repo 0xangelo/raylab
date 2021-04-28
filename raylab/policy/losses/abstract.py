@@ -1,14 +1,11 @@
 """Abstract base classes for losses."""
-from abc import ABCMeta
-from abc import abstractmethod
-from typing import Dict
-from typing import Tuple
+from abc import ABCMeta, abstractmethod
+from typing import Dict, Tuple
 
 from torch import Tensor
 
 from raylab.utils.dictionaries import get_keys
-from raylab.utils.types import StatDict
-from raylab.utils.types import TensorDict
+from raylab.utils.types import StatDict, TensorDict
 
 __all__ = [
     "Dict",

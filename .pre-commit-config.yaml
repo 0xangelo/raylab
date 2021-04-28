@@ -48,12 +48,20 @@ repos:
       - id: flake8
         stages: [commit, push]
 
-    - repo: https://github.com/asottile/reorder_python_imports
-      rev: v2.3.5
+    - repo: https://github.com/pycqa/isort
+      rev: 5.8.0
       hooks:
-      - id: reorder-python-imports
+      - id: isort
+        name: isort (python)
         stages: [commit, push]
-        args: [--separate-relative]
+      - id: isort
+        name: isort (cython)
+        types: [cython]
+        stages: [commit, push]
+      - id: isort
+        name: isort (pyi)
+        types: [pyi]
+        stages: [commit, push]
 
     - repo: https://github.com/python/black
       rev: 20.8b1

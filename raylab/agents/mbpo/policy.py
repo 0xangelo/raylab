@@ -1,26 +1,24 @@
 """Policy for MBPO using PyTorch."""
-from typing import List
-from typing import Tuple
+from typing import List, Tuple
 
 from ray.rllib import SampleBatch
 
 from raylab.agents.sac import SACTorchPolicy
-from raylab.options import configure
-from raylab.options import option
+from raylab.options import configure, option
 from raylab.policy import learner_stats
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import MaximumLikelihood
-from raylab.policy.model_based import EnvFnMixin
-from raylab.policy.model_based import LightningModelTrainer
-from raylab.policy.model_based import ModelSamplingMixin
-from raylab.policy.model_based.policy import MBPolicyMixin
-from raylab.policy.model_based.policy import model_based_options
+from raylab.policy.model_based import (
+    EnvFnMixin,
+    LightningModelTrainer,
+    ModelSamplingMixin,
+)
+from raylab.policy.model_based.policy import MBPolicyMixin, model_based_options
 from raylab.policy.model_based.sampling import SamplingSpec
 from raylab.torch.optim import build_optimizer
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 from raylab.utils.timer import TimerStat
 from raylab.utils.types import StatDict
-
 
 DEFAULT_MODULE = {
     "type": "ModelBasedSAC",

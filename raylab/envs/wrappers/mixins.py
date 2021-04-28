@@ -1,8 +1,6 @@
 """Mixins for Gym environment wrappers."""
-from abc import ABC
-from abc import abstractmethod
-from typing import List
-from typing import Optional
+from abc import ABC, abstractmethod
+from typing import List, Optional
 
 import gym.utils.seeding as seeding
 import numpy as np
