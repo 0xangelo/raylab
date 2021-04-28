@@ -300,7 +300,7 @@ typing_extensions = ">=3.7.4"
 
 [[package]]
 name = "cachetools"
-version = "4.2.1"
+version = "4.2.2"
 description = "Extensible memoizing collections and decorators"
 category = "main"
 optional = false
@@ -2684,8 +2684,8 @@ bokeh = [
     {file = "bokeh-2.2.2.tar.gz", hash = "sha256:d3b0b29e7dc78b7aef6330cb8f0067a4689a4ba74bdf5ab58d35d863e44fd058"},
 ]
 cachetools = [
-    {file = "cachetools-4.2.1-py3-none-any.whl", hash = "sha256:1d9d5f567be80f7c07d765e21b814326d78c61eb0c3a637dffc0e5d1796cb2e2"},
-    {file = "cachetools-4.2.1.tar.gz", hash = "sha256:f469e29e7aa4cff64d8de4aad95ce76de8ea1125a16c68e0d93f65c3c3dc92e9"},
+    {file = "cachetools-4.2.2-py3-none-any.whl", hash = "sha256:2cc0b89715337ab6dbba85b5b50effe2b0c74e035d83ee8ed637cf52f12ae001"},
+    {file = "cachetools-4.2.2.tar.gz", hash = "sha256:61b5ed1e22a0924aed1d23b478f37e8d52549ff8a961de2909c69bf950020cff"},
 ]
 certifi = [
     {file = "certifi-2020.12.5-py2.py3-none-any.whl", hash = "sha256:719a74fb9e33b9bd44cc7f3a8d94bc35e4049deebe19ba7d8e108280cfd59830"},
