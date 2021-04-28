@@ -5,28 +5,83 @@ raylab
 |PyPI| |Tests| |Dependabot| |License| |CodeStyle|
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/raylab?logo=PyPi&logoColor=white&color=blue
-	  :alt: PyPI
+      :alt: PyPI
 
 .. |Tests| image:: https://img.shields.io/github/workflow/status/angelolovatto/raylab/Poetry%20package?label=tests&logo=GitHub
-	   :alt: GitHub Workflow Status
+       :alt: GitHub Workflow Status
 
 .. |Dependabot| image:: https://api.dependabot.com/badges/status?host=github&repo=angelolovatto/raylab
-		:target: https://dependabot.com
+        :target: https://dependabot.com
 
 .. |License| image:: https://img.shields.io/github/license/angelolovatto/raylab?color=blueviolet&logo=github
-	     :alt: GitHub
+         :alt: GitHub
 
 .. |CodeStyle| image:: https://img.shields.io/badge/code%20style-black-000000.svg
-	       :target: https://github.com/psf/black
+           :target: https://github.com/psf/black
 
 
-Reinforcement learning algorithms in `RLlib <https://github.com/ray-project/ray/tree/master/rllib>`_ and `PyTorch <https://pytorch.org>`_.
+Reinforcement learning algorithms in `RLlib <https://github.com/ray-project/ray/tree/master/rllib>`_
+and `PyTorch <https://pytorch.org>`_.
 
 
-Introduction
+Installation
 ------------
 
+.. code:: bash
+
+          pip install raylab
+
+
+Quickstart
+----------
+
 Raylab provides agents and environments to be used with a normal RLlib/Tune setup.
+You can an agent's name (from the `Algorithms`_ section) to :code:`raylab info list` to list its top-level configurations:
+
+.. code-block:: zsh
+
+    raylab info list SoftAC
+
+.. code-block::
+
+    learning_starts: 0
+        Hold this number of timesteps before first training operation.
+    policy: {}
+        Sub-configurations for the policy class.
+    wandb: {}
+        Configs for integration with Weights & Biases.
+
+        Accepts arbitrary keyword arguments to pass to `wandb.init`.
+        The defaults for `wandb.init` are:
+        * name: `_name` property of the trainer.
+        * config: full `config` attribute of the trainer
+        * config_exclude_keys: `wandb` and `callbacks` configs
+        * reinit: True
+
+        Don't forget to:
+          * install `wandb` via pip
+          * login to W&B with the appropriate API key for your
+            team/project.
+          * set the `wandb/project` name in the config dict
+
+        Check out the Quickstart for more information:
+        `https://docs.wandb.com/quickstart`
+
+You can add the :code:`--rllib` flag to get the descriptions for all the options common to RLlib agents
+(or :code:`Trainer`\s)
+
+Launching experiments can be done via the command line using :code:`raylab experiment` passing a file path
+with an agent's configuration through the :code:`--config` flag.
+The following command uses the cartpole `example <examples/PG/cartpole_defaults.py>`_ configuration file
+to launch an experiment using the vanilla Policy Gradient agent from the RLlib library.
+
+.. code-block:: zsh
+
+    raylab experiment PG --name PG -s training_iteration 10 --config examples/PG/cartpole_defaults.py
+
+You can also launch an experiment from a Python script normally using Ray and Tune.
+The following shows how you may use Raylab to perform an experiment comparing different
+types of exploration for the NAF agent.
 
 .. code-block:: python
 
@@ -40,7 +95,7 @@ Raylab provides agents and environments to be used with a normal RLlib/Tune setu
                  ray.init()
                  tune.run(
                      "NAF",
-                     local_dir=...,
+                     local_dir="data/NAF",
                      stop={"timesteps_total": 100000},
                      config={
                          "env": "CartPoleSwingUp-v0",
@@ -50,26 +105,41 @@ Raylab provides agents and environments to be used with a normal RLlib/Tune setu
                                  "raylab.utils.exploration.ParameterNoise"
                              ])
                          }
-                         ...
                      },
+                     num_samples=10,
                  )
 
              if __name__ == "__main__":
                  main()
 
 
-One can then visualize the results using `raylab dashboard`
+One can then visualize the results using :code:`raylab dashboard`, passing the :code:`local_dir` used in the
+experiment. The dashboard lets you filter and group results in a quick way.
+
+.. code-block:: zsh
+
+    raylab dashboard data/NAF/
+
 
 .. image:: https://i.imgur.com/bVc6WC5.png
         :align: center
 
 
-Installation
-------------
+You can find the best checkpoint according to a metric (:code:`episode_reward_mean` by default)
+using :code:`raylab find-best`.
 
-.. code:: bash
+.. code-block:: zsh
 
-          pip install raylab
+    raylab find-best data/NAF/
+
+Finally, you can pass a checkpoint to :code:`raylab rollout` to see the returns collected by the agent and
+render it if the environment supports a visual :code:`render()` method. For example, you
+can use the output of the :code:`find-best` command to see the best agent in action.
+
+
+.. code-block:: zsh
+
+    raylab rollout $(raylab find-best data/NAF/) --agent NAF
 
 
 Algorithms
@@ -116,21 +186,21 @@ For a high-level description of the available utilities, run :bash:`raylab --hel
 
 .. code:: bash
 
-	Usage: raylab [OPTIONS] COMMAND [ARGS]...
+    Usage: raylab [OPTIONS] COMMAND [ARGS]...
 
-	  RayLab: Reinforcement learning algorithms in RLlib.
+      RayLab: Reinforcement learning algorithms in RLlib.
 
-	Options:
-	  --help  Show this message and exit.
+    Options:
+      --help  Show this message and exit.
 
-	Commands:
-	  dashboard    Launch the experiment dashboard to monitor training progress.
-	  episodes     Launch the episode dashboard to monitor state and action...
-	  experiment   Launch a Tune experiment from a config file.
-	  find-best    Find the best experiment checkpoint as measured by a metric.
-	  info         View information about an agent's config parameters.
-	  rollout      Wrap `rllib rollout` with customized options.
-	  test-module  Launch dashboard to test generative models from a checkpoint.
+    Commands:
+      dashboard    Launch the experiment dashboard to monitor training progress.
+      episodes     Launch the episode dashboard to monitor state and action...
+      experiment   Launch a Tune experiment from a config file.
+      find-best    Find the best experiment checkpoint as measured by a metric.
+      info         View information about an agent's config parameters.
+      rollout      Wrap `rllib rollout` with customized options.
+      test-module  Launch dashboard to test generative models from a checkpoint.
 
 
 Packages
