@@ -1,6 +1,8 @@
 """Experiment monitoring with Streamlit."""
 from __future__ import annotations
 
+from typing import Any
+
 import streamlit as st
 
 from raylab.cli.viz import time_series
@@ -99,14 +101,23 @@ def select_axis_keys(exps_data):
     x_key = st.selectbox(
         "X axis:",
         x_plottable_keys,
-        index=x_plottable_keys.index("timesteps_total"),
+        index=safe_index(x_plottable_keys, "timesteps_total"),
     )
     y_key = st.selectbox(
         "Y axis:",
         plottable_keys,
-        index=plottable_keys.index("episode_reward_mean"),
+        index=safe_index(plottable_keys, "episode_reward_mean"),
     )
     return x_key, y_key
+
+
+def safe_index(seq: list, value: Any) -> int:
+    index = 0
+    try:
+        index = seq.index(value)
+    except ValueError:
+        pass
+    return index
 
 
 def split_and_label_groups(exps_data, selector):
