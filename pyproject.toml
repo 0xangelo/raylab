@@ -41,7 +41,7 @@ wandb = ["wandb"]
 [tool.poetry.dev-dependencies]
 flake8 = "^3.9.1"
 pylint = "^2.8.2"
-watchdog = "^2.0.3"
+watchdog = "^2.1.0"
 black = "^21.4b2"
 tox = "^3.23.0"
 sphinx = "^3.5.4"
