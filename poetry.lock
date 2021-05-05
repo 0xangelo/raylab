@@ -2083,7 +2083,7 @@ test = ["pytest"]
 
 [[package]]
 name = "streamlit"
-version = "0.81.0"
+version = "0.81.1"
 description = "The fastest way to build data apps in Python"
 category = "main"
 optional = false
@@ -4001,8 +4001,8 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 streamlit = [
-    {file = "streamlit-0.81.0-py2.py3-none-any.whl", hash = "sha256:4e6b18df58a3497124336b70a638c3405ccfaab8ad0e9c0060017269833faa63"},
-    {file = "streamlit-0.81.0.tar.gz", hash = "sha256:c713a99a691fe664f4013aae29c0947407576aa222038b66cff5add422b17257"},
+    {file = "streamlit-0.81.1-py2.py3-none-any.whl", hash = "sha256:250bfe530729ceea642dd0f7380225eb413d339739e6c25342d2c46c24154819"},
+    {file = "streamlit-0.81.1.tar.gz", hash = "sha256:ab219980abe8da8f799eb92514c805ec7521c1a603f411af090cc44cd0fdc944"},
 ]
 stringcase = [
     {file = "stringcase-1.2.0.tar.gz", hash = "sha256:48a06980661908efe8d9d34eab2b6c13aefa2163b3ced26972902e3bdfd87008"},
