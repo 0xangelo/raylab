@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 from collections import defaultdict
+from typing import Callable
 
 import pytest
 from ray.rllib import RolloutWorker, SampleBatch
+from ray.tune.logger import Logger
 
 from raylab.agents.registry import AGENTS
 from raylab.envs import get_env_creator
@@ -35,7 +39,7 @@ def compile_policy(request):
 
 
 @pytest.fixture(scope="module")
-def trainer(trainer_cls, compile_policy):
+def trainer(trainer_cls, compile_policy, logger_creator: Callable[[dict], Logger]):
     name = trainer_cls._name
     defaults = trainer_cls.options.defaults
     config = CONFIG[name].copy()
@@ -47,7 +51,7 @@ def trainer(trainer_cls, compile_policy):
 
     config["policy"] = {"compile": compile_policy}
 
-    return trainer_cls(env="MockEnv", config=config)
+    return trainer_cls(env="MockEnv", config=config, logger_creator=logger_creator)
 
 
 @pytest.fixture
