@@ -19,10 +19,6 @@ def env_config(env: str = "Pusher-v2") -> dict:
     }
 
 
-def wandb_config() -> dict:
-    return {"wandb": {"project": "baselines", "entity": "angelovtt"}}
-
-
 def trainer_config() -> dict:
     return {
         "timesteps_per_iteration": 1000,
@@ -38,5 +34,4 @@ def get_config() -> dict:
     cnf = {"policy": policy_config()}
     cnf.update(env_config())
     cnf.update(trainer_config())
-    cnf.update(wandb_config())
     return cnf

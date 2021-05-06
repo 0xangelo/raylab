@@ -45,15 +45,10 @@ def trainer_config():
     }
 
 
-def wandb_config():
-    return {"project": "baselines", "entity": "angelovtt"}
-
-
 def get_config():
     cnf = {}
     cnf.update(env_config())
     cnf.update({"policy": policy_config()})
-    cnf.update({"wandb": wandb_config()})
     cnf.update(trainer_config())
     return cnf
 

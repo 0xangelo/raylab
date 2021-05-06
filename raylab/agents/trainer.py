@@ -22,7 +22,6 @@ from ray.tune.resources import Resources
 from ray.tune.trainable import Trainable
 
 from raylab.options import TrainerOptions, configure, option
-from raylab.utils.wandb import WandBLogger
 
 logger = logging.getLogger(__name__)
 
@@ -35,28 +34,6 @@ logger = logging.getLogger(__name__)
     "policy/",
     allow_unknown_subkeys=True,
     help="""Sub-configurations for the policy class.""",
-)
-@option(
-    "wandb/",
-    allow_unknown_subkeys=True,
-    help="""Configs for integration with Weights & Biases.
-
-    Accepts arbitrary keyword arguments to pass to `wandb.init`.
-    The defaults for `wandb.init` are:
-    * name: `_name` property of the trainer.
-    * config: full `config` attribute of the trainer
-    * config_exclude_keys: `wandb` and `callbacks` configs
-    * reinit: True
-
-    Don't forget to:
-      * install `wandb` via pip
-      * login to W&B with the appropriate API key for your
-        team/project.
-      * set the `wandb/project` name in the config dict
-
-    Check out the Quickstart for more information:
-    `https://docs.wandb.com/quickstart`
-    """,
 )
 @option(
     "exploration_config/",
@@ -76,7 +53,6 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     workers: WorkerSet
     evaluation_workers: Optional[WorkerSet]
     train_exec_impl: Iterable[ResultDict]
-    wandb: WandBLogger
     options: TrainerOptions = TrainerOptions()
     _name: str
     _policy_class: Type[Policy]
@@ -114,7 +90,6 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
             num_workers=num_workers,
         )
         self.train_exec_impl = self.execution_plan(self.workers, config)
-        self.wandb = WandBLogger(config, self._name)
 
         self.after_init()
 
@@ -143,7 +118,7 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         """Arbitrary setup before default initialization.
 
         Called after :meth:`get_policy_class` and before the creation of the
-        worker set, execution plan, and wandb logger.
+        worker set and execution plan.
         """
 
     @property
@@ -156,9 +131,8 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     def after_init(self):
         """Arbitrary setup after default initialization.
 
-        Called second-to-last in the :meth:`_init` procedure, after worker set,
-        execution plan, and wandb logger creation and before
-        :meth:`optimize_policy_backend`.
+        Called second-to-last in the :meth:`_init` procedure, after worker set
+        and execution plan creation and before :meth:`optimize_policy_backend`.
         """
 
     def optimize_policy_backend(self):
@@ -238,12 +212,6 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
         return {}
 
     @overrides(RLlibTrainer)
-    def log_result(self, result: ResultDict):
-        super().log_result(result)
-        if self.wandb.enabled:
-            self.wandb.log_result(result)
-
-    @overrides(RLlibTrainer)
     def __getstate__(self) -> dict:
         state = super().__getstate__()
         state["train_exec_impl"] = self.train_exec_impl.shared_metrics.get().save()
@@ -253,12 +221,6 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
     def __setstate__(self, state: dict):
         super().__setstate__(state)
         self.train_exec_impl.shared_metrics.get().restore(state["train_exec_impl"])
-
-    @overrides(RLlibTrainer)
-    def cleanup(self):
-        super().cleanup()
-        if self.wandb.enabled:
-            self.wandb.stop()
 
     @classmethod
     def default_resource_request(cls, config: PartialTrainerConfigDict) -> Resources:

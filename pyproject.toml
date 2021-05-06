@@ -27,16 +27,10 @@ dataclasses-json = "^0.5.1"
 opencv-python = "^4.2.0"
 poetry-version = "^0.1.5"
 pytorch-lightning = "^1.0"
-# A list of all of the optional dependencies, some of which are included in the
-# below `extras`. They can be opted into by apps.
-wandb = { version = "^0.10", optional = true }
 dm-tree = "^0.1.5"
 tabulate = "^0.8.7"
 opencv-contrib-python = "^4.4.0"
 sklearn = "^0.0"
-
-[tool.poetry.extras]
-wandb = ["wandb"]
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.9.1"

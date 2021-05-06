@@ -47,17 +47,11 @@ def policy_config():
 
 
 @pytest.fixture
-def wandb_config():
-    return {}
-
-
-@pytest.fixture
 def config(
     rollout_fragment_length,
     timesteps_per_iteration,
     train_batch_size,
     policy_config,
-    wandb_config,
 ):
     # pylint:disable=too-many-arguments
     return {
@@ -67,7 +61,6 @@ def config(
         "timesteps_per_iteration": timesteps_per_iteration,
         "train_batch_size": train_batch_size,
         "policy": policy_config,
-        "wandb": wandb_config,
     }
 
 
@@ -90,7 +83,6 @@ def test_policy(trainer):
 def test_config(trainer):
     assert set(COMMON_CONFIG.keys()).issubset(set(trainer.config.keys()))
     assert "policy" in trainer.config
-    assert "wandb" in trainer.config
 
 
 def test_first_train(trainer, timesteps_per_iteration, trainable_info_keys):
