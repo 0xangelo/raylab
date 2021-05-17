@@ -33,7 +33,7 @@ opencv-contrib-python = "^4.4.0"
 sklearn = "^0.0"
 
 [tool.poetry.dev-dependencies]
-flake8 = "^3.9.1"
+flake8 = "^3.9.2"
 pylint = "^2.8.2"
 watchdog = "^2.0.3"
 black = "^21.4b2"
