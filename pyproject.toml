@@ -22,7 +22,7 @@ streamlit = ">=0.62,<0.83"
 cachetools = {version = "^4.1.0", python = "^3.7"}
 # Have to restrict bokeh version due to issue with streamlit
 # https://github.com/streamlit/streamlit/issues/2156#issuecomment-815311729
-bokeh = "<=2.2.2"
+bokeh = "<2.3.3"
 dataclasses-json = "^0.5.1"
 opencv-python = "^4.2.0"
 poetry-version = "^0.1.5"

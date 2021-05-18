@@ -283,14 +283,14 @@ python-versions = "*"
 
 [[package]]
 name = "bokeh"
-version = "2.2.2"
+version = "2.3.2"
 description = "Interactive plots and applications in the browser from Python"
 category = "main"
 optional = false
 python-versions = ">=3.6"
 
 [package.dependencies]
-Jinja2 = ">=2.7"
+Jinja2 = ">=2.9"
 numpy = ">=1.11.3"
 packaging = ">=16.8"
 pillow = ">=7.1.0"
@@ -2411,7 +2411,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "ad20fa8fc4e3b6eccbec1f7cc8387c82ac1cb9b63846c0b442ecd00b6e4d9aef"
+content-hash = "f787311f80bb95736b3878156b3f740bab2defaae3ccc0adbda330c521db2db4"
 
 [metadata.files]
 absl-py = [
@@ -2569,7 +2569,7 @@ blinker = [
     {file = "blinker-1.4.tar.gz", hash = "sha256:471aee25f3992bd325afa3772f1063dbdbbca947a041b8b89466dc00d606f8b6"},
 ]
 bokeh = [
-    {file = "bokeh-2.2.2.tar.gz", hash = "sha256:d3b0b29e7dc78b7aef6330cb8f0067a4689a4ba74bdf5ab58d35d863e44fd058"},
+    {file = "bokeh-2.3.2.tar.gz", hash = "sha256:fcc0d0a3129ae457cdb0a4f503843a4d13d1f5d07af7748424ea8c7ddfc321f1"},
 ]
 cachetools = [
     {file = "cachetools-4.2.2-py3-none-any.whl", hash = "sha256:2cc0b89715337ab6dbba85b5b50effe2b0c74e035d83ee8ed637cf52f12ae001"},
