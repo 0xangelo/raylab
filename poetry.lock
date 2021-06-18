@@ -2003,7 +2003,7 @@ test = ["pytest"]
 
 [[package]]
 name = "streamlit"
-version = "0.82.0"
+version = "0.83.0"
 description = "The fastest way to build data apps in Python"
 category = "main"
 optional = false
@@ -2412,7 +2412,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "3fe0b49e5ec512120b04952c16ed924c1dea119f7ee465afd28ba585c6fbfa16"
+content-hash = "22ce89fef3a6fb9721dc4938772bd463a7ec5e1ca78f2edb0277a2d694abd298"
 
 [metadata.files]
 absl-py = [
@@ -3856,8 +3856,8 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 streamlit = [
-    {file = "streamlit-0.82.0-py2.py3-none-any.whl", hash = "sha256:350b49b8a0677fb781ece048b225d39b298dd0375cd298d3520f48583178959a"},
-    {file = "streamlit-0.82.0.tar.gz", hash = "sha256:362539ea398d9528742a47e92216e076cc594e012998504aaec2ee00249ac331"},
+    {file = "streamlit-0.83.0-py2.py3-none-any.whl", hash = "sha256:0a8e4aecda67e88b942273958d88b751c62f5a04bba972c9c6dd60408100f2e5"},
+    {file = "streamlit-0.83.0.tar.gz", hash = "sha256:254b79b0951febbbae44b32817c1292762615a5b10e9f53a4f1c12df24702296"},
 ]
 stringcase = [
     {file = "stringcase-1.2.0.tar.gz", hash = "sha256:48a06980661908efe8d9d34eab2b6c13aefa2163b3ced26972902e3bdfd87008"},
