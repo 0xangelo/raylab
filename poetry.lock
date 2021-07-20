@@ -489,7 +489,7 @@ pyflakes = ">=2.3.0,<2.4.0"
 
 [[package]]
 name = "fsspec"
-version = "2021.6.1"
+version = "2021.7.0"
 description = "File-system specification"
 category = "main"
 optional = false
@@ -2005,7 +2005,7 @@ test = ["pytest"]
 
 [[package]]
 name = "streamlit"
-version = "0.82.0"
+version = "0.84.2"
 description = "The fastest way to build data apps in Python"
 category = "main"
 optional = false
@@ -2014,6 +2014,7 @@ python-versions = ">=3.6"
 [package.dependencies]
 altair = ">=3.2.0"
 astor = "*"
+attrs = "*"
 base58 = "*"
 blinker = "*"
 cachetools = ">=4.0"
@@ -2021,7 +2022,7 @@ click = ">=7.0,<8.0"
 gitpython = "*"
 numpy = "*"
 packaging = "*"
-pandas = ">=0.21.0"
+pandas = ">=0.21.0,<1.3.0"
 pillow = ">=6.2.0"
 protobuf = ">=3.6.0,<3.11 || >3.11"
 pyarrow = {version = "*", markers = "python_version < \"3.9\""}
@@ -2414,7 +2415,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=1.2.3)", "pytest-flake8", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "375f3abc079ba5f7c602d4ceafbe269b7c2501bb8828c7e4128e1f894c6a5424"
+content-hash = "2aa5ec431a62a19ffd5189952893fb57b1a54fd7985480781aa6d3bea341076c"
 
 [metadata.files]
 absl-py = [
@@ -2770,8 +2771,8 @@ flake8 = [
     {file = "flake8-3.9.2.tar.gz", hash = "sha256:07528381786f2a6237b061f6e96610a4167b226cb926e2aa2b6b1d78057c576b"},
 ]
 fsspec = [
-    {file = "fsspec-2021.6.1-py3-none-any.whl", hash = "sha256:0ca23992f425c1ba61bf11d3cb3af8ad5363be8612e26732b520090556f173f2"},
-    {file = "fsspec-2021.6.1.tar.gz", hash = "sha256:2cdaafb51dd71e062afffcabcbc4925acef95f9bdd8d822d2010e4bf92951bd7"},
+    {file = "fsspec-2021.7.0-py3-none-any.whl", hash = "sha256:86822ccf367da99957f49db64f7d5fd3d8d21444fac4dfdc8ebc38ee93d478c6"},
+    {file = "fsspec-2021.7.0.tar.gz", hash = "sha256:792ebd3b54de0b30f1ce73f0ba0a8bcc864724f2d9f248cb8d0ece47db0cbde8"},
 ]
 future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
@@ -3859,8 +3860,8 @@ sphinxcontrib-serializinghtml = [
     {file = "sphinxcontrib_serializinghtml-1.1.4-py2.py3-none-any.whl", hash = "sha256:f242a81d423f59617a8e5cf16f5d4d74e28ee9a66f9e5b637a18082991db5a9a"},
 ]
 streamlit = [
-    {file = "streamlit-0.82.0-py2.py3-none-any.whl", hash = "sha256:350b49b8a0677fb781ece048b225d39b298dd0375cd298d3520f48583178959a"},
-    {file = "streamlit-0.82.0.tar.gz", hash = "sha256:362539ea398d9528742a47e92216e076cc594e012998504aaec2ee00249ac331"},
+    {file = "streamlit-0.84.2-py2.py3-none-any.whl", hash = "sha256:043e380160b5a5c643ff43f8fe7a4791120a26742652e1a302b88cec400babed"},
+    {file = "streamlit-0.84.2.tar.gz", hash = "sha256:3754dfb44afc0f6809ba0e4b849fe4199cb115fafbff67e5ec1450575a523e5a"},
 ]
 stringcase = [
     {file = "stringcase-1.2.0.tar.gz", hash = "sha256:48a06980661908efe8d9d34eab2b6c13aefa2163b3ced26972902e3bdfd87008"},
