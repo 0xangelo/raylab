@@ -68,7 +68,6 @@ repos:
       hooks:
       - id: black
         stages: [commit, push]
-        language_version: python3.7
         args: [--check]
 
     - repo: https://github.com/alessandrojcm/commitlint-pre-commit-hook
