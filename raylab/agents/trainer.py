@@ -238,16 +238,3 @@ class Trainer(RLlibTrainer, metaclass=ABCMeta):
             extra_object_store_memory=cnf["object_store_memory_per_worker"]
             * num_workers,
         )
-
-    # ==================================================================================
-    # Avoid annoying pylint "abstract-method" warnings
-    # ==================================================================================
-
-    def _restore(self, checkpoint):
-        del checkpoint
-
-    def _save(self, tmp_checkpoint_dir):
-        del tmp_checkpoint_dir
-
-    def _train(self):
-        pass
