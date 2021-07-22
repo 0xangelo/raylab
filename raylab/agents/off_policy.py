@@ -56,7 +56,6 @@ class OffPolicyMixin:
             ),
             option("rollout_fragment_length", default=1, override=True),
             option("num_workers", default=0, override=True),
-            option("evaluation_config/explore", False, override=True),
         ]:
             cls = opt(cls)
         return cls

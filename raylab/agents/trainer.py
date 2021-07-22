@@ -35,13 +35,6 @@ logger = logging.getLogger(__name__)
     allow_unknown_subkeys=True,
     help="""Sub-configurations for the policy class.""",
 )
-@option(
-    "exploration_config/",
-    default=None,
-    help="Unused by Raylab policies. Use policy/exploration_config instead.",
-    override=True,
-)
-@option("_use_trajectory_view_api", default=False, override=True)
 @option("framework", default="torch", override=True)
 @option(
     "simple_optimizer",

@@ -37,11 +37,7 @@ def default_optimizer() -> dict:
 )
 @option("optimizer", default_optimizer(), override=True)
 @option("module/type", "SoftSVG")
-@option(
-    "exploration_config/type",
-    "raylab.utils.exploration.StochasticActor",
-    override=True,
-)
+@option("exploration_config/type", "raylab.utils.exploration.StochasticActor")
 @option("exploration_config/pure_exploration_steps", 1000)
 class SoftSVGTorchPolicy(OffPolicyMixin, SVGTorchPolicy):
     """Stochastic Value Gradients policy for off-policy learning."""
