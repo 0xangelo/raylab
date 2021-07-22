@@ -9,6 +9,7 @@ from ray.rllib import Policy, SampleBatch
 from ray.rllib.evaluation.episode import MultiAgentEpisode
 from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.modelv2 import flatten, restore_original_dimensions
+from ray.rllib.policy.view_requirement import ViewRequirement
 from ray.rllib.utils import override
 from ray.rllib.utils.torch_ops import convert_to_non_torch_type, convert_to_torch_tensor
 from ray.rllib.utils.tracking_dict import UsageTrackingDict
@@ -184,6 +185,15 @@ class TorchPolicy(Policy):
             extra_fetches[SampleBatch.ACTION_LOGP] = logp
 
         return convert_to_non_torch_type((actions, state_out, extra_fetches))
+
+    def _get_default_view_requirements(self):
+        # Add extra fetch keys to view requirements so that they're available
+        # for training
+        return {
+            SampleBatch.ACTION_PROB: ViewRequirement(used_for_training=True),
+            SampleBatch.ACTION_LOGP: ViewRequirement(used_for_training=True),
+            **super()._get_default_view_requirements(),
+        }
 
     @torch.no_grad()
     @override(Policy)
