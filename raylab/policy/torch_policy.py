@@ -12,7 +12,6 @@ from ray.rllib.models.modelv2 import flatten, restore_original_dimensions
 from ray.rllib.policy.view_requirement import ViewRequirement
 from ray.rllib.utils import override
 from ray.rllib.utils.torch_ops import convert_to_non_torch_type, convert_to_torch_tensor
-from ray.rllib.utils.tracking_dict import UsageTrackingDict
 from ray.rllib.utils.typing import ModelGradients, TensorType
 from ray.tune.logger import pretty_print
 from torch import Tensor
@@ -150,7 +149,7 @@ class TorchPolicy(Policy):
         timestep = timestep if timestep is not None else self.global_timestep
 
         input_dict = self.lazy_tensor_dict(
-            {SampleBatch.CUR_OBS: obs_batch, "is_training": False}
+            SampleBatch({SampleBatch.CUR_OBS: obs_batch, "is_training": False})
         )
         if prev_action_batch:
             input_dict[SampleBatch.PREV_ACTIONS] = prev_action_batch
@@ -259,7 +258,7 @@ class TorchPolicy(Policy):
         """
         return convert_to_tensor(arr, self.device)
 
-    def lazy_tensor_dict(self, sample_batch: SampleBatch) -> UsageTrackingDict:
+    def lazy_tensor_dict(self, sample_batch: SampleBatch) -> SampleBatch:
         """Convert a sample batch into a dictionary of lazy tensors.
 
         The sample batch is wrapped with a UsageTrackingDict to convert array-
@@ -272,7 +271,7 @@ class TorchPolicy(Policy):
             A dictionary which intercepts key queries to lazily convert arrays
             to tensors.
         """
-        tensor_batch = UsageTrackingDict(sample_batch)
+        tensor_batch = sample_batch.copy(shallow=True)
         tensor_batch.set_get_interceptor(self.convert_to_tensor)
         return tensor_batch
 
