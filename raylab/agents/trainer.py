@@ -43,6 +43,12 @@ logger = logging.getLogger(__name__)
 )
 @option("_use_trajectory_view_api", default=False, override=True)
 @option("framework", default="torch", override=True)
+@option(
+    "simple_optimizer",
+    # RLlib attempts to use Tensorflow if this is true
+    default=True,
+    override=True,
+)
 class Trainer(RLlibTrainer, metaclass=ABCMeta):
     """Base class for raylab trainers."""
 
