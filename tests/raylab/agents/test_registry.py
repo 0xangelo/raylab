@@ -78,11 +78,7 @@ def test_trainer_restore(trainer):
 
 @pytest.fixture
 def worker_kwargs():
-    return {
-        "rollout_fragment_length": 200,
-        "batch_mode": "truncate_episodes",
-        "_use_trajectory_view_api": False,
-    }
+    return {"rollout_fragment_length": 200, "batch_mode": "truncate_episodes"}
 
 
 @pytest.fixture
