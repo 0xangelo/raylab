@@ -255,6 +255,8 @@ class RaylabOptions:
             raise ValueError(
                 f"Attempted to override config key {key} with the same value: {default}"
             )
+        if key_ not in config_ and override:
+            raise ValueError(f"Attempted to override inexistent config key '{key}'")
         config_[key_] = default
 
         if info is not None:
