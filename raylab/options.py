@@ -478,6 +478,29 @@ COMMON_INFO = {
     forever without returning done=True.""",
     "env_config": """\
     Arguments to pass to the env creator.""",
+    "env_task_fn": """\
+    A callable taking the last train results, the base env and the env
+    context as args and returning a new task to set the env to.
+    The env must be a `TaskSettableEnv` sub-class for this to work.
+    See `examples/curriculum_learning.py` for an example.
+    """,
+    "render_env": """\
+    If True, try to render the environment on the local worker or on worker
+    1 (if num_workers > 0). For vectorized envs, this usually means that only
+    the first sub-environment will be rendered.
+    In order for this to work, your env will have to implement the
+    `render()` method which either:
+    a) handles window generation and rendering itself (returning True) or
+    b) returns a numpy uint8 image of shape [height x width x 3 (RGB)].
+    """,
+    "record_env": """\
+    If True, stores videos in this relative directory inside the default
+    output dir (~/ray_results/...). Alternatively, you can specify an
+    absolute path (str), in which the env recordings should be
+    stored instead.
+    Set to False for not recording anything.
+    Note: This setting replaces the deprecated `monitor` key.
+    """,
     "env": """\
     Environment name can also be passed via config.""",
     "normalize_actions": """\
@@ -492,6 +515,12 @@ COMMON_INFO = {
     "lr": """\
     The default learning rate. Not used by Raylab""",
     # === Debug Settings ===
+    "simple_optimizer": """\
+    # Uses the sync samples optimizer instead of the multi-gpu one. This is
+    # usually slower, but you might want to try it if you run into issues with
+    # the default optimizer.
+    # This will be set automatically from now on.
+    """,
     "monitor": """\
     Whether to write episode stats and videos to the agent log dir. This is
     typically located in ~/ray_results.""",
@@ -550,6 +579,14 @@ COMMON_INFO = {
     "evaluation_num_episodes": """\
     Number of episodes to run per evaluation period. If using multiple
     evaluation workers, we will run at least this many episodes total.""",
+    "evaluation_parallel_to_training": """\
+    Whether to run evaluation in parallel to a Trainer.train() call
+    using threading. Default=False.
+    E.g. evaluation_interval=2 -> For every other training iteration,
+    the Trainer.train() and Trainer.evaluate() calls run in parallel.
+    Note: This is experimental. Possible pitfalls could be race conditions
+    for weight synching at the beginning of the evaluation loop.
+    """,
     "in_evaluation": """\
     Internal flag that is set to True for evaluation workers.""",
     "evaluation_config": """\
@@ -578,12 +615,6 @@ COMMON_INFO = {
     "sample_async": """\
     Use a background thread for sampling (slightly off-policy, usually not
     advisable to turn on unless your env specifically requires it).""",
-    "_use_trajectory_view_api": """\
-    Experimental flag to speed up sampling and use 'trajectory views' as
-    generic ModelV2 `input_dicts` that can be requested by the model to
-    contain different information on the ongoing episode.
-    NOTE: Only supported for PyTorch so far.
-    """,
     "sample_collector": """\
     The SampleCollector class to be used to collect and retrieve
     environment-, model-, and sampler data. Override the SampleCollector base
@@ -650,6 +681,11 @@ COMMON_INFO = {
     "extra_python_environs_for_worker": """\
     The extra python environments need to set for worker processes.""",
     # === Advanced Resource Settings ===
+    "_fake_gpus": """\
+    Set to True for debugging (multi-)?GPU funcitonality on a CPU machine.
+    GPU towers will be simulated by graphs located on CPUs in this case.
+    Use `num_gpus` to test for different numbers of fake GPUs.
+    """,
     "num_cpus_per_worker": """\
     Number of CPUs to allocate per worker.""",
     "num_gpus_per_worker": """\
@@ -661,23 +697,22 @@ COMMON_INFO = {
     "num_cpus_for_driver": """\
     Number of CPUs to allocate for the trainer. Note: this only takes effect
     when running in Tune. Otherwise, the trainer runs in the main program.""",
-    "memory": """\
-    You can set these memory quotas to tell Ray to reserve memory for your
-    training run. This guarantees predictable execution, but the tradeoff is
-    if your workload exceeeds the memory quota it will fail.
-    Heap memory to reserve for the trainer process (0 for unlimited). This
-    can be large if your are using large train batches, replay buffers, etc.""",
-    "object_store_memory": """\
-    Object store memory to reserve for the trainer process. Being large
-    enough to fit a few copies of the model weights should be sufficient.
-    This is enabled by default since models are typically quite small.""",
-    "memory_per_worker": """\
-    Heap memory to reserve for each worker. Should generally be small unless
-    your environment is very heavyweight.""",
-    "object_store_memory_per_worker": """\
-    Object store memory to reserve for each worker. This only needs to be
-    large enough to fit a few sample batches at a time. This is enabled
-    by default since it almost never needs to be larger than ~200MB.""",
+    "placement_strategy": """\
+    The strategy for the placement group factory returned by
+    `Trainer.default_resource_request()`. A PlacementGroup defines, which
+    devices (resources) should always be co-located on the same node.
+    For example, a Trainer with 2 rollout workers, running with
+    num_gpus=1 will request a placement group with the bundles:
+    [{"gpu": 1, "cpu": 1}, {"cpu": 1}, {"cpu": 1}], where the first bundle is
+    for the driver and the other 2 bundles are for the two workers.
+    These bundles can now be "placed" on the same or different
+    nodes depending on the value of `placement_strategy`:
+    "PACK": Packs bundles into as few nodes as possible.
+    "SPREAD": Places bundles across distinct nodes as even as possible.
+    "STRICT_PACK": Packs bundles into one node. The group is not allowed
+      to span multiple nodes.
+    "STRICT_SPREAD": Packs bundles across distinct nodes.
+    """,
     # === Offline Datasets ===
     "input": """\
     Specify how to generate experiences:
@@ -747,11 +782,6 @@ COMMON_INFO = {
     "logger_config": """\
     Define logger-specific configuration to be used inside Logger
     Default value None allows overwriting with nested dicts
-    """,
-    # === Replay Settings ===
-    "replay_sequence_length": """\
-    The number of contiguous environment steps to replay at once. This may
-    be set to greater than 1 to support recurrent models.
     """,
 }
 
