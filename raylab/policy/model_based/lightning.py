@@ -29,6 +29,9 @@ from raylab.utils.types import StatDict, TensorDict
 
 class LightningModel(pl.LightningModule):
     # pylint:disable=too-many-ancestors,arguments-differ,missing-docstring
+    train_loss: Loss
+    val_loss: Loss
+    test_loss: Loss
     early_stop_on = "early_stop_on"
 
     def __init__(self, model: nn.Module, loss: Loss, optimizer: Optimizer):
