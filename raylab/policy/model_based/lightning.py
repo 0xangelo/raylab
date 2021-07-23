@@ -4,7 +4,7 @@ from __future__ import annotations
 import copy
 import statistics as stats
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Optional, OrderedDict
 
 import pytorch_lightning as pl
 import torch
@@ -183,7 +183,7 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
     _train_outputs: list[tuple[Tensor, StatDict]]
     _val_outputs: list[tuple[Tensor, StatDict]]
     _loss: tuple[list[float], StatDict] = None
-    _module_state: Optional[dict] = None
+    _module_state: Optional[OrderedDict[str, Tensor]] = None
 
     def setup(
         self,
@@ -221,16 +221,16 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
             trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
 
-    def _run_early_stopping_check(self, trainer, pl_module):
+    def _run_early_stopping_check(self, trainer):
         if self.patience is None:
             # Always save latest outputs
             self.save_outputs()
         else:
-            super()._run_early_stopping_check(trainer, pl_module)
+            super()._run_early_stopping_check(trainer)
             # Save outputs only if improved or none have been logged yet
             if self.wait_count == 0:  # Improved
                 self.save_outputs()
-                self.save_module_state(pl_module)
+                self.save_module_state(trainer.lightning_module)
             elif self._loss is None:
                 self.save_outputs()
 
@@ -243,15 +243,15 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
         model_infos = {k: stats.mean(i[k] for i in epoch_infos) for k in epoch_infos[0]}
         self._loss = (model_losses, model_infos)
 
-    def save_module_state(self, pl_module):
+    def save_module_state(self, pl_module: nn.Module):
         self._module_state = copy.deepcopy(pl_module.state_dict())
 
     @property
-    def loss(self) -> tuple[Tensor, TensorDict]:
+    def loss(self) -> tuple[list[float], StatDict]:
         return self._loss
 
     @property
-    def module_state(self) -> dict:
+    def module_state(self) -> OrderedDict[str, Tensor]:
         return self._module_state
 
     def on_save_checkpoint(
@@ -422,7 +422,7 @@ class LightningModelTrainer:
         )
 
     @staticmethod
-    def check_early_stopping(early_stopping: EarlyStopping, model: LightningModel):
+    def check_early_stopping(early_stopping: EarlyStopping, model: nn.Module):
         """Restore best model parameters if training was early stopped."""
         saved_state = early_stopping.module_state
         if saved_state:
