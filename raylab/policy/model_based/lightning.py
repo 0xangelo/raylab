@@ -185,7 +185,12 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
     _loss: tuple[list[float], StatDict] = None
     _module_state: Optional[dict] = None
 
-    def setup(self, trainer, pl_module, stage: str):
+    def setup(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        stage: Optional[str] = None,
+    ):
         super().setup(trainer, pl_module, stage)
         self._train_outputs = []
         self._val_outputs = []
