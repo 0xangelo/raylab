@@ -63,7 +63,7 @@ class LightningModel(pl.LightningModule):
         self.log("val/loss", loss)
         self.log(self.early_stop_on, loss)
         self.log_dict({"val/" + k: v for k, v in info.items()})
-        return Tensor
+        return loss
 
     def test_step(self, batch: TensorDict, _) -> Tensor:
         loss, info = self.test_loss(batch)
