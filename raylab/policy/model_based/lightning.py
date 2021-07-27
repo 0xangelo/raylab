@@ -8,9 +8,8 @@ from typing import Any, Optional, OrderedDict
 
 import pytorch_lightning as pl
 import torch
-import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
-from torch import Tensor
+from torch import Tensor, nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader, Dataset, random_split
 
@@ -127,10 +126,7 @@ class DataModule(pl.LightningDataModule):
         self.replay_dataset = ReplayDataset(replay)
         self.spec = spec
 
-    def prepare_data(self, *args, **kwargs):
-        pass
-
-    def setup(self, stage=None):
+    def setup(self, stage: Optional[str] = None):
         dataset = self.replay_dataset
         spec = self.spec
         replay_count = len(dataset)
@@ -307,14 +303,17 @@ class LightningTrainerSpec(DataClassJsonMixin):
             self.improvement_delta, float
         ), "Improvement threshold must be a scalar"
 
-    def build_trainer(self, check_val: bool) -> tuple[pl.Trainer, EarlyStopping]:
+    def build_trainer(
+        self, check_val: bool, check_on_train_epoch_end: bool
+    ) -> tuple[pl.Trainer, EarlyStopping]:
         """Returns the Pytorch Lightning configured with this spec."""
         early_stopping = EarlyStopping(
             monitor=LightningModel.early_stop_on,
             min_delta=self.improvement_delta,
             patience=self.patience,
             mode="min",
-            strict=False,
+            strict=True,
+            check_on_train_epoch_end=check_on_train_epoch_end,
         )
         trainer = pl.Trainer(
             logger=False,
@@ -395,7 +394,10 @@ class LightningModelTrainer:
         self.pl_model.configure_losses(loss_fn)
 
         trainer_spec = self.spec.warmup if warmup else self.spec.training
-        trainer, early_stopping = trainer_spec.build_trainer(check_val=warmup)
+        trainer, early_stopping = trainer_spec.build_trainer(
+            check_val=warmup,
+            check_on_train_epoch_end=self.spec.datamodule.holdout_ratio == 0.0,
+        )
 
         self.run_training(
             model=self.pl_model, trainer=trainer, datamodule=self.datamodule
