@@ -38,7 +38,6 @@ def get_config():
         "env": "HalfCheetah-v3",
         "env_config": {"max_episode_steps": 1000, "time_aware": False},
         "policy": policy_config(),
-        "wandb": {"project": "baselines", "entity": "angelovtt"},
         "learning_starts": 10000,  # Sync with pure exploration steps
         "rollout_fragment_length": 1,
         "batch_mode": "truncate_episodes",

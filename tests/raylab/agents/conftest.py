@@ -1,9 +1,22 @@
+from __future__ import annotations
+
 import itertools
+from typing import Callable
 
 import pytest
 from ray.rllib import Policy
+from ray.tune.logger import Logger, UnifiedLogger
 
 from raylab.utils.debug import fake_batch
+
+
+@pytest.fixture(scope="module")
+def logger_creator(tmpdir_factory) -> Callable[[dict], Logger]:
+    def creator(config: dict) -> UnifiedLogger:
+        logdir = str(tmpdir_factory.mktemp("results"))
+        return UnifiedLogger(config, logdir, loggers=None)
+
+    return creator
 
 
 @pytest.fixture(scope="module")

@@ -4,13 +4,12 @@ from __future__ import annotations
 import copy
 import statistics as stats
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Optional, OrderedDict
 
 import pytorch_lightning as pl
 import torch
-import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
-from torch import Tensor
+from torch import Tensor, nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader, Dataset, random_split
 
@@ -29,6 +28,9 @@ from raylab.utils.types import StatDict, TensorDict
 
 class LightningModel(pl.LightningModule):
     # pylint:disable=too-many-ancestors,arguments-differ,missing-docstring
+    train_loss: Loss
+    val_loss: Loss
+    test_loss: Loss
     early_stop_on = "early_stop_on"
 
     def __init__(self, model: nn.Module, loss: Loss, optimizer: Optimizer):
@@ -60,7 +62,7 @@ class LightningModel(pl.LightningModule):
         self.log("val/loss", loss)
         self.log(self.early_stop_on, loss)
         self.log_dict({"val/" + k: v for k, v in info.items()})
-        return Tensor
+        return loss
 
     def test_step(self, batch: TensorDict, _) -> Tensor:
         loss, info = self.test_loss(batch)
@@ -124,10 +126,7 @@ class DataModule(pl.LightningDataModule):
         self.replay_dataset = ReplayDataset(replay)
         self.spec = spec
 
-    def prepare_data(self, *args, **kwargs):
-        pass
-
-    def setup(self, stage=None):
+    def setup(self, stage: Optional[str] = None):
         dataset = self.replay_dataset
         spec = self.spec
         replay_count = len(dataset)
@@ -180,9 +179,14 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
     _train_outputs: list[tuple[Tensor, StatDict]]
     _val_outputs: list[tuple[Tensor, StatDict]]
     _loss: tuple[list[float], StatDict] = None
-    _module_state: Optional[dict] = None
+    _module_state: Optional[OrderedDict[str, Tensor]] = None
 
-    def setup(self, trainer, pl_module, stage: str):
+    def setup(
+        self,
+        trainer: pl.Trainer,
+        pl_module: pl.LightningModule,
+        stage: Optional[str] = None,
+    ):
         super().setup(trainer, pl_module, stage)
         self._train_outputs = []
         self._val_outputs = []
@@ -213,16 +217,16 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
             trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
 
-    def _run_early_stopping_check(self, trainer, pl_module):
+    def _run_early_stopping_check(self, trainer):
         if self.patience is None:
             # Always save latest outputs
             self.save_outputs()
         else:
-            super()._run_early_stopping_check(trainer, pl_module)
+            super()._run_early_stopping_check(trainer)
             # Save outputs only if improved or none have been logged yet
             if self.wait_count == 0:  # Improved
                 self.save_outputs()
-                self.save_module_state(pl_module)
+                self.save_module_state(trainer.lightning_module)
             elif self._loss is None:
                 self.save_outputs()
 
@@ -235,15 +239,15 @@ class EarlyStopping(pl.callbacks.EarlyStopping):
         model_infos = {k: stats.mean(i[k] for i in epoch_infos) for k in epoch_infos[0]}
         self._loss = (model_losses, model_infos)
 
-    def save_module_state(self, pl_module):
+    def save_module_state(self, pl_module: nn.Module):
         self._module_state = copy.deepcopy(pl_module.state_dict())
 
     @property
-    def loss(self) -> tuple[Tensor, TensorDict]:
+    def loss(self) -> tuple[list[float], StatDict]:
         return self._loss
 
     @property
-    def module_state(self) -> dict:
+    def module_state(self) -> OrderedDict[str, Tensor]:
         return self._module_state
 
     def on_save_checkpoint(
@@ -299,14 +303,17 @@ class LightningTrainerSpec(DataClassJsonMixin):
             self.improvement_delta, float
         ), "Improvement threshold must be a scalar"
 
-    def build_trainer(self, check_val: bool) -> tuple[pl.Trainer, EarlyStopping]:
+    def build_trainer(
+        self, check_val: bool, check_on_train_epoch_end: bool
+    ) -> tuple[pl.Trainer, EarlyStopping]:
         """Returns the Pytorch Lightning configured with this spec."""
         early_stopping = EarlyStopping(
             monitor=LightningModel.early_stop_on,
             min_delta=self.improvement_delta,
             patience=self.patience,
             mode="min",
-            strict=False,
+            strict=True,
+            check_on_train_epoch_end=check_on_train_epoch_end,
         )
         trainer = pl.Trainer(
             logger=False,
@@ -387,7 +394,10 @@ class LightningModelTrainer:
         self.pl_model.configure_losses(loss_fn)
 
         trainer_spec = self.spec.warmup if warmup else self.spec.training
-        trainer, early_stopping = trainer_spec.build_trainer(check_val=warmup)
+        trainer, early_stopping = trainer_spec.build_trainer(
+            check_val=warmup,
+            check_on_train_epoch_end=self.spec.datamodule.holdout_ratio == 0.0,
+        )
 
         self.run_training(
             model=self.pl_model, trainer=trainer, datamodule=self.datamodule
@@ -414,7 +424,7 @@ class LightningModelTrainer:
         )
 
     @staticmethod
-    def check_early_stopping(early_stopping: EarlyStopping, model: LightningModel):
+    def check_early_stopping(early_stopping: EarlyStopping, model: nn.Module):
         """Restore best model parameters if training was early stopped."""
         saved_state = early_stopping.module_state
         if saved_state:

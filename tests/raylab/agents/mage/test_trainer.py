@@ -1,4 +1,9 @@
+from __future__ import annotations
+
+from typing import Callable
+
 import pytest
+from ray.tune.logger import Logger
 
 
 @pytest.fixture
@@ -9,8 +14,8 @@ def trainer_cls():
 
 
 @pytest.fixture
-def trainer(trainer_cls):
-    return trainer_cls(env="CartPoleSwingUp-v1")
+def trainer(trainer_cls, logger_creator: Callable[[dict], Logger]):
+    return trainer_cls(env="CartPoleSwingUp-v1", logger_creator=logger_creator)
 
 
 def test_default_config(trainer_cls):

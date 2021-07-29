@@ -1,6 +1,11 @@
+from __future__ import annotations
+
+from typing import Callable
+
 import pytest
 from ray.rllib import Policy
 from ray.rllib.agents.trainer import COMMON_CONFIG
+from ray.tune.logger import Logger
 
 from raylab.agents.trainer import Trainer
 
@@ -47,17 +52,11 @@ def policy_config():
 
 
 @pytest.fixture
-def wandb_config():
-    return {}
-
-
-@pytest.fixture
 def config(
     rollout_fragment_length,
     timesteps_per_iteration,
     train_batch_size,
     policy_config,
-    wandb_config,
 ):
     # pylint:disable=too-many-arguments
     return {
@@ -67,19 +66,20 @@ def config(
         "timesteps_per_iteration": timesteps_per_iteration,
         "train_batch_size": train_batch_size,
         "policy": policy_config,
-        "wandb": wandb_config,
     }
 
 
-def test_optimize_policy_backend(trainer_cls, config):
+def test_optimize_policy_backend(
+    trainer_cls, config, logger_creator: Callable[[dict], Logger]
+):
     config = {**config, "policy": {"compile": True}}
-    trainer = trainer_cls(config=config)
+    trainer = trainer_cls(config=config, logger_creator=logger_creator)
     assert trainer.get_policy().compiled
 
 
 @pytest.fixture
-def trainer(trainer_cls, config):
-    return trainer_cls(config=config)
+def trainer(trainer_cls, config, logger_creator: Callable[[dict], Logger]):
+    return trainer_cls(config=config, logger_creator=logger_creator)
 
 
 def test_policy(trainer):
@@ -90,7 +90,6 @@ def test_policy(trainer):
 def test_config(trainer):
     assert set(COMMON_CONFIG.keys()).issubset(set(trainer.config.keys()))
     assert "policy" in trainer.config
-    assert "wandb" in trainer.config
 
 
 def test_first_train(trainer, timesteps_per_iteration, trainable_info_keys):

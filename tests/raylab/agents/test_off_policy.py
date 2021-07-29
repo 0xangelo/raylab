@@ -1,4 +1,9 @@
+from __future__ import annotations
+
+from typing import Callable
+
 import pytest
+from ray.tune.logger import Logger
 
 from raylab.agents.off_policy import OffPolicyMixin
 from raylab.agents.trainer import Trainer
@@ -55,8 +60,8 @@ def config(
 
 
 @pytest.fixture
-def trainer(trainer_cls, config):
-    return trainer_cls(config=config)
+def trainer(trainer_cls, config: dict, logger_creator: Callable[[dict], Logger]):
+    return trainer_cls(config=config, logger_creator=logger_creator)
 
 
 def test_first_train(

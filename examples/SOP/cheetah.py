@@ -68,13 +68,8 @@ def env_config(env: str = "HalfCheetah-v3") -> dict:
     return conf
 
 
-def wandb_config() -> dict:
-    return {"wandb": {"project": "baselines", "entity": "angelovtt"}}
-
-
 def get_config():
     config = {"policy": policy_config()}
     config.update(trainer_config())
     config.update(env_config())
-    config.update(wandb_config())
     return config

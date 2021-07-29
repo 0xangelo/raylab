@@ -1,9 +1,7 @@
 # pylint:disable=unsubscriptable-object
 from __future__ import annotations
 
-import contextlib
 import copy
-import io
 import itertools
 from typing import Type
 
@@ -11,6 +9,7 @@ import pytest
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
+from pytest_mock import MockerFixture
 from ray.rllib import SampleBatch
 
 from raylab.policy.losses import Loss
@@ -182,33 +181,32 @@ def trainer(build_trainer):
     return build_trainer(DummyLoss)
 
 
-def test_training(mocker, trainer):
-    _test_optimize(mocker, trainer, warmup=False)
+def test_training(capsys, mocker: MockerFixture, trainer: LightningModelTrainer):
+    _test_optimize(capsys, mocker, trainer, warmup=False)
 
 
-def test_warmup(mocker, trainer):
-    _test_optimize(mocker, trainer, warmup=True)
+def test_warmup(capsys, mocker: MockerFixture, trainer: LightningModelTrainer):
+    _test_optimize(capsys, mocker, trainer, warmup=True)
 
 
-def _test_optimize(mocker, trainer: LightningModelTrainer, warmup: bool):
+def _test_optimize(
+    capsys, mocker: MockerFixture, trainer: LightningModelTrainer, warmup: bool
+):
     early_stop = mocker.spy(pl.callbacks.EarlyStopping, "__init__")
     trainer_init = mocker.spy(pl.Trainer, "__init__")
     trainer_fit = mocker.spy(pl.Trainer, "fit")
     trainer_test = mocker.spy(pl.Trainer, "test")
-    data_setup = mocker.spy(DataModule, "setup")
 
-    stderr, stdout = io.StringIO(), io.StringIO()
-    with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(stdout):
-        losses, info = trainer.optimize(warmup=warmup)
+    losses, info = trainer.optimize(warmup=warmup)
+    stdout, stderr = capsys.readouterr()
 
-    assert not stderr.getvalue()
-    assert not stdout.getvalue()
+    assert not stderr
+    assert not stdout
 
     assert early_stop.called
     assert trainer_init.called
     assert trainer_fit.called
     assert not trainer_test.called
-    assert data_setup.called
 
     assert isinstance(losses, list)
     assert all(isinstance(loss, float) for loss in losses)
@@ -242,12 +240,14 @@ def test_model(trainer, models):
 @pytest.mark.filterwarnings(
     "ignore:Your test_dataloader has `shuffle=True`::pytorch_lightning"
 )
-def test_test(trainer: LightningModelTrainer, holdout_ratio):
+def test_test(trainer: LightningModelTrainer, holdout_ratio: float):
     spec: TrainingSpec = trainer.spec
     pl_model: LightningModel = trainer.pl_model
     datamodule: DataModule = trainer.datamodule
 
-    pl_trainer, _ = spec.training.build_trainer(check_val=False)
+    pl_trainer, _ = spec.training.build_trainer(
+        check_val=False, check_on_train_epoch_end=holdout_ratio == 0.0
+    )
     assert isinstance(pl_trainer, pl.Trainer)
     datamodule.setup(None)
 
@@ -299,7 +299,10 @@ def test_cutoff_before_degradation(
     pl_model = trainer.pl_model
     datamodule = trainer.datamodule
 
-    pl_trainer, early_stopping = spec.build_trainer(check_val=False)
+    pl_trainer, early_stopping = spec.build_trainer(
+        check_val=False,
+        check_on_train_epoch_end=trainer.spec.datamodule.holdout_ratio == 0.0,
+    )
 
     before_params = copy.deepcopy(list(pl_model.parameters()))
     trainer.run_training(pl_model, pl_trainer, datamodule)
@@ -332,7 +335,10 @@ def test_checkpoint_after_improvement(
     pl_model = trainer.pl_model
     datamodule = trainer.datamodule
 
-    pl_trainer, early_stopping = spec.build_trainer(check_val=False)
+    pl_trainer, early_stopping = spec.build_trainer(
+        check_val=False,
+        check_on_train_epoch_end=trainer.spec.datamodule.holdout_ratio == 0.0,
+    )
 
     before_params = copy.deepcopy(list(pl_model.parameters()))
     trainer.run_training(pl_model, pl_trainer, datamodule)
