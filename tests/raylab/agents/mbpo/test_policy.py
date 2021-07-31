@@ -1,6 +1,16 @@
 import pytest
 
 
+@pytest.fixture(scope="module")
+def policy_cls(policy_fn):
+    from raylab.agents.mbpo import MBPOTorchPolicy
+
+    def make_policy(config):
+        return policy_fn(MBPOTorchPolicy, config)
+
+    return make_policy
+
+
 @pytest.fixture(scope="module", params=(1, 4), ids=lambda s: f"Ensemble:{s}")
 def ensemble_size(request):
     return request.param

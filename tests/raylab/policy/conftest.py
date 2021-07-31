@@ -41,11 +41,6 @@ def obs(batch):
 
 
 @pytest.fixture
-def act(batch):
-    return batch[SampleBatch.ACTIONS]
-
-
-@pytest.fixture
 def rew(batch):
     return batch[SampleBatch.REWARDS]
 

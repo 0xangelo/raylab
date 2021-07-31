@@ -22,11 +22,6 @@ def params() -> dict:
 
 
 @pytest.fixture
-def error_log() -> str:
-    return "error"
-
-
-@pytest.fixture
 def progress_prefix() -> str:
     return "progress"
 

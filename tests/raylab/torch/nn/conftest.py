@@ -38,21 +38,6 @@ def action(batch):
 
 
 @pytest.fixture
-def reward(batch):
-    return batch[SampleBatch.REWARDS]
-
-
-@pytest.fixture
-def done(batch):
-    return batch[SampleBatch.DONES]
-
-
-@pytest.fixture
-def next_obs(batch):
-    return batch[SampleBatch.NEXT_OBS]
-
-
-@pytest.fixture
 def deterministic_policies(obs_space, action_space):
     spec = MLPDeterministicPolicy.spec_cls(
         units=(32,), activation="ReLU", norm_beta=1.2

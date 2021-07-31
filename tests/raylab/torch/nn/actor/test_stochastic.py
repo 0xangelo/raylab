@@ -9,31 +9,9 @@ def module_cls():
     return StochasticActor
 
 
-@pytest.fixture(params=(True, False), ids=lambda x: f"InputDependentScale({x})")
-def input_dependent_scale(request):
-    return request.param
-
-
-@pytest.fixture
-def cont_spec(module_cls, input_dependent_scale):
-    return module_cls.spec_cls(input_dependent_scale=input_dependent_scale)
-
-
 @pytest.fixture
 def spec(module_cls):
     return module_cls.spec_cls()
-
-
-@pytest.fixture
-def disc_module(module_cls, obs_space, disc_space, spec, torch_script):
-    mod = module_cls(obs_space, disc_space, spec)
-    return torch.jit.script(mod) if torch_script else mod
-
-
-@pytest.fixture
-def cont_module(module_cls, obs_space, cont_space, spec, torch_script):
-    mod = module_cls(obs_space, cont_space, spec)
-    return torch.jit.script(mod) if torch_script else mod
 
 
 @pytest.fixture

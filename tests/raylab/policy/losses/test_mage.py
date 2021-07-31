@@ -56,11 +56,6 @@ def test_mage_init(raw_loss, reward_fn, termination_fn):
     assert hasattr(loss_fn, "_rng")
 
 
-@pytest.fixture(params=(False, True), ids=("Eager", "Script"))
-def script(request):
-    return request.param
-
-
 def test_compile(loss_fn):
     loss_fn.compile()
     assert not any(

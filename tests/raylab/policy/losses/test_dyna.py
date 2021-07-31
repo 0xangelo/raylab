@@ -22,11 +22,6 @@ def target_critic(actor, action_critics):
 
 
 @pytest.fixture
-def model_samples():
-    return 2
-
-
-@pytest.fixture
 def dyna_loss(critics, actor, models, target_critic):
     return DynaQLearning(critics, actor, models, target_critic)
 
