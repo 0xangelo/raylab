@@ -1,6 +1,6 @@
 """Registry of environment termination functions in PyTorch."""
 import torch
-import torch.nn as nn
+from torch import nn
 
 from raylab.tune.registry import RAYLAB_TERMINATION, _raylab_registry
 

@@ -2,8 +2,8 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-import gym.utils.seeding as seeding
 import numpy as np
+from gym.utils import seeding
 
 from .utils import ignore_rightmost_variables
 

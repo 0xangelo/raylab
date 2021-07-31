@@ -3,8 +3,8 @@ import math
 from typing import Dict, List
 
 import torch
-import torch.nn as nn
 from ray.rllib.utils import override
+from torch import nn
 
 from .abstract import ConditionalDistribution
 

@@ -28,10 +28,13 @@ logging.getLogger("ray.rllib").setLevel(logging.DEBUG)
     "Expects a path to a python script containing a `get_config` function. ",
 )
 @click.option(
-    "--script/--eager", "script", default=False,
+    "--script/--eager",
+    "script",
+    default=False,
 )
 @click.option(
-    "--verbose/--quiet", default=False,
+    "--verbose/--quiet",
+    default=False,
 )
 @click.option(
     "--tensorboard-dir",
@@ -74,7 +77,8 @@ def main(**args):
 
 def get_agent(agent_name, config_path, checkpoint, evaluate, script):
     from ray.rllib.utils import merge_dicts
-    from raylab.utils.checkpoints import get_config_from_checkpoint, get_agent_cls
+
+    from raylab.utils.checkpoints import get_agent_cls, get_config_from_checkpoint
     from raylab.utils.dynamic_import import import_module_from_path
 
     msg = "Either config or checkpoint can be chosen."
@@ -167,7 +171,9 @@ def test_sampler(policy, args):
     print("Z".ljust(12), "|", z)
     print("LOG_DET".ljust(12), "|", log_det)
     print(
-        "LOGP_Z".ljust(12), "|", module.dist.base_dist.log_prob(z, module(*inputs)),
+        "LOGP_Z".ljust(12),
+        "|",
+        module.dist.base_dist.log_prob(z, module(*inputs)),
     )
     samp_, logp_ = module.reproduce(*inputs, rsamp)
     print("REPR_SAMP".ljust(12), "|", samp_)
@@ -203,6 +209,7 @@ def produce_rollout(agent):
 def test_rollout(policy, rollout, writer, args):
     # pylint:disable=no-member
     from ray.rllib.policy.sample_batch import SampleBatch
+
     from raylab.utils.pytorch import flat_grad
 
     print(" TEST ROLLOUT ".center(80, "="))
@@ -217,7 +224,8 @@ def test_rollout(policy, rollout, writer, args):
             rollout[SampleBatch.ACTIONS],
         )
         samps, logp = policy.module.model.sample(
-            rollout[SampleBatch.CUR_OBS], rollout[SampleBatch.ACTIONS],
+            rollout[SampleBatch.CUR_OBS],
+            rollout[SampleBatch.ACTIONS],
         )
     else:
         raise ValueError
@@ -269,12 +277,12 @@ def tensorboard_graph(policy, obs_space, writer):
     # pylint:disable=c-extension-no-member,protected-access
     print(" PLOT GRAPH ".center(80, "="))
     import torch
-    import torch.nn as nn
+    from torch import nn
     from torch.utils.tensorboard._pytorch_graph import (
-        RunMetadata,
-        StepStats,
         DeviceStepStats,
         GraphDef,
+        RunMetadata,
+        StepStats,
         VersionDef,
         parse,
     )

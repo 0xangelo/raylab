@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader, Dataset, random_split
 
 from raylab.options import option
 from raylab.policy.losses import Loss
-from raylab.policy.modules.model import SME
+from raylab.torch.nn.model import SME
 from raylab.torch.utils import convert_to_tensor
 from raylab.utils.lightning import lightning_warnings_only, suppress_dataloader_warnings
 from raylab.utils.replay_buffer import NumpyReplayBuffer

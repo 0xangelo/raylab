@@ -9,7 +9,7 @@ https://arxiv.org/abs/1606.04934
 (IAF)
 """
 import torch
-import torch.nn as nn
+from torch import nn
 
 from raylab.torch.nn import MADE
 

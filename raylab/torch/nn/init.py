@@ -3,8 +3,7 @@ import functools
 import inspect
 from typing import Callable, Optional, Union
 
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 
 
 def get_initializer(name: Optional[str]) -> Callable[[Tensor], None]:

@@ -5,8 +5,8 @@ import torch
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.policy.modules.actor import Alpha, DeterministicPolicy, StochasticPolicy
-from raylab.policy.modules.critic import ClippedQValue, QValue, QValueEnsemble
+from raylab.torch.nn.actor import Alpha, DeterministicPolicy, StochasticPolicy
+from raylab.torch.nn.critic import ClippedQValue, QValue, QValueEnsemble
 from raylab.utils.types import StatDict, TensorDict
 
 from .abstract import Loss

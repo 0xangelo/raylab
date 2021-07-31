@@ -3,7 +3,8 @@ from dataclasses import dataclass, field
 
 from gym.spaces import Box
 
-from .model.stochastic import EnsembleSpec, build_ensemble
+from raylab.torch.nn.model import EnsembleSpec, build_ensemble
+
 from .sop import SOP, ActorSpec, CriticSpec, SOPSpec
 
 

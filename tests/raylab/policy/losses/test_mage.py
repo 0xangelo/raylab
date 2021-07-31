@@ -3,7 +3,7 @@ import torch
 from ray.rllib import SampleBatch
 
 from raylab.policy.losses.mage import MAGE
-from raylab.policy.modules.critic import HardValue
+from raylab.torch.nn.critic import HardValue
 
 
 @pytest.fixture

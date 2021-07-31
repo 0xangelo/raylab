@@ -3,8 +3,8 @@ from typing import Dict, List
 
 import numpy as np
 import torch
-import torch.nn as nn
 from ray.rllib.utils import override
+from torch import nn
 
 from . import flows
 

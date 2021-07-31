@@ -1,8 +1,8 @@
 """SoftSVG policy class using PyTorch."""
 import torch
-import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
+from torch import nn
 
 from raylab.agents.svg import SVGTorchPolicy
 from raylab.options import configure, option

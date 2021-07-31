@@ -1,8 +1,8 @@
 import pytest
 
-from raylab.policy.modules.actor import StochasticPolicy
-from raylab.policy.modules.critic import VValue
 from raylab.policy.modules.trpo import TRPO
+from raylab.torch.nn.actor import StochasticPolicy
+from raylab.torch.nn.critic import VValue
 
 
 @pytest.fixture

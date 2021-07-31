@@ -4,8 +4,7 @@ from typing import Optional
 
 import pytest
 import torch
-import torch.nn as nn
-from torch import Tensor
+from torch import Tensor, nn
 from torch.autograd import grad
 
 from raylab.torch.nn import FullyConnected, StateActionEncoder

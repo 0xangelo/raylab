@@ -2,8 +2,8 @@
 from typing import Dict
 
 import torch
-import torch.nn as nn
 from ray.rllib.utils import override
+from torch import nn
 
 from .utils import sum_rightmost
 

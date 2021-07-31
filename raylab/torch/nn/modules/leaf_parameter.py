@@ -1,7 +1,7 @@
 # pylint:disable=missing-docstring
 import torch
-import torch.nn as nn
 from ray.rllib.utils import override
+from torch import nn
 
 
 class LeafParameter(nn.Module):

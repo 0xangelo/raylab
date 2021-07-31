@@ -3,7 +3,7 @@ import contextlib
 from typing import Type
 
 import torch
-import torch.nn as nn
+from torch import nn
 from torch.optim import Optimizer
 
 from raylab.utils.dictionaries import all_except

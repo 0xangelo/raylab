@@ -31,9 +31,9 @@ import math
 
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from ray.rllib.utils import override
+from torch import nn
 
 from .abstract import CompositeTransform, InverseTransform, Transform
 from .splines import (

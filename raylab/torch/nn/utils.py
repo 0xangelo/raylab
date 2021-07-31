@@ -1,6 +1,6 @@
 """Utilities for manipulating neural network modules."""
 import torch
-import torch.nn as nn
+from torch import nn
 
 from .modules.utils import get_activation
 

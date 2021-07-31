@@ -1,10 +1,10 @@
 import pytest
 import torch
 
-from raylab.policy.modules.actor import StochasticPolicy
-from raylab.policy.modules.critic import VValue
-from raylab.policy.modules.model import StochasticModel
 from raylab.policy.modules.svg import SVG
+from raylab.torch.nn.actor import StochasticPolicy
+from raylab.torch.nn.critic import VValue
+from raylab.torch.nn.model import StochasticModel
 
 
 @pytest.fixture

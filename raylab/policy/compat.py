@@ -1,11 +1,11 @@
 """Wrappers and adapters for compatibility with RLlib's API."""
 from typing import Dict, List
 
-import torch.nn as nn
 from gym import Space
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
 from ray.rllib.utils.framework import TensorType
 from ray.rllib.utils.typing import ModelConfigDict
+from torch import nn
 
 
 class WrapRawModule(TorchModelV2, nn.Module):

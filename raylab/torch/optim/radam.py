@@ -16,7 +16,7 @@ import math
 from typing import Callable, Iterator, Optional, Tuple
 
 import torch
-import torch.nn as nn
+from torch import nn
 from torch.optim import Optimizer
 
 

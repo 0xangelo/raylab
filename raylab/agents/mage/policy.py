@@ -8,7 +8,7 @@ from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import MAGE, MaximumLikelihood
 from raylab.policy.model_based.lightning import LightningModelTrainer, TrainingSpec
 from raylab.policy.model_based.policy import MBPolicyMixin
-from raylab.policy.modules.critic import HardValue
+from raylab.torch.nn.critic import HardValue
 from raylab.torch.optim import build_optimizer
 from raylab.utils.types import StatDict
 

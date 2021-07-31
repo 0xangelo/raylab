@@ -3,7 +3,7 @@ import inspect
 import warnings
 from typing import Optional, Union
 
-import raylab.envs as envs
+from raylab import envs
 from raylab.utils.types import DynamicsFn, RewardFn, TerminationFn
 
 

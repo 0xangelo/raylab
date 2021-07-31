@@ -1,6 +1,6 @@
 """Custom activation functions as neural network modules."""
 import torch
-import torch.nn as nn
+from torch import nn
 
 
 class Swish(nn.Module):

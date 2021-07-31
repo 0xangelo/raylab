@@ -1,8 +1,8 @@
 """Customized Linear modules."""
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from ray.rllib.utils import override
+from torch import nn
 
 from raylab.torch.nn.init import initialize_
 
@@ -20,7 +20,7 @@ class MaskedLinear(nn.Linear):
         self.mask.data.copy_(mask)
 
     @override(nn.Linear)
-    def forward(self, inputs):  # pylint:disable=arguments-differ
+    def forward(self, inputs):  # pylint:disable=arguments-renamed
         return F.linear(inputs, self.mask * self.weight, self.bias)
 
 
@@ -36,7 +36,9 @@ class NormalizedLinear(nn.Module):
         self.apply(initialize_("xavier_uniform", activation="tanh"))
 
     @override(nn.Module)
-    def forward(self, inputs):  # pylint:disable=arguments-differ
+    def forward(
+        self, inputs
+    ):  # pylint:disable=arguments-differ,missing-function-docstring
         vec = self.linear(inputs)
         norms = vec.norm(p=1, dim=-1, keepdim=True)
         normalized = vec * self.linear.out_features * self.beta / norms

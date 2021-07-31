@@ -3,8 +3,9 @@ from dataclasses import dataclass, field
 
 from gym.spaces import Box
 
+from raylab.torch.nn.model import EnsembleSpec, build_ensemble
+
 from .ddpg import DDPG, DDPGSpec
-from .model.stochastic import EnsembleSpec, build_ensemble
 
 
 @dataclass

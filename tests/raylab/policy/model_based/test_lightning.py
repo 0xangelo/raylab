@@ -8,9 +8,9 @@ from typing import Type
 import pytest
 import pytorch_lightning as pl
 import torch
-import torch.nn as nn
 from pytest_mock import MockerFixture
 from ray.rllib import SampleBatch
+from torch import nn
 
 from raylab.policy.losses import Loss
 from raylab.policy.model_based.lightning import (

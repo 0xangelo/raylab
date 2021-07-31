@@ -2,14 +2,13 @@
 from typing import Callable, List, Tuple
 
 import torch
-import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
-from torch import Tensor
+from torch import Tensor, nn
 
-from raylab.policy.modules.actor import Alpha, StochasticPolicy
-from raylab.policy.modules.critic import VValue
-from raylab.policy.modules.model import StochasticModel
+from raylab.torch.nn.actor import Alpha, StochasticPolicy
+from raylab.torch.nn.critic import VValue
+from raylab.torch.nn.model import StochasticModel
 from raylab.utils.types import RewardFn, StatDict, TensorDict
 
 from .abstract import Loss

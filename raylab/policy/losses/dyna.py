@@ -2,13 +2,12 @@
 from typing import Tuple, Union
 
 import torch
-import torch.nn as nn
 from ray.rllib import SampleBatch
-from torch import Tensor
+from torch import Tensor, nn
 
-from raylab.policy.modules.actor import DeterministicPolicy, StochasticPolicy
-from raylab.policy.modules.critic import QValueEnsemble, VValue
-from raylab.policy.modules.model import SME, StochasticModel
+from raylab.torch.nn.actor import DeterministicPolicy, StochasticPolicy
+from raylab.torch.nn.critic import QValueEnsemble, VValue
+from raylab.torch.nn.model import SME, StochasticModel
 from raylab.utils.types import StatDict, TensorDict
 
 from .abstract import Loss

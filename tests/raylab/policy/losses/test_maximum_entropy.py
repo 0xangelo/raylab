@@ -11,7 +11,7 @@ def target_entropy():
 
 @pytest.fixture
 def alpha():
-    from raylab.policy.modules.actor.policy.stochastic import Alpha
+    from raylab.torch.nn.actor import Alpha
 
     return Alpha(0.05)
 

@@ -2,7 +2,7 @@
 import functools
 from typing import Callable, Union
 
-import torch.nn as nn
+from torch import nn
 
 from . import activation as activations
 

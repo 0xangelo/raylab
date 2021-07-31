@@ -2,8 +2,8 @@
 from typing import Tuple
 
 import torch
-import torch.nn as nn
 from ray.rllib.utils import override
+from torch import nn
 
 from .linear import MaskedLinear
 from .utils import get_activation
@@ -35,7 +35,7 @@ class FullyConnected(nn.Sequential):
 
     @override(nn.Module)
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        # pylint:disable=arguments-differ
+        # pylint:disable=arguments-renamed
         return self.sequential(inputs)
 
 

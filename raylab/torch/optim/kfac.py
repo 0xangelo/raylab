@@ -21,9 +21,8 @@ import abc
 import contextlib
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
+from torch import Tensor, nn
 from torch.optim import Optimizer
 
 

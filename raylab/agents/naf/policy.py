@@ -1,14 +1,14 @@
 """NAF policy class using PyTorch."""
 import torch
-import torch.nn as nn
 from ray.rllib.utils import override
+from torch import nn
 
 from raylab.options import configure, option
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import FittedQLearning
-from raylab.policy.modules.critic import ClippedVValue
 from raylab.policy.off_policy import OffPolicyMixin, off_policy_options
+from raylab.torch.nn.critic import ClippedVValue
 from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
 from raylab.utils.types import TensorDict

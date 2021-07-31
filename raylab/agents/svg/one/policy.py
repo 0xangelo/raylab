@@ -3,10 +3,9 @@ import contextlib
 import warnings
 
 import torch
-import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
-from torch import Tensor
+from torch import Tensor, nn
 
 from raylab.agents.svg import SVGTorchPolicy
 from raylab.options import configure, option

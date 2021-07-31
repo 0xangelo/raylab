@@ -7,8 +7,8 @@ from raylab.options import configure, option
 from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import ActionDPG, DeterministicPolicyGradient, FittedQLearning
-from raylab.policy.modules.critic import HardValue
 from raylab.policy.off_policy import OffPolicyMixin
+from raylab.torch.nn.critic import HardValue
 from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
 from raylab.utils.types import TensorDict

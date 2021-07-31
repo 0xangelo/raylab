@@ -1,10 +1,10 @@
 """TRPO policy implemented in PyTorch."""
 import numpy as np
 import torch
-import torch.nn as nn
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.postprocessing import Postprocessing, compute_advantages
 from ray.rllib.utils import override
+from torch import nn
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 
 from raylab.options import configure, option

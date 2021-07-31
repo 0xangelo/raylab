@@ -1,18 +1,18 @@
 """NN architecture used in Normalized Advantage Function."""
 from dataclasses import dataclass, field
 
-import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
+from torch import nn
 
-from .actor import DeterministicPolicy, MLPDeterministicPolicy
-from .critic import (
+from raylab.torch.nn.actor import DeterministicPolicy, MLPDeterministicPolicy
+from raylab.torch.nn.critic import (
     ForkedQValueEnsemble,
     ForkedVValueEnsemble,
     QValueEnsemble,
     VValueEnsemble,
 )
-from .critic.naf_value import NAFQValue
+from raylab.torch.nn.critic.naf_value import NAFQValue
 
 MLPPolicySpec = MLPDeterministicPolicy.spec_cls
 

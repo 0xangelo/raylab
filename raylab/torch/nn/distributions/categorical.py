@@ -2,9 +2,9 @@
 from typing import Dict, List
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 from ray.rllib.utils import override
+from torch import nn
 
 from .abstract import ConditionalDistribution
 
