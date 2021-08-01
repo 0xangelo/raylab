@@ -1,21 +1,8 @@
-import warnings
-from contextlib import contextmanager, nullcontext
+from contextlib import nullcontext
 
 import pytest
 import torch
 from ray.rllib import SampleBatch
-
-
-@contextmanager
-def suppress_layer_norm_warning():
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            "Separate behavior policy requested and layer normalization deactivated",
-            category=UserWarning,
-            module="raylab.policy.modules.actor.deterministic",
-        )
-        yield
 
 
 @pytest.fixture
@@ -58,15 +45,9 @@ def module_creator(module_cls, obs_space, action_space):
     return lambda spec: module_cls(obs_space, action_space, spec)
 
 
-@pytest.fixture
-@suppress_layer_norm_warning()
-def module(module_creator, spec):
-    return module_creator(spec)
-
-
 def test_module_creation(module_creator, spec):
     if spec.separate_behavior and not spec.network.layer_norm:
-        ctx = pytest.warns(UserWarning, match="layer normalization deactivated")
+        ctx = pytest.warns(UserWarning, match=".*layer normalization deactivated.*")
     else:
         ctx = nullcontext()
 
@@ -83,7 +64,10 @@ def test_module_creation(module_creator, spec):
     )
 
 
-@suppress_layer_norm_warning()
+@pytest.mark.filterwarnings(
+    "ignore:Separate behavior policy requested and layer normalization deactivated"
+    ":UserWarning:raylab.torch.nn.actor.deterministic"
+)
 def test_separate_behavior(module_cls, obs_space, action_space):
     spec = module_cls.spec_cls(separate_behavior=True)
     module = module_cls(obs_space, action_space, spec)
@@ -94,7 +78,12 @@ def test_separate_behavior(module_cls, obs_space, action_space):
     )
 
 
-def test_separate_target_policy(module, spec):
+@pytest.mark.filterwarnings(
+    "ignore:Separate behavior policy requested and layer normalization deactivated"
+    ":UserWarning:raylab.torch.nn.actor.deterministic"
+)
+def test_separate_target_policy(module_creator, spec):
+    module = module_creator(spec)
     policy, target = module.policy, module.target_policy
 
     if spec.separate_target_policy:
@@ -103,7 +92,12 @@ def test_separate_target_policy(module, spec):
         assert all(p is t for p, t in zip(policy.parameters(), target.parameters()))
 
 
-def test_behavior(module, batch):
+@pytest.mark.filterwarnings(
+    "ignore:Separate behavior policy requested and layer normalization deactivated"
+    ":UserWarning:raylab.torch.nn.actor.deterministic"
+)
+def test_behavior(module_creator, spec, batch):
+    module = module_creator(spec)
     action = batch[SampleBatch.ACTIONS]
 
     samples = module.behavior(batch[SampleBatch.CUR_OBS])
