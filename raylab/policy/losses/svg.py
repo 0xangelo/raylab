@@ -9,8 +9,9 @@ from torch import Tensor, nn
 from raylab.torch.nn.actor import Alpha, StochasticPolicy
 from raylab.torch.nn.critic import VValue
 from raylab.torch.nn.model import StochasticModel
-from raylab.utils.types import RewardFn, StatDict, TensorDict
+from raylab.utils.types import RewardFn, StatDict
 
+from ...torch.types import TensorDict
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin
 

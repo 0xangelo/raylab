@@ -11,7 +11,7 @@ from raylab.policy.off_policy import OffPolicyMixin
 from raylab.torch.nn.critic import HardValue
 from raylab.torch.nn.utils import update_polyak
 from raylab.torch.optim import build_optimizer
-from raylab.utils.types import TensorDict
+from raylab.torch.types import TensorDict
 
 
 @configure

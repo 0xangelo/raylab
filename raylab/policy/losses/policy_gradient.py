@@ -7,8 +7,9 @@ from torch import Tensor
 
 from raylab.torch.nn.actor import Alpha, DeterministicPolicy, StochasticPolicy
 from raylab.torch.nn.critic import ClippedQValue, QValue, QValueEnsemble
-from raylab.utils.types import StatDict, TensorDict
+from raylab.utils.types import StatDict
 
+from ...torch.types import TensorDict
 from .abstract import Loss
 from .utils import action_dpg, dist_params_stats
 

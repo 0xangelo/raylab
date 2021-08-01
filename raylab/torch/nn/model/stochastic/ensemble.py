@@ -6,7 +6,7 @@ from torch import Tensor, nn
 from torch.jit import fork, wait
 
 from raylab.torch.nn.distributions.types import SampleLogp
-from raylab.utils.types import TensorDict
+from raylab.torch.types import TensorDict
 
 from .single import StochasticModel
 

@@ -10,8 +10,8 @@ from raylab.policy import EnvFnMixin
 from raylab.policy.losses import ISSoftVIteration, MaximumEntropyDual, OneStepSoftSVG
 from raylab.policy.off_policy import OffPolicyMixin, off_policy_options
 from raylab.torch.optim import build_optimizer
+from raylab.torch.types import TensorDict
 from raylab.utils.replay_buffer import ReplayField
-from raylab.utils.types import TensorDict
 
 
 def default_optimizer() -> dict:

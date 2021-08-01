@@ -17,8 +17,9 @@ from torch import Tensor, nn
 
 from raylab.options import RaylabOptions, configure, option
 from raylab.torch.utils import convert_to_tensor
-from raylab.utils.types import StatDict, TensorDict
+from raylab.utils.types import StatDict
 
+from ..torch.types import TensorDict
 from .compat import WrapRawModule
 from .modules import get_module
 from .optimizer_collection import OptimizerCollection

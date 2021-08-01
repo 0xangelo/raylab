@@ -8,8 +8,8 @@ from ray.rllib.utils.typing import TensorType
 
 from raylab.options import option
 from raylab.utils.replay_buffer import NumpyReplayBuffer
-from raylab.utils.types import TensorDict
 
+from ..torch.types import TensorDict
 from .stats import learner_stats
 
 

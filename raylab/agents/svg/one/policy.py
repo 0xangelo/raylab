@@ -13,8 +13,8 @@ from raylab.policy import AdaptiveKLCoeffMixin, EnvFnMixin, TorchPolicy, learner
 from raylab.policy.losses import OneStepSVG
 from raylab.policy.off_policy import OffPolicyMixin, off_policy_options
 from raylab.torch.optim import get_optimizer_class
+from raylab.torch.types import TensorDict
 from raylab.utils.replay_buffer import ReplayField
-from raylab.utils.types import TensorDict
 
 
 @configure

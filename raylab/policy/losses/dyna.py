@@ -8,8 +8,9 @@ from torch import Tensor, nn
 from raylab.torch.nn.actor import DeterministicPolicy, StochasticPolicy
 from raylab.torch.nn.critic import QValueEnsemble, VValue
 from raylab.torch.nn.model import SME, StochasticModel
-from raylab.utils.types import StatDict, TensorDict
+from raylab.utils.types import StatDict
 
+from ...torch.types import TensorDict
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin, UniformModelPriorMixin
 from .q_learning import QLearningMixin

@@ -10,8 +10,8 @@ from raylab.policy import AdaptiveKLCoeffMixin, EnvFnMixin, learner_stats
 from raylab.policy.losses import TrajectorySVG
 from raylab.policy.off_policy import OffPolicyMixin, off_policy_options
 from raylab.torch.optim import build_optimizer
+from raylab.torch.types import TensorDict
 from raylab.utils.replay_buffer import ReplayField
-from raylab.utils.types import TensorDict
 
 
 @configure

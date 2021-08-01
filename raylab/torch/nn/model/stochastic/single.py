@@ -10,7 +10,7 @@ import raylab.torch.nn as nnx
 import raylab.torch.nn.distributions as ptd
 from raylab.torch.nn.distributions.types import SampleLogp
 from raylab.torch.nn.networks.mlp import StateActionMLP
-from raylab.utils.types import TensorDict
+from raylab.torch.types import TensorDict
 
 
 class StochasticModel(nn.Module):
