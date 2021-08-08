@@ -1,12 +1,12 @@
 """Base Policy with common methods for all SVG variations."""
 import torch
+from nnrl.nn.utils import update_polyak
 from ray.rllib import SampleBatch
 
 from raylab.options import configure, option
 from raylab.policy import EnvFnMixin, TorchPolicy
 from raylab.policy.action_dist import WrapStochasticPolicy
 from raylab.policy.losses import ISFittedVIteration, MaximumLikelihood
-from raylab.torch.nn.utils import update_polyak
 
 
 @configure

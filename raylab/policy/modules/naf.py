@@ -3,16 +3,15 @@ from dataclasses import dataclass, field
 
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
-from torch import nn
-
-from raylab.torch.nn.actor import DeterministicPolicy, MLPDeterministicPolicy
-from raylab.torch.nn.critic import (
+from nnrl.nn.actor import DeterministicPolicy, MLPDeterministicPolicy
+from nnrl.nn.critic import (
     ForkedQValueEnsemble,
     ForkedVValueEnsemble,
     QValueEnsemble,
     VValueEnsemble,
 )
-from raylab.torch.nn.critic.naf_value import NAFQValue
+from nnrl.nn.critic.naf_value import NAFQValue
+from torch import nn
 
 MLPPolicySpec = MLPDeterministicPolicy.spec_cls
 

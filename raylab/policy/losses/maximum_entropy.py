@@ -2,13 +2,13 @@
 from typing import Callable, Tuple
 
 import torch
+from nnrl.nn.actor import StochasticPolicy
+from nnrl.types import TensorDict
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.torch.nn.actor import StochasticPolicy
 from raylab.utils.types import StatDict
 
-from ...torch.types import TensorDict
 from .abstract import Loss
 
 

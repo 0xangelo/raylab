@@ -11,7 +11,7 @@ def target_entropy():
 
 @pytest.fixture
 def alpha():
-    from raylab.torch.nn.actor import Alpha
+    from nnrl.nn.actor import Alpha
 
     return Alpha(0.05)
 

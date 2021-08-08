@@ -4,6 +4,8 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 
 import torch
 from gym.spaces import Space
+from nnrl.types import TensorDict
+from nnrl.utils import convert_to_tensor
 from ray.rllib import Policy, SampleBatch
 from ray.rllib.evaluation.episode import MultiAgentEpisode
 from ray.rllib.models.action_dist import ActionDistribution
@@ -16,10 +18,8 @@ from ray.tune.logger import pretty_print
 from torch import Tensor, nn
 
 from raylab.options import RaylabOptions, configure, option
-from raylab.torch.utils import convert_to_tensor
 from raylab.utils.types import StatDict
 
-from ..torch.types import TensorDict
 from .compat import WrapRawModule
 from .modules import get_module
 from .optimizer_collection import OptimizerCollection

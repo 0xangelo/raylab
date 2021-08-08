@@ -1,6 +1,7 @@
 """Policy for MBPO using PyTorch."""
 from typing import List, Tuple
 
+from nnrl.optim import build_optimizer
 from ray.rllib import SampleBatch
 
 from raylab.agents.sac import SACTorchPolicy
@@ -15,7 +16,6 @@ from raylab.policy.model_based import (
 )
 from raylab.policy.model_based.policy import MBPolicyMixin, model_based_options
 from raylab.policy.model_based.sampling import SamplingSpec
-from raylab.torch.optim import build_optimizer
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 from raylab.utils.timer import TimerStat
 from raylab.utils.types import StatDict

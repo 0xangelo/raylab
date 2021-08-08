@@ -1,8 +1,8 @@
 import pytest
 import torch
+from nnrl.nn.model import SME
 
 from raylab.policy.losses import MaximumLikelihood
-from raylab.torch.nn.model import SME
 
 
 @pytest.fixture

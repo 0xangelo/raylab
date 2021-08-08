@@ -3,10 +3,9 @@ from dataclasses import dataclass, field
 
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
+from nnrl.nn.actor import StochasticActor
+from nnrl.nn.critic import MLPVValue
 from torch import nn
-
-from raylab.torch.nn.actor import StochasticActor
-from raylab.torch.nn.critic import MLPVValue
 
 ActorSpec = StochasticActor.spec_cls
 CriticSpec = MLPVValue.spec_cls

@@ -1,10 +1,10 @@
+import nnrl.nn as nnx
 import pytest
 import torch
+from nnrl.nn.actor import MLPContinuousPolicy
 from torch import nn
 
-import raylab.torch.nn as nnx
 from raylab.policy.modules.sac import SAC
-from raylab.torch.nn.actor import MLPContinuousPolicy
 
 
 @pytest.fixture

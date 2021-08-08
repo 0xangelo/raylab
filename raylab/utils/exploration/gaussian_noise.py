@@ -2,10 +2,10 @@
 from typing import Tuple
 
 import torch
+from nnrl.nn.actor import DeterministicPolicy
 from torch import Tensor
 
 from raylab.policy.action_dist import BaseActionDist
-from raylab.torch.nn.actor import DeterministicPolicy
 
 from .base import Model
 from .random_uniform import RandomUniform

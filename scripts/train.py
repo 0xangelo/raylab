@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # pylint:disable=missing-docstring
-from ray.rllib.train import create_parser
-from ray.rllib.train import run
+from ray.rllib.train import create_parser, run
 
 import raylab
 

@@ -3,10 +3,9 @@ from dataclasses import dataclass, field
 
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
+from nnrl.nn.actor.deterministic import DeterministicActor
+from nnrl.nn.critic import ActionValueCritic
 from torch import nn
-
-from raylab.torch.nn.actor.deterministic import DeterministicActor
-from raylab.torch.nn.critic import ActionValueCritic
 
 
 @dataclass

@@ -2,15 +2,15 @@
 from typing import Tuple
 
 import torch
+from nnrl.nn.actor import Alpha, StochasticPolicy
+from nnrl.nn.critic import VValue
+from nnrl.types import TensorDict
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 from torch import Tensor, nn
 
-from raylab.torch.nn.actor import Alpha, StochasticPolicy
-from raylab.torch.nn.critic import VValue
 from raylab.utils.types import StatDict
 
-from ...torch.types import TensorDict
 from .abstract import Loss
 
 

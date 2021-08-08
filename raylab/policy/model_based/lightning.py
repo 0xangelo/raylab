@@ -9,15 +9,15 @@ from typing import Any, Optional, OrderedDict
 import pytorch_lightning as pl
 import torch
 from dataclasses_json import DataClassJsonMixin
+from nnrl.nn.model import SME
+from nnrl.types import TensorDict
+from nnrl.utils import convert_to_tensor
 from torch import Tensor, nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader, Dataset, random_split
 
 from raylab.options import option
 from raylab.policy.losses import Loss
-from raylab.torch.nn.model import SME
-from raylab.torch.types import TensorDict
-from raylab.torch.utils import convert_to_tensor
 from raylab.utils.lightning import lightning_warnings_only, suppress_dataloader_warnings
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 from raylab.utils.types import StatDict

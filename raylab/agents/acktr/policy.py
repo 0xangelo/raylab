@@ -3,6 +3,10 @@ import warnings
 
 import numpy as np
 import torch
+from nnrl.nn.distributions import Normal
+from nnrl.optim import build_optimizer
+from nnrl.optim.hessian_free import line_search
+from nnrl.optim.kfac import KFACMixin
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.postprocessing import Postprocessing, compute_advantages
 from ray.rllib.utils import override
@@ -13,10 +17,6 @@ from raylab.agents.trpo.policy import LINESEARCH_DEFAULTS
 from raylab.options import configure, option
 from raylab.policy import TorchPolicy, learner_stats
 from raylab.policy.action_dist import WrapStochasticPolicy
-from raylab.torch.nn.distributions import Normal
-from raylab.torch.optim import build_optimizer
-from raylab.torch.optim.hessian_free import line_search
-from raylab.torch.optim.kfac import KFACMixin
 from raylab.utils.explained_variance import explained_variance
 
 DEFAULT_OPTIM_CONFIG = {

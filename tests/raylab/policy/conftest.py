@@ -1,15 +1,15 @@
 import pytest
 import torch
-from ray.rllib import SampleBatch
-
-from raylab.torch.nn.actor import (
+from nnrl.nn.actor import (
     Alpha,
     DeterministicPolicy,
     MLPContinuousPolicy,
     MLPDeterministicPolicy,
 )
-from raylab.torch.nn.critic import ActionValueCritic, MLPVValue
-from raylab.torch.nn.model import EnsembleSpec, build_ensemble, build_single
+from nnrl.nn.critic import ActionValueCritic, MLPVValue
+from nnrl.nn.model import EnsembleSpec, build_ensemble, build_single
+from ray.rllib import SampleBatch
+
 from raylab.utils.debug import fake_batch
 
 

@@ -2,10 +2,10 @@
 from typing import Optional, Tuple
 
 import torch
+from nnrl.types import TensorDict
 from torch import Tensor
 from torch.autograd import grad
 
-from raylab.torch.types import TensorDict
 from raylab.utils.types import StatDict
 
 

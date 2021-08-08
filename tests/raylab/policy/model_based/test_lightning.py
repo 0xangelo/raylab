@@ -8,6 +8,7 @@ from typing import Type
 import pytest
 import pytorch_lightning as pl
 import torch
+from nnrl.optim import build_optimizer
 from pytest_mock import MockerFixture
 from ray.rllib import SampleBatch
 from torch import nn
@@ -20,7 +21,6 @@ from raylab.policy.model_based.lightning import (
     TrainingSpec,
 )
 from raylab.policy.modules import get_module
-from raylab.torch.optim import build_optimizer
 from raylab.utils.debug import fake_batch
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 

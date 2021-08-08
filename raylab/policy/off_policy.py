@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple, Union
 
+from nnrl.types import TensorDict
 from ray.rllib import SampleBatch
 from ray.rllib.evaluation.episode import MultiAgentEpisode
 from ray.rllib.utils.typing import TensorType
@@ -9,7 +10,6 @@ from ray.rllib.utils.typing import TensorType
 from raylab.options import option
 from raylab.utils.replay_buffer import NumpyReplayBuffer
 
-from ..torch.types import TensorDict
 from .stats import learner_stats
 
 

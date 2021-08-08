@@ -1,9 +1,9 @@
 import pytest
 import torch
+from nnrl.nn.actor import Alpha
+from nnrl.nn.critic import ClippedQValue, SoftValue
 
 from raylab.policy.losses import DynaQLearning
-from raylab.torch.nn.actor import Alpha
-from raylab.torch.nn.critic import ClippedQValue, SoftValue
 
 
 @pytest.fixture

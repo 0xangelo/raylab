@@ -1,9 +1,9 @@
 import pytest
 import torch
+from nnrl.nn.critic import HardValue
 from ray.rllib import SampleBatch
 
 from raylab.policy.losses.mage import MAGE
-from raylab.torch.nn.critic import HardValue
 
 
 @pytest.fixture

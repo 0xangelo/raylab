@@ -1,5 +1,9 @@
 """TD3 policy class using PyTorch."""
 import torch
+from nnrl.nn.critic import HardValue
+from nnrl.nn.utils import update_polyak
+from nnrl.optim import build_optimizer
+from nnrl.types import TensorDict
 from ray.rllib.utils import override
 from torch.nn.utils import clip_grad_norm_
 
@@ -8,10 +12,6 @@ from raylab.policy import TorchPolicy
 from raylab.policy.action_dist import WrapDeterministicPolicy
 from raylab.policy.losses import DeterministicPolicyGradient, FittedQLearning
 from raylab.policy.off_policy import OffPolicyMixin, off_policy_options
-from raylab.torch.nn.critic import HardValue
-from raylab.torch.nn.utils import update_polyak
-from raylab.torch.optim import build_optimizer
-from raylab.torch.types import TensorDict
 
 
 @configure

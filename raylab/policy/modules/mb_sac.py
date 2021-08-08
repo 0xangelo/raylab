@@ -2,8 +2,7 @@
 from dataclasses import dataclass, field
 
 from gym.spaces import Box
-
-from raylab.torch.nn.model import EnsembleSpec, build_ensemble
+from nnrl.nn.model import EnsembleSpec, build_ensemble
 
 from .sac import SAC, SACSpec
 

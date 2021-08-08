@@ -3,14 +3,14 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple
 
 import torch
+from nnrl.nn.critic import QValueEnsemble, VValue
+from nnrl.types import TensorDict
 from ray.rllib import SampleBatch
 from torch import Tensor, nn
 
 import raylab.utils.dictionaries as dutil
-from raylab.torch.nn.critic import QValueEnsemble, VValue
 from raylab.utils.types import StatDict
 
-from ...torch.types import TensorDict
 from .abstract import Loss
 
 

@@ -3,6 +3,8 @@ import contextlib
 import warnings
 
 import torch
+from nnrl.optim import get_optimizer_class
+from nnrl.types import TensorDict
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
 from torch import Tensor, nn
@@ -12,8 +14,6 @@ from raylab.options import configure, option
 from raylab.policy import AdaptiveKLCoeffMixin, EnvFnMixin, TorchPolicy, learner_stats
 from raylab.policy.losses import OneStepSVG
 from raylab.policy.off_policy import OffPolicyMixin, off_policy_options
-from raylab.torch.optim import get_optimizer_class
-from raylab.torch.types import TensorDict
 from raylab.utils.replay_buffer import ReplayField
 
 

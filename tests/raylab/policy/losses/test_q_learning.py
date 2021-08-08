@@ -1,11 +1,11 @@
 import pytest
 import torch
+from nnrl.nn.critic import HardValue, SoftValue
 from ray.rllib import SampleBatch
 from torch import nn
 
 import raylab.utils.dictionaries as dutil
 from raylab.policy.losses import FittedQLearning
-from raylab.torch.nn.critic import HardValue, SoftValue
 
 
 @pytest.fixture

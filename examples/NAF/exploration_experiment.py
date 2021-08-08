@@ -5,7 +5,6 @@ This can be run from the command line by executing
 """
 from ray import tune
 
-
 GAUSSIAN_NOISE = {
     "type": "raylab.utils.exploration.GaussianNoise",
     "noise_stddev": 0.3,

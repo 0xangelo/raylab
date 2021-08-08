@@ -1,7 +1,6 @@
 import numpy as np
 from ray import tune
 
-
 KFAC = {
     "type": "KFAC",
     "eps": 1e-3,
