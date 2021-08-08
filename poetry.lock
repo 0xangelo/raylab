@@ -1158,6 +1158,19 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
+name = "nnrl"
+version = "0.1.0"
+description = "Top-level package for NN RL."
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+dataclasses-json = ">=0.5.4,<0.6.0"
+gym = ">=0.18.3,<0.19.0"
+torch = ">=1.9.0,<2.0.0"
+
+[[package]]
 name = "nodeenv"
 version = "1.6.0"
 description = "Node.js virtual environment builder"
@@ -2486,7 +2499,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "538a97e3d2786ed185a15163ee07202b39faeeb29b620ee559782eb4cdc9bff4"
+content-hash = "cad3b7f59126b4ed404be5f681f5cac6f4b7aabf33e1caa01a1455db8bda31ca"
 
 [metadata.files]
 absl-py = [
@@ -3269,6 +3282,10 @@ nbformat = [
 nest-asyncio = [
     {file = "nest_asyncio-1.5.1-py3-none-any.whl", hash = "sha256:76d6e972265063fe92a90b9cc4fb82616e07d586b346ed9d2c89a4187acea39c"},
     {file = "nest_asyncio-1.5.1.tar.gz", hash = "sha256:afc5a1c515210a23c461932765691ad39e8eba6551c055ac8d5546e69250d0aa"},
+]
+nnrl = [
+    {file = "nnrl-0.1.0-py3-none-any.whl", hash = "sha256:57794be2bdf14d1a656e856ebf50b6a8a3413c6270c54acddad9b6c237fc0f7d"},
+    {file = "nnrl-0.1.0.tar.gz", hash = "sha256:294d577a6140c8aede5c02bdf057016b6a0d25da2c40beae8878dde4ab89d962"},
 ]
 nodeenv = [
     {file = "nodeenv-1.6.0-py2.py3-none-any.whl", hash = "sha256:621e6b7076565ddcacd2db0294c0381e01fd28945ab36bcf00f41c5daf63bef7"},

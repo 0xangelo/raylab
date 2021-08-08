@@ -31,6 +31,7 @@ dm-tree = "^0.1.5"
 tabulate = "^0.8.7"
 opencv-contrib-python = "^4.4.0"
 sklearn = "^0.0"
+nnrl = "^0.1.0"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.9.2"
