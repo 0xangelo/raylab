@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import copy
 import itertools
-from typing import Type
+from typing import Callable, Type
 
 import pytest
 import pytorch_lightning as pl
@@ -23,6 +23,11 @@ from raylab.policy.model_based.lightning import (
 from raylab.policy.modules import get_module
 from raylab.utils.debug import fake_batch
 from raylab.utils.replay_buffer import NumpyReplayBuffer
+
+# https://docs.pytest.org/en/6.2.x/warnings.html#pytest-mark-filterwarnings
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:The dataloader,.+, does not have many workers::pytorch_lightning"
+)
 
 
 class DummyLoss(Loss):
@@ -141,7 +146,7 @@ def build_trainer(
     optimizer: torch.optim.Optimizer,
     replay: NumpyReplayBuffer,
     config: dict,
-) -> callable[[Type[Loss]], LightningModelTrainer]:
+) -> Callable[[Type[Loss]], LightningModelTrainer]:
     def builder(model_loss: Type[Loss]) -> LightningModelTrainer:
         loss_fn = model_loss(models)
         return LightningModelTrainer(models, loss_fn, optimizer, replay, config)
@@ -235,9 +240,6 @@ def test_model(trainer, models):
 
 
 @pytest.mark.filterwarnings(
-    "ignore:The dataloader,.+, does not have many workers::pytorch_lightning"
-)
-@pytest.mark.filterwarnings(
     "ignore:Your test_dataloader has `shuffle=True`::pytorch_lightning"
 )
 def test_test(trainer: LightningModelTrainer, holdout_ratio: float):
@@ -288,7 +290,7 @@ class WorseningLoss(DummyLoss):
 
 
 def test_cutoff_before_degradation(
-    build_trainer: callable[[Type[Loss]], LightningModelTrainer]
+    build_trainer: Callable[[Type[Loss]], LightningModelTrainer]
 ):
     trainer = build_trainer(WorseningLoss)
     spec = trainer.spec.training
@@ -324,7 +326,7 @@ class BetteringLoss(WorseningLoss):
 
 
 def test_checkpoint_after_improvement(
-    build_trainer: callable[[Type[Loss]], LightningModelTrainer]
+    build_trainer: Callable[[Type[Loss]], LightningModelTrainer]
 ):
     trainer = build_trainer(BetteringLoss)
     spec = trainer.spec.training
