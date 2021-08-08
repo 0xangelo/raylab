@@ -37,6 +37,8 @@ from .optimizer_collection import OptimizerCollection
 @option("num_workers", default=0)
 @option("seed", default=None)
 @option("worker_index", default=0)
+@option("normalize_actions", default=True)
+@option("clip_actions", default=False)
 @option(
     "module/",
     help="Type and config of the PyTorch NN module.",
@@ -120,6 +122,8 @@ class TorchPolicy(Policy):
             "num_workers",
             "seed",
             "worker_index",
+            "normalize_actions",
+            "clip_actions",
         }
 
     def compile(self):
@@ -203,10 +207,11 @@ class TorchPolicy(Policy):
         state_batches: Optional[List[TensorType]] = None,
         prev_action_batch: Optional[Union[List[TensorType], TensorType]] = None,
         prev_reward_batch: Optional[Union[List[TensorType], TensorType]] = None,
+        actions_normalized: bool = True,
     ) -> TensorType:
         # pylint:disable=too-many-arguments
         input_dict = self.lazy_tensor_dict(
-            {SampleBatch.CUR_OBS: obs_batch, SampleBatch.ACTIONS: actions}
+            SampleBatch({SampleBatch.CUR_OBS: obs_batch, SampleBatch.ACTIONS: actions})
         )
         if prev_action_batch:
             input_dict[SampleBatch.PREV_ACTIONS] = prev_action_batch
@@ -394,7 +399,7 @@ class TorchPolicy(Policy):
         Args:
             input_dict: Dict of model input tensors.
             state_batches: List of state tensors.
-            model: Reference to the model.
+            module: Reference to the model.
             action_dist: Action dist object
                 to get log-probs (e.g. for already sampled actions).
         """
