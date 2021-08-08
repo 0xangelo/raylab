@@ -2,13 +2,14 @@
 from typing import Tuple, Union
 
 import torch
+from nnrl.nn.actor import DeterministicPolicy
+from nnrl.nn.critic import QValueEnsemble, VValue
+from nnrl.nn.model import SME, StochasticModel
+from nnrl.types import TensorDict
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.policy.modules.actor import DeterministicPolicy
-from raylab.policy.modules.critic import QValueEnsemble, VValue
-from raylab.policy.modules.model import SME, StochasticModel
-from raylab.utils.types import StatDict, TensorDict
+from raylab.utils.types import StatDict
 
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin, UniformModelPriorMixin

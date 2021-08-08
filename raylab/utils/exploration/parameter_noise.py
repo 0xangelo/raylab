@@ -2,11 +2,11 @@
 from typing import Any, Optional, Tuple
 
 import torch
+from nnrl.nn.utils import perturb_params
 from ray.rllib import SampleBatch
 from ray.rllib.models.action_dist import ActionDistribution
 
 from raylab.policy import TorchPolicy
-from raylab.torch.nn.utils import perturb_params
 from raylab.utils.param_noise import AdaptiveParamNoiseSpec, ddpg_distance_metric
 
 from .base import Model

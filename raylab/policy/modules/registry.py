@@ -1,6 +1,6 @@
 """Registry of modules for PyTorch policies."""
-import torch.nn as nn
 from gym.spaces import Space
+from torch import nn
 
 from .ddpg import DDPG
 from .mage import MAGE

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import numpy as np
-import torch.nn as nn
+from torch import nn
 
 from raylab.utils.types import RewardFn, TerminationFn
 

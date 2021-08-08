@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-import raylab.envs as envs
+from raylab import envs
 from raylab.envs.wrappers import CorrelatedIrrelevant
 
 
@@ -59,13 +59,6 @@ def test_step(wrapped, size):
 @pytest.fixture
 def reward_fn(env_name, env_config, size):
     base = envs.get_reward_fn(env_name, env_config)
-    wrapped = CorrelatedIrrelevant.wrap_env_function(base, size)
-    return wrapped
-
-
-@pytest.fixture
-def termination_fn(env_name, env_config, size):
-    base = envs.get_termination_fn(env_name, env_config)
     wrapped = CorrelatedIrrelevant.wrap_env_function(base, size)
     return wrapped
 

@@ -2,10 +2,11 @@
 from abc import ABCMeta, abstractmethod
 from typing import Dict, Tuple
 
+from nnrl.types import TensorDict
 from torch import Tensor
 
 from raylab.utils.dictionaries import get_keys
-from raylab.utils.types import StatDict, TensorDict
+from raylab.utils.types import StatDict
 
 __all__ = [
     "Dict",

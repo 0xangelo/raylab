@@ -7,8 +7,6 @@ import pytest
 from ray.rllib import Policy
 from ray.tune.logger import Logger, UnifiedLogger
 
-from raylab.utils.debug import fake_batch
-
 
 @pytest.fixture(scope="module")
 def logger_creator(tmpdir_factory) -> Callable[[dict], Logger]:
@@ -39,53 +37,8 @@ def trainable_info_keys():
 
 
 @pytest.fixture
-def model_update_interval():
-    return 1
-
-
-@pytest.fixture
-def policy_improvement_interval():
-    return 1
-
-
-@pytest.fixture
-def policy_improvements():
-    return 1
-
-
-@pytest.fixture
-def train_batch_size():
-    return 32
-
-
-@pytest.fixture
 def rollout_fragment_length():
     return 10
-
-
-@pytest.fixture
-def learning_starts(rollout_fragment_length):
-    return rollout_fragment_length
-
-
-@pytest.fixture
-def num_workers():
-    return 0
-
-
-@pytest.fixture
-def buffer_size():
-    return 100
-
-
-@pytest.fixture
-def timesteps_per_iteration(rollout_fragment_length):
-    return rollout_fragment_length
-
-
-@pytest.fixture
-def evaluation_interval():
-    return 1
 
 
 @pytest.fixture(scope="module")
@@ -144,8 +97,3 @@ def policy_fn(env_, env_name):
         return policy_cls(env_.observation_space, env_.action_space, config)
 
     return make_policy
-
-
-@pytest.fixture
-def env_samples(env_):
-    return fake_batch(env_.observation_space, env_.action_space, batch_size=10)

@@ -1,12 +1,11 @@
 """NN architecture used in Deep Deterministic Policy Gradients."""
 from dataclasses import dataclass, field
 
-import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
-
-from .actor.deterministic import DeterministicActor
-from .critic.action_value import ActionValueCritic
+from nnrl.nn.actor.deterministic import DeterministicActor
+from nnrl.nn.critic import ActionValueCritic
+from torch import nn
 
 
 @dataclass

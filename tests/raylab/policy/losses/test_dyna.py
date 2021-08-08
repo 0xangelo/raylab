@@ -1,9 +1,9 @@
 import pytest
 import torch
+from nnrl.nn.actor import Alpha
+from nnrl.nn.critic import ClippedQValue, SoftValue
 
 from raylab.policy.losses import DynaQLearning
-from raylab.policy.modules.actor import Alpha
-from raylab.policy.modules.critic import ClippedQValue, SoftValue
 
 
 @pytest.fixture
@@ -19,11 +19,6 @@ def actor(stochastic_policy):
 @pytest.fixture
 def target_critic(actor, action_critics):
     return SoftValue(actor, ClippedQValue(action_critics[1]), Alpha(1.0))
-
-
-@pytest.fixture
-def model_samples():
-    return 2
 
 
 @pytest.fixture

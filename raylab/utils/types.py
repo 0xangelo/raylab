@@ -9,6 +9,4 @@ RewardFn = Callable[[Tensor, Tensor, Tensor], Tensor]
 
 StatDict = Dict[str, Union[float, int]]
 
-TensorDict = Dict[str, Tensor]
-
 TerminationFn = Callable[[Tensor, Tensor, Tensor], Tensor]

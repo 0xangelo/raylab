@@ -1,15 +1,15 @@
 import pytest
 import torch
-from ray.rllib import SampleBatch
-
-from raylab.policy.modules.actor import (
+from nnrl.nn.actor import (
     Alpha,
     DeterministicPolicy,
     MLPContinuousPolicy,
     MLPDeterministicPolicy,
 )
-from raylab.policy.modules.critic import ActionValueCritic, MLPVValue
-from raylab.policy.modules.model import EnsembleSpec, build_ensemble, build_single
+from nnrl.nn.critic import ActionValueCritic, MLPVValue
+from nnrl.nn.model import EnsembleSpec, build_ensemble, build_single
+from ray.rllib import SampleBatch
+
 from raylab.utils.debug import fake_batch
 
 
@@ -38,11 +38,6 @@ def batch(obs_space, action_space):
 @pytest.fixture
 def obs(batch):
     return batch[SampleBatch.CUR_OBS]
-
-
-@pytest.fixture
-def act(batch):
-    return batch[SampleBatch.ACTIONS]
 
 
 @pytest.fixture

@@ -2,8 +2,8 @@
 from dataclasses import dataclass, field
 
 from gym.spaces import Box
+from nnrl.nn.model import EnsembleSpec, build_ensemble
 
-from .model.stochastic import EnsembleSpec, build_ensemble
 from .sop import SOP, ActorSpec, CriticSpec, SOPSpec
 
 

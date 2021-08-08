@@ -2,14 +2,14 @@
 from typing import List, Tuple, Union
 
 import torch
-import torch.nn as nn
+from nnrl.nn.model import SME, ForkedSME, StochasticModel
+from nnrl.types import TensorDict
 from ray.rllib import SampleBatch
-from torch import Tensor
+from torch import Tensor, nn
 from torch.jit import fork, wait
 
-from raylab.policy.modules.model import SME, ForkedSME, StochasticModel
 from raylab.utils.dictionaries import get_keys
-from raylab.utils.types import StatDict, TensorDict
+from raylab.utils.types import StatDict
 
 from .abstract import Loss
 

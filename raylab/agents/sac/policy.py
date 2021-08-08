@@ -1,7 +1,11 @@
 """SAC policy class using PyTorch."""
 import torch
-import torch.nn as nn
+from nnrl.nn.critic import SoftValue
+from nnrl.nn.utils import update_polyak
+from nnrl.optim import build_optimizer
+from nnrl.types import TensorDict
 from ray.rllib.utils import override
+from torch import nn
 
 from raylab.options import configure, option
 from raylab.policy import TorchPolicy
@@ -11,11 +15,7 @@ from raylab.policy.losses import (
     MaximumEntropyDual,
     ReparameterizedSoftPG,
 )
-from raylab.policy.modules.critic import SoftValue
 from raylab.policy.off_policy import OffPolicyMixin, off_policy_options
-from raylab.torch.nn.utils import update_polyak
-from raylab.torch.optim import build_optimizer
-from raylab.utils.types import TensorDict
 
 
 @configure

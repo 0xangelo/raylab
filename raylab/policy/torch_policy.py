@@ -1,25 +1,23 @@
 """Base for all PyTorch policies."""
 import textwrap
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Type, Union
 
 import torch
-import torch.nn as nn
 from gym.spaces import Space
+from nnrl.utils import convert_to_tensor
 from ray.rllib import Policy, SampleBatch
 from ray.rllib.evaluation.episode import MultiAgentEpisode
-from ray.rllib.models.action_dist import ActionDistribution
 from ray.rllib.models.modelv2 import flatten, restore_original_dimensions
 from ray.rllib.policy.view_requirement import ViewRequirement
 from ray.rllib.utils import override
 from ray.rllib.utils.torch_ops import convert_to_non_torch_type, convert_to_torch_tensor
 from ray.rllib.utils.typing import ModelGradients, TensorType
 from ray.tune.logger import pretty_print
-from torch import Tensor
+from torch import Tensor, nn
 
 from raylab.options import RaylabOptions, configure, option
-from raylab.torch.utils import convert_to_tensor
-from raylab.utils.types import StatDict, TensorDict
 
+from .action_dist import BaseActionDist
 from .compat import WrapRawModule
 from .modules import get_module
 from .optimizer_collection import OptimizerCollection
@@ -37,6 +35,8 @@ from .optimizer_collection import OptimizerCollection
 @option("num_workers", default=0)
 @option("seed", default=None)
 @option("worker_index", default=0)
+@option("normalize_actions", default=True)
+@option("clip_actions", default=False)
 @option(
     "module/",
     help="Type and config of the PyTorch NN module.",
@@ -68,6 +68,7 @@ class TorchPolicy(Policy):
 
     observation_space: Space
     action_space: Space
+    dist_class: Type[BaseActionDist]
     config: dict
     global_config: dict
     device: torch.device
@@ -78,7 +79,7 @@ class TorchPolicy(Policy):
 
     def __init__(self, observation_space: Space, action_space: Space, config: dict):
         # Allow subclasses to set `dist_class` before calling init
-        action_dist = getattr(self, "dist_class", None)
+        action_dist: Optional[Type[BaseActionDist]] = getattr(self, "dist_class", None)
         super().__init__(observation_space, action_space, self._build_config(config))
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -95,7 +96,7 @@ class TorchPolicy(Policy):
         self.optimizers = self._make_optimizers()
 
         # === Policy attributes ===
-        self.dist_class = action_dist
+        self.dist_class: Type[BaseActionDist] = action_dist
         self.dist_class.check_model_compat(self.module)
         self.framework = "torch"  # Needed to create exploration
         self.exploration = self._create_exploration()
@@ -120,6 +121,8 @@ class TorchPolicy(Policy):
             "num_workers",
             "seed",
             "worker_index",
+            "normalize_actions",
+            "clip_actions",
         }
 
     def compile(self):
@@ -160,14 +163,13 @@ class TorchPolicy(Policy):
         # Call the exploration before_compute_actions hook.
         self.exploration.before_compute_actions(timestep=timestep)
 
-        dist_inputs, state_out = self._compute_module_output(
-            self._unpack_observations(input_dict),
-            state_batches,
-            self.convert_to_tensor([1]),
+        unpacked = unpack_observations(
+            input_dict, self.observation_space, self.framework
         )
+        state_out = state_batches
 
         # pylint:disable=not-callable
-        action_dist = self.dist_class(dist_inputs, self.model)
+        action_dist = self.dist_class({"obs": unpacked["obs"]}, self.model)
         # pylint:enable=not-callable
         actions, logp = self.exploration.get_exploration_action(
             action_distribution=action_dist, timestep=timestep, explore=explore
@@ -175,10 +177,7 @@ class TorchPolicy(Policy):
         input_dict[SampleBatch.ACTIONS] = actions
 
         # Add default and custom fetches.
-        extra_fetches = self._extra_action_out(
-            input_dict, state_batches, self.module, action_dist
-        )
-
+        extra_fetches = {}
         if logp is not None:
             extra_fetches[SampleBatch.ACTION_PROB] = logp.exp()
             extra_fetches[SampleBatch.ACTION_LOGP] = logp
@@ -203,10 +202,11 @@ class TorchPolicy(Policy):
         state_batches: Optional[List[TensorType]] = None,
         prev_action_batch: Optional[Union[List[TensorType], TensorType]] = None,
         prev_reward_batch: Optional[Union[List[TensorType], TensorType]] = None,
+        actions_normalized: bool = True,
     ) -> TensorType:
         # pylint:disable=too-many-arguments
         input_dict = self.lazy_tensor_dict(
-            {SampleBatch.CUR_OBS: obs_batch, SampleBatch.ACTIONS: actions}
+            SampleBatch({SampleBatch.CUR_OBS: obs_batch, SampleBatch.ACTIONS: actions})
         )
         if prev_action_batch:
             input_dict[SampleBatch.PREV_ACTIONS] = prev_action_batch
@@ -214,7 +214,7 @@ class TorchPolicy(Policy):
             input_dict[SampleBatch.PREV_REWARDS] = prev_reward_batch
 
         dist_inputs, _ = self.module(
-            self._unpack_observations(input_dict),
+            unpack_observations(input_dict, self.observation_space, self.framework),
             state_batches,
             self.convert_to_tensor([1]),
         )
@@ -346,61 +346,6 @@ class TorchPolicy(Policy):
         # pylint:disable=no-self-use
         return OptimizerCollection()
 
-    def _unpack_observations(self, input_dict):
-        restored = input_dict.copy()
-        restored["obs"] = restore_original_dimensions(
-            input_dict["obs"], self.observation_space, self.framework
-        )
-        if len(input_dict["obs"].shape) > 2:
-            restored["obs_flat"] = flatten(input_dict["obs"], self.framework)
-        else:
-            restored["obs_flat"] = input_dict["obs"]
-        return restored
-
-    def _compute_module_output(
-        self, input_dict: TensorDict, state: List[Tensor], seq_lens: Tensor
-    ) -> Tuple[TensorDict, List[Tensor]]:
-        """Call the module with the given input tensors and state.
-
-        This mirrors the method used by RLlib to execute the forward pass. Nested
-        observation tensors are unpacked before this function is called.
-
-        Subclasses should override this for custom forward passes (e.g., for recurrent
-        networks).
-
-        Args:
-            input_dict: dictionary of input tensors, including "obs",
-                "prev_action", "prev_reward", "is_training"
-            state: list of state tensors with sizes matching those returned
-                by get_initial_state + the batch dimension
-            seq_lens: 1d tensor holding input sequence lengths
-
-        Returns:
-            A tuple containg an input dictionary to the policy's `dist_class`
-            and a list of rnn state tensors
-        """
-        # pylint:disable=unused-argument,no-self-use
-        return {"obs": input_dict["obs"]}, state
-
-    def _extra_action_out(
-        self,
-        input_dict: TensorDict,
-        state_batches: List[Tensor],
-        module: nn.Module,
-        action_dist: ActionDistribution,
-    ) -> StatDict:
-        """Returns dict of extra info to include in experience batch.
-
-        Args:
-            input_dict: Dict of model input tensors.
-            state_batches: List of state tensors.
-            model: Reference to the model.
-            action_dist: Action dist object
-                to get log-probs (e.g. for already sampled actions).
-        """
-        # pylint:disable=unused-argument,no-self-use
-        return {}
-
     # ==========================================================================
     # Unimplemented Policy methods
     # ==========================================================================
@@ -413,3 +358,16 @@ class TorchPolicy(Policy):
 
     def import_model_from_h5(self, import_file):
         pass
+
+
+def unpack_observations(input_dict, observation_space: Space, framework: str):
+    """Cast observations to original space and add a separate flattened view."""
+    restored = input_dict.copy()
+    restored["obs"] = restore_original_dimensions(
+        input_dict["obs"], observation_space, framework
+    )
+    if len(input_dict["obs"].shape) > 2:
+        restored["obs_flat"] = flatten(input_dict["obs"], framework)
+    else:
+        restored["obs_flat"] = input_dict["obs"]
+    return restored

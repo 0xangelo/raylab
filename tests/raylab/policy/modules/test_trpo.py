@@ -1,7 +1,7 @@
 import pytest
+from nnrl.nn.actor import StochasticPolicy
+from nnrl.nn.critic import VValue
 
-from raylab.policy.modules.actor import StochasticPolicy
-from raylab.policy.modules.critic import VValue
 from raylab.policy.modules.trpo import TRPO
 
 

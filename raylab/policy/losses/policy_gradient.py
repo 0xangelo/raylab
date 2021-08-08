@@ -2,12 +2,13 @@
 from typing import Optional, Tuple, Union
 
 import torch
+from nnrl.nn.actor import Alpha, DeterministicPolicy, StochasticPolicy
+from nnrl.nn.critic import ClippedQValue, QValue, QValueEnsemble
+from nnrl.types import TensorDict
 from ray.rllib import SampleBatch
 from torch import Tensor
 
-from raylab.policy.modules.actor import Alpha, DeterministicPolicy, StochasticPolicy
-from raylab.policy.modules.critic import ClippedQValue, QValue, QValueEnsemble
-from raylab.utils.types import StatDict, TensorDict
+from raylab.utils.types import StatDict
 
 from .abstract import Loss
 from .utils import action_dpg, dist_params_stats

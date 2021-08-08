@@ -2,7 +2,7 @@
 from typing import List
 
 import numpy as np
-import torch.nn as nn
+from torch import nn
 
 
 class Base(nn.Module):

@@ -20,17 +20,14 @@ def lightning_warnings_only():
 @contextlib.contextmanager
 def suppress_dataloader_warnings():
     """Ignore PyTorch Lightning warnings regarding num of dataloader workers."""
+    ignore = functools.partial(
+        warnings.filterwarnings,
+        "ignore",
+        module="pytorch_lightning.trainer.data_loading",
+    )
     with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message=".*Consider increasing the value of the `num_workers`.*",
-            module="pytorch_lightning.utilities.distributed",
-        )
-        warnings.filterwarnings(
-            "ignore",
-            message="One of given dataloaders is None.*",
-            module="pytorch_lightning.utilities.distributed",
-        )
+        ignore(message="The dataloader, .+, does not have many workers")
+        ignore(message="One of given dataloaders is None")
         yield
 
 

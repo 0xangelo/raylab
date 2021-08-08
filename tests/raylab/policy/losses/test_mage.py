@@ -1,9 +1,9 @@
 import pytest
 import torch
+from nnrl.nn.critic import HardValue
 from ray.rllib import SampleBatch
 
 from raylab.policy.losses.mage import MAGE
-from raylab.policy.modules.critic import HardValue
 
 
 @pytest.fixture
@@ -54,11 +54,6 @@ def test_mage_init(raw_loss, reward_fn, termination_fn):
 
     loss_fn.seed(42)
     assert hasattr(loss_fn, "_rng")
-
-
-@pytest.fixture(params=(False, True), ids=("Eager", "Script"))
-def script(request):
-    return request.param
 
 
 def test_compile(loss_fn):

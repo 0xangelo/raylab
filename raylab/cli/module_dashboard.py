@@ -2,6 +2,7 @@
 import logging
 import sys
 
+import nnrl.utils as ptu
 import numpy as np
 import pandas as pd
 import ray
@@ -13,7 +14,6 @@ from bokeh.plotting import figure
 from ray.rllib import SampleBatch
 
 import raylab
-import raylab.torch.utils as ptu
 import raylab.utils.dictionaries as dutil
 from raylab.utils.checkpoints import get_agent_from_checkpoint
 

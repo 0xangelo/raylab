@@ -2,15 +2,15 @@
 from typing import Callable, List, Tuple
 
 import torch
-import torch.nn as nn
+from nnrl.nn.actor import Alpha, StochasticPolicy
+from nnrl.nn.critic import VValue
+from nnrl.nn.model import StochasticModel
+from nnrl.types import TensorDict
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
-from torch import Tensor
+from torch import Tensor, nn
 
-from raylab.policy.modules.actor import Alpha, StochasticPolicy
-from raylab.policy.modules.critic import VValue
-from raylab.policy.modules.model import StochasticModel
-from raylab.utils.types import RewardFn, StatDict, TensorDict
+from raylab.utils.types import RewardFn, StatDict
 
 from .abstract import Loss
 from .mixins import EnvFunctionsMixin

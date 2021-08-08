@@ -3,7 +3,7 @@ import math
 from typing import Callable, Optional
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from raylab.tune.registry import RAYLAB_REWARD, _raylab_registry
 

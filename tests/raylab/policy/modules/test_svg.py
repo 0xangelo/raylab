@@ -1,9 +1,9 @@
 import pytest
 import torch
+from nnrl.nn.actor import StochasticPolicy
+from nnrl.nn.critic import VValue
+from nnrl.nn.model import StochasticModel
 
-from raylab.policy.modules.actor import StochasticPolicy
-from raylab.policy.modules.critic import VValue
-from raylab.policy.modules.model import StochasticModel
 from raylab.policy.modules.svg import SVG
 
 

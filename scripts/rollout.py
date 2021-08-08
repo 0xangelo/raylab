@@ -2,8 +2,7 @@
 # pylint:disable=missing-docstring
 from contextlib import suppress
 
-from ray.rllib.rollout import create_parser
-from ray.rllib.rollout import run
+from ray.rllib.rollout import create_parser, run
 
 import raylab
 

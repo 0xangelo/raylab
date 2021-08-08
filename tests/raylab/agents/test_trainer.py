@@ -41,11 +41,6 @@ def train_batch_size():
     return 1
 
 
-@pytest.fixture(params=(0, 1000), ids=lambda x: f"LearningStarts:{x}")
-def learning_starts(request):
-    return request.param
-
-
 @pytest.fixture
 def policy_config():
     return {}

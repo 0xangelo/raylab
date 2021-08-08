@@ -1,6 +1,5 @@
 from ray import tune
 
-
 GAUSSIAN = {
     "type": "MaxEntModelBased",
     "torch_script": False,

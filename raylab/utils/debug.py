@@ -1,6 +1,6 @@
 """Debugging utilities."""
-import gym.spaces as spaces
 import numpy as np
+from gym import spaces
 from ray.rllib import SampleBatch
 
 

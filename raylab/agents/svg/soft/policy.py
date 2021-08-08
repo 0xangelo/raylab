@@ -1,17 +1,17 @@
 """SoftSVG policy class using PyTorch."""
 import torch
-import torch.nn as nn
+from nnrl.optim import build_optimizer
+from nnrl.types import TensorDict
 from ray.rllib import SampleBatch
 from ray.rllib.utils import override
+from torch import nn
 
 from raylab.agents.svg import SVGTorchPolicy
 from raylab.options import configure, option
 from raylab.policy import EnvFnMixin
 from raylab.policy.losses import ISSoftVIteration, MaximumEntropyDual, OneStepSoftSVG
 from raylab.policy.off_policy import OffPolicyMixin, off_policy_options
-from raylab.torch.optim import build_optimizer
 from raylab.utils.replay_buffer import ReplayField
-from raylab.utils.types import TensorDict
 
 
 def default_optimizer() -> dict:

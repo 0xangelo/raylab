@@ -3,8 +3,8 @@ import textwrap
 from abc import ABCMeta, abstractmethod
 from typing import Optional
 
-import torch.nn as nn
 from ray.rllib.utils.exploration import Exploration
+from torch import nn
 
 Model = Optional[nn.Module]
 

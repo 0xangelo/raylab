@@ -1,13 +1,12 @@
 """Architecture used in Stochastic Value Gradients."""
 from dataclasses import dataclass, field
 
-import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
-
-from .actor import StochasticActor
-from .critic import MLPVValue
-from .model import ResidualStochasticModel, SVGModel
+from nnrl.nn.actor import StochasticActor
+from nnrl.nn.critic import MLPVValue
+from nnrl.nn.model import ResidualStochasticModel, SVGModel
+from torch import nn
 
 ModelSpec = SVGModel.spec_cls
 CriticSpec = MLPVValue.spec_cls

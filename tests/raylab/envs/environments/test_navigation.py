@@ -3,9 +3,9 @@ from functools import partial
 import numpy as np
 import pytest
 import torch
+from nnrl.utils import convert_to_tensor
 
 from raylab.envs import get_env_creator
-from raylab.torch.utils import convert_to_tensor
 
 DECELERATION_ZONES = (
     {"center": [[0.0, 0.0]], "decay": [2.0]},

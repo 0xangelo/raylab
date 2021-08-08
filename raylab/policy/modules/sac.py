@@ -1,12 +1,11 @@
 """NN architecture used in Soft Actor-Critic."""
 from dataclasses import dataclass, field
 
-import torch.nn as nn
 from dataclasses_json import DataClassJsonMixin
 from gym.spaces import Box
-
-from .actor.stochastic import StochasticActor
-from .critic.action_value import ActionValueCritic
+from nnrl.nn.actor import StochasticActor
+from nnrl.nn.critic import ActionValueCritic
+from torch import nn
 
 ActorSpec = StochasticActor.spec_cls
 CriticSpec = ActionValueCritic.spec_cls

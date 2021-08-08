@@ -3,15 +3,6 @@ import torch
 from ray.rllib import SampleBatch
 
 
-@pytest.fixture(
-    params=(pytest.param(True, marks=pytest.mark.slow), False),
-    ids=("TorchScript", "Eager"),
-    scope="module",
-)
-def torch_script(request):
-    return request.param
-
-
 @pytest.fixture(scope="module")
 def batch(obs_space, action_space):
     from raylab.utils.debug import fake_batch
@@ -28,16 +19,6 @@ def obs(batch):
 @pytest.fixture
 def action(batch):
     return batch[SampleBatch.ACTIONS]
-
-
-@pytest.fixture
-def reward(batch):
-    return batch[SampleBatch.REWARDS]
-
-
-@pytest.fixture
-def done(batch):
-    return batch[SampleBatch.DONES]
 
 
 @pytest.fixture
