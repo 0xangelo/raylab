@@ -395,7 +395,7 @@ toml = ["toml"]
 
 [[package]]
 name = "dataclasses-json"
-version = "0.5.4"
+version = "0.5.5"
 description = "Easily serialize dataclasses to and from JSON"
 category = "main"
 optional = false
@@ -404,11 +404,10 @@ python-versions = ">=3.6"
 [package.dependencies]
 marshmallow = ">=3.3.0,<4.0.0"
 marshmallow-enum = ">=1.5.1,<2.0.0"
-stringcase = "1.2.0"
 typing-inspect = ">=0.4.0"
 
 [package.extras]
-dev = ["pytest (>=6.2.3)", "ipython", "mypy (>=0.710)", "hypothesis", "portray", "flake8", "simplejson"]
+dev = ["pytest (>=6.2.3)", "ipython", "mypy (>=0.710)", "hypothesis", "portray", "flake8", "simplejson", "types-dataclasses"]
 
 [[package]]
 name = "decorator"
@@ -2105,14 +2104,6 @@ validators = "*"
 watchdog = {version = "*", markers = "platform_system != \"Darwin\""}
 
 [[package]]
-name = "stringcase"
-version = "1.2.0"
-description = "String case converter."
-category = "main"
-optional = false
-python-versions = "*"
-
-[[package]]
 name = "tabulate"
 version = "0.8.9"
 description = "Pretty-print tabular data"
@@ -2790,8 +2781,8 @@ coverage = [
     {file = "coverage-5.5.tar.gz", hash = "sha256:ebe78fe9a0e874362175b02371bdfbee64d8edc42a044253ddf4ee7d3c15212c"},
 ]
 dataclasses-json = [
-    {file = "dataclasses-json-0.5.4.tar.gz", hash = "sha256:6c3976816fd3cdd8db3be2b516b64fc083acd46ac22c680d3dc24cb1d6ae3367"},
-    {file = "dataclasses_json-0.5.4-py3-none-any.whl", hash = "sha256:0b25143f621d0122a2de123c156a5f6909c28d0fdd8c2e1ca2a6e4042130ad32"},
+    {file = "dataclasses-json-0.5.5.tar.gz", hash = "sha256:381c184e047b738397d8c8fa2f3989a96307149040891ba1b99cd63901c8134c"},
+    {file = "dataclasses_json-0.5.5-py3-none-any.whl", hash = "sha256:68e0851451962fa9019958b99af316a0469c371ecfe45c937a4e2f4c43c0ff63"},
 ]
 decorator = [
     {file = "decorator-5.0.9-py3-none-any.whl", hash = "sha256:6e5c199c16f7a9f0e3a61a4a54b3d27e7dad0dbdde92b944426cb20914376323"},
@@ -4067,9 +4058,6 @@ sphinxcontrib-serializinghtml = [
 streamlit = [
     {file = "streamlit-0.85.1-py2.py3-none-any.whl", hash = "sha256:a39832915624641482878558bf366be99d40fd460167e24c204e4c12f64fcf4f"},
     {file = "streamlit-0.85.1.tar.gz", hash = "sha256:b94b1ab701fee40826927834a080e35e16ef507d5b421132863a2e4c9d850429"},
-]
-stringcase = [
-    {file = "stringcase-1.2.0.tar.gz", hash = "sha256:48a06980661908efe8d9d34eab2b6c13aefa2163b3ced26972902e3bdfd87008"},
 ]
 tabulate = [
     {file = "tabulate-0.8.9-py3-none-any.whl", hash = "sha256:d7c013fe7abbc5e491394e10fa845f8f32fe54f8dc60c6622c6cf482d25d47e4"},
