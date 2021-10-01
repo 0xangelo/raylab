@@ -465,7 +465,7 @@ pyflakes = ">=2.3.0,<2.4.0"
 
 [[package]]
 name = "fsspec"
-version = "2021.8.1"
+version = "2021.9.0"
 description = "File-system specification"
 category = "main"
 optional = false
@@ -478,15 +478,20 @@ requests = {version = "*", optional = true, markers = "extra == \"http\""}
 [package.extras]
 abfs = ["adlfs"]
 adl = ["adlfs"]
+arrow = ["pyarrow (>=1)"]
 dask = ["dask", "distributed"]
 dropbox = ["dropboxdrivefs", "requests", "dropbox"]
 entrypoints = ["importlib-metadata"]
+fuse = ["fusepy"]
 gcs = ["gcsfs"]
 git = ["pygit2"]
 github = ["requests"]
 gs = ["gcsfs"]
+gui = ["panel"]
 hdfs = ["pyarrow (>=1)"]
 http = ["requests", "aiohttp"]
+libarchive = ["libarchive-c"]
+oci = ["ocifs"]
 s3 = ["s3fs"]
 sftp = ["paramiko"]
 smb = ["smbprotocol"]
@@ -697,7 +702,7 @@ test = ["pytest (!=5.3.4)", "pytest-cov", "flaky", "nose", "jedi (<=0.17.2)"]
 
 [[package]]
 name = "ipython"
-version = "7.27.0"
+version = "7.28.0"
 description = "IPython: Productive Interactive Computing"
 category = "main"
 optional = false
@@ -2430,7 +2435,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "dce69054685faa09c797e5fd21be58bb9e2a7e96065ab0579e63b61d1acdadcc"
+content-hash = "eb8fa01c35951be089f0413a3447669ea4f69f3e47941fc44b0520a6291d93a8"
 
 [metadata.files]
 absl-py = [
@@ -2762,8 +2767,8 @@ flake8 = [
     {file = "flake8-3.9.2.tar.gz", hash = "sha256:07528381786f2a6237b061f6e96610a4167b226cb926e2aa2b6b1d78057c576b"},
 ]
 fsspec = [
-    {file = "fsspec-2021.8.1-py3-none-any.whl", hash = "sha256:30f27c059a414d1f434b14b2d0e75c8d9c3dd473ad8daeccb444d9d4069b9f03"},
-    {file = "fsspec-2021.8.1.tar.gz", hash = "sha256:af125917788b77782899bbd4484d29e5407f53d2bb04cdfa025fe4931201a555"},
+    {file = "fsspec-2021.9.0-py3-none-any.whl", hash = "sha256:fbddcce8dd2bf7ae348b6930b67a572ba36aa7b1d2a02b122f969e7e9819dd9a"},
+    {file = "fsspec-2021.9.0.tar.gz", hash = "sha256:b5bbe7846c571597e013a917483d561d712ef1e8a13b71629ea8a24c6ffbc3e9"},
 ]
 future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
@@ -2873,8 +2878,8 @@ ipykernel = [
     {file = "ipykernel-5.5.5.tar.gz", hash = "sha256:e976751336b51082a89fc2099fb7f96ef20f535837c398df6eab1283c2070884"},
 ]
 ipython = [
-    {file = "ipython-7.27.0-py3-none-any.whl", hash = "sha256:75b5e060a3417cf64f138e0bb78e58512742c57dc29db5a5058a2b1f0c10df02"},
-    {file = "ipython-7.27.0.tar.gz", hash = "sha256:58b55ebfdfa260dad10d509702dc2857cb25ad82609506b070cf2d7b7df5af13"},
+    {file = "ipython-7.28.0-py3-none-any.whl", hash = "sha256:f16148f9163e1e526f1008d7c8d966d9c15600ca20d1a754287cf96d00ba6f1d"},
+    {file = "ipython-7.28.0.tar.gz", hash = "sha256:2097be5c814d1b974aea57673176a924c4c8c9583890e7a5f082f547b9975b11"},
 ]
 ipython-genutils = [
     {file = "ipython_genutils-0.2.0-py2.py3-none-any.whl", hash = "sha256:72dd37233799e619666c9f639a9da83c34013a73e8bbc79a7a6348d93c61fab8"},
