@@ -35,7 +35,7 @@ nnrl = "^0.1.0"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.9.2"
-pylint = "^2.10.2"
+pylint = "^2.12.1"
 watchdog = "^2.1.5"
 black = "^21.8b0"
 tox = "^3.24.3"
