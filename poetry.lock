@@ -1344,7 +1344,7 @@ tomlkit = ">=0.4.6,<0.6.0"
 
 [[package]]
 name = "pre-commit"
-version = "2.14.1"
+version = "2.17.0"
 description = "A framework for managing and maintaining multi-language pre-commit hooks."
 category = "dev"
 optional = false
@@ -3460,8 +3460,8 @@ poetry-version = [
     {file = "poetry_version-0.1.5-py2.py3-none-any.whl", hash = "sha256:ba259257640cd36c76375563a001b9e85c6f54d764cc56b3eed0f3b5cefb0317"},
 ]
 pre-commit = [
-    {file = "pre_commit-2.14.1-py2.py3-none-any.whl", hash = "sha256:a22d12a02da4d8df314187dfe7a61bda6291d57992060522feed30c8cd658b68"},
-    {file = "pre_commit-2.14.1.tar.gz", hash = "sha256:7977a3103927932d4823178cbe4719ab55bb336f42a9f3bb2776cff99007a117"},
+    {file = "pre_commit-2.17.0-py2.py3-none-any.whl", hash = "sha256:725fa7459782d7bec5ead072810e47351de01709be838c2ce1726b9591dad616"},
+    {file = "pre_commit-2.17.0.tar.gz", hash = "sha256:c1a8040ff15ad3d648c70cc3e55b93e4d2d5b687320955505587fd79bbaed06a"},
 ]
 prometheus-client = [
     {file = "prometheus_client-0.11.0-py2.py3-none-any.whl", hash = "sha256:b014bc76815eb1399da8ce5fc84b7717a3e63652b0c0f8804092c9363acab1b2"},
