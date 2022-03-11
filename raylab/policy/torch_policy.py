@@ -154,9 +154,9 @@ class TorchPolicy(Policy):
         input_dict = self.lazy_tensor_dict(
             SampleBatch({SampleBatch.CUR_OBS: obs_batch, "is_training": False})
         )
-        if prev_action_batch:
+        if prev_action_batch is not None:
             input_dict[SampleBatch.PREV_ACTIONS] = prev_action_batch
-        if prev_reward_batch:
+        if prev_reward_batch is not None:
             input_dict[SampleBatch.PREV_REWARDS] = prev_reward_batch
         state_batches = convert_to_torch_tensor(state_batches or [], device=self.device)
 
@@ -208,9 +208,9 @@ class TorchPolicy(Policy):
         input_dict = self.lazy_tensor_dict(
             SampleBatch({SampleBatch.CUR_OBS: obs_batch, SampleBatch.ACTIONS: actions})
         )
-        if prev_action_batch:
+        if prev_action_batch is not None:
             input_dict[SampleBatch.PREV_ACTIONS] = prev_action_batch
-        if prev_reward_batch:
+        if prev_reward_batch is not None:
             input_dict[SampleBatch.PREV_REWARDS] = prev_reward_batch
 
         dist_inputs, _ = self.module(
@@ -350,7 +350,16 @@ class TorchPolicy(Policy):
     # Unimplemented Policy methods
     # ==========================================================================
 
-    def export_model(self, export_dir):
+    def get_num_samples_loaded_into_buffer(self, buffer_index: int = 0) -> int:
+        pass
+
+    def learn_on_loaded_batch(self, offset: int = 0, buffer_index: int = 0):
+        pass
+
+    def load_batch_into_buffer(self, batch: SampleBatch, buffer_index: int = 0) -> int:
+        pass
+
+    def export_model(self, export_dir: str, onnx: Optional[int] = None) -> None:
         pass
 
     def export_checkpoint(self, export_dir):
